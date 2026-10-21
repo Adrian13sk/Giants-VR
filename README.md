@@ -21,3 +21,7 @@ The long-term goal is to preserve the original game's distinctive characters, ga
 **Status:** Experimental development. The project is evolving from a working VR development demo toward a more complete playable port. Features and compatibility are subject to ongoing development and testing.
 
 This is an independent, unofficial project and is not affiliated with or endorsed by the original game's developers or publisher. Original game assets remain the property of their respective rights holders.
+
+**DEVDEMO SHOWCASE**
+*As of 21.10.2026*
+Can be viewed via this youtube link: https://youtu.be/8XQV-6sYn4s
