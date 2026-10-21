@@ -44,9 +44,20 @@ void VrRig::update(float dt, const InputFrame& in) {
         worldFromTracking.orientation = normalize(worldFromTracking.orientation);
     }
 
-    // --- Smooth locomotion on the horizontal plane ---
+    // --- Smooth locomotion (horizontal plane when walking, full 3D when flying) ---
     float sx = applyDeadzone(mv.thumbstick.x, comfort.stickDeadzone);
     float sy = applyDeadzone(mv.thumbstick.y, comfort.stickDeadzone);
+    const float boost = mv.squeeze > 0.5f ? comfort.boostMultiplier : 1.0f;
+    if (flyMode) {
+        const float speed = comfort.flySpeed * boost;
+        Quat basis = in.headValid ? toWorld(in.head).orientation : worldFromTracking.orientation;
+        Vec3 delta = basis.rotate(Vec3{sx, 0, -sy}) * (speed * dt);
+        // Turn stick Y: straight up / down (turning only uses X).
+        const float vy = applyDeadzone(tn.thumbstick.y, comfort.stickDeadzone);
+        delta.y += vy * speed * dt;
+        worldFromTracking.position += delta;
+        return;  // noclip: no ground following
+    }
     if (sx != 0.0f || sy != 0.0f) {
         Quat basis = worldFromTracking.orientation;
         if (comfort.moveRelativeToHead && in.headValid) {
@@ -57,7 +68,7 @@ void VrRig::update(float dt, const InputFrame& in) {
         float yaw = yawOf(basis);
         Quat yq = Quat::fromAxisAngle({0, 1, 0}, yaw);
         Vec3 local{sx, 0, -sy};
-        Vec3 delta = yq.rotate(local) * (comfort.moveSpeed * dt);
+        Vec3 delta = yq.rotate(local) * (comfort.moveSpeed * boost * dt);
         worldFromTracking.position += delta;
     }
 

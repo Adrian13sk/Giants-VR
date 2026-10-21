@@ -52,6 +52,7 @@ private:
     std::vector<HapticRequest> haptics_;
     ButtonEdge triggerEdge_[2];
     ButtonEdge modeEdge_;
+    ButtonEdge flyEdge_;
     bool showTestScene_ = true;
     bool needSpawn_ = false;
     double time_ = 0.0;

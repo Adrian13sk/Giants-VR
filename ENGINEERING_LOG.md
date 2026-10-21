@@ -114,3 +114,11 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - Story2: 0, because its world stream stops before op 92 (B5).
 - **Frustum culling:** sphere-vs-plane (Gribb-Hartmann planes from viewProj; infinite far plane) plus a fog-distance cull
   for placed objects. Village ground view: 286 → 185 draw calls, pixel-identical output (diff bbox None).
+
+### Debug fly/noclip mode (2026-10-21 14:50, user request)
+- **Toggle:** Y (the move hand's secondary button). Haptic feedback: 0.9 amplitude for 0.15 s when it turns on, 0.3 for 0.05 s when it turns off.
+- **Flying:** the move stick follows the full head orientation, so pitch is included. Turn-stick Y moves straight up or down. Flying uses no ground following and no collision.
+- **Leaving fly mode:** you drop back onto the terrain under your head.
+- **Boost:** holding the move-hand grip multiplies speed by 5, both walking (3→15 m/s) and flying (15→75 m/s).
+- **Tests:** unit tests cover the walking boost, climbing by looking up, descending below the ground (noclip), and re-attaching to the ground when fly mode is switched off.
+- Temporary aid for exploring maps. Not a comfort-safe locomotion mode.

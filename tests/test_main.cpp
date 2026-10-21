@@ -163,6 +163,31 @@ static void testRig() {
     r3.comfort.leftHanded = true;
     r3.update(1.0f, in);
     CHECK(near(r3.worldFromTracking.position.z, 0.0f));
+    // Grip boost while walking: 3 m/s x 5.
+    VrRig r4;
+    InputFrame b = in;
+    b.hand[kLeft].squeeze = 1.0f;
+    r4.update(1.0f, b);
+    CHECK(near(r4.worldFromTracking.position.z, -15.0f, 1e-3f));
+    // Fly mode: looking 90 deg up and pushing forward climbs; no ground snapping.
+    VrRig r5;
+    r5.flyMode = true;
+    r5.groundHeight = [](float, float) { return 0.0f; };
+    InputFrame f = in;
+    f.head.orientation = Quat::fromAxisAngle({1, 0, 0}, kPi / 2);
+    r5.update(1.0f, f);
+    CHECK(near(r5.worldFromTracking.position.y, 15.0f, 1e-3f));
+    CHECK(near(r5.worldFromTracking.position.z, 0.0f, 1e-3f));
+    // Turn-stick Y descends (below the ground: noclip).
+    f.hand[kLeft].thumbstick = {0, 0};
+    f.hand[kRight].thumbstick = {0, -1};
+    r5.update(2.0f, f);
+    CHECK(near(r5.worldFromTracking.position.y, -15.0f, 1e-3f));
+    // Leaving fly mode re-attaches to the ground.
+    r5.flyMode = false;
+    f.hand[kRight].thumbstick = {0, 0};
+    r5.update(0.016f, f);
+    CHECK(near(r5.worldFromTracking.position.y, 0.0f));
 }
 
 static void testGti() {

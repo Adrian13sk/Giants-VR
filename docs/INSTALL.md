@@ -40,13 +40,17 @@ and an fps line every 5 seconds.
 |---|---|
 | Left stick | Move, relative to where you look |
 | Right stick left/right | Snap turn, 30° |
+| Left grip (hold) | Speed boost ×5 (walking 15 m/s, flying 75 m/s) |
+| **Y** | **Debug fly/noclip on/off** (strong buzz = on, short tick = off) |
+| Fly mode: left stick | Fly where you look (look up/down to climb/dive), 15 m/s |
+| Fly mode: right stick up/down | Rise / descend straight up or down |
 | Left stick click | Toggle the engineering test geometry (floor grid, distance markers) |
 | Triggers | Haptic pulse (input test). The controller box turns red/green with trigger/grip |
 | A/B/X/Y/menu | Light up the indicator dots above each controller (input test) |
 | Long-press Oculus button | System recentre |
 
 Comfort defaults: snap turn, 3 m/s movement, no head bob, no camera shake. A smooth-turn and
-left-handed mode exist in code (`ComfortSettings`). There is no in-headset menu for them yet.
+left-handed mode exist in code (left-handed mode moves the fly toggle to B and the boost to the right grip) (`ComfortSettings`). There is no in-headset menu for them yet.
 
 ## Uninstall
 `adb uninstall io.github.giantsvr.dev`

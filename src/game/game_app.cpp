@@ -44,6 +44,13 @@ void GameApp::update(float dt, const InputFrame& in) {
         rig_.teleportHead(in, assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
         needSpawn_ = false;
     }
+    // Y (B when left-handed) toggles the debug fly/noclip mode. Haptics: double pulse = on.
+    const int mh = rig_.moveHand();
+    if (flyEdge_.pressed(in.hand[mh].secondary)) {
+        rig_.flyMode = !rig_.flyMode;
+        LOGI("Fly/noclip mode %s", rig_.flyMode ? "ON" : "OFF");
+        haptics_.push_back({mh, rig_.flyMode ? 0.9f : 0.3f, rig_.flyMode ? 0.15f : 0.05f});
+    }
     rig_.update(dt, in);
     if (assetWorld_) assetWorld_->update(dt);
 
