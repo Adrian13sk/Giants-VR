@@ -49,7 +49,7 @@ moves him too.
 | Left grip (hold) | Sprint ×1.5 | Speed boost ×5 |
 | Right stick left/right | Snap turn 30° | Snap turn 30° |
 | **Right trigger** | **Fire the Meccaryn gun** (hold for auto-fire, 5 shots/s) | Haptic test pulse |
-| **A** (hold) | **Jetpack** thrust; release to hover down and land (you can land on walls and roofs) | — |
+| **A** (hold) | **Jetpack**: thrust builds up speed gradually (up and forward); fuel lasts ~4 s and refills shortly after you stop (blue bar on the wrist) | — |
 | Right stick click | First ↔ third person (third: camera behind him) | — |
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
 | Y | — | Debug fly/noclip on/off (strong buzz = on) |

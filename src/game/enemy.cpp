@@ -90,8 +90,6 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 if (sees) { e.state = EnemyState::Advance; e.stateTime = 0; }
                 break;
             case EnemyState::Advance: {
-                setClip(e, EnemyClip::Walk, true);
-                turn(faceYaw);
                 if (!sees) { e.state = EnemyState::Idle; break; }
                 if (dist <= params.fireRange) {
                     e.state = EnemyState::Fire;
@@ -100,14 +98,35 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     e.fireCooldown = 0.3f;
                     break;
                 }
+                // Approach a point beside the player (each enemy has its own flank offset that
+                // changes every few seconds), so a group spreads out and circles in.
+                e.flankTimer -= dt;
+                if (e.flankTimer <= 0) {
+                    e.flank = (float(nextRand() % 2001) / 1000.0f - 1.0f) * 9.0f;
+                    e.flankTimer = 3.0f + float(nextRand() % 3000) / 1000.0f;
+                }
+                const Vec3 dirTo = to * (1.0f / std::max(dist, 1e-3f));
+                const Vec3 side{-dirTo.z, 0, dirTo.x};
+                const float lateral = e.flank * std::min(1.0f, dist / 25.0f);
+                const Vec3 goal{player.x + side.x * lateral - e.pos.x, 0, player.z + side.z * lateral - e.pos.z};
+                const bool run = dist > params.runRange;
+                setClip(e, run ? EnemyClip::Run : EnemyClip::Walk, true);
+                turn(std::atan2(-goal.x, -goal.z));
                 const Vec3 fwd{-std::sin(e.yaw), 0, -std::cos(e.yaw)};
-                e.pos += fwd * (params.walkSpeed * dt);
+                e.pos += fwd * ((run ? params.runSpeed : params.walkSpeed) * dt);
+                // Walking Reapers shoot as they come (the walk clip is a walk-and-fire cycle).
+                e.fireCooldown -= dt;
+                if (!run && dist <= params.shootRange && e.fireCooldown <= 0 &&
+                    std::fabs(angleDelta(e.yaw, faceYaw)) < 0.6f) {
+                    shooters.push_back(int(i));
+                    e.fireCooldown = params.fireInterval * 2.5f + float(nextRand() % 1000) * 0.0012f;
+                }
                 break;
             }
             case EnemyState::Fire:
                 turn(faceYaw);
                 if (!sees) { e.state = EnemyState::Idle; break; }
-                if (dist > params.fireRange * 1.3f) { e.state = EnemyState::Advance; break; }
+                if (dist > params.fireRange * 1.5f) { e.state = EnemyState::Advance; break; }
                 e.fireCooldown -= dt;
                 if (e.burstLeft > 0) {
                     setClip(e, EnemyClip::Fire, true);

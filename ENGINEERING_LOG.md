@@ -275,3 +275,18 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - Headless auto-aim (`--auto-aim`, test only): 12 hits killed wave 1 at about 29 m in 4 s; wave 2 spawned 8 s later.
   - Standing still for 12 s took the player from 100 to 23 health.
   - Renders show approaching Reapers, red bolts, the damage flash, the wrist bar and the TP crosshair on a Reaper.
+
+### Device test 10 feedback → Reaper movement, feet, jetpack (2026-10-21 21:45)
+- **User report:** "works fine", but the enemies stay in one place, their legs are underground, and the jetpack should work like the original: speed builds up gradually to a limit, with limited fuel that refills after a while.
+- **Legs:** rpman's model origin is at the waist. Measured posed min Y = −1.10 m on rpman_stand_scan, while the Meccaryn's origin is at his feet (min Y 0.00). Enemies are now lifted by the measured foot offset from the idle pose (render and muzzle).
+- **Movement:** they used to walk only ~8 m, then stand at 22 m. Now:
+  - Run (rpman_bzka_run, 3.7 m/s) beyond 30 m; walk-and-fire (rpman_walk_fire) within 35 m, shooting while advancing.
+  - Stop to stand-fire only at 10 m.
+  - Each Reaper approaches a flank point up to ±9 m beside the player, re-chosen every 3–6 s, so groups spread and circle.
+  - Simulation: nearest Reaper at 30 → 23 → 14 → 10 m over 15 s.
+- **Enemy accuracy:** spread 0.06 + 0.004/m and 5 damage (was 7).
+- **Jetpack:**
+  - Thrust 21 m/s² against gravity 14, rise cap 5 m/s.
+  - Horizontal speed builds at 4 m/s² up to 9 m/s while thrusting. Air momentum is kept, with 3 m/s² stick control.
+  - Fuel: 4 s of thrust, refilling after 1.2 s at 0.5 tank/s.
+  - Blue fuel bar under the wrist health bar. Unit-tested (gradual speed, empty tank, refill).

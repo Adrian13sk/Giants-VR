@@ -23,6 +23,7 @@ void PlayerController::teleport(const Vec3& p, float facingYaw) {
     yaw = facingYaw;
     velocity = {0, 0, 0};
     onGround = true;
+    fuel_ = params.fuelSeconds;
     anim_ = prevAnim_ = PlayerAnim::Idle;
     animTime_ = prevTime_ = 0;
     fade_ = 1e9f;
@@ -56,8 +57,33 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     const float dl = std::sqrt(dir.x * dir.x + dir.z * dir.z);
     if (dl > 1e-4f) dir = dir * (1.0f / dl);
     const float speed = params.runSpeed * mag * (in.sprint ? params.sprintFactor : 1.0f);
-    velocity.x = dir.x * speed;
-    velocity.z = dir.z * speed;
+    // Jetpack fuel: drains while thrusting, refills after a short delay.
+    thrusting_ = in.jet && fuel_ > 0.0f;
+    if (thrusting_) {
+        fuel_ = std::max(0.0f, fuel_ - dt);
+        sinceThrust_ = 0;
+    } else {
+        sinceThrust_ += dt;
+        if (sinceThrust_ > params.fuelRefillDelay)
+            fuel_ = std::min(params.fuelSeconds, fuel_ + params.fuelRefillRate * params.fuelSeconds * dt);
+    }
+    if (onGround && !thrusting_) {
+        // On foot: instant response (VR comfort).
+        velocity.x = dir.x * speed;
+        velocity.z = dir.z * speed;
+    } else {
+        // In the air: thrust builds horizontal speed gradually up to the jetpack's limit;
+        // without thrust, momentum carries and the stick steers gently.
+        const float top = thrusting_ ? params.jetAirSpeed * mag : std::max(speed, 0.0f);
+        const float accel = thrusting_ ? params.jetAirAccel : params.airAccel;
+        const float tx = dir.x * top, tz = dir.z * top;
+        float dx = tx - velocity.x, dz = tz - velocity.z;
+        const float step = accel * dt;
+        const float l2 = std::sqrt(dx * dx + dz * dz);
+        if (l2 > step) { dx *= step / l2; dz *= step / l2; }
+        velocity.x += dx;
+        velocity.z += dz;
+    }
     const float moveYaw = std::atan2(-dir.x, -dir.z);
     auto turnToward = [&](float target, float rate) {
         const float d = angleDelta(yaw, target);
@@ -86,13 +112,13 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     }
 
     // --- Vertical: jetpack and gravity.
-    if (in.jet) {
+    if (thrusting_) {
         velocity.y += params.thrust * dt;
         onGround = false;
     }
     velocity.y -= params.gravity * dt;
     velocity.y = std::min(velocity.y, params.maxRise);
-    if (onGround && !in.jet) velocity.y = 0;
+    if (onGround && !thrusting_) velocity.y = 0;
     const float prevY = position.y;
     const Vec3 before = position;
     position += velocity * dt;
@@ -112,7 +138,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         return gg;
     };
     float g = groundAt(position.x, position.z);
-    if (onGround && !in.jet && g - prevY > params.maxStepUp) {
+    if (onGround && !thrusting_ && g - prevY > params.maxStepUp) {
         // Cliff face (e.g. climbing out of the sea): blocks like a wall; the jetpack gets you up.
         position.x = before.x;
         position.z = before.z;
@@ -125,7 +151,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         position.y = g;
         velocity.y = 0;
         onGround = true;
-    } else if (onGround && !in.jet && position.y - g < params.stepDown) {
+    } else if (onGround && !thrusting_ && position.y - g < params.stepDown) {
         position.y = g;  // walking downhill: stay on the terrain
     } else if (position.y - g >= params.stepDown) {
         onGround = false;  // ran off a ledge
@@ -137,7 +163,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     float rate = 1.0f;
     // Movement relative to the body: forward run, sidestep (right = clip forward), backpedal.
     const float rel = angleDelta(yaw, moveYaw);
-    if (!onGround) want = in.jet ? PlayerAnim::Thrust : PlayerAnim::Hover;
+    if (!onGround) want = thrusting_ ? PlayerAnim::Thrust : PlayerAnim::Hover;
     else if (speedNow > 0.15f) {
         const float clampRate = params.maxPlayback;
         if (std::fabs(rel) < 0.87f) {           // within ~50 deg of facing

@@ -31,8 +31,16 @@ struct PlayerParams {
     float maxPlayback = 2.4f;     // clip playback rate cap
     float turnRate = 10.0f;       // rad/s body turn toward the travel direction
     float gravity = 14.0f;        // m/s^2
-    float thrust = 26.0f;         // m/s^2 upward while the jetpack fires
-    float maxRise = 6.0f;         // m/s upward speed cap
+    // Jetpack (user description of the original: speed builds up gradually to a limit; limited
+    // fuel that refills after a while).
+    float thrust = 21.0f;         // m/s^2 upward while the jetpack fires (net +7 against gravity)
+    float maxRise = 5.0f;         // m/s upward speed cap
+    float jetAirSpeed = 9.0f;     // m/s horizontal top speed while thrusting
+    float jetAirAccel = 4.0f;     // m/s^2 horizontal speed build-up while thrusting
+    float airAccel = 3.0f;        // m/s^2 air control without thrust (momentum is kept)
+    float fuelSeconds = 4.0f;     // full tank = seconds of thrust
+    float fuelRefillDelay = 1.2f; // s without thrust before refilling
+    float fuelRefillRate = 0.5f;  // tanks per second
     float hardLandSpeed = 3.0f;   // m/s downward speed that triggers the landing clip
     float landSeconds = 0.45f;    // landing clip hold when not moving
     float stepDown = 0.6f;        // m: stay glued to the terrain when walking downhill
@@ -66,12 +74,16 @@ public:
     float prevAnimTime() const { return prevTime_; }
     float fadeWeight() const;  // weight of the CURRENT clip (1 = fully current)
     float horizontalSpeed() const;
+    float fuel() const { return fuel_ / params.fuelSeconds; }  // 0..1
+    bool thrusting() const { return thrusting_; }
 
 private:
     void setAnim(PlayerAnim a);
     PlayerAnim anim_ = PlayerAnim::Idle, prevAnim_ = PlayerAnim::Idle;
     float animTime_ = 0, prevTime_ = 0, fade_ = 1e9f;
     float landTimer_ = 0;
+    float fuel_ = 4.0f, sinceThrust_ = 99.0f;
+    bool thrusting_ = false;
 };
 
 // Shortest signed angle from a to b (radians).

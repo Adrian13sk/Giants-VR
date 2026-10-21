@@ -35,7 +35,7 @@ gameplay: no AI, weapons, mission logic, audio or menus.
    Level collision with walls/buildings (stand on tops) DEVICE VERIFIED (test 8).
    First weapon (Meccaryn gun: bolts, muzzle/impact flashes, hits on terrain/buildings) BUILD VERIFIED, device test 9 pending.
    Reaper grunt enemies (waves, AI, shooting, hit/death clips), player health, wrist health bar,
-   damage flash BUILD VERIFIED (behaviour is ours, B9). Device test 10 pending.
+   damage flash: DEVICE VERIFIED (test 10, "works fine"); movement/feet/jetpack-fuel fixes BUILD VERIFIED, device test 11 pending.
    Next: audio (original WAVs via AAudio/OpenSL), then decode mission/creature data (B4/B9). Also GPU skinning and TCB key interpolation.
 
 Then: world opcode table fixes (24 of 33 worlds still stop early), Kabuto-scale camera

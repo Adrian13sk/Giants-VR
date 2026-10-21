@@ -245,6 +245,23 @@ static void testPlayer() {
     CHECK(fp.yaw > 1.0f - 0.55f);  // carried within the cone after 1 s
     for (int i = 0; i < 72 * 5; ++i) fp.update(1.0f / 72.0f, look);
     CHECK(near(fp.yaw, 1.0f, 0.05f));  // re-centred
+    // Jetpack: horizontal speed builds up gradually; fuel runs out (~4 s) and refills later.
+    PlayerController jp;
+    jp.groundHeight = [](float, float) { return 0.0f; };
+    jp.teleport({0, 0, 0}, 0.0f);
+    PlayerInput j;
+    j.jet = true;
+    j.move = {0, 1};
+    jp.update(1.0f / 72.0f, j);
+    CHECK(jp.horizontalSpeed() < 1.0f);  // not instant
+    for (int i = 0; i < 72 * 3; ++i) jp.update(1.0f / 72.0f, j);
+    CHECK(jp.horizontalSpeed() > 8.0f && jp.horizontalSpeed() <= jp.params.jetAirSpeed + 1e-3f);
+    CHECK(jp.thrusting() && jp.fuel() < 0.3f);
+    for (int i = 0; i < 72 * 2; ++i) jp.update(1.0f / 72.0f, j);
+    CHECK(!jp.thrusting() && jp.fuel() == 0.0f);  // empty: no more thrust
+    j.jet = false;
+    for (int i = 0; i < 72 * 6; ++i) jp.update(1.0f / 72.0f, j);
+    CHECK(jp.fuel() > 0.99f && jp.onGround);  // landed and refilled
     // Angle wrap helper.
     CHECK(near(angleDelta(3.0f, -3.0f), 2.0f * kPi - 6.0f, 1e-4f));
 }
@@ -388,7 +405,9 @@ static void testEnemies() {
     d.enemies[0].pos.z = -40;
     d.update(dt, player, true, shots);
     d.update(dt, player, true, shots);
-    CHECK(d.enemies[0].state == EnemyState::Advance && d.enemies[0].clip == EnemyClip::Walk);
+    CHECK(d.enemies[0].state == EnemyState::Advance && d.enemies[0].clip == EnemyClip::Run);  // far: runs
+    for (int i = 0; i < 72 * 4; ++i) d.update(dt, player, true, shots);
+    CHECK(d.enemies[0].state == EnemyState::Advance && d.enemies[0].clip == EnemyClip::Walk);  // closer: walk-and-fire
     // Walks toward the player until in fire range, then shoots bursts.
     int fired = 0;
     for (int i = 0; i < 72 * 20; ++i) { d.update(dt, player, true, shots); fired += int(shots.size()); }

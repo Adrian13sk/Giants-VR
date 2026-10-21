@@ -119,6 +119,7 @@ private:
     std::vector<uint8_t> slotUsed_;
     WeaponSystem enemyFire_;
     std::vector<int> shooters_;
+    float enemyFootOffset_ = 0.0f;  // rpman's origin is at the waist: lift so the feet touch the ground
     float playerHealth_ = 100.0f, sinceDamage_ = 99.0f, damageFlash_ = 0.0f, waveTimer_ = 0.0f;
     int wave_ = 0;
     TextureId whiteTex_ = 0;

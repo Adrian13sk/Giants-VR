@@ -15,7 +15,7 @@
 
 namespace gvr {
 
-enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Count };
+enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Count };
 enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead };
 
 struct Enemy {
@@ -29,6 +29,8 @@ struct Enemy {
     bool loopClip = true;
     float fireCooldown = 0;
     int burstLeft = 0;
+    float flank = 0;        // lateral offset (m) of this enemy's approach point around the player
+    float flankTimer = 0;
     float sink = 0;         // metres sunk after death
     bool remove = false;
     int slot = -1;          // renderer model slot (owned by the game app)
@@ -36,9 +38,12 @@ struct Enemy {
 };
 
 struct EnemyParams {
-    float sightRange = 45.0f;     // m: notices the player
-    float fireRange = 22.0f;      // m: stops to shoot
+    float sightRange = 50.0f;     // m: notices the player
+    float shootRange = 35.0f;     // m: fires (also while walking: rpman_walk_fire)
+    float fireRange = 10.0f;      // m: stops to stand and shoot
+    float runRange = 30.0f;       // m: runs when farther than this
     float walkSpeed = 1.65f;      // m/s (rpman_walk_fire stride: 8.2 units/s)
+    float runSpeed = 3.7f;        // m/s (rpman_bzka_run stride: 18.4 units/s)
     float turnRate = 5.0f;        // rad/s
     float fireInterval = 0.35f;   // s between shots in a burst
     int burstSize = 3;
@@ -53,7 +58,7 @@ public:
     EnemyParams params;
     std::function<float(float, float)> groundHeight;
     const CollisionWorld* collision = nullptr;
-    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1};
+    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
     std::vector<Enemy> enemies;
 
     int spawn(const Vec3& pos, float yaw);

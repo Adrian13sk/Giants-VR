@@ -177,7 +177,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 return true;
             };
             enemyFire_.onHit = [this](int target, const Vec3&, const Vec3&) {
-                if (target == -2) damagePlayer(7.0f);
+                if (target == -2) damagePlayer(5.0f);
             };
             enemies_.groundHeight = [w](float x, float z) {
                 float y;
@@ -187,13 +187,19 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             // Reaper grunt model pool with the original clips (order = EnemyClip).
             const char* eclips[] = {"rpman_stand_scan.anm", "rpman_walk_fire.anm", "rpman_stand_fire.anm",
                                     "rpman_hit_med.anm", "rpman_hit_med2.anm", "rpman_hit_med_die.anm",
-                                    "rpman_hit_spin_die.anm", "rpman_hit_gut_die.anm"};
+                                    "rpman_hit_spin_die.anm", "rpman_hit_gut_die.anm", "rpman_bzka_run.anm"};
             for (int k = 0; k < 6; ++k) {
                 auto em = std::make_unique<SkinnedModel>();
                 if (!em->load(w->fs(), *mc, renderer_, "rpman_l0", eclips[0])) break;
                 for (int c = 1; c < int(EnemyClip::Count); ++c) em->addAnimation(w->fs(), eclips[c]);
-                if (k == 0)
+                if (k == 0) {
                     for (int c = 0; c < int(EnemyClip::Count); ++c) enemies_.clipDuration[c] = std::max(0.1f, em->animDuration(c));
+                    em->pose(renderer_, 0.0f);
+                    Vec3 mn, mx;
+                    em->posedBounds(mn, mx);
+                    enemyFootOffset_ = -mn.y;  // measured: 1.10 m for rpman_stand_scan
+                    LOGI("Reaper foot offset %.2f m", enemyFootOffset_);
+                }
                 enemyPool_.push_back(std::move(em));
             }
             slotUsed_.assign(enemyPool_.size(), 0);
@@ -399,10 +405,12 @@ void GameApp::updateCombat(float dt) {
         Vec3 muzzle = e.pos + Vec3{0, 1.5f, 0} + r.rotate(Vec3{0.3f, 0, -0.6f});
         Mat4 nz;
         if (e.slot >= 0 && enemyPool_[size_t(e.slot)]->nodeWorld("ref_nozzle", nz))
-            muzzle = e.pos + r.rotate(giantsToRuntime(nz.m[12], nz.m[13], nz.m[14]));
+            muzzle = e.pos + Vec3{0, enemyFootOffset_, 0} + r.rotate(giantsToRuntime(nz.m[12], nz.m[13], nz.m[14]));
         const Vec3 target = player_.position + Vec3{0, 1.2f, 0};
         Vec3 dir = normalize(target - muzzle);
-        dir = normalize(dir + Vec3{frand() - 0.5f, (frand() - 0.5f) * 0.6f, frand() - 0.5f} * 0.09f);
+        // Spread grows with distance: long shots mostly miss, close ones are dangerous.
+        const float spread = 0.06f + 0.004f * length(target - muzzle);
+        dir = normalize(dir + Vec3{frand() - 0.5f, (frand() - 0.5f) * 0.6f, frand() - 0.5f} * spread);
         enemyFire_.spawnShot(muzzle, dir);
     }
     enemyFire_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
@@ -509,6 +517,12 @@ void GameApp::renderHud() {
         drawQuad(base * Mat4::scale({(w + 0.008f) / 0.2f, (h + 0.008f) / 0.2f, 1}), {0, 0, 0, 0.6f});
         const Vec4 col{std::min(1.0f, 2.0f * (1.0f - f)), std::min(1.0f, 2.0f * f), 0.1f, 0.9f};
         drawQuad(base * Mat4::translation({-w * 0.5f * (1.0f - f), 0, 0.002f}) * Mat4::scale({w * f / 0.2f, h / 0.2f, 1}), col);
+        // Jetpack fuel underneath (blue).
+        const float jf = player_.fuel();
+        const Mat4 fb = base * Mat4::translation({0, -0.024f, 0});
+        drawQuad(fb * Mat4::scale({(w + 0.008f) / 0.2f, (h * 0.7f + 0.008f) / 0.2f, 1}), {0, 0, 0, 0.6f});
+        drawQuad(fb * Mat4::translation({-w * 0.5f * (1.0f - jf), 0, 0.002f}) * Mat4::scale({w * jf / 0.2f, h * 0.7f / 0.2f, 1}),
+                 {0.2f, 0.6f, 1.0f, 0.9f});
     }
     if (damageFlash_ > 0) {
         const Vec3 fwd = headWorldRot_.rotate(Vec3{0, 0, -1});
@@ -629,7 +643,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (playMode_ && gunValid_) drawModel(gunModel_, gunXf_, false);
     for (const auto& e : enemies_.enemies)
         if (e.slot >= 0)
-            enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos) *
+            enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, enemyFootOffset_, 0}) *
                                                               Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
     // Reaper bolts: the same spark, tinted red.
     for (const auto& p : enemyFire_.projectiles()) {

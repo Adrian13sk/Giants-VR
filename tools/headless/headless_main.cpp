@@ -123,7 +123,11 @@ int main(int argc, char** argv) {
     if (app.playMode()) {
         const auto& p = app.player();
         LOGI("weapon: %zu shots, %zu hits, last hit at %.1f m", app.weaponShots(), app.weaponHits(), app.weaponLastHitDistance());
-        LOGI("combat: %zu/%zu Reapers alive, player health %.0f", app.enemiesAlive(), app.enemyCount(), app.playerHealth());
+        Vec3 ne;
+        const float nd = app.nearestEnemy(ne) ? length(ne - p.position - Vec3{0, 1.2f, 0}) : -1.0f;
+        const Vec3 rel = ne - p.position;
+        LOGI("combat: %zu/%zu Reapers alive, nearest %.1f m (yaw %.0f deg), player health %.0f", app.enemiesAlive(),
+             app.enemyCount(), nd, std::atan2(-rel.x, -rel.z) * 180.0f / kPi, app.playerHealth());
         LOGI("player at (%.2f %.2f %.2f) yaw %.1f deg, %s, anim %d t=%.2f, speed %.2f m/s", p.position.x, p.position.y,
              p.position.z, p.yaw * 180.0f / kPi, p.onGround ? "on ground" : "airborne", int(p.anim()), p.animTime(),
              p.horizontalSpeed());
