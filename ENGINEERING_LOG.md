@@ -200,8 +200,10 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
     - Hands scaled ×0.8.
 - **Evidence:** headless renders at rest, aim, reach and low hand poses show the forearms and gauntlets entering the view from the sides. Unit tests cover the smooth-follow behaviour.
 
-### Device test 6 feedback → arm reach limit (2026-10-21 19:00)
-- **User report:** "way better"; the only problem is that arms stretch further than they should.
+### Device test 6 feedback → arm reach (2026-10-21 19:00, corrected 19:10)
+- **User report:** "way better"; the only problem: "arms can stretch further then they are able to". I MISREAD this as "limit the stretch"; the user meant they want the arms to stretch MORE when the hand moves further from the body. The limit build (556548f) was replaced.
+- **Final fix:** restored ×1.3 base length and the 26° clavicle assist. Added a **reach stretch**: when the wrist target is beyond the straight arm, both bones lengthen as needed (up to ×1.8 more) so the hand stays on the controller. Unit test: a target 1.6× beyond arm length is reached exactly; one 3× beyond stops at the limit. Renders at 0.7 m and 1.0 m show the hands on the controllers.
+- **Superseded first attempt:**
 - **Fix:**
   - Arm stretch ×1.3 → ×1.12.
   - Clavicle assist capped at about 11° (was 26°) and starts at 90% of reach.

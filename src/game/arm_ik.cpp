@@ -93,24 +93,37 @@ float solveArmIk(std::vector<Mat4>& world, const std::vector<std::vector<int>>& 
     const Vec3 wristTarget = t.grip - want[0] * palm;
 
     // 2a. Shoulder assist: when the target is near or beyond full reach, swing the clavicle
-    // toward it (up to ~11 degrees), like a person reaching out.
+    // toward it (up to ~26 degrees), like a person reaching out.
     if (c.clavicle >= 0) {
         const Vec3 C = posOf(world[size_t(c.clavicle)]);
         const Vec3 S0 = posOf(world[size_t(c.upper)]);
         const float reach = length(posOf(world[size_t(c.fore)]) - S0) + length(posOf(world[size_t(c.hand)]) - posOf(world[size_t(c.fore)]));
         const float d0 = length(wristTarget - S0);
-        const float frac = std::max(0.0f, std::min(1.0f, (d0 - 0.9f * reach) / (0.3f * reach)));
+        const float frac = std::max(0.0f, std::min(1.0f, (d0 - 0.8f * reach) / (0.35f * reach)));
         if (frac > 0.0f && length(S0 - C) > 1e-4f) {
             const Quat q = rotationBetween(S0 - C, wristTarget - C);
             const float angle = 2.0f * std::acos(std::min(1.0f, std::fabs(q.w)));
             if (angle > 1e-4f) {
                 const Vec3 axis = normalize(Vec3{q.x, q.y, q.z} * (q.w < 0 ? -1.0f : 1.0f));
-                const float use = std::min(angle, 0.2f * frac);  // at most ~11 degrees
+                const float use = std::min(angle, 0.45f * frac);  // at most ~26 degrees
                 rotateSubtree(world, children, c.clavicle, C, Mat4::rotation(Quat::fromAxisAngle(axis, use)));
             }
         }
     }
-    // 2b. Two-bone solve: shoulder S, elbow E, wrist H.
+    // 2b. Reach stretch: if the target is beyond the (straight) arm, lengthen both bones
+    // so the hand still arrives (keeps a slight elbow bend), up to maxReachStretch.
+    if (t.maxReachStretch > 1.0f) {
+        const Vec3 S0 = posOf(world[size_t(c.upper)]);
+        const float a0 = length(posOf(world[size_t(c.fore)]) - S0);
+        const float b0 = length(posOf(world[size_t(c.hand)]) - posOf(world[size_t(c.fore)]));
+        const float need = length(wristTarget - S0) / (0.97f * (a0 + b0));
+        if (need > 1.0f) {
+            const float k = std::min(need, t.maxReachStretch);
+            stretchBone(world, children, c.upper, c.fore, k);
+            stretchBone(world, children, c.fore, c.hand, k);
+        }
+    }
+    // 2c. Two-bone solve: shoulder S, elbow E, wrist H.
     const Vec3 S = posOf(world[size_t(c.upper)]);
     const Vec3 E = posOf(world[size_t(c.fore)]);
     const Vec3 H = posOf(world[size_t(c.hand)]);

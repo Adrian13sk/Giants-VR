@@ -276,6 +276,25 @@ static void testArmIk() {
         CHECK(dot(normalize(P(3) - P(6)), t.up) > 0.99f);              // index side up
         CHECK(P(1).z < -0.2f);                                           // elbow bends toward the pole (down)
     }
+    {
+        // Reach stretch: a target 3 units away (arm length 2) is reached with stretch <= 1.8.
+        std::vector<Mat4> w;
+        std::vector<Vec3> pos = {{0, 0, 0}, {0, 0, -1}, {0, 0, -2}, {0.15f, 0.3f, -2}, {0.05f, 0.32f, -2}, {-0.05f, 0.32f, -2}, {-0.15f, 0.3f, -2}};
+        for (const Vec3& p : pos) w.push_back(Mat4::translation(p));
+        std::vector<std::vector<int>> ch = {{1}, {2}, {3, 4, 5, 6}, {}, {}, {}, {}};
+        ArmChain c;
+        c.upper = 0; c.fore = 1; c.hand = 2;
+        for (int i = 0; i < 4; ++i) c.finger[i] = 3 + i;
+        ArmTarget t;
+        t.grip = {0, 3.2f, 0};
+        t.forward = {0, 1, 0};
+        t.up = {1, 0, 0};
+        t.pole = {0, 0, -1};
+        t.maxReachStretch = 1.8f;
+        CHECK(solveArmIk(w, ch, c, t) < 1e-3f);
+        t.grip = {0, 6.0f, 0};  // beyond even the stretched arm: stops at the limit
+        CHECK(solveArmIk(w, ch, c, t) > 0.1f);
+    }
 }
 
 static void testGti() {

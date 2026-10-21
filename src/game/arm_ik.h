@@ -27,6 +27,7 @@ struct ArmTarget {
     float twistShare = 0.5f;  // fraction of the wrist roll carried by the forearm (no wrist break)
     float handScale = 1.0f;   // uniform hand scale about the wrist
     float armStretch = 1.0f;  // lengthens upper arm and forearm (along the bone) before solving
+    float maxReachStretch = 1.0f;  // extra stretch allowed so the wrist always reaches the target
 };
 
 // Stretches node's own geometry along its bone axis (local +Z, toward `child`) by `factor`
