@@ -11,6 +11,9 @@
 
 namespace gvr {
 
+// Weapon target ids >= this are creatures (index = id - kCreatureTarget); lower ids are Reapers.
+static constexpr int kCreatureTarget = 1000;
+
 GameApp::GameApp() = default;
 GameApp::~GameApp() = default;
 
@@ -154,7 +157,13 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 Vec3 nw, ne;
                 int ie = -1;
                 const bool hw = worldRay_ && worldRay_(o, d, maxD, tw, nw);
-                const bool he = enemies_.raycast(o, d, maxD, te, ne, ie);
+                bool he = enemies_.raycast(o, d, maxD, te, ne, ie);
+                float tc = maxD;
+                Vec3 nc;
+                int ic = -1;
+                if (creatures_.raycast(o, d, maxD, tc, nc, ic) && (!he || tc < te)) {
+                    he = true; te = tc; ne = nc; ie = kCreatureTarget + ic;
+                }
                 if (!hw && !he) return false;
                 if (he && (!hw || te < tw)) { t = te; n = ne; target = ie; }
                 else { t = tw; n = nw; target = -1; }
@@ -163,6 +172,14 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             weapon_.onHit = [this](int target, const Vec3& p, const Vec3&) {
                 if (target < 0) {
                     sfx(frand() < 0.5f ? "bi_dirt1" : (frand() < 0.5f ? "bi_hit1" : "bi_hit2"), p, 0.45f, 0.9f + 0.2f * frand());
+                    return;
+                }
+                if (target >= kCreatureTarget) {
+                    std::vector<CreatureEvent> ev;
+                    const bool died = creatures_.damage(target - kCreatureTarget, 25.0f, &ev);
+                    haptics_.push_back({rig_.turnHand(), died ? 0.8f : 0.5f, died ? 0.12f : 0.05f});
+                    sfx("ex_bdys1", p, 0.35f, 1.2f + 0.2f * frand());
+                    for (const auto& e : ev) creatureSound(e);
                     return;
                 }
                 const bool killed = enemies_.damage(target, 25.0f);
@@ -199,7 +216,13 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             const char* eclips[] = {"rpman_stand_scan.anm", "rpman_walk_fire.anm", "rpman_stand_fire.anm",
                                     "rpman_hit_med.anm", "rpman_hit_med2.anm", "rpman_hit_med_die.anm",
                                     "rpman_hit_spin_die.anm", "rpman_hit_gut_die.anm", "rpman_bzka_run.anm"};
-            for (int k = 0; k < 6; ++k) {
+            int poolSize = 6;
+            {
+                int missionReapers = 0;
+                for (const auto& ch : w->characters()) missionReapers += ch.objectClass == 51;
+                poolSize = std::min(16, std::max(6, missionReapers));
+            }
+            for (int k = 0; k < poolSize; ++k) {
                 auto em = std::make_unique<SkinnedModel>();
                 if (!em->load(w->fs(), *mc, renderer_, "rpman_l0", eclips[0])) break;
                 for (int c = 1; c < int(EnemyClip::Count); ++c) em->addAnimation(w->fs(), eclips[c]);
@@ -218,6 +241,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             const uint8_t white[4] = {255, 255, 255, 255};
             whiteTex_ = renderer_.uploadTexture(1, 1, white, false, false);
             LOGI("Enemies: %zu Reaper model slots", enemyPool_.size());
+            initCharacters(w, mc);
             player_.collision = &w->collision();
             // Off the terrain heightfield is open sea (surface at 0): wading depth, so walking off
             // a cliff drops you into the water instead of walking on air.
@@ -384,7 +408,10 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "me_peas1", "me_peas2", "bi_dirt1", "bi_hit1", "bi_hit2", "ex_bdys1", "rh_sprsh", "rh_fsld1",
         "rpman_hit1", "rpman_hit2", "rpman_hit3", "rpman_hit4", "rpman_die1", "rpman_die2", "rpman_die3",
         "rpman_die4", "rpman_die5", "me_shrt1", "me_shrt2", "me_shrt3", "me_jpkst", "me_jpklp", "me_jpken",
-        "me_jpkno", "me_fsgr1", "me_fsgr2", "me_hdfl1", "me_hdfl2", "me_sld1", "me_slden"};
+        "me_jpkno", "me_fsgr1", "me_fsgr2", "me_hdfl1", "me_hdfl2", "me_sld1", "me_slden",
+        // Rippers: rs_ = small, rl_ = large (inferred from the names and the two Ripper sizes).
+        "rs_attk1", "rs_attk2", "rs_chitt", "rs_deat1", "rs_deat2", "rs_feet", "rs_injr1", "rs_injr2",
+        "rl_attk1", "rl_chitt", "rl_deat1", "rl_deat2", "rl_feet", "rl_injr1", "rl_injr2"};
     size_t ok = 0;
     for (const char* n : names) {
         std::vector<uint8_t> bytes;
@@ -456,6 +483,118 @@ void GameApp::updateAudio(float dt) {
             t = 0.3f;
             if (length(e.pos - player_.position) < 30.0f) sfx("rh_fsld1", e.pos, 0.5f, 0.9f + 0.2f * frand());
         }
+    }
+}
+
+void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
+    const ObjectRegistry& reg = w->registry();
+    size_t reapers = 0, rippers = 0, ambient = 0;
+    for (const auto& ch : w->characters()) {
+        if (ch.objectClass == 51) {  // Reaper grunt: the Reaper AI, at its mission position
+            enemies_.spawn(ch.position, ch.yaw);
+            missionHostiles_ = true;
+            ++reapers;
+            continue;
+        }
+        const std::string idle = reg.modelAnim(ch.type);
+        auto m = std::make_unique<SkinnedModel>();
+        if (idle.empty() || !m->load(w->fs(), *mc, renderer_, ch.model, idle)) continue;
+        CharacterInst ci;
+        ci.pos = ch.position;
+        ci.yaw = ch.yaw;
+        ci.scale = ch.scale;
+        if (ch.objectClass == 23) {
+            // Ripper animation slots (xx_ripper.bin): 1 idle, 2 walk, 10 attack, 11 attack jump,
+            // 44 hit, 49 small hit, 45 suffer (used as the death: it ends lying on the ground).
+            static const int slots[int(CreatureClip::Count)] = {1, 2, 10, 11, 44, 49, 45};
+            for (int c = 1; c < int(CreatureClip::Count); ++c) {
+                const std::string a = reg.anim(ch.type, slots[c]);
+                const int k = a.empty() ? -1 : m->addAnimation(w->fs(), a);
+                ci.clipIndex[c] = k >= 0 ? k : 0;
+            }
+            if (rippers == 0)
+                for (int c = 0; c < int(CreatureClip::Count); ++c)
+                    creatures_.clipDuration[c] = std::max(0.1f, m->animDuration(ci.clipIndex[c]));
+            ci.ambient = false;
+            ci.large = ch.scale > 1.5f;
+            const int idx = creatures_.spawn(ch.position, ch.yaw, ch.scale, ci.large ? 1 : 0);
+            creatures_.creatures[size_t(idx)].slot = int(chars_.size());
+            missionHostiles_ = true;
+            ++rippers;
+        } else {
+            ++ambient;
+        }
+        m->pose(renderer_, 0.0f);
+        Vec3 mn, mx;
+        m->posedBounds(mn, mx);
+        ci.lift = -mn.y * ci.scale;
+        ci.time = frand() * 3.0f;
+        ci.model = std::move(m);
+        chars_.push_back(std::move(ci));
+    }
+    creatures_.groundHeight = enemies_.groundHeight;
+    creatures_.collision = enemies_.collision;
+    LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
+}
+
+void GameApp::creatureSound(const CreatureEvent& e) {
+    if (e.index < 0 || size_t(e.index) >= creatures_.creatures.size()) return;
+    const bool large = creatures_.creatures[size_t(e.index)].kind == 1;
+    const float pitch = (large ? 0.85f : 1.0f) + 0.15f * frand();
+    switch (e.kind) {
+        case CreatureEvent::Alert: sfx(large ? "rl_chitt" : "rs_chitt", e.pos, 0.8f, pitch); break;
+        case CreatureEvent::Swing:
+        case CreatureEvent::Lunge:
+            sfx(large ? "rl_attk1" : (frand() < 0.5f ? "rs_attk1" : "rs_attk2"), e.pos, 0.9f, pitch);
+            break;
+        case CreatureEvent::Strike: break;  // the player's hurt sound covers it
+        case CreatureEvent::Hurt:
+            sfx(large ? (frand() < 0.5f ? "rl_injr1" : "rl_injr2") : (frand() < 0.5f ? "rs_injr1" : "rs_injr2"), e.pos,
+                0.9f, pitch);
+            break;
+        case CreatureEvent::Die:
+            sfx(large ? (frand() < 0.5f ? "rl_deat1" : "rl_deat2") : (frand() < 0.5f ? "rs_deat1" : "rs_deat2"), e.pos,
+                1.0f, pitch);
+            break;
+    }
+}
+
+void GameApp::updateCharacters(float dt) {
+    creatures_.update(dt, player_.position, playMode_ && playerHealth_ > 0, creatureEvents_);
+    for (const auto& e : creatureEvents_) {
+        creatureSound(e);
+        if (e.kind == CreatureEvent::Strike) damagePlayer(e.damage);
+    }
+    // Rippers: model follows its creature; corpses that have sunk away are hidden.
+    for (auto& ci : chars_)
+        if (!ci.ambient) ci.visible = false;
+    for (auto& c : creatures_.creatures) {
+        if (c.slot < 0 || size_t(c.slot) >= chars_.size()) continue;
+        CharacterInst& ci = chars_[size_t(c.slot)];
+        ci.visible = true;
+        ci.pos = c.pos;
+        ci.yaw = c.yaw;
+        const float dist = length(c.pos - player_.position);
+        if (dist > 120.0f) continue;  // too far to see the animation: skip skinning
+        ci.model->poseBlend(renderer_, ci.clipIndex[int(c.prevClip)], c.prevTime, ci.clipIndex[int(c.clip)], c.clipTime,
+                            c.fadeWeight(creatures_.params.crossfade));
+        Vec3 mn, mx;
+        ci.model->posedBounds(mn, mx);
+        ci.lift += (-mn.y * ci.scale - ci.lift) * std::min(1.0f, dt / 0.06f);
+        // Footsteps while running.
+        if (c.clip == CreatureClip::Walk && c.state != CreatureState::Dead && dist < 30.0f) {
+            ci.stepTimer -= dt * c.rate;
+            if (ci.stepTimer <= 0) {
+                ci.stepTimer = 0.45f;
+                sfx(ci.large ? "rl_feet" : "rs_feet", c.pos, 0.35f, 0.9f + 0.2f * frand());
+            }
+        }
+    }
+    // Ambient characters loop their default clip (only animated when near).
+    for (auto& ci : chars_) {
+        if (!ci.ambient) continue;
+        ci.time += dt;
+        if (length(ci.pos - player_.position) < 120.0f) ci.model->pose(renderer_, ci.time);
     }
 }
 
@@ -542,7 +681,8 @@ void GameApp::updateCombat(float dt) {
     }
     enemyFire_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
     // Next wave after the last Reaper has fallen.
-    if (enemies_.aliveCount() == 0) {
+    updateCharacters(dt);
+    if (enemies_.aliveCount() == 0 && !missionHostiles_) {
         waveTimer_ += dt;
         if (waveTimer_ > 8.0f) { waveTimer_ = 0; spawnWave(); }
     } else {
@@ -729,7 +869,7 @@ void GameApp::update(float dt, const InputFrame& in) {
         rig_.teleportHead(in, assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
         if (playMode_) {
             teleportPlayer(assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
-            spawnWave();
+            if (!missionHostiles_) spawnWave();  // test waves only where the mission has no enemies
         }
         needSpawn_ = false;
     }
@@ -771,6 +911,12 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (assetWorld_ && assetWorld_->loaded()) assetWorld_->render(renderer_);
     if (playMode_ && playerModel_) playerModel_->render(renderer_, bodyXf_);
     if (playMode_ && gunValid_) drawModel(gunModel_, gunXf_, false);
+    for (const auto& c : chars_) {
+        if (!c.visible || length(c.pos - v.eyePosition) > 160.0f) continue;
+        c.model->render(renderer_, Mat4::translation(c.pos + Vec3{0, c.lift, 0}) *
+                                       Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, c.yaw)) *
+                                       Mat4::scale({c.scale, c.scale, c.scale}));
+    }
     for (const auto& e : enemies_.enemies)
         if (e.slot >= 0)
             enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *

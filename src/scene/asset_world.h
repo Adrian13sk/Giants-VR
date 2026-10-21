@@ -37,6 +37,17 @@ public:
     const CollisionWorld& collision() const { return collision_; }
     const ObjectRegistry& registry() const { return registry_; }
     const MissionData& mission() const { return mission_; }
+    // Animated characters placed by the mission (creatures, Smarties, Timmy): runtime frame,
+    // feet on the terrain, yaw in radians about +Y (0 = facing -Z).
+    struct Character {
+        uint32_t type;
+        std::string model;
+        int objectClass;
+        Vec3 position;
+        float yaw;
+        float scale;
+    };
+    const std::vector<Character>& characters() const { return characters_; }
 
     struct Placed {
         const RenderModel* model;
@@ -68,6 +79,7 @@ private:
     std::vector<WorldObject> worldObjects_;
     ObjectRegistry registry_;
     MissionData mission_;
+    std::vector<Character> characters_;
     std::string missionName_;
     CollisionWorld collision_;
     std::string status_;

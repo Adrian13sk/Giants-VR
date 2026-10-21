@@ -20,7 +20,7 @@ struct MissionObject {
     float x = 0, y = 0, z = 0;           // game units (Z up)
     float yaw = 0, pitch = 0, roll = 0;  // degrees
     float scale = 0;                      // 0 = not set (use the type's default)
-    int team = -1;                        // op 5 (provisional name)
+    int group = -1;                       // op 5: id (spline path number; 1 on the player start marker)
     uint8_t flags = 0;                    // op 8 (low 4 bits)
     int parent = -1;                      // index of the object this one is mounted on (op 0x16)
     uint8_t mount[2] = {0, 0};            // op 0x16 bytes (attachment point?)

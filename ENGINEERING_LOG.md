@@ -346,3 +346,46 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
 - **Headless:** `--audio-out file.wav` records the mixed game audio (667 frames per 1/72 s frame).
   - 10 s scripted fight: continuous gunfire at the 0.2 s cadence, right channel louder (gun in the right hand), no clipping (peak −5.4 dBFS).
   - **Not listened to yet:** the device test will judge whether the sound choices are right.
+
+### Device test 14 → audio confirmed (2026-10-21 18:43 local)
+- User: "Yeah, it works just fine". AAudio output, positional mixing and the inferred sound mapping are DEVICE VERIFIED.
+
+### Mission setup streams and object definitions decoded (2026-10-21 22:20 local)
+- **Sources:** the decompiled `mission_init` and `read_objects_bin_PS2` (vibe-giants-decomp) used as a *factual* reference for
+  op sizes only. No code copied. Every claim checked against the shipped files.
+- **wm_*.bin:** `u32 4`, then `{u8 op; payload}` until op 2. 37 ops, all fixed-size or counted, no control flow.
+  - **All 56 mission files walk exactly to EOF.**
+  - 1a_1_timmy: 343 objects plus 1 mounted (Timmy's jetpack). The old op-3 heuristic found 170.
+  - Op 5 is an id, not a team. Spline points use it as the path number (paths 5–10 in 1a, with op 7 = point index and
+    op 0x21 = cumulative length). The only `marker` with id 1 stands 280 m from the village, facing it. It is used as
+    the **player start** (provisional reading).
+- **Object definitions:** section 3 of every 0x1A0002E5 file has offset tables of meshes, groups and types.
+  - Groups: LODs (0x51), animation slots (0x52), fx events (0x7F/0x80 = u32 + 5 strz + u32).
+  - Types: op 1 = group, 0x1E = object class ("ospec"), 0x17 = scale.
+  - Every file parses: **807 types / 799 groups / 1570 meshes**, versus 629 types from the old heuristic.
+  - It missed palms, Smartie houses and Ripper nests because their LOD records don't follow the mesh name.
+- **Placement:** applies per-object scale (palms 2.2, the large Ripper 2.3) and op-4 pitch/roll (axis order provisional).
+  Story1 now places **300 static objects + 9 characters** (was 135).
+- **B8 partial fix:** some sub-objects carry strongly coloured RGB that decodes (`c*2/255-1`) to unit vectors (Smartie domes,
+  bw_bunker1). Every checked correct model has mean saturation < 0.26 (raft 0.70, no unit vectors). Rule: saturation > 0.4 and
+  >= 10% unit vectors → lit dynamically. The domes now show brick like the houses.
+
+### Mission characters: Rippers, Timmy, Dactyls (2026-10-21 22:40 local)
+- **Character test:** mission objects with a .skn skin are characters (not baked statues) if any of these hold:
+  - their class is a creature class (1, 4, 18, 23, 42, 45, 51, 53, 99);
+  - they have no class and at least 5 clips (Smarties, Sonaks);
+  - they are Timmy.
+- **Class 51 (Reaper grunt):** spawned into the existing Reaper AI at its mission position. Test waves now run only when a
+  mission has no enemies (Story1 has none).
+- **Class 23 (Ripper):** new `CreatureDirector` (src/game/creature.*, unit-tested). It uses the original clips by slot:
+  1 idle, 2 walk, 10 attack, 11 jump attack, 44/49 hits, 45 suffer (ends lying down, used as death).
+  - Behaviour (ours, B9): idle → notices within 20 m → runs (2.8 m/s, walk clip ×2.2) → bites within 1.5 m (5 dmg, 0.8 s pause)
+    or lunges from 3–6.5 m (12 dmg) → hit flinch → walks home past a 45 m leash.
+  - Size, reach, speed and health scale with the mission scale: 2 bolts kill a small one, 6 the large one.
+  - Same cliff rule as the player.
+  - Sounds rs_* (small) / rl_* (large): chitter on alert, attack, injury, death, feet (meanings inferred).
+- **Other characters** loop their default clip (Timmy's wave, Dactyl flight).
+- **Headless:**
+  - Player 12 m from Timmy's three Rippers: they close in and bite (100 → 73 health in 4 s, 28 at 8 s if you don't fight back).
+  - With `--trigger 1 --auto-aim` all three die and the player stays at 100.
+  - The start view shows the village on the far ridge.

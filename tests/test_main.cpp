@@ -18,6 +18,7 @@
 #include "game/player.h"
 #include "game/weapon.h"
 #include "game/enemy.h"
+#include "game/creature.h"
 #include "audio/mixer.h"
 #include "game/vr_rig.h"
 
@@ -605,7 +606,7 @@ static void testMission() {
     CHECK(m.setup[0] == 2 && m.startFlick == "start_1");
     if (m.objects.size() == 3) {
         CHECK(m.objects[0].type == 73 && m.objects[0].x == -100 && m.objects[0].yaw == 45);
-        CHECK(m.objects[0].scale == 1.5f && m.objects[0].team == 3 && m.objects[0].flicks.size() == 1);
+        CHECK(m.objects[0].scale == 1.5f && m.objects[0].group == 3 && m.objects[0].flicks.size() == 1);
         CHECK(m.objects[1].parent == 0 && m.objects[1].type == 254 && m.objects[1].scale == 0.6f);
         CHECK(m.objects[2].pitch == 2 && m.objects[2].roll == 6);
     }
@@ -657,6 +658,54 @@ static void testObjectDefs() {
     CHECK(!r2.addDefinitionFile(file.v.data(), file.v.size()));
 }
 
+static void testCreatures() {
+    using namespace gvr;
+    CreatureDirector cd;
+    cd.groundHeight = [](float, float) { return 0.0f; };
+    for (int c = 0; c < int(CreatureClip::Count); ++c) cd.clipDuration[c] = 0.6f;
+    const int i = cd.spawn({0, 0, -15}, 0.0f, 1.0f);
+    std::vector<CreatureEvent> ev;
+    const Vec3 player{0, 0, 0};
+    bool alerted = false, struck = false;
+    float damage = 0;
+    for (int f = 0; f < 600; ++f) {
+        cd.update(1.0f / 60, player, true, ev);
+        for (const auto& e : ev) {
+            if (e.kind == CreatureEvent::Alert) alerted = true;
+            if (e.kind == CreatureEvent::Strike) { struck = true; damage += e.damage; }
+        }
+    }
+    CHECK(alerted);
+    CHECK(struck && damage > 0);
+    CHECK(std::fabs(cd.creatures[size_t(i)].pos.z) < 2.5f);  // closed in on the player
+    // Out of sight: stays idle.
+    CreatureDirector far;
+    far.groundHeight = cd.groundHeight;
+    far.spawn({0, 0, -60}, 0.0f, 1.0f);
+    for (int f = 0; f < 120; ++f) far.update(1.0f / 60, player, true, ev);
+    CHECK(far.creatures[0].state == CreatureState::Idle && std::fabs(far.creatures[0].pos.z + 60) < 1e-3f);
+    // Two 25-damage hits kill a scale-1 creature; bigger ones are tougher.
+    CHECK(!cd.damage(i, 25.0f));
+    CHECK(cd.damage(i, 25.0f));
+    CHECK(cd.aliveCount() == 0 && cd.creatures[size_t(i)].clip == CreatureClip::Die);
+    CreatureDirector big;
+    big.spawn({0, 0, 0}, 0, 2.3f);
+    CHECK(!big.damage(0, 25.0f) && !big.damage(0, 25.0f) && !big.damage(0, 25.0f));
+    // Raycast hits the living capsule and passes over the dead.
+    CreatureDirector rc;
+    rc.spawn({0, 0, -10}, 0, 1.0f);
+    float t; Vec3 n; int idx = -1;
+    CHECK(rc.raycast({0, 0.5f, 0}, {0, 0, -1}, 50, t, n, idx) && idx == 0 && std::fabs(t - 9.55f) < 0.1f);
+    rc.damage(0, 100);
+    CHECK(!rc.raycast({0, 0.5f, 0}, {0, 0, -1}, 50, t, n, idx));
+    // A cliff between creature and player blocks the chase.
+    CreatureDirector cl;
+    cl.groundHeight = [](float, float z) { return z > -8.0f ? 6.0f : 0.0f; };  // player on a 6 m ledge
+    cl.spawn({0, 0, -12}, 0, 1.0f);
+    for (int f = 0; f < 300; ++f) cl.update(1.0f / 60, Vec3{0, 6, 0}, true, ev);
+    CHECK(cl.creatures[0].pos.z < -7.5f && cl.creatures[0].pos.y < 0.1f);
+}
+
 int main() {
     testGti();
     testWorldBin();
@@ -672,6 +721,7 @@ int main() {
     testCollision();
     testWeapon();
     testEnemies();
+    testCreatures();
     testAudio();
     if (g_failures) {
         std::printf("%d test failure(s)\n", g_failures);

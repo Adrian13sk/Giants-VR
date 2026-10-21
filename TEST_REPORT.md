@@ -89,3 +89,16 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 - FP gun on the controller (b2c…): "works flawlessly in FP". Third-person aim and gun size were then reworked (crosshair, scale 0.75).
 - Reapers (49fdcaf → 6b7c586): "works fine". Feedback drove: running and stand-to-shoot, bodies on the ground, the 50° walk slope limit, the mc_skid slide, and the cliff rule for enemies. All accepted on device.
 - Audio (3afbc82, sha256 fab0d844…): **"it works just fine"**. AAudio output, positional mixing and the inferred sound mapping are DEVICE VERIFIED. The user didn't flag any wrong sound.
+
+## Host verification — missions and creatures (2026-10-21 22:40 local, build 1dc7f45…)
+- `gvr_tests`: all pass. New tests: mission stream (objects, mounts, tilts, rejects truncation/unknown ops/trailing data);
+  definition section (meshes, groups, LOD, anim slots, fx events, type class and scale, corrupt op rejected); Ripper AI
+  (alert, chase, bite, out-of-sight idle, kill thresholds by size, raycast, can't climb a cliff).
+- `tools/py/mission.py`: 56/56 wm_*.bin files walk exactly to EOF. `tools/py/objsect.py`: every .bin parses (807 types).
+- `headless_render --world Story1`:
+  - Log: "Object registry: 807 types, 799 groups, 1570 meshes", "Mission 1a_1_timmy: 344 objects (1 mounted)",
+    "Level objects: 300 placed, 9 characters", "Mission characters: 6 Rippers, 0 Reapers, 3 ambient".
+  - Combat at Timmy's tower:
+    - 600 frames without firing: health 28.
+    - 300 frames with `--trigger 1 --auto-aim`: the 3 nearby Rippers die, health 100.
+- APK: signed, 3,047,923 bytes, sha256 1dc7f456…2416. **Not yet device-tested.**

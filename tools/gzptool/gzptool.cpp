@@ -189,6 +189,14 @@ static int cmdAnmInfo(const char* dir, int n, char** anims) {
             const std::string l = toLower(an.nodes[k].name);
             if (l.find("foot") != std::string::npos || l.find("toe") != std::string::npos) feet.push_back(int(k));
         }
+        if (feet.empty()) {
+            // Creatures without foot/toe names (e.g. the Ripper): use every leaf node.
+            std::vector<int> kids(an.nodes.size(), 0);
+            for (const auto& nd : an.nodes)
+                if (nd.parent >= 0) ++kids[size_t(nd.parent)];
+            for (size_t k = 0; k < an.nodes.size(); ++k)
+                if (!kids[k] && an.nodes[k].parent >= 0) feet.push_back(int(k));
+        }
         if (feet.empty() || an.durationSeconds() <= 0) continue;
         const int steps = 120;
         const float dur = an.durationSeconds(), dt = dur / steps;

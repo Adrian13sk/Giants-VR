@@ -91,7 +91,7 @@ bool parseMission(const uint8_t* d, size_t n, MissionData& out, std::string* err
                 stack.clear();
                 break;
             }
-            case 0x05: obj()->team = a[0]; break;
+            case 0x05: obj()->group = a[0]; break;
             case 0x08: obj()->flags |= a[0] & 0x0F; break;
             case 0x09: obj()->scale = rdf(a); break;
             case 0x0B: for (int i = 0; i < 4; ++i) out.setup[i] = rd32(a + 4 * i); break;

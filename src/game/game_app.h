@@ -11,6 +11,7 @@
 #include "game/player.h"
 #include "game/weapon.h"
 #include "game/enemy.h"
+#include "game/creature.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
 #include "scene/test_scene.h"
@@ -32,6 +33,7 @@ struct HapticRequest {
 class AssetWorld;    // original-asset scene (defined in scene/asset_world.h)
 class SkinnedModel;  // scene/skinned_model.h
 struct RenderModel;  // scene/model_cache.h
+class ModelCache;   // scene/model_cache.h
 class AudioMixer;   // audio/mixer.h
 
 class GameApp {
@@ -60,6 +62,8 @@ public:
     size_t weaponShots() const { return weapon_.shotsFired(); }
     size_t weaponHits() const { return weapon_.hits(); }
     size_t enemiesAlive() const { return enemies_.aliveCount(); }
+    size_t creaturesAlive() const { return creatures_.aliveCount(); }
+    size_t characterCount() const { return chars_.size(); }
     size_t enemyCount() const { return enemies_.enemies.size(); }
     float playerHealth() const { return playerHealth_; }
     // Test hook: feet position of any enemy (alive or dead).
@@ -76,6 +80,11 @@ public:
             if (e.state == EnemyState::Dead) continue;
             const float d = length(e.pos - player_.position);
             if (d < best) { best = d; chest = e.pos + Vec3{0, 1.2f, 0}; found = true; }
+        }
+        for (const auto& c : creatures_.creatures) {
+            if (c.state == CreatureState::Dead) continue;
+            const float d = length(c.pos - player_.position);
+            if (d < best) { best = d; chest = c.pos + Vec3{0, 0.45f * c.scale, 0}; found = true; }
         }
         return found;
     }
@@ -136,6 +145,21 @@ private:
     uint32_t rng_ = 987654321u;
     float frand() { rng_ = rng_ * 1664525u + 1013904223u; return float(rng_ >> 8) / float(1u << 24); }
     void spawnWave();
+    // Mission characters: Rippers (CreatureDirector AI) and ambient ones (looping default clip).
+    struct CharacterInst {
+        std::unique_ptr<SkinnedModel> model;
+        int clipIndex[int(CreatureClip::Count)] = {};
+        Vec3 pos;
+        float yaw = 0, scale = 1, lift = 0, time = 0, stepTimer = 0;
+        bool ambient = true, visible = true, large = false;
+    };
+    std::vector<CharacterInst> chars_;
+    CreatureDirector creatures_;
+    std::vector<CreatureEvent> creatureEvents_;
+    bool missionHostiles_ = false;  // the mission placed enemies: no test waves
+    void initCharacters(AssetWorld* w, ModelCache* mc);
+    void updateCharacters(float dt);
+    void creatureSound(const CreatureEvent& e);
     void updateCombat(float dt);
     void damagePlayer(float amount);
     void renderHud();

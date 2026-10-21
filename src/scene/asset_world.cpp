@@ -22,7 +22,8 @@ bool AssetWorld::init(const std::string& dataDir, Renderer& r, const std::string
 
     hasTerrain_ = loadWorld(worldName, r);
     if (hasTerrain_) placeWorldObjects(dataDir);
-    placeShowcase(spawn_ + Vec3{0, 0, -6.0f});
+    // Test showcase (Smartie, Kabuto) only when the mission doesn't populate the level itself.
+    if (characters_.empty()) placeShowcase(spawn_ + Vec3{0, 0, -6.0f});
     status_ = "Mounted " + std::to_string(n) + " archives; world " + worldName +
               (hasTerrain_ ? " loaded" : " NOT loaded") + "; " + std::to_string(placed_.size()) +
               " static + " + std::to_string(skinned_.size()) + " animated original models placed";
@@ -173,7 +174,22 @@ void AssetWorld::placeShowcase(const Vec3& centre) {
 struct Placement {
     uint32_t type;
     float x, y, z, yaw, pitch, roll, scale;
+    bool mission = false;
 };
+
+// Creature object classes ("ospec", type op 0x1E) seen in the mission files: 1 Kabuto,
+// 4 offspring, 18 Smartie variants, 23 Ripper, 42 charger, 45 Dactyl, 51 Reaper grunt,
+// 53 Verm, 99 Raik. Smarties (sm_l0) and Sonaks carry no class op but many clips.
+static bool isCharacter(const ObjectRegistry& reg, uint32_t type, const std::string& model) {
+    const ObjectType* t = reg.type(type);
+    if (!t) return false;
+    static const int classes[] = {1, 4, 18, 23, 42, 45, 51, 53, 99};
+    for (int c : classes)
+        if (t->objectClass == c) return true;
+    const ObjectGroup* g = t->hasGroup ? reg.group(t->group) : nullptr;
+    if (g && g->anims.size() >= 5 && t->objectClass < 0) return true;
+    return toLower(model).rfind("smtimmy", 0) == 0;  // Timmy (placed for the opening cutscene)
+}
 static Mat4 placementMatrix(const Placement& p) {
     const float k = kPi / 180.0f;
     const Quat q = Quat::fromAxisAngle({0, 1, 0}, p.yaw * k) * Quat::fromAxisAngle({-1, 0, 0}, p.pitch * k) *
@@ -208,9 +224,22 @@ void AssetWorld::placeWorldObjects(const std::string& dataDir) {
             continue;
         }
         missionName_ = sc.name;
+        // Player start: the mission's "marker" object with id 1 (op 5), facing its yaw.
+        // Provisional reading: multiplayer-style start markers; in 1a_1_timmy it stands ~280 m
+        // from the Smartie village, facing it.
+        for (const auto& o : mission_.objects) {
+            if (o.group != 1 || o.parent >= 0 || toLower(registry_.modelName(o.type)) != "marker") continue;
+            Vec3 p = giantsToRuntime(o.x, o.y, o.z);
+            float gy;
+            if (terrain_.heightAt(p.x, p.z, gy)) p.y = gy;
+            spawn_ = p;
+            spawnYaw_ = o.yaw * kPi / 180.0f;
+            LOGI("Spawn from mission start marker: %.1f %.1f %.1f yaw %.0f deg", p.x, p.y, p.z, o.yaw);
+            break;
+        }
         for (const auto& o : mission_.objects) {
             if (o.parent >= 0) { ++mounted; continue; }  // carried items (e.g. a jetpack) not shown yet
-            all.push_back({o.type, o.x, o.y, o.z, o.yaw, o.pitch, o.roll, o.scale > 0 ? o.scale : typeScale(o.type)});
+            all.push_back({o.type, o.x, o.y, o.z, o.yaw, o.pitch, o.roll, o.scale > 0 ? o.scale : typeScale(o.type), true});
         }
         LOGI("Mission %s: %zu objects (%zu mounted), start flick '%s'", sc.name.c_str(), mission_.objects.size(),
              mounted, mission_.startFlick.c_str());
@@ -220,6 +249,15 @@ void AssetWorld::placeWorldObjects(const std::string& dataDir) {
     for (const auto& p : all) {
         const std::string name = registry_.modelName(p.type);
         if (name.empty() || isInvisibleHelper(name)) { ++hidden; continue; }
+        if (p.mission && isCharacter(registry_, p.type, name) && fs_.exists(name + ".skn")) {
+            // Animated by the game layer (AI or ambient loop), not baked into a static pose.
+            const ObjectType* t = registry_.type(p.type);
+            Vec3 pos = giantsToRuntime(p.x, p.y, p.z);
+            float gy;
+            if (hasTerrain_ && terrain_.heightAt(pos.x, pos.z, gy)) pos.y = gy;
+            characters_.push_back({p.type, name, t ? t->objectClass : -1, pos, p.yaw * kPi / 180.0f, p.scale});
+            continue;
+        }
         const RenderModel* m = cache_->get(name + ".gbs", registry_.modelAnim(p.type));
         if (!m) { ++missing; continue; }
         const Mat4 xf = placementMatrix(p);
@@ -242,8 +280,8 @@ void AssetWorld::placeWorldObjects(const std::string& dataDir) {
             collision_.addObject(w);
         }
     }
-    LOGI("Level objects: %zu placed, %zu helpers skipped, %zu without a model", worldObjects_.size(), hidden,
-         missing);
+    LOGI("Level objects: %zu placed, %zu characters, %zu helpers skipped, %zu without a model", worldObjects_.size(),
+         characters_.size(), hidden, missing);
     LOGI("Collision: %zu solid objects, %zu triangles", collision_.objectCount(), collision_.triangleCount());
 }
 
