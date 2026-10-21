@@ -3,7 +3,7 @@ An experimental standalone VR port of Giants: Citizen Kabuto for Meta Quest 2. B
 
 # Giants: Citizen Kabuto VR
 
-An ambitious community-driven project exploring a native, standalone VR port of *Giants: Citizen Kabuto* to the Meta Quest 2.
+An ambitious one-man project exploring a native, standalone VR port of *Giants: Citizen Kabuto* to the Meta Quest 2.
 
 The project aims to bring the iconic world of Giants into immersive virtual reality, combining original game assets, environments, and animations with VR rendering, head tracking, and motion-controller support.
 
