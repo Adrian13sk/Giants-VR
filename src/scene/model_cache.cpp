@@ -231,6 +231,11 @@ const RenderModel* ModelCache::get(const std::string& gbsName, const std::string
         // Sub-object flag 0x10/0x20 is the 3ds Max transparency *type*, not a blend switch
         // (opaque characters carry 0x10), so blending is driven by the texture alpha for now.
         if (alpha) part.blend = BlendMode::AlphaTest;
+        if (!alpha)  // alpha-tested parts are foliage/grilles: not solid
+            for (uint32_t ix : bp.mesh.indices) {
+                const auto& v = bp.mesh.vertices[ix];
+                rm->collisionTris.push_back(Vec3{v.pos[0], v.pos[1], v.pos[2]});
+            }
         part.mesh = renderer_.uploadMesh(bp.mesh);
         rm->triangles += part.triangles;
         rm->parts.push_back(part);

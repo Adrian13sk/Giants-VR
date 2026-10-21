@@ -30,6 +30,7 @@ int main(int argc, char** argv) {
     float moveX = 0, moveY = 0, turnX = 0, headYawDeg = 0;
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
+    int jetFrom = -1, jetTo = -1;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         auto next = [&]() { return i + 1 < argc ? argv[++i] : ""; };
@@ -49,6 +50,7 @@ int main(int argc, char** argv) {
         else if (a == "--first-person") firstPerson = true;
         else if (a == "--third-person") firstPerson = false;
         else if (a == "--jet") jet = true;                 // hold A (jetpack)
+        else if (a == "--jet-window") { jetFrom = std::atoi(next()); jetTo = std::atoi(next()); }  // hold A for frames [from, to)
         else if (a == "--grip") gripAmount = std::atof(next());  // both grips 0..1
         else if (a == "--hands") { handsFwd = std::atof(next()); handsUp = std::atof(next()); }  // controller offset (m)
     }
@@ -96,7 +98,10 @@ int main(int argc, char** argv) {
         else app.rig().teleportHead(in, giantsToRuntime(atX, atY, 0.0f), yaw);
         app.update(0.0f, in);  // ground following sets the height
     }
-    for (int f = 0; f < frames; ++f) app.update(1.0f / 72.0f, in);
+    for (int f = 0; f < frames; ++f) {
+        if (jetFrom >= 0) in.hand[kRight].primary = f >= jetFrom && f < jetTo;
+        app.update(1.0f / 72.0f, in);
+    }
     if (app.playMode()) {
         const auto& p = app.player();
         LOGI("player at (%.2f %.2f %.2f) yaw %.1f deg, %s, anim %d t=%.2f, speed %.2f m/s", p.position.x, p.position.y,

@@ -202,9 +202,24 @@ void AssetWorld::placeWorldObjects(const std::string& dataDir) {
         const Vec4 wc = xf * Vec4{lc.x, lc.y, lc.z, 1.0f};
         const float radius = 0.5f * length(m->boundsMax - m->boundsMin);
         worldObjects_.push_back({m, xf, Vec3{wc.x, wc.y, wc.z}, radius});
+        // Solid unless it is vegetation the original lets you walk through.
+        const std::string ln = toLower(name);
+        bool soft = false;
+        for (const char* k : {"weed", "shrub", "grass", "flower", "plant", "lilly", "leaf", "bush"})
+            if (ln.find(k) != std::string::npos) soft = true;
+        if (!soft && !m->collisionTris.empty()) {
+            std::vector<Vec3> w;
+            w.reserve(m->collisionTris.size());
+            for (const Vec3& v : m->collisionTris) {
+                const Vec4 p4 = xf * Vec4{v.x, v.y, v.z, 1.0f};
+                w.push_back({p4.x, p4.y, p4.z});
+            }
+            collision_.addObject(w);
+        }
     }
     LOGI("Level objects: %zu placed, %zu helpers skipped, %zu without a model", worldObjects_.size(), hidden,
          missing);
+    LOGI("Collision: %zu solid objects, %zu triangles", collision_.objectCount(), collision_.triangleCount());
 }
 
 void AssetWorld::update(float dt) {

@@ -12,6 +12,7 @@
 #include "assets/object_defs.h"
 #include "assets/world_bin.h"
 #include "render/renderer.h"
+#include "scene/collision.h"
 #include "scene/model_cache.h"
 #include "scene/skinned_model.h"
 #include "scene/terrain.h"
@@ -32,6 +33,7 @@ public:
     Vec3 spawnPoint() const { return spawn_; }
     float spawnYaw() const { return spawnYaw_; }
     const WorldDefinition& world() const { return world_; }
+    const CollisionWorld& collision() const { return collision_; }
 
     struct Placed {
         const RenderModel* model;
@@ -62,6 +64,7 @@ private:
     struct WorldObject { const RenderModel* model; Mat4 transform; Vec3 centre; float radius; };
     std::vector<WorldObject> worldObjects_;
     ObjectRegistry registry_;
+    CollisionWorld collision_;
     std::string status_;
     WorldDefinition world_;
     Terrain terrain_;

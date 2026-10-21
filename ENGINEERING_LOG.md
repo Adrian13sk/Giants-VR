@@ -209,3 +209,18 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - Clavicle assist capped at about 11° (was 26°) and starts at 90% of reach.
   - Beyond reach the arm goes straight and the hand stays at its end, no longer following the controller outward.
 - **Evidence:** headless renders with the controllers 0.7 m and 1.1 m ahead give the same straight-arm pose.
+
+### Level collision (2026-10-21 19:30)
+- **`CollisionWorld`** (`src/scene/collision.*`, unit-tested on synthetic boxes):
+  - Placed objects contribute their opaque triangles in world space. Alpha-tested parts (foliage, grilles) and vegetation by name (weed/shrub/grass/plant/bush…) are walk-through.
+  - Triangles are split by slope at the original's 50° walkable gate (cos 0.64278, decompilation constants table, used as a fact). Steep triangles are walls, the rest are floors.
+  - The player is a capsule (r 0.35 m, h 1.8 m, step 0.45 m). Walls push it out horizontally: the closest point on each triangle to the axis is sampled at the overlapping heights, 3 passes. Floors under (x, z) up to feet + step become ground: wall tops, roofs, tables.
+- **Story1:** 129 solid objects, 10,425 triangles. Broadphase is a per-object AABB; queries are cheap at this scale.
+- **Player:**
+  - Collision runs after movement (stick and physical walking).
+  - When blocked or sliding, velocity and the animation use the actual displacement, so he goes idle against a wall instead of running in place.
+  - Falling onto a top uses max(prevY, y) + step to avoid tunnelling.
+- **Evidence:**
+  - Running from the village centre stops at the curved wall after 14.9 m (render shows him at the wall).
+  - Jetpacking over it carries him across and he lands beyond.
+- **Headless:** new `--jet-window FROM TO`.

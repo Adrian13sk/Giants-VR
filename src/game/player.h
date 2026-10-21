@@ -8,6 +8,7 @@
 #include <functional>
 
 #include "core/math.h"
+#include "scene/collision.h"
 
 namespace gvr {
 
@@ -44,6 +45,8 @@ public:
     // First person: the body faces the view direction (strafe/backpedal clips by movement angle)
     // instead of turning toward the travel direction.
     bool faceView = false;
+    const CollisionWorld* collision = nullptr;  // level objects (optional)
+    float radius = 0.35f, height = 1.8f, stepUp = 0.45f;  // capsule (m)
 
     Vec3 position;     // feet, world metres
     float yaw = 0;     // body facing (radians, 0 = -Z, the original models' forward)

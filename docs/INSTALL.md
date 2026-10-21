@@ -45,7 +45,7 @@ moves him too.
 | Left stick | Run (5 m/s) relative to where you look; sideways = sidestep, back = backpedal | Move |
 | Left grip (hold) | Sprint ×1.5 | Speed boost ×5 |
 | Right stick left/right | Snap turn 30° | Snap turn 30° |
-| **A** (hold) | **Jetpack** thrust; release to hover down and land | — |
+| **A** (hold) | **Jetpack** thrust; release to hover down and land (you can land on walls and roofs) | — |
 | Right stick click | First ↔ third person (third: camera behind him) | — |
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
 | Y | — | Debug fly/noclip on/off (strong buzz = on) |

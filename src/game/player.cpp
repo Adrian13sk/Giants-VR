@@ -91,9 +91,21 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     velocity.y -= params.gravity * dt;
     velocity.y = std::min(velocity.y, params.maxRise);
     if (onGround && !in.jet) velocity.y = 0;
+    const float prevY = position.y;
+    const Vec3 before = position;
     position += velocity * dt;
+    float speedNow = speed;
+    if (collision && collision->pushOut(position, radius, height, stepUp)) {
+        // Blocked or sliding along a wall: animate (and report) the motion that happened.
+        const float dx = position.x - before.x, dz = position.z - before.z;
+        speedNow = std::sqrt(dx * dx + dz * dz) / dt;
+        if (speedNow < 1e-3f) { velocity.x = velocity.z = 0; }
+        else { velocity.x = dx / dt; velocity.z = dz / dt; }
+    }
 
-    const float g = groundHeight ? groundHeight(position.x, position.z) : 0.0f;
+    float g = groundHeight ? groundHeight(position.x, position.z) : 0.0f;
+    float og;  // walls' tops, roofs, tables: highest one we can step onto or are falling onto
+    if (collision && collision->groundAt(position.x, position.z, std::max(prevY, position.y) + stepUp, og)) g = std::max(g, og);
     if (position.y <= g) {
         if (!onGround && velocity.y < -params.hardLandSpeed) landTimer_ = params.landSeconds;
         position.y = g;
@@ -112,17 +124,17 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     // Movement relative to the body: forward run, sidestep (right = clip forward), backpedal.
     const float rel = angleDelta(yaw, moveYaw);
     if (!onGround) want = in.jet ? PlayerAnim::Thrust : PlayerAnim::Hover;
-    else if (speed > 0.15f) {
+    else if (speedNow > 0.15f) {
         const float clampRate = params.maxPlayback;
         if (std::fabs(rel) < 0.87f) {           // within ~50 deg of facing
             want = PlayerAnim::Run;
-            rate = std::min(clampRate, std::max(0.6f, speed / params.strideSpeed));
+            rate = std::min(clampRate, std::max(0.6f, speedNow / params.strideSpeed));
         } else if (std::fabs(rel) > 2.27f) {    // beyond ~130 deg: run the cycle backwards
             want = PlayerAnim::Run;
-            rate = -std::min(clampRate, std::max(0.6f, speed / params.strideSpeed));
+            rate = -std::min(clampRate, std::max(0.6f, speedNow / params.strideSpeed));
         } else {
             want = PlayerAnim::Strafe;
-            rate = std::min(clampRate, std::max(0.6f, speed / params.strafeStride)) * (rel < 0 ? 1.0f : -1.0f);
+            rate = std::min(clampRate, std::max(0.6f, speedNow / params.strafeStride)) * (rel < 0 ? 1.0f : -1.0f);
         }
     } else if (landTimer_ > 0) want = PlayerAnim::Land;
     else want = PlayerAnim::Idle;

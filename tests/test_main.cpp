@@ -11,6 +11,7 @@
 #include "assets/world_bin.h"
 #include "core/math.h"
 #include "game/arm_ik.h"
+#include "scene/collision.h"
 #include "game/player.h"
 #include "game/vr_rig.h"
 
@@ -297,6 +298,45 @@ static void testArmIk() {
     }
 }
 
+static std::vector<Vec3> boxTris(const Vec3& mn, const Vec3& mx) {
+    const Vec3 v[8] = {{mn.x, mn.y, mn.z}, {mx.x, mn.y, mn.z}, {mx.x, mx.y, mn.z}, {mn.x, mx.y, mn.z},
+                       {mn.x, mn.y, mx.z}, {mx.x, mn.y, mx.z}, {mx.x, mx.y, mx.z}, {mn.x, mx.y, mx.z}};
+    const int f[6][4] = {{0, 1, 2, 3}, {5, 4, 7, 6}, {4, 0, 3, 7}, {1, 5, 6, 2}, {3, 2, 6, 7}, {4, 5, 1, 0}};
+    std::vector<Vec3> t;
+    for (const auto& q : f) {
+        t.insert(t.end(), {v[q[0]], v[q[1]], v[q[2]]});
+        t.insert(t.end(), {v[q[0]], v[q[2]], v[q[3]]});
+    }
+    return t;
+}
+
+static void testCollision() {
+    CHECK(near(length(closestPointOnTriangle({0, 5, 0}, {-1, 0, -1}, {1, 0, -1}, {0, 0, 1}) - Vec3{0, 0, 0}), 0.0f));
+    CollisionWorld cw;
+    cw.addObject(boxTris({-1, 0, -1}, {1, 2, 1}));      // 2 m tall block
+    cw.addObject(boxTris({3, 0, -1}, {4, 0.3f, 1}));    // 30 cm step
+    CHECK(cw.objectCount() == 2 && cw.triangleCount() == 24);
+    // Walking into the block's +X face: pushed back to radius distance.
+    Vec3 feet{1.2f, 0, 0.2f};
+    CHECK(cw.pushOut(feet, 0.35f, 1.8f, 0.45f));
+    CHECK(near(feet.x, 1.35f, 1e-3f) && near(feet.z, 0.2f, 1e-3f));
+    // Near a corner: pushed out diagonally.
+    Vec3 corner{1.1f, 0, 1.1f};
+    cw.pushOut(corner, 0.35f, 1.8f, 0.45f);
+    CHECK(length(Vec3{corner.x - 1, 0, corner.z - 1}) > 0.349f);
+    // The low step is not a wall (stepped onto instead) and is ground.
+    Vec3 onStep{2.8f, 0, 0};
+    CHECK(!cw.pushOut(onStep, 0.35f, 1.8f, 0.45f));
+    float g = 0;
+    CHECK(cw.groundAt(3.5f, 0, 0.0f + 0.45f, g) && near(g, 0.3f));
+    // Standing on the block top only when coming from above.
+    CHECK(cw.groundAt(0, 0, 2.2f, g) && near(g, 2.0f));
+    CHECK(!cw.groundAt(0, 0, 1.0f, g) || g < 1.0f);  // the 2 m top is not reported from below
+    // A capsule standing on the block top is not pushed by its walls.
+    Vec3 top{0.5f, 2.0f, 0.5f};
+    CHECK(!cw.pushOut(top, 0.35f, 1.8f, 0.45f));
+}
+
 static void testGti() {
     // 2x1 interior cells, lightmap flag; stream: skip 0, literal run of 2 cells.
     std::vector<uint8_t> d;
@@ -351,6 +391,7 @@ int main() {
     testRig();
     testPlayer();
     testArmIk();
+    testCollision();
     if (g_failures) {
         std::printf("%d test failure(s)\n", g_failures);
         return 1;

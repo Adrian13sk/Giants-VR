@@ -32,6 +32,7 @@ struct RenderModel {
     std::string name;
     std::vector<Part> parts;
     Vec3 boundsMin, boundsMax;  // runtime frame, metres
+    std::vector<Vec3> collisionTris;  // opaque parts, model-local metres, 3 per triangle
     uint32_t triangles = 0;
     uint32_t missingTextures = 0;
 };

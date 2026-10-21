@@ -102,6 +102,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             playerModel_ = std::move(m);
             playMode_ = true;
             AssetWorld* w = assetWorld_.get();
+            player_.collision = &w->collision();
             player_.groundHeight = [w, this](float x, float z) {
                 float y;
                 return w->terrain().heightAt(x, z, y) ? y : player_.position.y;
