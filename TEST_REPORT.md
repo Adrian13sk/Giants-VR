@@ -127,3 +127,9 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - raw decoding.
 - Harness: `Music: 429 songs, 932 transitions`, 4 objectives, completion, soundtrack, jetpack (see log). **Not yet device-tested.**
 - On the headset, music and soundtracks need the `Music` and `Stream` folders copied next to `Bin` (INSTALL.md).
+
+## Device test 17 — 2026-10-21 23:07 local, user's Quest 2 (build 04c8f08)
+- User: "End soundtrack plays and the jetpack works." Mission 1a completion, the outro soundtrack and the story jetpack
+  are **DEVICE VERIFIED**.
+- The user chose the cutscene presentation: a fixed viewpoint per shot (free head look), fades between shots, and
+  subtitles from GTextEnglish.
