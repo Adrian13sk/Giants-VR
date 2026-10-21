@@ -32,6 +32,9 @@ struct Enemy {
     float flank = 0;        // lateral offset (m) of this enemy's approach point around the player
     float flankTimer = 0;
     int burstsLeft = 0;     // bursts remaining at the current stop
+    float detour = 0;       // >0 / <0: steering around an obstacle (radians added to the heading)
+    float detourTime = 0;
+    float blockedTime = 0;
     float sink = 0;         // metres sunk after death
     bool remove = false;
     int slot = -1;          // renderer model slot (owned by the game app)
@@ -45,6 +48,9 @@ struct EnemyParams {
     float runSpeed = 3.7f;        // m/s (rpman_bzka_run stride: 18.4 units/s)
     float walkSpeed = 1.65f;      // m/s (rpman_walk_fire stride, unused by the current AI)
     int burstsPerStop = 2;        // bursts fired at each stop before running to a new spot
+    float maxSlope = 1.19f;       // rise/run: steeper uphill ground blocks them (50 deg, like the player)
+    float maxStepUp = 0.8f;       // m
+    float slideSpeed = 6.0f;      // m/s down ground too steep to stand on
     float turnRate = 5.0f;        // rad/s
     float fireInterval = 0.35f;   // s between shots in a burst
     int burstSize = 3;
@@ -73,6 +79,8 @@ public:
 
 private:
     void setClip(Enemy& e, EnemyClip c, bool loop);
+    // Moves e horizontally by `step` unless the ground rises too steeply (cliff); true if moved.
+    bool tryMove(Enemy& e, const Vec3& step);
     unsigned rng_ = 12345u;
     unsigned nextRand() { rng_ = rng_ * 1664525u + 1013904223u; return rng_ >> 8; }
 };

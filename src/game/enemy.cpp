@@ -51,6 +51,17 @@ void EnemyDirector::setClip(Enemy& e, EnemyClip c, bool loop) {
     e.fade = 0;
 }
 
+bool EnemyDirector::tryMove(Enemy& e, const Vec3& step) {
+    if (!groundHeight) { e.pos += step; return true; }
+    const float run = std::sqrt(step.x * step.x + step.z * step.z);
+    const float g0 = groundHeight(e.pos.x, e.pos.z);
+    const float g1 = groundHeight(e.pos.x + step.x, e.pos.z + step.z);
+    const float rise = g1 - g0;
+    if (rise > params.maxStepUp || (rise > 0.02f && run > 1e-4f && rise / run > params.maxSlope)) return false;
+    e.pos += step;
+    return true;
+}
+
 bool EnemyDirector::damage(int i, float amount) {
     if (i < 0 || size_t(i) >= enemies.size()) return false;
     Enemy& e = enemies[size_t(i)];
@@ -109,9 +120,31 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     break;
                 }
                 setClip(e, EnemyClip::Run, true);
-                turn(std::atan2(-goal.x, -goal.z));
+                // Steer around cliffs: while detouring, the heading is offset from the goal.
+                e.detourTime -= dt;
+                if (e.detourTime <= 0) e.detour = 0;
+                turn(std::atan2(-goal.x, -goal.z) + e.detour);
                 const Vec3 fwd{-std::sin(e.yaw), 0, -std::cos(e.yaw)};
-                e.pos += fwd * (params.runSpeed * dt);
+                if (tryMove(e, fwd * (params.runSpeed * dt))) {
+                    e.blockedTime = 0;
+                } else {
+                    // Can't climb this: try going around; if the player is in range, shoot instead.
+                    e.blockedTime += dt;
+                    if (e.blockedTime > 0.3f) {
+                        if (dist <= params.shootRange) {
+                            e.state = EnemyState::Fire;
+                            e.stateTime = 0;
+                            e.burstLeft = params.burstSize;
+                            e.burstsLeft = params.burstsPerStop;
+                            e.fireCooldown = 0.35f;
+                        } else {
+                            const float side = e.detour != 0 ? -e.detour : ((nextRand() & 1) ? 1.1f : -1.1f);
+                            e.detour = side;
+                            e.detourTime = 2.0f;
+                        }
+                        e.blockedTime = 0;
+                    }
+                }
                 break;
             }
             case EnemyState::Fire:
@@ -154,6 +187,14 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 if (e.stateTime > params.corpseTime) e.sink += dt * 0.35f;
                 if (e.sink > params.height) e.remove = true;
                 break;
+        }
+        // Ground too steep to stand on: slide downhill (as the player does).
+        if (e.state != EnemyState::Dead && groundHeight) {
+            const float h = 0.5f;
+            const float gx = (groundHeight(e.pos.x + h, e.pos.z) - groundHeight(e.pos.x - h, e.pos.z)) / (2 * h);
+            const float gz = (groundHeight(e.pos.x, e.pos.z + h) - groundHeight(e.pos.x, e.pos.z - h)) / (2 * h);
+            const float grade = std::sqrt(gx * gx + gz * gz);
+            if (grade > params.maxSlope) e.pos += Vec3{-gx / grade, 0, -gz / grade} * (params.slideSpeed * dt);
         }
         // Ground and buildings.
         if (e.state != EnemyState::Dead && collision) collision->pushOut(e.pos, params.radius, params.height, 0.45f);

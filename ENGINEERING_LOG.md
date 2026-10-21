@@ -316,3 +316,12 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - `Terrain::heightAt` used bilinear interpolation, but the mesh uses two triangles per cell (diagonal from the triangle code). On cliff cells they differ by metres; the third-person render showed the character inside the rock.
   - heightAt now evaluates the same triangles, so ground, feet, slopes and collision match the visible surface everywhere.
 - **Third-person camera collision:** if terrain or a building is between the chest and the eyes, the camera pulls in front of it.
+
+### Device test 13 feedback → enemies can't climb cliffs (2026-10-21 22:55)
+- **User report:** enemies climbing cliffs should be impossible, or behave as in the original.
+- **Fix:** enemies follow the player's ground rules.
+  - `EnemyDirector::tryMove` rejects steps that rise more than 0.8 m or steeper than rise/run 1.19 (50°).
+  - Blocked for more than 0.3 s: if the player is within 30 m they stop and shoot; otherwise they detour (heading ±63° from the goal for 2 s, flipping side if blocked again).
+  - On ground steeper than 50° they slide downhill at 6 m/s.
+  - The original AI's exact cliff handling is unknown (B9); this mirrors the player's rule.
+- **Evidence:** unit test where the enemy below a 60° cliff never rises above 1.5 m in 20 s while the player stands on top. Regression: a normal wave still closes from 30 m to 12 m.

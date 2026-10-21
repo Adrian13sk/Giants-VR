@@ -462,6 +462,19 @@ static void testEnemies() {
     CHECK(d.damage(0, 25) && d.enemies[0].state == EnemyState::Dead && d.aliveCount() == 0);
     CHECK(!d.raycast({0, 1.2f, 0}, dir, 100, th, n, idx));  // shots pass over corpses
     // Corpse sinks away and is removed.
+    {
+        // Cliff: a wall of 60-degree ground between the enemy and the player blocks it; it
+        // never climbs (stays low) and shoots when in range instead.
+        EnemyDirector c;
+        c.groundHeight = [](float, float z) { return z > -20.0f && z < -10.0f ? (z + 20.0f) * 1.73f : (z >= -10.0f ? 17.3f : 0.0f); };
+        for (auto& cd : c.clipDuration) cd = 0.6f;
+        c.spawn({0, 0, -40}, 0.0f);
+        std::vector<int> sh;
+        const Vec3 top{0, 17.3f, 0};
+        float maxY = 0;
+        for (int i = 0; i < 72 * 20; ++i) { c.update(1.0f / 72.0f, top, true, sh); maxY = std::max(maxY, c.enemies[0].pos.y); }
+        CHECK(maxY < 1.5f);  // never walked up the cliff
+    }
     for (int i = 0; i < 72 * 20; ++i) d.update(dt, player, true, shots);
     CHECK(d.enemies.empty());
 }
