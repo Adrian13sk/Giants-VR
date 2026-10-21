@@ -28,6 +28,8 @@ struct WorldDefinition {
     uint8_t waterFogRGB[3] = {0, 0, 0};
     uint8_t ambientRGB[3] = {255, 255, 255};  // op 40
     std::vector<WorldObjectRecord> objects;  // op 42
+    struct Scenario { uint8_t kind; std::string name; };
+    std::vector<Scenario> scenarios;         // op 92: mission files wm_<name>.bin (kind 2) etc.
     size_t recordsParsed = 0;
     size_t streamSize = 0, streamConsumed = 0;
     int stopOpcode = -1;                // opcode that ended the walk

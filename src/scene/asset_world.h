@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "assets/gzp.h"
+#include "assets/object_defs.h"
 #include "assets/world_bin.h"
 #include "render/renderer.h"
 #include "scene/model_cache.h"
@@ -40,10 +41,12 @@ public:
     };
     std::vector<Placed>& placed() { return placed_; }
     size_t skinnedCount() const { return skinned_.size(); }
+    size_t worldObjectCount() const { return worldObjects_.size(); }
 
 private:
     bool loadWorld(const std::string& name, Renderer& r);
     void placeShowcase(const Vec3& centre);
+    void placeWorldObjects(const std::string& dataDir);
 
     struct SkinnedPlaced {
         std::unique_ptr<SkinnedModel> model;
@@ -56,6 +59,9 @@ private:
     AssetFS fs_;
     std::unique_ptr<ModelCache> cache_;
     std::vector<Placed> placed_;
+    struct WorldObject { const RenderModel* model; Mat4 transform; Vec3 centre; float radius; };
+    std::vector<WorldObject> worldObjects_;
+    ObjectRegistry registry_;
     std::string status_;
     WorldDefinition world_;
     Terrain terrain_;

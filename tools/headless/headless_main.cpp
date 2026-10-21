@@ -4,6 +4,7 @@
 //
 // usage: headless_render [--data DIR] [--world Story1] [--out file.png] [--size W H] [--frames N]
 //                        [--move X Y] [--turn X] [--head-yaw DEG] [--no-test-scene]
+//                        [--at GAME_X GAME_Y]  (teleport to game coordinates)
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
@@ -15,6 +16,7 @@
 #include "assets/image.h"
 #include "core/log.h"
 #include "game/game_app.h"
+#include "scene/model_cache.h"
 #include "render/gl.h"
 #include "egl_util.h"
 
@@ -22,6 +24,8 @@ using namespace gvr;
 
 int main(int argc, char** argv) {
     std::string dataDir = "", out = "stereo.png", world = "Story1";
+    float atX = 0, atY = 0, pitchDeg = -8.6f, headHeight = 1.65f;
+    bool useAt = false;
     int w = 720, h = 792, frames = 1;
     float moveX = 0, moveY = 0, turnX = 0, headYawDeg = 0;
     bool testScene = true;
@@ -37,6 +41,9 @@ int main(int argc, char** argv) {
         else if (a == "--head-yaw") headYawDeg = std::atof(next());
         else if (a == "--no-test-scene") testScene = false;
         else if (a == "--world") world = next();
+        else if (a == "--pitch") pitchDeg = std::atof(next());
+        else if (a == "--height") headHeight = std::atof(next());
+        else if (a == "--at") { atX = std::atof(next()); atY = std::atof(next()); useAt = true; }
     }
     if (!initEgl()) return 2;
 
@@ -47,9 +54,9 @@ int main(int argc, char** argv) {
     // Scripted tracking-space poses, approximating a standing Quest 2 user.
     InputFrame in;
     in.headValid = true;
-    in.head.position = {0, 1.65f, 0};
+    in.head.position = {0, headHeight, 0};
     in.head.orientation = Quat::fromAxisAngle({0, 1, 0}, headYawDeg * kPi / 180.0f) *
-                          Quat::fromAxisAngle({1, 0, 0}, -0.15f);
+                          Quat::fromAxisAngle({1, 0, 0}, pitchDeg * kPi / 180.0f);
     for (int hnd = 0; hnd < 2; ++hnd) {
         ControllerState& c = in.hand[hnd];
         c.active = c.gripPoseValid = c.aimPoseValid = true;
@@ -69,6 +76,12 @@ int main(int argc, char** argv) {
         InputFrame t = in;
         t.hand[kLeft].thumbstickClick = true;
         app.update(0.0f, t);
+    }
+    if (useAt) {
+        // Teleport the player to game coordinates (units, Z-up) facing the scripted head yaw.
+        app.update(0.0f, in);  // consume the automatic spawn
+        app.rig().teleportHead(in, giantsToRuntime(atX, atY, 0.0f), headYawDeg * kPi / 180.0f);
+        app.update(0.0f, in);  // ground following sets the height
     }
     for (int f = 0; f < frames; ++f) app.update(1.0f / 72.0f, in);
 

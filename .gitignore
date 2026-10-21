@@ -11,3 +11,4 @@ keys/
 *.gti
 *.tga
 game_data/
+__pycache__/

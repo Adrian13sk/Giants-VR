@@ -1,5 +1,6 @@
 #include "render/renderer.h"
 
+#include <cmath>
 #include <cstddef>
 
 #include "core/log.h"
@@ -240,6 +241,18 @@ void Renderer::destroyTexture(TextureId id) {
 void Renderer::beginView(const ViewParams& view, int w, int h, bool clear) {
     currentView_ = view;
     viewProj_ = view.projection * view.view;
+    // Gribb-Hartmann plane extraction (column-major m[col*4+row]); far plane skipped (infinite).
+    const float* m = viewProj_.m;
+    auto row = [&](int r) { return Vec4{m[r], m[4 + r], m[8 + r], m[12 + r]}; };
+    const Vec4 r0 = row(0), r1 = row(1), r2 = row(2), r3 = row(3);
+    auto add = [](Vec4 a, Vec4 b, float s) { return Vec4{a.x + s * b.x, a.y + s * b.y, a.z + s * b.z, a.w + s * b.w}; };
+    planes_[0] = add(r3, r0, 1); planes_[1] = add(r3, r0, -1);
+    planes_[2] = add(r3, r1, 1); planes_[3] = add(r3, r1, -1);
+    planes_[4] = add(r3, r2, 1); planes_[5] = Vec4{0, 0, 0, 1};
+    for (int i = 0; i < 5; ++i) {
+        const float l = std::sqrt(planes_[i].x * planes_[i].x + planes_[i].y * planes_[i].y + planes_[i].z * planes_[i].z);
+        if (l > 0) planes_[i] = {planes_[i].x / l, planes_[i].y / l, planes_[i].z / l, planes_[i].w / l};
+    }
     glViewport(0, 0, w, h);
     glScissor(0, 0, w, h);
     glEnable(GL_DEPTH_TEST);
@@ -314,6 +327,12 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
         glUniform2f(uFogRange_, env_.fogNear, 1.0f / fogSpan);
     }
     ++drawCalls_;
+}
+
+bool Renderer::sphereVisible(const Vec3& c, float r) const {
+    for (int i = 0; i < 5; ++i)
+        if (planes_[i].x * c.x + planes_[i].y * c.y + planes_[i].z * c.z + planes_[i].w < -r) return false;
+    return true;
 }
 
 void Renderer::endView() {

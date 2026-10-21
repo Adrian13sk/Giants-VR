@@ -106,6 +106,7 @@ bool parseWorldBin(const uint8_t* data, size_t size, WorldDefinition& w, std::st
                 std::memcpy(&w.waterFogFar, pl + 4, 4);
                 std::memcpy(w.waterFogRGB, pl + 8, 3);
                 break;
+            case 92: w.scenarios.push_back({pl[0], strAt(pl + 5, 32)}); break;
             case 42: {
                 WorldObjectRecord o;
                 std::memcpy(&o.type, pl, 4);

@@ -20,6 +20,7 @@ bool AssetWorld::init(const std::string& dataDir, Renderer& r, const std::string
     renderer_ = &r;
 
     hasTerrain_ = loadWorld(worldName, r);
+    if (hasTerrain_) placeWorldObjects(dataDir);
     placeShowcase(spawn_ + Vec3{0, 0, -6.0f});
     status_ = "Mounted " + std::to_string(n) + " archives; world " + worldName +
               (hasTerrain_ ? " loaded" : " NOT loaded") + "; " + std::to_string(placed_.size()) +
@@ -165,6 +166,48 @@ void AssetWorld::placeShowcase(const Vec3& centre) {
     }
 }
 
+// Placement transform in the runtime frame. A yaw of `deg` about the game's +Z axis maps to a
+// yaw of +deg about the runtime +Y axis under the (-x, z, y) conversion (proper rotation).
+static Mat4 placementMatrix(const ObjectPlacement& p) {
+    return Mat4::translation(giantsToRuntime(p.x, p.y, p.z)) *
+           Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, p.yawDegrees * kPi / 180.0f));
+}
+
+void AssetWorld::placeWorldObjects(const std::string& dataDir) {
+    const size_t nTypes = registry_.build(dataDir);
+    LOGI("Object registry: %zu types, %zu meshes", nTypes, registry_.meshCount());
+    std::vector<ObjectPlacement> all;
+    for (const auto& o : world_.objects) all.push_back({o.type, o.x, o.y, o.z, o.angle});
+    // The opening mission's setup places the level's structures (fences, walls, props).
+    const float bounds[4] = {-20000, 20000, -20000, 20000};
+    for (const auto& sc : world_.scenarios) {
+        if (sc.kind != 2) continue;
+        std::vector<uint8_t> bytes;
+        if (!fs_.read("wm_" + sc.name + ".bin", bytes)) {
+            LOGW("Mission file wm_%s.bin not found", sc.name.c_str());
+            continue;
+        }
+        auto p = scanMissionPlacements(bytes.data(), bytes.size(), registry_, bounds);
+        LOGI("Mission %s: %zu placements", sc.name.c_str(), p.size());
+        all.insert(all.end(), p.begin(), p.end());
+        break;  // first mission only = level start state
+    }
+    size_t hidden = 0, missing = 0;
+    for (const auto& p : all) {
+        const std::string name = registry_.modelName(p.type);
+        if (name.empty() || isInvisibleHelper(name)) { ++hidden; continue; }
+        const RenderModel* m = cache_->get(name + ".gbs");
+        if (!m) { ++missing; continue; }
+        const Mat4 xf = placementMatrix(p);
+        const Vec3 lc = (m->boundsMin + m->boundsMax) * 0.5f;
+        const Vec4 wc = xf * Vec4{lc.x, lc.y, lc.z, 1.0f};
+        const float radius = 0.5f * length(m->boundsMax - m->boundsMin);
+        worldObjects_.push_back({m, xf, Vec3{wc.x, wc.y, wc.z}, radius});
+    }
+    LOGI("Level objects: %zu placed, %zu helpers skipped, %zu without a model", worldObjects_.size(), hidden,
+         missing);
+}
+
 void AssetWorld::update(float dt) {
     time_ += dt;
     for (auto& p : placed_) p.yaw += p.spin * dt;
@@ -182,6 +225,22 @@ void AssetWorld::render(Renderer& r) {
         r.draw(skyMesh_, Mat4::translation(r.currentView().eyePosition), sp);
     }
     if (hasTerrain_) terrain_.render(r);
+    const Vec3 eye = r.currentView().eyePosition;
+    const float maxDist = r.environment().fogFar;
+    for (const auto& o : worldObjects_) {
+        // Cull objects outside the view frustum or fully fogged out.
+        if (length(o.centre - eye) - o.radius > maxDist || !r.sphereVisible(o.centre, o.radius)) {
+            r.countCulled();
+            continue;
+        }
+        for (const auto& part : o.model->parts) {
+            DrawParams dp;
+            dp.texture = part.texture;
+            dp.blend = part.blend;
+            dp.unlit = !part.lit;
+            r.draw(part.mesh, o.transform, dp);
+        }
+    }
     for (const auto& p : placed_) {
         Mat4 xf = Mat4::translation(p.position) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, p.yaw));
         for (const auto& part : p.model->parts) {

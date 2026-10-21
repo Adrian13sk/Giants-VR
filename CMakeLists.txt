@@ -26,6 +26,7 @@ add_library(gvr_core STATIC
   src/assets/gti.cpp
   src/assets/world_bin.cpp
   src/assets/skin_anim.cpp
+  src/assets/object_defs.cpp
   src/scene/skinned_model.cpp
   src/game/vr_rig.cpp
   src/game/game_app.cpp

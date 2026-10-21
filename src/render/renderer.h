@@ -77,9 +77,13 @@ public:
     void draw(MeshId mesh, const Mat4& model, const DrawParams& params = {});
     void endView();
     const ViewParams& currentView() const { return currentView_; }
+    // Bounding-sphere test against the current view frustum (world space).
+    bool sphereVisible(const Vec3& centre, float radius) const;
+    uint32_t culledThisFrame() const { return culled_; }
+    void countCulled() { ++culled_; }
 
     uint32_t drawCallsThisFrame() const { return drawCalls_; }
-    void resetStats() { drawCalls_ = 0; }
+    void resetStats() { drawCalls_ = 0; culled_ = 0; }
 
 private:
     struct GpuMesh {
@@ -103,6 +107,8 @@ private:
     ViewParams currentView_{};
     Mat4 viewProj_ = Mat4::identity();
     uint32_t drawCalls_ = 0;
+    uint32_t culled_ = 0;
+    Vec4 planes_[6];
 };
 
 // Procedural geometry helpers (used for the engineering test scene and debug visualisation;
