@@ -1,6 +1,7 @@
 // Original character: GBS mesh + SKN rigid skin + ANM animation, CPU-skinned each frame.
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -27,6 +28,20 @@ public:
     void poseBlend(Renderer& r, int a, float ta, int b, float tb, float wb);
     float animDuration(int i) const;
     int animationCount() const { return int(anims_.size()); }
+
+    // Called with every evaluated pose (bone world matrices, model space, game units) before
+    // skinning, e.g. arm IK. children[i] lists the child nodes of node i of that clip.
+    using PoseModifier = std::function<void(const AnmAnimation& clip, const std::vector<std::vector<int>>& children,
+                                            std::vector<Mat4>& world)>;
+    void setPoseModifier(PoseModifier m) { modifier_ = std::move(m); }
+    // Vertices bound to these bones (and their descendants' bones) collapse to a point when
+    // hiding is enabled (first-person: hide the head the camera sits inside).
+    void setHiddenBones(const std::vector<std::string>& lowerCaseNames);
+    void setHideEnabled(bool on) { hideEnabled_ = on; }
+    // Centroid of the hidden-bone vertices in the last pose (model-local metres).
+    Vec3 hiddenCentroid() const { return hiddenCentroid_; }
+    // Bounds (posed, model-local runtime metres) of the vertices bound to a bone; false if none.
+    bool boneVertexBounds(const std::string& lowerCaseName, Vec3& mn, Vec3& mx) const;
     void render(Renderer& r, const Mat4& world) const;
     const std::string& name() const { return base_; }
     uint32_t boundVertices() const { return bound_; }
@@ -41,7 +56,12 @@ private:
     struct Anim {
         AnmAnimation anim;
         std::vector<int> boneToNode;  // per bones_ entry, node index or -1
+        std::vector<std::vector<int>> children;
     };
+    PoseModifier modifier_;
+    std::vector<uint8_t> hideMask_;  // per GBS position
+    bool hideEnabled_ = false;
+    Vec3 hiddenCentroid_{0, 0, 0};
     void skin(int anim, float t, std::vector<Vec3>& out);
     struct Part {
         MeshId mesh = 0;

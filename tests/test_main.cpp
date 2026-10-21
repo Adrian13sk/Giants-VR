@@ -10,6 +10,7 @@
 #include "assets/gti.h"
 #include "assets/world_bin.h"
 #include "core/math.h"
+#include "game/arm_ik.h"
 #include "game/player.h"
 #include "game/vr_rig.h"
 
@@ -231,6 +232,38 @@ static void testPlayer() {
     CHECK(near(angleDelta(3.0f, -3.0f), 2.0f * kPi - 6.0f, 1e-4f));
 }
 
+static void testArmIk() {
+    // Synthetic arm: shoulder at origin, elbow (0,0,-1), wrist (0,0,-2) hanging down; four
+    // fingers ahead (+Y) of the wrist, index side at +X. Mirror the whole arm (det -1) to
+    // check that mirrored hierarchies need no special handling.
+    for (int mirror = 0; mirror < 2; ++mirror) {
+        const float sx = mirror ? -1.0f : 1.0f;
+        std::vector<Vec3> pos = {{0, 0, 0}, {0, 0, -1}, {0, 0, -2},
+                                 {0.15f * sx, 0.3f, -2}, {0.05f * sx, 0.32f, -2}, {-0.05f * sx, 0.32f, -2}, {-0.15f * sx, 0.3f, -2}};
+        std::vector<Mat4> w;
+        for (const Vec3& p : pos) w.push_back(Mat4::translation(p) * Mat4::scale({sx, 1, 1}));
+        std::vector<std::vector<int>> ch = {{1}, {2}, {3, 4, 5, 6}, {}, {}, {}, {}};
+        ArmChain c;
+        c.upper = 0; c.fore = 1; c.hand = 2;
+        for (int i = 0; i < 4; ++i) c.finger[i] = 3 + i;
+        ArmTarget t;
+        t.grip = {0.6f, 1.0f, -0.6f};
+        t.forward = {0, 1, 0};
+        t.up = {sx, 0, 0};
+        t.pole = {0, 0, -1};
+        const float residual = solveArmIk(w, ch, c, t);
+        CHECK(residual >= 0 && residual < 1e-3f);
+        auto P = [&](int i) { return Vec3{w[size_t(i)].m[12], w[size_t(i)].m[13], w[size_t(i)].m[14]}; };
+        CHECK(near(length(P(1) - P(0)), 1.0f, 1e-3f));  // bone lengths preserved
+        CHECK(near(length(P(2) - P(1)), 1.0f, 1e-3f));
+        Vec3 f = (P(3) + P(4) + P(5) + P(6)) * 0.25f;
+        CHECK(near(length(f - t.grip), 0.6f * length(f - P(2)), 1e-2f) || length(f - t.grip) < 0.2f);
+        CHECK(dot(normalize(f - P(2)), t.forward) > 0.999f);           // knuckles point forward
+        CHECK(dot(normalize(P(3) - P(6)), t.up) > 0.99f);              // index side up
+        CHECK(P(1).z < -0.2f);                                           // elbow bends toward the pole (down)
+    }
+}
+
 static void testGti() {
     // 2x1 interior cells, lightmap flag; stream: skip 0, literal run of 2 cells.
     std::vector<uint8_t> d;
@@ -284,6 +317,7 @@ int main() {
     testMath();
     testRig();
     testPlayer();
+    testArmIk();
     if (g_failures) {
         std::printf("%d test failure(s)\n", g_failures);
         return 1;

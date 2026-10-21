@@ -166,3 +166,20 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - B toggles the free camera; right stick click toggles first/third person.
 - The showcase Meccaryn was removed (the player is one).
 - **Headless:** `--free`, `--first-person`, `--jet`; `--at` moves the player in play mode. Renders confirmed idle, run, turn-to-travel, jetpack and the village run.
+
+### Device test 4 feedback → first person with body and hands (2026-10-21 18:10)
+- **User report:** "it is fine, the movement is kinda slow"; first person should be the primary mode, with visible hands and body; third person stays as an option.
+- **Speed:** run speed raised 3 → 5 m/s. Grip sprints at ×1.5. Playback rate is capped at 2.4×.
+- **First person (default):**
+  - **Body pin:** the body is scaled so its eye height matches the user's (running max of the tracked head height). It is placed so its eye point sits under the tracked head, feet on the ground. The eye point is taken from the current animated pose (head-vertex centroid plus the idle offset), so a forward-leaning run clip moves the body back instead of swinging the shoulder armour into view.
+  - **Hidden head:** head and neck vertices collapse to their centroid.
+  - **Physical walking:** room-scale walking moves the player.
+- **Arm IK** (`src/game/arm_ik.*`, unit-tested including a mirrored arm):
+  - Two-bone solve done as world-space subtree rotations, so the mirrored right shoulder needs no special case.
+  - The wrist target is offset from the controller grip by the palm distance.
+  - Hand orientation: finger direction → aim −Z, index→pinky → aim +Y, both derived from the skeleton's finger nodes.
+  - Elbow pole points down, out and back.
+- **Finger curl:** the grip closes all fingers and the trigger curls the leading one. The palm side comes from the two middle fingers' rest bend; the outer digit bent the wrong way when it voted.
+- **Body facing:** in first person the body faces the view (it turns at once when moving, and after more than 50° of head turn when standing). Sidestep uses mc_sidestep (played backwards for left); backpedal plays mc_run backwards (negative time; ANM evaluation now wraps negative times).
+- **Rendering:** controller boxes are hidden in first-person play. The eye point was moved to the front of the face; inside the head, looking down showed the inside of the collar armour.
+- **Headless:** first person is now the default. New options: `--third-person`, `--grip`, `--hands FWD UP`.

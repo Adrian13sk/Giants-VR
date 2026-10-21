@@ -28,7 +28,8 @@ int main(int argc, char** argv) {
     bool useAt = false;
     int w = 720, h = 792, frames = 1;
     float moveX = 0, moveY = 0, turnX = 0, headYawDeg = 0;
-    bool testScene = true, freeCam = false, firstPerson = false, jet = false;
+    bool testScene = true, freeCam = false, firstPerson = true, jet = false;
+    float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         auto next = [&]() { return i + 1 < argc ? argv[++i] : ""; };
@@ -46,7 +47,10 @@ int main(int argc, char** argv) {
         else if (a == "--at") { atX = std::atof(next()); atY = std::atof(next()); useAt = true; }
         else if (a == "--free") freeCam = true;            // free camera instead of the Meccaryn
         else if (a == "--first-person") firstPerson = true;
+        else if (a == "--third-person") firstPerson = false;
         else if (a == "--jet") jet = true;                 // hold A (jetpack)
+        else if (a == "--grip") gripAmount = std::atof(next());  // both grips 0..1
+        else if (a == "--hands") { handsFwd = std::atof(next()); handsUp = std::atof(next()); }  // controller offset (m)
     }
     if (!initEgl()) return 2;
 
@@ -64,11 +68,12 @@ int main(int argc, char** argv) {
         ControllerState& c = in.hand[hnd];
         c.active = c.gripPoseValid = c.aimPoseValid = true;
         float side = hnd == kLeft ? -1.0f : 1.0f;
-        c.gripPose.position = {0.2f * side, 1.2f, -0.35f};
+        c.gripPose.position = {0.2f * side, handsUp, -handsFwd};
+        c.squeeze = gripAmount;
         c.gripPose.orientation = Quat::fromAxisAngle({1, 0, 0}, -0.3f);
         c.aimPose = c.gripPose;
     }
-    in.hand[kRight].trigger = 1.0f;
+    in.hand[kRight].trigger = gripAmount;
     in.hand[kLeft].primary = true;
     in.hand[kRight].primary = jet;
     in.hand[kLeft].thumbstick = {moveX, moveY};

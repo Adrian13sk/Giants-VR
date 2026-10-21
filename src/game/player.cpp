@@ -55,15 +55,27 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     Vec3 dir = fwd * sy + right * sx;
     const float dl = std::sqrt(dir.x * dir.x + dir.z * dir.z);
     if (dl > 1e-4f) dir = dir * (1.0f / dl);
-    const float speed = params.runSpeed * mag;
+    const float speed = params.runSpeed * mag * (in.sprint ? params.sprintFactor : 1.0f);
     velocity.x = dir.x * speed;
     velocity.z = dir.z * speed;
-    if (speed > 0.05f) {
-        const float target = std::atan2(-dir.x, -dir.z);
+    const float moveYaw = std::atan2(-dir.x, -dir.z);
+    auto turnToward = [&](float target, float rate) {
         const float d = angleDelta(yaw, target);
-        const float step = params.turnRate * dt;
+        const float step = rate * dt;
         yaw += std::fabs(d) <= step ? d : (d > 0 ? step : -step);
         yaw = angleDelta(0.0f, yaw);  // keep in (-pi, pi]
+    };
+    if (faceView) {
+        // Body follows the view: always while moving; when standing, only once the head has
+        // turned well away (like a person turning their feet), then all the way round.
+        const float d = std::fabs(angleDelta(yaw, in.viewYaw));
+        if (speed > 0.05f) idleTurning_ = false;
+        else if (d > 0.9f) idleTurning_ = true;
+        else if (d < 0.05f) idleTurning_ = false;
+        if (speed > 0.05f) turnToward(in.viewYaw, params.turnRate * 1.5f);
+        else if (idleTurning_) turnToward(in.viewYaw, 6.0f);
+    } else if (speed > 0.05f) {
+        turnToward(moveYaw, params.turnRate);
     }
 
     // --- Vertical: jetpack and gravity.
@@ -91,14 +103,25 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     // --- Animation state machine.
     landTimer_ = std::max(0.0f, landTimer_ - dt);
     PlayerAnim want;
+    float rate = 1.0f;
+    // Movement relative to the body: forward run, sidestep (right = clip forward), backpedal.
+    const float rel = angleDelta(yaw, moveYaw);
     if (!onGround) want = in.jet ? PlayerAnim::Thrust : PlayerAnim::Hover;
-    else if (speed > 0.15f) want = PlayerAnim::Run;
-    else if (landTimer_ > 0) want = PlayerAnim::Land;
+    else if (speed > 0.15f) {
+        const float clampRate = params.maxPlayback;
+        if (std::fabs(rel) < 0.87f) {           // within ~50 deg of facing
+            want = PlayerAnim::Run;
+            rate = std::min(clampRate, std::max(0.6f, speed / params.strideSpeed));
+        } else if (std::fabs(rel) > 2.27f) {    // beyond ~130 deg: run the cycle backwards
+            want = PlayerAnim::Run;
+            rate = -std::min(clampRate, std::max(0.6f, speed / params.strideSpeed));
+        } else {
+            want = PlayerAnim::Strafe;
+            rate = std::min(clampRate, std::max(0.6f, speed / params.strafeStride)) * (rel < 0 ? 1.0f : -1.0f);
+        }
+    } else if (landTimer_ > 0) want = PlayerAnim::Land;
     else want = PlayerAnim::Idle;
     setAnim(want);
-    // Run playback follows ground speed so the feet do not slide.
-    float rate = 1.0f;
-    if (anim_ == PlayerAnim::Run) rate = std::max(0.6f, std::min(1.6f, speed / params.strideSpeed));
     animTime_ += dt * rate;
     prevTime_ += dt;
     fade_ += dt;

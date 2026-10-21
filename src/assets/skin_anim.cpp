@@ -229,7 +229,11 @@ void AnmAnimation::evaluate(float seconds, std::vector<Mat4>& world) const {
     const float tps = float(ticksPerFrame) * float(fps);
     const float span = float(endTick - startTick);
     float tick = float(startTick);
-    if (span > 0 && tps > 0) tick += std::fmod(std::max(0.0f, seconds) * tps, span);
+    if (span > 0 && tps > 0) {
+        float t = std::fmod(seconds * tps, span);  // negative time = playing backwards
+        if (t < 0) t += span;
+        tick += t;
+    }
     std::vector<Mat4> local(nodes.size());
     for (size_t i = 0; i < nodes.size(); ++i) {
         const AnmNode& n = nodes[i];

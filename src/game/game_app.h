@@ -65,12 +65,22 @@ private:
     ButtonEdge modeEdge_;
     ButtonEdge flyEdge_;
     void updatePlayMode(float dt, const InputFrame& in);
-    void placeCamera(float dt, bool snap);
+    void placeCamera(float dt, bool snap, const InputFrame* in = nullptr);
+    void poseFirstPersonBody(const InputFrame& in);
     PlayerController player_;
     std::unique_ptr<SkinnedModel> playerModel_;
     int clip_[int(PlayerAnim::Count)] = {};
     bool playMode_ = false;
-    bool firstPerson_ = false;
+    bool firstPerson_ = true;  // primary mode (user request): own body + hands
+    Mat4 bodyXf_ = Mat4::identity();  // player model transform (FP: under the head, scaled)
+    Vec3 eyeModel_{0, 1.9f, -0.1f};   // Meccaryn eye point, model-local metres (measured at init)
+    Vec3 eyeFromHead_{0, 0, -0.2f};   // eye point relative to the head-vertex centroid
+    Vec3 eyeNow_{0, 1.9f, -0.1f};     // eye point in the latest animated pose (follows lean/bob)
+    float userEye_ = 1.6f;            // user's standing eye height (running max of the tracked head)
+    Vec3 headPrev_;                   // previous tracking-space head position (physical walking)
+    bool haveHeadPrev_ = false;
+    struct ArmPose { bool valid = false; Vec3 grip, forward, up; float squeeze = 0, trigger = 0; };
+    ArmPose armTargets_[2];           // model space (game units), per hand
     float camYaw_ = 0;      // play-mode camera yaw (snap turn orbits the character)
     float camFloor_ = 0;    // smoothed tracking-floor height of the play camera
     ButtonEdge playEdge_, viewEdge_;

@@ -100,6 +100,11 @@ int SkinnedModel::addAnimation(const AssetFS& fs, const std::string& name) {
         else ++missing;
     }
     if (missing) LOGW("Skinned %s: %s lacks %zu of %zu bones", base_.c_str(), name.c_str(), missing, bones_.size());
+    a.children.assign(a.anim.nodes.size(), {});
+    for (size_t n = 0; n < a.anim.nodes.size(); ++n) {
+        const int p = a.anim.nodes[n].parent;
+        if (p >= 0 && size_t(p) < a.anim.nodes.size()) a.children[size_t(p)].push_back(int(n));
+    }
     anims_.push_back(std::move(a));
     return int(anims_.size()) - 1;
 }
@@ -111,6 +116,7 @@ float SkinnedModel::animDuration(int i) const {
 void SkinnedModel::skin(int ai, float t, std::vector<Vec3>& out) {
     const Anim& a = anims_[size_t(std::max(0, std::min(ai, int(anims_.size()) - 1)))];
     a.anim.evaluate(t, world_);
+    if (modifier_) modifier_(a.anim, a.children, world_);
     out.resize(gbs_.positions.size());
     for (size_t i = 0; i < gbs_.positions.size(); ++i) {
         const Binding& b = bindings_[i];
@@ -133,6 +139,20 @@ void SkinnedModel::poseBlend(Renderer& r, int a, float ta, int b, float tb, floa
         const float wa = 1.0f - wb;
         for (size_t i = 0; i < posed_.size(); ++i) posed_[i] = posed_[i] * wa + posedB_[i] * wb;
     }
+    if (!hideMask_.empty()) {
+        // Collapse hidden vertices onto their centroid: their triangles become degenerate.
+        Vec3 c{0, 0, 0};
+        size_t n = 0;
+        for (size_t i = 0; i < posed_.size(); ++i)
+            if (hideMask_[i]) { c += posed_[i]; ++n; }
+        if (n) {
+            c = c * (1.0f / float(n));
+            hiddenCentroid_ = c;
+            if (hideEnabled_)
+                for (size_t i = 0; i < posed_.size(); ++i)
+                    if (hideMask_[i]) posed_[i] = c;
+        }
+    }
     for (Part& p : parts_) {
         std::vector<Vec3> acc(p.verts.size(), Vec3{0, 0, 0});
         for (size_t v = 0; v < p.verts.size(); ++v) {
@@ -152,6 +172,31 @@ void SkinnedModel::poseBlend(Renderer& r, int a, float ta, int b, float tb, floa
         }
         r.updateMeshVertices(p.mesh, p.verts);
     }
+}
+
+void SkinnedModel::setHiddenBones(const std::vector<std::string>& names) {
+    hideMask_.assign(bindings_.size(), 0);
+    for (size_t i = 0; i < bindings_.size(); ++i) {
+        const int b = bindings_[i].bone;
+        if (b < 0) continue;
+        for (const auto& n : names)
+            if (bones_[size_t(b)] == n) hideMask_[i] = 1;
+    }
+}
+
+bool SkinnedModel::boneVertexBounds(const std::string& name, Vec3& mn, Vec3& mx) const {
+    mn = {1e30f, 1e30f, 1e30f};
+    mx = {-1e30f, -1e30f, -1e30f};
+    bool any = false;
+    for (size_t i = 0; i < bindings_.size() && i < posed_.size(); ++i) {
+        const int b = bindings_[i].bone;
+        if (b < 0 || bones_[size_t(b)] != name) continue;
+        const Vec3& p = posed_[i];
+        mn = {std::min(mn.x, p.x), std::min(mn.y, p.y), std::min(mn.z, p.z)};
+        mx = {std::max(mx.x, p.x), std::max(mx.y, p.y), std::max(mx.z, p.z)};
+        any = true;
+    }
+    return any;
 }
 
 void SkinnedModel::render(Renderer& r, const Mat4& world) const {
