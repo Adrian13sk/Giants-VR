@@ -6,7 +6,7 @@ Last updated: 2026-10-21 (session 1)
 user's original Giants archives, decodes terrain, models, textures, skins and animations, and
 renders original worlds (terrain, sky, sea, fog) with **animated original characters** (Smartie,
 Meccaryn, Reaper and Kabuto playing original idle/walk animations) in stereo. That is verified
-only in the headless desktop harness. **Nothing has run on a Quest yet.** There is no gameplay:
+only in the headless desktop harness. **It now runs on the user's Quest 2 at a stable 72 fps** (device test 1; visuals not yet confirmed). There is no gameplay:
 no AI, weapons, missions, audio, menus or object placement.
 
 | # | Milestone | Status | Evidence |
@@ -24,10 +24,10 @@ no AI, weapons, missions, audio, menus or object placement.
 | M10 | VR cameras & controls integrated | IN PROGRESS | Smooth move, snap/smooth turn, left-handed swap, terrain following |
 | M11 | Performance & stability | NOT STARTED | No on-device profiling possible yet |
 | M12 | APK packaged & validated | BUILD VERIFIED | Manifest/badging, arm64 ELF, exported `ANativeActivity_onCreate`, NEEDED libs checked |
-| M13 | Quest 2 hardware verification | BLOCKED | No headset reachable from the dev environment (see BLOCKERS.md B1) |
+| M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Visual confirmation and start-up log still pending. |
 
 ## Next three priorities
-1. **Device smoke test (needs the user):** install the APK, copy `Bin/`, send `adb logcat -s GiantsVR` output.
+1. **Device test follow-up:** get the user's description of what they saw, and a log that includes start-up (clear the log before launch).
 2. **Object placement:** decode the object-type definition stream (`xx_*.bin` section 3:
    `typeId, 01, modelGroup, ops…`, plus mesh-id → name tables) and world/mission placements
    (op 42 records, `.abx` sets, `wm_*.bin` op 0x03). Then show buildings, trees and characters in place.

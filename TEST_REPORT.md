@@ -24,6 +24,19 @@ rendering; NDK r27c (clang 18) for arm64. No Android device or emulator availabl
 | APK packaging / signing | same (apksig verify) | **PASS** zipalign verified, signature verified (v3) |
 | APK metadata | `aapt2 dump badging`, `llvm-readelf -d`, `llvm-nm -D` | **PASS** package io.github.giantsvr.dev, min 29 / target 32, headtracking feature, arm64-v8a libgiantsvr.so + libopenxr_loader.so, `ANativeActivity_onCreate` exported |
 
+## Device test 1 — 2026-10-21, user's Quest 2 (build cb8236e)
+Log: `adb logcat -d -s GiantsVR OpenXR` captured by the user from 13:23:25 to 13:25:21, about 2 minutes.
+The start-up lines were not in the capture.
+
+| Check | Result | Evidence |
+|---|---|---|
+| APK installs and launches | **PASS** | process 9006 logging from the render thread |
+| OpenXR session running, frames submitted | **PASS** | continuous frame loop; the display refresh request was applied |
+| Frame rate | **PASS** 71.8 fps at 72 Hz, stable for about 2 min | `perf:` lines every 5 s |
+| Touch controllers bound | **PASS** | `/interaction_profiles/oculus/touch_controller` on both hands. The profile events repeat on controller sleep/wake and system menu use. |
+| Scene content | probable | 218–246 draw calls per frame (both eyes), consistent with the Story1 world plus animated characters, not the test scene. Needs the user's visual confirmation. |
+| Start-up path (loader, runtime name, data dir, world load) | not captured | the start-up lines were not in the log |
+
 ## NOT verified (requires hardware)
 - APK install and launch on Quest 2; OpenXR runtime negotiation (loader broker, extensions)
 - Session lifecycle (READY/FOCUSED/STOPPING), suspend/resume, Oculus-button recentre
