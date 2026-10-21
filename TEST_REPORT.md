@@ -50,6 +50,10 @@ The start-up lines were not in the capture.
 - Draw calls: 174 per frame, 218–246 when the controllers are visible.
 - No warnings or errors from GiantsVR.
 
+## Device test 2 — 2026-10-21 14:33, user's Quest 2 (build c57e48b)
+User report: "works fine". The fixes are confirmed in the headset: Kabuto walks on both legs,
+the animations look natural, and the brightness is acceptable.
+
 ## NOT verified (requires hardware)
 - APK install and launch on Quest 2; OpenXR runtime negotiation (loader broker, extensions)
 - Session lifecycle (READY/FOCUSED/STOPPING), suspend/resume, Oculus-button recentre
