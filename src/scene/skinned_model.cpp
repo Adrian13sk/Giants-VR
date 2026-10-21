@@ -1,6 +1,7 @@
 #include "scene/skinned_model.h"
 
 #include <algorithm>
+#include <unordered_map>
 
 #include "core/log.h"
 
@@ -20,17 +21,15 @@ bool SkinnedModel::load(const AssetFS& fs, ModelCache& textures, Renderer& r, co
         LOGW("Skinned %s: SKN unavailable %s", base.c_str(), err.c_str());
         return false;
     }
-    if (!fs.read(anim, bytes) || !parseAnm(bytes.data(), bytes.size(), anim_, &err)) {
-        LOGW("Skinned %s: ANM %s unavailable %s", base.c_str(), anim.c_str(), err.c_str());
-        return false;
-    }
 
-    // Bind every GBS position to (animation node, bone-local position). SKN objects map to
-    // GBS max-objects in order; cluster vertex indices are relative to the object.
+    // Bind every GBS position to (bone, bone-local position). SKN objects map to GBS
+    // max-objects in order; cluster vertex indices are relative to the object. Bones are
+    // matched to animation nodes by name, per animation (clips have different node sets).
     bindings_.assign(gbs_.positions.size(), Binding{});
     if (skn.objects.size() != gbs_.maxObjs.size())
         LOGW("Skinned %s: %zu SKN objects vs %zu GBS objects", base.c_str(), skn.objects.size(),
              gbs_.maxObjs.size());
+    std::unordered_map<std::string, int> boneIndex;
     const size_t nObj = std::min(skn.objects.size(), gbs_.maxObjs.size());
     for (size_t o = 0; o < nObj; ++o) {
         const SknObject& so = skn.objects[o];
@@ -43,19 +42,26 @@ bool SkinnedModel::load(const AssetFS& fs, ModelCache& textures, Renderer& r, co
         for (const SknCluster& c : so.clusters) {
             auto bn = skn.boneNames.find(c.bone);
             if (bn == skn.boneNames.end()) continue;
-            auto node = anim_.byName.find(toLower(bn->second));
-            if (node == anim_.byName.end()) continue;
+            const std::string name = toLower(bn->second);
+            auto bi = boneIndex.find(name);
+            if (bi == boneIndex.end()) {
+                bi = boneIndex.emplace(name, int(bones_.size())).first;
+                bones_.push_back(name);
+            }
             for (const auto& v : c.verts) {
                 const size_t pi = size_t(mo.vstart) + v.index;
-                if (pi < bindings_.size()) bindings_[pi] = {node->second, Vec3{v.x, v.y, v.z}};
+                if (pi < bindings_.size()) bindings_[pi] = {bi->second, Vec3{v.x, v.y, v.z}};
             }
         }
     }
+    if (addAnimation(fs, anim) != 0) return false;
+    const Anim& a0 = anims_[0];
     bound_ = unbound_ = 0;
-    for (const auto& b : bindings_) (b.node >= 0 ? bound_ : unbound_)++;
+    for (const auto& b : bindings_) (b.bone >= 0 && a0.boneToNode[size_t(b.bone)] >= 0 ? bound_ : unbound_)++;
 
     bmin_ = {1e30f, 1e30f, 1e30f};
     bmax_ = {-1e30f, -1e30f, -1e30f};
+    // Skinned meshes are lit dynamically: their RGB array is zero or holds skin data.
     for (auto& bp : buildGbsParts(gbs_, /*ignoreRgb=*/true)) {
         Part p;
         bool alpha = false;
@@ -73,23 +79,59 @@ bool SkinnedModel::load(const AssetFS& fs, ModelCache& textures, Renderer& r, co
         parts_.push_back(std::move(p));
     }
     LOGI("Skinned %s + %s: %u/%zu positions bound, %zu nodes, %.2f s, %u unsupported tracks",
-         base.c_str(), anim.c_str(), bound_, bindings_.size(), anim_.nodes.size(),
-         anim_.durationSeconds(), anim_.unsupportedTracks);
+         base.c_str(), anim.c_str(), bound_, bindings_.size(), a0.anim.nodes.size(),
+         a0.anim.durationSeconds(), a0.anim.unsupportedTracks);
     return bound_ > 0;
 }
 
-void SkinnedModel::pose(Renderer& r, float seconds) {
-    anim_.evaluate(seconds, world_);
-    posed_.resize(gbs_.positions.size());
+int SkinnedModel::addAnimation(const AssetFS& fs, const std::string& name) {
+    std::vector<uint8_t> bytes;
+    std::string err;
+    Anim a;
+    if (!fs.read(name, bytes) || !parseAnm(bytes.data(), bytes.size(), a.anim, &err)) {
+        LOGW("Skinned %s: ANM %s unavailable %s", base_.c_str(), name.c_str(), err.c_str());
+        return -1;
+    }
+    a.boneToNode.assign(bones_.size(), -1);
+    size_t missing = 0;
+    for (size_t b = 0; b < bones_.size(); ++b) {
+        auto n = a.anim.byName.find(bones_[b]);
+        if (n != a.anim.byName.end()) a.boneToNode[b] = n->second;
+        else ++missing;
+    }
+    if (missing) LOGW("Skinned %s: %s lacks %zu of %zu bones", base_.c_str(), name.c_str(), missing, bones_.size());
+    anims_.push_back(std::move(a));
+    return int(anims_.size()) - 1;
+}
+
+float SkinnedModel::animDuration(int i) const {
+    return i >= 0 && size_t(i) < anims_.size() ? anims_[size_t(i)].anim.durationSeconds() : 0.0f;
+}
+
+void SkinnedModel::skin(int ai, float t, std::vector<Vec3>& out) {
+    const Anim& a = anims_[size_t(std::max(0, std::min(ai, int(anims_.size()) - 1)))];
+    a.anim.evaluate(t, world_);
+    out.resize(gbs_.positions.size());
     for (size_t i = 0; i < gbs_.positions.size(); ++i) {
         const Binding& b = bindings_[i];
-        if (b.node >= 0) {
-            Vec4 w = world_[size_t(b.node)] * Vec4{b.local.x, b.local.y, b.local.z, 1.0f};
-            posed_[i] = giantsToRuntime(w.x, w.y, w.z);
+        const int node = b.bone >= 0 ? a.boneToNode[size_t(b.bone)] : -1;
+        if (node >= 0) {
+            const Vec4 w = world_[size_t(node)] * Vec4{b.local.x, b.local.y, b.local.z, 1.0f};
+            out[i] = giantsToRuntime(w.x, w.y, w.z);
         } else {
             const auto& p = gbs_.positions[i];
-            posed_[i] = giantsToRuntime(p[0], p[1], p[2]);
+            out[i] = giantsToRuntime(p[0], p[1], p[2]);
         }
+    }
+}
+
+void SkinnedModel::poseBlend(Renderer& r, int a, float ta, int b, float tb, float wb) {
+    if (anims_.empty()) return;
+    skin(a, ta, posed_);
+    if (wb > 0.0f) {
+        skin(b, tb, posedB_);
+        const float wa = 1.0f - wb;
+        for (size_t i = 0; i < posed_.size(); ++i) posed_[i] = posed_[i] * wa + posedB_[i] * wb;
     }
     for (Part& p : parts_) {
         std::vector<Vec3> acc(p.verts.size(), Vec3{0, 0, 0});
@@ -98,10 +140,10 @@ void SkinnedModel::pose(Renderer& r, float seconds) {
             p.verts[v].pos[0] = q.x; p.verts[v].pos[1] = q.y; p.verts[v].pos[2] = q.z;
         }
         for (size_t i = 0; i + 2 < p.indices.size(); i += 3) {
-            const float* a = p.verts[p.indices[i]].pos;
-            const float* b = p.verts[p.indices[i + 1]].pos;
-            const float* c = p.verts[p.indices[i + 2]].pos;
-            Vec3 n = cross(Vec3{b[0] - a[0], b[1] - a[1], b[2] - a[2]}, Vec3{c[0] - a[0], c[1] - a[1], c[2] - a[2]});
+            const float* pa = p.verts[p.indices[i]].pos;
+            const float* pb = p.verts[p.indices[i + 1]].pos;
+            const float* pc = p.verts[p.indices[i + 2]].pos;
+            Vec3 n = cross(Vec3{pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]}, Vec3{pc[0] - pa[0], pc[1] - pa[1], pc[2] - pa[2]});
             for (int k = 0; k < 3; ++k) acc[p.indices[i + k]] += n;
         }
         for (size_t v = 0; v < p.verts.size(); ++v) {

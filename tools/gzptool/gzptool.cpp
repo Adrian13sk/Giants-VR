@@ -162,6 +162,58 @@ static int cmdModel(const char* dir, const char* name) {
 
 // Rest-pose consistency: rebuild GBS positions from SKN clusters posed by the animation's
 // default node transforms; bones whose animation pose equals the export pose must match exactly.
+// Prints duration and root-motion of animations: per-node position-key travel for nodes that
+// move, so walk/run speeds can be derived from the stride (no foot sliding).
+static int cmdAnmInfo(const char* dir, int n, char** anims) {
+    AssetFS fs;
+    fs.mountAllArchives(dir);
+    for (int i = 0; i < n; ++i) {
+        std::vector<uint8_t> d;
+        AnmAnimation an;
+        std::string err;
+        if (!fs.read(anims[i], d) || !parseAnm(d.data(), d.size(), an, &err)) { std::printf("%s: %s\n", anims[i], err.c_str()); continue; }
+        std::printf("%s: %.2f s, %zu nodes, ticks %d..%d tpf %u fps %u\n", anims[i], an.durationSeconds(), an.nodes.size(),
+                    an.startTick, an.endTick, an.ticksPerFrame, an.fps);
+        for (size_t k = 0; k < an.nodes.size(); ++k) {
+            const auto& nd = an.nodes[k];
+            if (nd.posKeys.size() < 2 || (nd.parent >= 0 && an.nodes[size_t(nd.parent)].parent >= 0)) continue;
+            const Vec3 a = nd.posKeys.front().value, b = nd.posKeys.back().value;
+            float zmin = 1e9f, zmax = -1e9f;
+            for (const auto& kk : nd.posKeys) { zmin = std::min(zmin, kk.value.z); zmax = std::max(zmax, kk.value.z); }
+            std::printf("   %-14s parent %2d keys %3zu  first(%.2f %.2f %.2f) last(%.2f %.2f %.2f)  z %.2f..%.2f\n", nd.name.c_str(),
+                        nd.parent, nd.posKeys.size(), a.x, a.y, a.z, b.x, b.y, b.z, zmin, zmax);
+        }
+        // Stride: velocity of the lowest foot/toe node (the planted one) in game units/s.
+        std::vector<int> feet;
+        for (size_t k = 0; k < an.nodes.size(); ++k) {
+            const std::string l = toLower(an.nodes[k].name);
+            if (l.find("foot") != std::string::npos || l.find("toe") != std::string::npos) feet.push_back(int(k));
+        }
+        if (feet.empty() || an.durationSeconds() <= 0) continue;
+        const int steps = 120;
+        const float dur = an.durationSeconds(), dt = dur / steps;
+        std::vector<Mat4> w0, w1;
+        double sx = 0, sy = 0; int cnt = 0;
+        std::vector<float> speeds;
+        for (int t = 0; t < steps; ++t) {
+            an.evaluate(t * dt, w0);
+            an.evaluate(t * dt + dt * 0.5f, w1);
+            int low = feet[0]; float lz = 1e9f;
+            for (int f : feet) { const float z = w0[size_t(f)].m[14]; if (z < lz) { lz = z; low = f; } }
+            const float vx = (w1[size_t(low)].m[12] - w0[size_t(low)].m[12]) / (dt * 0.5f);
+            const float vy = (w1[size_t(low)].m[13] - w0[size_t(low)].m[13]) / (dt * 0.5f);
+            sx += vx; sy += vy; ++cnt;
+            speeds.push_back(std::sqrt(vx * vx + vy * vy));
+        }
+        std::sort(speeds.begin(), speeds.end());
+        std::printf("   planted-foot velocity: mean (%.1f, %.1f) units/s, median |v| %.1f units/s, feet:", sx / cnt, sy / cnt,
+                    speeds[speeds.size() / 2]);
+        for (int f : feet) std::printf(" %s", an.nodes[size_t(f)].name.c_str());
+        std::printf("\n");
+    }
+    return 0;
+}
+
 static int cmdSkinCheck(const char* dir, const char* base, const char* anim) {
     AssetFS fs;
     fs.mountAllArchives(dir);
@@ -221,6 +273,7 @@ static int cmdSkinCheck(const char* dir, const char* base, const char* anim) {
 }
 
 int main(int argc, char** argv) {
+    if (argc >= 4 && !std::strcmp(argv[1], "anminfo")) return cmdAnmInfo(argv[2], argc - 3, argv + 3);
     if (argc >= 5 && !std::strcmp(argv[1], "skincheck")) return cmdSkinCheck(argv[2], argv[3], argv[4]);
     if (argc >= 3 && !std::strcmp(argv[1], "list")) return cmdList(argv[2]);
     if (argc >= 5 && !std::strcmp(argv[1], "extract")) return cmdExtract(argv[2], argv[3], argv[4]);

@@ -21,7 +21,7 @@ gameplay: no AI, weapons, mission logic, audio or menus.
 | M6 | Asset pipeline | BUILD VERIFIED (host) | gzptool validate: 5291 entries; 1561/1561 GBS, 1001 TGA, 32/32 GTI, 782/782 SKN, 1318/1318 ANM parsed |
 | M7 | Original assets render correctly | IN PROGRESS (device feedback applied: mirrored bones, key values, brightness) | Terrain/sky/sea/fog render; 4 characters animate (rigid skinning verified exactly against GBS rest positions). Still provisional: lighting rules, scale (0.2 m/unit), texture tiling and TCB interpolation (linear/slerp used). Object placement DEVICE VERIFIED (device test 3: village buildings, raft and canopy look as intended). |
 | M8 | Original engine/gameplay integrated | NOT STARTED | Needs object-type defs, SKN/ANM, simulation loop |
-| M9 | Meaningful original gameplay | NOT STARTED | |
+| M9 | Meaningful original gameplay | IN PROGRESS | Player Meccaryn: run/jetpack with original clips and cross-fades, third/first-person VR camera (BUILD VERIFIED, awaiting device test 4). No weapons, AI or missions yet. |
 | M10 | VR cameras & controls integrated | IN PROGRESS | Smooth move, snap/smooth turn, left-handed swap, terrain following |
 | M11 | Performance & stability | NOT STARTED | No on-device profiling possible yet |
 | M12 | APK packaged & validated | BUILD VERIFIED | Manifest/badging, arm64 ELF, exported `ANativeActivity_onCreate`, NEEDED libs checked |
@@ -31,9 +31,9 @@ gameplay: no AI, weapons, mission logic, audio or menus.
 1. **Device test 3: PASSED** (build f817084: buildings fixed, fly mode works). Next session starts at priority 2/3.
 2. **Placement follow-ups:** decode the mission opcode stream properly (replacing the heuristic
    scan), fix the world opcode table (B5) so Story2 etc. reach their op 42/92 records, and confirm yaw.
-3. **First playable slice:** controllable Meccaryn (first/third-person VR camera), movement on
-   terrain with original walk/run animations, then a first weapon. Also GPU skinning and TCB
-   key interpolation.
+3. **First playable slice:** controllable Meccaryn DONE (build-verified, device test 4 pending).
+   Next: object collision (walls/buildings), the first weapon (mc_gun + firing clip + projectile),
+   then hostile AI (Reapers). Also GPU skinning and TCB key interpolation.
 
 Then: world opcode table fixes (24 of 33 worlds still stop early), Kabuto-scale camera
 experiments, audio (WAV in VO_Sfx gzp), fixed-step simulation, Vulkan/multiview evaluation.

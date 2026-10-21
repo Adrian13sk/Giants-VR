@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "game/input_state.h"
+#include "game/player.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
 #include "scene/test_scene.h"
@@ -25,7 +26,8 @@ struct HapticRequest {
     float seconds;
 };
 
-class AssetWorld;  // original-asset scene (defined in scene/asset_world.h)
+class AssetWorld;    // original-asset scene (defined in scene/asset_world.h)
+class SkinnedModel;  // scene/skinned_model.h
 
 class GameApp {
 public:
@@ -39,6 +41,15 @@ public:
     void shutdown();
 
     std::vector<HapticRequest>& hapticRequests() { return haptics_; }
+
+    // Play mode: you control the original Meccaryn (third person by default). Otherwise the
+    // free camera (stick locomotion, Y = fly/noclip) is active. B toggles at runtime.
+    bool playMode() const { return playMode_; }
+    void setPlayMode(bool on, const InputFrame& in);
+    bool firstPerson() const { return firstPerson_; }
+    void setFirstPerson(bool on) { firstPerson_ = on; }
+    PlayerController& player() { return player_; }
+    void teleportPlayer(const Vec3& p, float yaw);
     VrRig& rig() { return rig_; }
     Renderer& renderer() { return renderer_; }
     bool hasOriginalAssets() const;
@@ -53,6 +64,16 @@ private:
     ButtonEdge triggerEdge_[2];
     ButtonEdge modeEdge_;
     ButtonEdge flyEdge_;
+    void updatePlayMode(float dt, const InputFrame& in);
+    void placeCamera(float dt, bool snap);
+    PlayerController player_;
+    std::unique_ptr<SkinnedModel> playerModel_;
+    int clip_[int(PlayerAnim::Count)] = {};
+    bool playMode_ = false;
+    bool firstPerson_ = false;
+    float camYaw_ = 0;      // play-mode camera yaw (snap turn orbits the character)
+    float camFloor_ = 0;    // smoothed tracking-floor height of the play camera
+    ButtonEdge playEdge_, viewEdge_;
     bool showTestScene_ = true;
     bool needSpawn_ = false;
     double time_ = 0.0;

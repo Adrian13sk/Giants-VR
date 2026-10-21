@@ -17,11 +17,8 @@ Pose VrRig::toWorld(const Pose& p) const {
     return worldFromTracking * scaled;
 }
 
-void VrRig::update(float dt, const InputFrame& in) {
-    const ControllerState& mv = in.hand[moveHand()];
+float VrRig::turnInput(float dt, const InputFrame& in) {
     const ControllerState& tn = in.hand[turnHand()];
-
-    // --- Turning (about the head, so the user does not swing around the play-space centre) ---
     float turnX = applyDeadzone(tn.thumbstick.x, comfort.stickDeadzone);
     float yawDelta = 0.0f;
     if (comfort.snapTurn) {
@@ -36,6 +33,15 @@ void VrRig::update(float dt, const InputFrame& in) {
     } else {
         yawDelta = -turnX * comfort.smoothTurnDegPerSec * kPi / 180.0f * dt;
     }
+    return yawDelta;
+}
+
+void VrRig::update(float dt, const InputFrame& in) {
+    const ControllerState& mv = in.hand[moveHand()];
+    const ControllerState& tn = in.hand[turnHand()];
+
+    // --- Turning (about the head, so the user does not swing around the play-space centre) ---
+    const float yawDelta = turnInput(dt, in);
     if (yawDelta != 0.0f) {
         Vec3 pivot = in.headValid ? toWorld(in.head).position : worldFromTracking.position;
         Quat r = Quat::fromAxisAngle({0, 1, 0}, yawDelta);

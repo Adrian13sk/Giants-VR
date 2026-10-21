@@ -145,3 +145,24 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - Flag 0x10/0x80000000 as a "not lighting" marker: both are common on correctly lit models.
   - RGB saturation threshold: genuine warm lighting is just as saturated.
 - **Open:** bw_* fortress walls, bw_bunker1 and mc_gun models still show rainbow-like RGB without the strict signature. None are in Story1.
+
+### First playable slice: the player Meccaryn (2026-10-21 17:30)
+- **Clip survey** (`gzptool anminfo`, new):
+  - The Meccaryn clips are in place; the root "Center" does not travel.
+  - The run speed comes from the planted foot's velocity in the cycle: mc_run 10.7–12.4 units/s, about 2.3 m/s at 0.2 m/unit.
+  - The models face game −Y (runtime −Z).
+  - mc_move does not locomote; mc_bush_walk is a crouched walk. So: idle mc_stand, run mc_run (playback rate = speed/2.3, clamped 0.6–1.6), jetpack mc_thrust / mc_hover, landing mc_land_soft.
+- **SkinnedModel refactor:**
+  - Several clips per skin, with bones bound by name per clip (clip node sets differ: 46–52 nodes).
+  - `poseBlend` skins two clips and lerps the vertices, giving 0.2 s cross-fades.
+- **PlayerController** (`src/game/player.*`, unit-tested):
+  - Stick movement relative to the head yaw, with instant velocity (VR comfort). The body turns toward travel at 10 rad/s.
+  - Terrain following with a 0.6 m step-down.
+  - Jetpack: 26 m/s² thrust against 14 m/s² gravity, 6 m/s rise cap.
+  - The landing clip plays when touching down faster than 3 m/s.
+- **Camera:**
+  - Third person: the tracking floor sits 3.6 m behind and 1.1 m above the feet, with rigid horizontal follow and 0.12 s vertical smoothing. The floor never goes below terrain + 0.3 m. Snap turn orbits the camera around the character.
+  - First person: the floor is at the feet and the body is hidden.
+  - B toggles the free camera; right stick click toggles first/third person.
+- The showcase Meccaryn was removed (the player is one).
+- **Headless:** `--free`, `--first-person`, `--jet`; `--at` moves the player in play mode. Renders confirmed idle, run, turn-to-travel, jetpack and the village run.

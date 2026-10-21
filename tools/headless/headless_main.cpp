@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     bool useAt = false;
     int w = 720, h = 792, frames = 1;
     float moveX = 0, moveY = 0, turnX = 0, headYawDeg = 0;
-    bool testScene = true;
+    bool testScene = true, freeCam = false, firstPerson = false, jet = false;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         auto next = [&]() { return i + 1 < argc ? argv[++i] : ""; };
@@ -44,6 +44,9 @@ int main(int argc, char** argv) {
         else if (a == "--pitch") pitchDeg = std::atof(next());
         else if (a == "--height") headHeight = std::atof(next());
         else if (a == "--at") { atX = std::atof(next()); atY = std::atof(next()); useAt = true; }
+        else if (a == "--free") freeCam = true;            // free camera instead of the Meccaryn
+        else if (a == "--first-person") firstPerson = true;
+        else if (a == "--jet") jet = true;                 // hold A (jetpack)
     }
     if (!initEgl()) return 2;
 
@@ -67,6 +70,7 @@ int main(int argc, char** argv) {
     }
     in.hand[kRight].trigger = 1.0f;
     in.hand[kLeft].primary = true;
+    in.hand[kRight].primary = jet;
     in.hand[kLeft].thumbstick = {moveX, moveY};
     in.hand[kRight].thumbstick = {turnX, 0};
     app.rig().comfort.snapTurn = false;
@@ -77,13 +81,23 @@ int main(int argc, char** argv) {
         t.hand[kLeft].thumbstickClick = true;
         app.update(0.0f, t);
     }
+    app.update(0.0f, in);  // consume the automatic spawn
+    if (freeCam) app.setPlayMode(false, in);
+    app.setFirstPerson(firstPerson);
     if (useAt) {
-        // Teleport the player to game coordinates (units, Z-up) facing the scripted head yaw.
-        app.update(0.0f, in);  // consume the automatic spawn
-        app.rig().teleportHead(in, giantsToRuntime(atX, atY, 0.0f), headYawDeg * kPi / 180.0f);
+        // Teleport to game coordinates (units, Z-up) facing the scripted head yaw.
+        const float yaw = headYawDeg * kPi / 180.0f;
+        if (app.playMode()) app.teleportPlayer(giantsToRuntime(atX, atY, 0.0f), yaw);
+        else app.rig().teleportHead(in, giantsToRuntime(atX, atY, 0.0f), yaw);
         app.update(0.0f, in);  // ground following sets the height
     }
     for (int f = 0; f < frames; ++f) app.update(1.0f / 72.0f, in);
+    if (app.playMode()) {
+        const auto& p = app.player();
+        LOGI("player at (%.2f %.2f %.2f) yaw %.1f deg, %s, anim %d t=%.2f, speed %.2f m/s", p.position.x, p.position.y,
+             p.position.z, p.yaw * 180.0f / kPi, p.onGround ? "on ground" : "airborne", int(p.anim()), p.animTime(),
+             p.horizontalSpeed());
+    }
 
     // Offscreen sRGB targets, like the OpenXR swapchain.
     GLuint tex = 0, depth = 0, fbo = 0;

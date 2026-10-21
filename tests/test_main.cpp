@@ -10,6 +10,7 @@
 #include "assets/gti.h"
 #include "assets/world_bin.h"
 #include "core/math.h"
+#include "game/player.h"
 #include "game/vr_rig.h"
 
 using namespace gvr;
@@ -190,6 +191,46 @@ static void testRig() {
     CHECK(near(r5.worldFromTracking.position.y, 0.0f));
 }
 
+static void testPlayer() {
+    PlayerController pc;
+    pc.groundHeight = [](float x, float) { return x * 0.1f; };  // gentle slope rising toward +X
+    pc.teleport({0, 5, 0}, 0.0f);
+    CHECK(near(pc.position.y, 0.0f));  // teleport snaps to the ground
+    PlayerInput in;
+    // Stick forward while the viewer faces -X (yaw +90 deg): moves toward -X at runSpeed.
+    in.move = {0, 1};
+    in.viewYaw = kPi / 2;
+    for (int i = 0; i < 72; ++i) pc.update(1.0f / 72.0f, in);
+    CHECK(near(pc.position.x, -pc.params.runSpeed, 0.05f));
+    CHECK(near(pc.position.z, 0.0f, 1e-3f));
+    CHECK(near(pc.position.y, pc.position.x * 0.1f, 1e-3f));  // followed the slope downhill
+    CHECK(near(pc.yaw, kPi / 2, 1e-3f));                       // body turned to face travel
+    CHECK(pc.anim() == PlayerAnim::Run && pc.onGround);
+    // Release the stick: idle.
+    in.move = {0, 0};
+    pc.update(0.1f, in);
+    CHECK(pc.anim() == PlayerAnim::Idle);
+    CHECK(pc.fadeWeight() < 1.0f);  // cross-fading from run
+    for (int i = 0; i < 30; ++i) pc.update(1.0f / 72.0f, in);
+    CHECK(near(pc.fadeWeight(), 1.0f));
+    // Jetpack: rises while held, thrust clip; falls back and lands (landing clip).
+    const float g0 = pc.position.y;
+    in.jet = true;
+    for (int i = 0; i < 72; ++i) pc.update(1.0f / 72.0f, in);
+    CHECK(!pc.onGround && pc.position.y > g0 + 2.0f);
+    CHECK(pc.anim() == PlayerAnim::Thrust);
+    in.jet = false;
+    pc.update(1.0f / 72.0f, in);
+    CHECK(pc.anim() == PlayerAnim::Hover);
+    for (int i = 0; i < 72 * 4 && !pc.onGround; ++i) pc.update(1.0f / 72.0f, in);
+    CHECK(pc.onGround && near(pc.position.y, g0, 1e-3f));
+    CHECK(pc.anim() == PlayerAnim::Land);
+    for (int i = 0; i < 72; ++i) pc.update(1.0f / 72.0f, in);
+    CHECK(pc.anim() == PlayerAnim::Idle);
+    // Angle wrap helper.
+    CHECK(near(angleDelta(3.0f, -3.0f), 2.0f * kPi - 6.0f, 1e-4f));
+}
+
 static void testGti() {
     // 2x1 interior cells, lightmap flag; stream: skip 0, literal run of 2 cells.
     std::vector<uint8_t> d;
@@ -242,6 +283,7 @@ int main() {
     testGbs();
     testMath();
     testRig();
+    testPlayer();
     if (g_failures) {
         std::printf("%d test failure(s)\n", g_failures);
         return 1;

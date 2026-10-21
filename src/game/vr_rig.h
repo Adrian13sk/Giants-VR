@@ -36,6 +36,8 @@ public:
     bool flyMode = false;
 
     void update(float dt, const InputFrame& in);
+    // Yaw change requested by the turn stick this frame (snap or smooth, per comfort settings).
+    float turnInput(float dt, const InputFrame& in);
     // Place the player so that the head is above `worldPos`, facing `worldYaw` (radians).
     void teleportHead(const InputFrame& in, const Vec3& worldPos, float worldYaw);
 

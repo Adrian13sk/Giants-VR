@@ -36,18 +36,20 @@ Please send the log. It shows the OpenXR runtime, extensions, swapchain sizes, t
 and an fps line every 5 seconds.
 
 ## Controls (current build)
-| Input | Action |
-|---|---|
-| Left stick | Move, relative to where you look |
-| Right stick left/right | Snap turn, 30° |
-| Left grip (hold) | Speed boost ×5 (walking 15 m/s, flying 75 m/s) |
-| **Y** | **Debug fly/noclip on/off** (strong buzz = on, short tick = off) |
-| Fly mode: left stick | Fly where you look (look up/down to climb/dive), 15 m/s |
-| Fly mode: right stick up/down | Rise / descend straight up or down |
-| Left stick click | Toggle the engineering test geometry (floor grid, distance markers) |
-| Triggers | Haptic pulse (input test). The controller box turns red/green with trigger/grip |
-| A/B/X/Y/menu | Light up the indicator dots above each controller (input test) |
-| Long-press Oculus button | System recentre |
+You start as the **Meccaryn** (play mode, third-person camera behind him).
+
+| Input | Play mode (Meccaryn) | Free camera |
+|---|---|---|
+| Left stick | Run, relative to where you look (body turns to face travel) | Move, relative to where you look |
+| Right stick left/right | Snap turn 30° (camera orbits the Meccaryn) | Snap turn 30° |
+| **A** (hold) | **Jetpack** thrust; release to hover down and land | — |
+| Right stick click | First / third person | — |
+| **B** | Switch to the free camera | Switch back to the Meccaryn (he drops in below you) |
+| Y | — | Debug fly/noclip on/off (strong buzz = on) |
+| Left grip (hold) | — | Speed boost ×5 |
+| Left stick click | Toggle the engineering test geometry | same |
+| Triggers | Haptic pulse (input test) | same |
+| Long-press Oculus button | System recentre | same |
 
 Comfort defaults: snap turn, 3 m/s movement, no head bob, no camera shake. A smooth-turn and
 left-handed mode exist in code (left-handed mode moves the fly toggle to B and the boost to the right grip) (`ComfortSettings`). There is no in-headset menu for them yet.
