@@ -32,7 +32,7 @@ gameplay: no AI, weapons, mission logic, audio or menus.
 2. **Placement follow-ups:** decode the mission opcode stream properly (replacing the heuristic
    scan), fix the world opcode table (B5) so Story2 etc. reach their op 42/92 records, and confirm yaw.
 3. **First playable slice:** controllable Meccaryn, first person with body and hands: DEVICE VERIFIED.
-   Level collision with walls/buildings (stand on tops) BUILD VERIFIED, device test 8 pending.
+   Level collision with walls/buildings (stand on tops) DEVICE VERIFIED (test 8).
    Next: the first weapon (mc_gun + firing clip + projectile), then hostile AI (Reapers). Also GPU skinning and TCB key interpolation.
 
 Then: world opcode table fixes (24 of 33 worlds still stop early), Kabuto-scale camera
