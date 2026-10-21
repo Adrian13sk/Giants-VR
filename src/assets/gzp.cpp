@@ -5,7 +5,9 @@
 #include <cstring>
 #include <dirent.h>
 #include <set>
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "core/log.h"
 
@@ -78,16 +80,80 @@ bool lzssDecompress(const uint8_t* in, size_t n, size_t expected, std::vector<ui
     return out.size() == expected;
 }
 
+GzpArchive::GzpArchive(GzpArchive&& o) noexcept { *this = std::move(o); }
+
+GzpArchive& GzpArchive::operator=(GzpArchive&& o) noexcept {
+    if (this != &o) {
+        if (fd_ >= 0) ::close(fd_);
+        path_ = std::move(o.path_);
+        data_ = std::move(o.data_);
+        entries_ = std::move(o.entries_);
+        byLowerName_ = std::move(o.byLowerName_);
+        fd_ = o.fd_;
+        o.fd_ = -1;
+    }
+    return *this;
+}
+
+GzpArchive::~GzpArchive() {
+    if (fd_ >= 0) ::close(fd_);
+}
+
+bool GzpArchive::readAt(uint64_t off, void* dst, size_t n) const {
+    if (fd_ < 0) {
+        if (off + n > data_.size()) return false;
+        std::memcpy(dst, data_.data() + off, n);
+        return true;
+    }
+    uint8_t* p = static_cast<uint8_t*>(dst);
+    while (n > 0) {
+        ssize_t got = ::pread(fd_, p, n, static_cast<off_t>(off));
+        if (got <= 0) return false;
+        p += got;
+        off += static_cast<uint64_t>(got);
+        n -= static_cast<size_t>(got);
+    }
+    return true;
+}
+
 bool GzpArchive::open(const std::string& path, std::string* error) {
-    std::vector<uint8_t> d;
-    if (!readFile(path, d)) {
-        setErr(error, "cannot read " + path);
+    path_ = path;
+    entries_.clear();
+    byLowerName_.clear();
+    data_.clear();
+    if (fd_ >= 0) ::close(fd_);
+    fd_ = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+    if (fd_ < 0) {
+        setErr(error, "cannot open " + path);
         return false;
     }
-    return openMemory(std::move(d), path, error);
+    struct stat st;
+    if (fstat(fd_, &st) != 0) {
+        setErr(error, "cannot stat " + path);
+        return false;
+    }
+    const uint64_t fileSize = static_cast<uint64_t>(st.st_size);
+    uint8_t hdr[8];
+    if (fileSize < 8 || !readAt(0, hdr, 8) || rd32(hdr) != kGzpMagic) {
+        setErr(error, path + ": bad GZP magic");
+        return false;
+    }
+    const uint32_t indexOff = rd32(hdr + 4);
+    if (static_cast<uint64_t>(indexOff) + 8 > fileSize) {
+        setErr(error, path + ": index offset out of range");
+        return false;
+    }
+    std::vector<uint8_t> idx(static_cast<size_t>(fileSize - indexOff));
+    if (!readAt(indexOff, idx.data(), idx.size())) {
+        setErr(error, path + ": cannot read index");
+        return false;
+    }
+    return parseIndex(idx.data(), idx.size(), indexOff, fileSize, error);
 }
 
 bool GzpArchive::openMemory(std::vector<uint8_t> d, const std::string& label, std::string* error) {
+    if (fd_ >= 0) ::close(fd_);
+    fd_ = -1;
     path_ = label;
     data_ = std::move(d);
     entries_.clear();
@@ -101,15 +167,25 @@ bool GzpArchive::openMemory(std::vector<uint8_t> d, const std::string& label, st
         setErr(error, label + ": index offset out of range");
         return false;
     }
-    const uint32_t count = rd32(data_.data() + indexOff + 4);
-    size_t p = indexOff + 8;
+    return parseIndex(data_.data() + indexOff, data_.size() - indexOff, indexOff, data_.size(), error);
+}
+
+bool GzpArchive::parseIndex(const uint8_t* idx, size_t idxSize, uint32_t indexOff, uint64_t fileSize,
+                            std::string* error) {
+    (void)indexOff;
+    if (idxSize < 8) {
+        setErr(error, path_ + ": truncated index header");
+        return false;
+    }
+    const uint32_t count = rd32(idx + 4);
+    size_t p = 8;
     entries_.reserve(count);
     for (uint32_t i = 0; i < count; ++i) {
-        if (p + 18 > data_.size()) {
-            setErr(error, label + ": truncated index");
+        if (p + 18 > idxSize) {
+            setErr(error, path_ + ": truncated index");
             return false;
         }
-        const uint8_t* e = data_.data() + p;
+        const uint8_t* e = idx + p;
         GzpEntry ent;
         ent.storedSize = rd32(e);
         ent.uncompressedSize = rd32(e + 4);
@@ -117,15 +193,15 @@ bool GzpArchive::openMemory(std::vector<uint8_t> d, const std::string& label, st
         ent.dataOffset = rd32(e + 12);
         ent.compression = e[16];
         const uint8_t nameLen = e[17];
-        if (p + 18 + nameLen > data_.size()) {
-            setErr(error, label + ": truncated name");
+        if (p + 18 + nameLen > idxSize) {
+            setErr(error, path_ + ": truncated name");
             return false;
         }
         const char* nm = reinterpret_cast<const char*>(e + 18);
         ent.name.assign(nm, strnlen(nm, nameLen));
         p += 18 + nameLen;
-        if (static_cast<uint64_t>(ent.dataOffset) + ent.storedSize > data_.size() || ent.storedSize < 16) {
-            LOGW("%s: entry %s has out-of-range data; skipped", label.c_str(), ent.name.c_str());
+        if (static_cast<uint64_t>(ent.dataOffset) + ent.storedSize > fileSize || ent.storedSize < 16) {
+            LOGW("%s: entry %s has out-of-range data; skipped", path_.c_str(), ent.name.c_str());
             continue;
         }
         byLowerName_[toLower(ent.name)] = entries_.size();
@@ -140,8 +216,13 @@ const GzpEntry* GzpArchive::find(const std::string& name) const {
 }
 
 bool GzpArchive::extract(const GzpEntry& e, std::vector<uint8_t>& out, std::string* error) const {
-    const uint8_t* payload = data_.data() + e.dataOffset + 16;
     const size_t payloadSize = e.storedSize - 16;
+    std::vector<uint8_t> buf(payloadSize);
+    if (!readAt(uint64_t(e.dataOffset) + 16, buf.data(), payloadSize)) {
+        setErr(error, e.name + ": read failed");
+        return false;
+    }
+    const uint8_t* payload = buf.data();
     if (e.compression == 2) {
         if (payloadSize < e.uncompressedSize) {
             setErr(error, e.name + ": stored payload shorter than declared size");

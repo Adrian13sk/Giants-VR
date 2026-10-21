@@ -122,6 +122,7 @@ void android_main(android_app* app) {
     if (!ok) LOGE("Initialisation failed; see log above. Exiting.");
 
     bool exitRequested = !ok;
+    bool finishRequested = false;
     double last = nowSeconds();
     uint64_t frameCount = 0;
     double statsStart = last;
@@ -138,7 +139,10 @@ void android_main(android_app* app) {
         }
         if (app->destroyRequested) break;
         if (exitRequested) {
-            ANativeActivity_finish(app->activity);
+            if (!finishRequested) {
+                ANativeActivity_finish(app->activity);
+                finishRequested = true;
+            }
             // Keep pumping events until the system destroys us.
             usleep(10000);
             continue;

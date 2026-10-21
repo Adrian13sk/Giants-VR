@@ -28,7 +28,14 @@ struct GzpEntry {
 
 class GzpArchive {
 public:
-    // Loads the whole archive into memory. Returns false with `error` filled on failure.
+    GzpArchive() = default;
+    GzpArchive(GzpArchive&& o) noexcept;
+    GzpArchive& operator=(GzpArchive&& o) noexcept;
+    GzpArchive(const GzpArchive&) = delete;
+    GzpArchive& operator=(const GzpArchive&) = delete;
+    ~GzpArchive();
+    // Reads only the header and index; entry data is read on demand with pread(), so mounting
+    // every archive of the game (~440 MB) costs only the index memory.
     bool open(const std::string& path, std::string* error = nullptr);
     bool openMemory(std::vector<uint8_t> data, const std::string& label, std::string* error = nullptr);
 
@@ -38,8 +45,12 @@ public:
     const std::string& path() const { return path_; }
 
 private:
+    bool parseIndex(const uint8_t* idx, size_t idxSize, uint32_t indexOff, uint64_t fileSize,
+                    std::string* error);
+    bool readAt(uint64_t off, void* dst, size_t n) const;
     std::string path_;
-    std::vector<uint8_t> data_;
+    std::vector<uint8_t> data_;  // only for archives opened from memory
+    int fd_ = -1;
     std::vector<GzpEntry> entries_;
     std::unordered_map<std::string, size_t> byLowerName_;
 };
