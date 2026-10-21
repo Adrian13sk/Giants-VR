@@ -77,3 +77,9 @@ the animations look natural, and the brightness is acceptable.
 
 ## Device test 3 — 2026-10-21 15:13, user's Quest 2 (build f817084)
 User report: "that worked, now it is as it is supposed". The village buildings (skinned walls and houses in their default pose), the raft, the canopy and the fly/noclip mode are confirmed in the headset.
+
+## Device tests 4–7 — 2026-10-21 17:11–17:37, user's Quest 2
+- Test 4 (2e9f917, third-person Meccaryn): "it is fine, the movement is kinda slow". The user asked for first person as the primary mode, with body and hands.
+- Test 5 (52d77cd, first-person body + IK arms): "torso is fine". Issues: turning snaps, the torso sinks after a recentre, arms barely visible, hands too big. Fixed in ad9823f.
+- Test 6 (ad9823f): "way better". The user wants the arms to stretch further; my first attempt (556548f) misread this as limiting the stretch.
+- Test 7 (13fdb40, dynamic reach stretch): **"Now it's perfect"**. First-person body, arm IK, hands and turning are DEVICE VERIFIED.

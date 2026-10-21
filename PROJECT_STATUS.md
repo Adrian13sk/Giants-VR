@@ -21,7 +21,7 @@ gameplay: no AI, weapons, mission logic, audio or menus.
 | M6 | Asset pipeline | BUILD VERIFIED (host) | gzptool validate: 5291 entries; 1561/1561 GBS, 1001 TGA, 32/32 GTI, 782/782 SKN, 1318/1318 ANM parsed |
 | M7 | Original assets render correctly | IN PROGRESS (device feedback applied: mirrored bones, key values, brightness) | Terrain/sky/sea/fog render; 4 characters animate (rigid skinning verified exactly against GBS rest positions). Still provisional: lighting rules, scale (0.2 m/unit), texture tiling and TCB interpolation (linear/slerp used). Object placement DEVICE VERIFIED (device test 3: village buildings, raft and canopy look as intended). |
 | M8 | Original engine/gameplay integrated | NOT STARTED | Needs object-type defs, SKN/ANM, simulation loop |
-| M9 | Meaningful original gameplay | IN PROGRESS | Player Meccaryn: run/strafe/backpedal/jetpack with original clips and cross-fades. First person (default) with full body, arm IK to the controllers and finger curl; third person optional (BUILD VERIFIED; device test 5 feedback applied: height calibration, smooth turning, arm reach; awaiting device test 6). No weapons, AI or missions yet. |
+| M9 | Meaningful original gameplay | IN PROGRESS | Player Meccaryn: run/strafe/backpedal/jetpack with original clips and cross-fades. First person (default) with full body, arm IK to the controllers and finger curl; third person optional (DEVICE VERIFIED, test 7: "Now it's perfect"). No weapons, AI or missions yet. |
 | M10 | VR cameras & controls integrated | IN PROGRESS | Smooth move, snap/smooth turn, left-handed swap, terrain following |
 | M11 | Performance & stability | NOT STARTED | No on-device profiling possible yet |
 | M12 | APK packaged & validated | BUILD VERIFIED | Manifest/badging, arm64 ELF, exported `ANativeActivity_onCreate`, NEEDED libs checked |
@@ -31,7 +31,7 @@ gameplay: no AI, weapons, mission logic, audio or menus.
 1. **Device test 3: PASSED** (build f817084: buildings fixed, fly mode works). Next session starts at priority 2/3.
 2. **Placement follow-ups:** decode the mission opcode stream properly (replacing the heuristic
    scan), fix the world opcode table (B5) so Story2 etc. reach their op 42/92 records, and confirm yaw.
-3. **First playable slice:** controllable Meccaryn, first person with body and hands (build-verified, device test 5 pending).
+3. **First playable slice:** controllable Meccaryn, first person with body and hands: DEVICE VERIFIED.
    Next: object collision (walls/buildings), the first weapon (mc_gun + firing clip + projectile),
    then hostile AI (Reapers). Also GPU skinning and TCB key interpolation.
 
