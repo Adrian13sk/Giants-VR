@@ -114,3 +114,6 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - a Ripper walks around a wall to reach the player;
   - the hit-point thresholds come from the type.
 - Headless runs as logged in ENGINEERING_LOG. **Not yet device-tested.**
+
+## Device test 16 — 2026-10-21 22:38 local, user's Quest 2 (build 74debe0)
+- User: "It's fine now." Ripper steering, spit balls (orange/blue), burst/collapse deaths and data hit points are **DEVICE VERIFIED**.
