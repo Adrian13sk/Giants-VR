@@ -25,3 +25,10 @@ This is an independent, unofficial project and is not affiliated with or endorse
 **DEVDEMO SHOWCASE**
 *As of 21.10.2026*
 Can be viewed via this youtube link: https://youtu.be/8XQV-6sYn4s
+
+**DEVDEMO SHOWCASE**
+<p align="center">
+  <a href="https://youtu.be">
+    <img src="[https://youtube.com](https://youtu.be/8XQV-6sYn4s)" alt="Watch the video" width="70%">
+  </a>
+</p>
