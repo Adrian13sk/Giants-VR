@@ -62,3 +62,15 @@ the animations look natural, and the brightness is acceptable.
 - Controller bindings, poses, haptics; the interaction-profile change event
 - Original-data loading from `/sdcard/Android/data/.../files/Bin` (path, permissions, load time)
 - Load-time hitch: the world is currently loaded synchronously at start-up
+
+## Host verification — object placement (2026-10-21 14:40, commit 91b80bf)
+- `ninja -C build/host && build/host/gvr_tests`: all tests passed.
+- `headless_render --data <Bin> --world Story1`:
+  - Log: "Object registry: 629 types, 626 meshes", "Mission 1a_1_timmy: 170 placements",
+    "Level objects: 135 placed, 115 helpers skipped, 0 without a model".
+  - Whole host run 0.56 s.
+- Culling A/B: the village ground and top views are pixel-identical with culling on and off. Ground-view draw calls
+  dropped from 286 to 185.
+- Story4 placed 2 objects, Rstory1 36, Story2 0 (world stream stops early, B5).
+- APK: `scripts/build_apk.sh` produced a signed APK, 2,859,507 bytes, sha256 84835f3c…97d2. Copied to the user's
+  Documents\GiantsQuestVR. **Not yet device-tested.**

@@ -66,17 +66,31 @@ Verified ops:
 - 52/53/54 ground / wall / wall terrain textures (44-byte payload)
 - 41 fog: f32 near, f32 far, u8[3] colour (12 bytes in total)
 - 88 water fog (same layout as 41)
-- 42 object: u32 type, f32 x, y, z, f32 angle (21 bytes in total)
+- 42 object: u32 type, f32 x, y, z (game units, Z-up), f32 yaw in DEGREES (21 bytes in total)
+- 92 scenario: u8 kind, u32 ?, char name[32]: mission files `wm_<name>.bin` (kind 2 = mission)
 
 Status: 9/33 world streams walk cleanly to 0xFF; the other 24 stop at an unknown or mis-sized
 opcode (B5). The fog colour byte order is unverified.
 
-## Object definitions xx_*.bin section 3 — P (investigation)
-- Mesh name table: `{u32 meshId, char name[] NUL-padded to 4 bytes}`.
+## Object definitions xx_*.bin section 3 — P (used for placement)
+- Mesh/group entry: `{u32 meshId, char name[] NUL + 1..4 pad bytes, u32 groupId, 0x51 u32 meshId
+  f32 distance f32 0}`. The LOD record repeats the meshId, which validates the match.
+  Scanning every Bin/*.bin finds 626 meshes.
 - LOD entries: `0x51 u32 meshId f32 distance f32 0`.
 - Animation entry: `0x52 u8 n strz "x.anm"`.
 - Object type: `u32 typeId, u8 1, u32 modelGroupId, property ops…, 0xFF`.
-- Type IDs used by world op 42 are found this way (e.g. 1298 → xx_ambient.bin).
+- Type IDs used by world op 42 are found this way (e.g. 1298 → xx_ambient.bin). Type records are
+  accepted only at a record boundary (0xFF within the 3 preceding bytes, or 000000). That gives 629 types.
+  Every placed type in Story1/Story4/Rstory1 resolved to a model (0 unresolved).
+- Many types are invisible engine helpers (marker*, *_coll, ref_*, a_* ambient sounds, light*).
+  They are skipped by name prefix (src/assets/object_defs.cpp).
+
+## Mission placements wm_*.bin — P (heuristic scan)
+- Placement record `{u8 0x03, u32 typeId, f32 x, y, z, f32 yaw°}`: the same payload as world op 42.
+- The mission opcode stream is NOT decoded yet. Records are found by scanning for op 3 + a type
+  known to the registry + a position inside the terrain bounds (−500 < z < 3000).
+  1a_1_timmy: 170 placements (135 visible). In the bird's-eye render the curved Smartie wall
+  segments join into closed arcs, so yaw in degrees about +Z looks right (not proven exact).
 - Another block (`02 11 22 33` marker, version 0x0E, …) defines creature types
   (1290 Smartie, 1379 Reaper).
 

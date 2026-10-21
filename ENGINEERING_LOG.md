@@ -68,7 +68,7 @@
   Bone names are type-8 entries `{…, name, u16 kind, u16 boneIndex}`. Names can contain spaces.
 - **ANM:** node `+0x10` parent, `+0x6C` pos, `+0x78` quat (x,y,z stored negated), `+0x88` scale,
   `+0x98/9C/A0` pos/rot/scale tracks. Track `{u8 keyType, …, u32 count@+8, ptrs@+12}`.
-  VEC3_TCB value at +48, QUAT_TCB value at +24. Header `{?, 0xB, 0, ptr, start, end, tpf, fps}`
+  VEC3_TCB value at +48, QUAT_TCB value at +24 (later corrected to +56, see device test 1 fixes). Header `{?, 0xB, 0, ptr, start, end, tpf, fps}`
   is referenced by each node at +0x0C.
 - Verification: SKN clusters posed by the ANM default transforms reproduce the GBS rest
   positions exactly for bones whose stand pose equals the export pose. This confirms the
@@ -97,3 +97,20 @@ three causes:
    Mc_stand_scan2. Run, scan and shoot animations all look natural.
 Also: characters turned to face the spawn point (models face −Z). Brightness raised: ambient
 0.35 → 0.5, terrain lightmap 40+2x → 56+2.4x.
+
+### Object placement (2026-10-21 14:40, commit 91b80bf)
+- **Registry** (`src/assets/object_defs.*`, prototype `tools/py/objdefs.py`): scans every Bin/*.bin.
+  - Pass 1: mesh/group entries `{meshId, name, groupId, 0x51 meshId …}`, validated by the repeated meshId.
+  - Pass 2: type records `{typeId, 0x01, groupId}` at a 0xFF/000000 boundary.
+  - Result: 629 types, 626 meshes. Scanning the 1.2 MB of .bin files is negligible; the whole host run is 0.56 s.
+- **Placements:** world op 42 plus mission op-3 records. Both use the 21-byte layout with **yaw in degrees** (radians gave
+  scrambled walls). Missions come from the op 92 scenario list. For now the first kind-2 mission is used
+  (Story1 → 1a_1_timmy, 170 placements).
+- **Helpers:** 115 of the Story1 placements are invisible engine helpers (markers, collision volumes,
+  ambient-sound emitters a_*, lights) and are skipped by name.
+- **Evidence:** ground-level render shows tables, posts, plants and Smartie wall pieces in the village.
+  The bird's-eye render (`--at -4080 -1580 --height 70 --pitch -75`) shows wall segments joining into arcs.
+  - Rstory1: 36 objects. Story4: 2.
+  - Story2: 0, because its world stream stops before op 92 (B5).
+- **Frustum culling:** sphere-vs-plane (Gribb-Hartmann planes from viewProj; infinite far plane) plus a fog-distance cull
+  for placed objects. Village ground view: 286 → 185 draw calls, pixel-identical output (diff bbox None).
