@@ -249,3 +249,29 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
 - **Gun:** placed at the Ref_Rhand *position* only, oriented at the target (or forward-down when idle), ×0.75. Shots go from the muzzle to the aim point.
 - **Evidence:** aiming 70° right turns him (yaw −76°) with the arm and gun raised (side render); the shot hit at 26.8 m.
 - **Harness:** `--aim-yaw`.
+
+### Enemies: Reaper grunts, combat loop (2026-10-21 21:15)
+- **Assets:** rpman_l0 (Reaper grunt; the gun is part of the skinned mesh). The skeleton's `rpm_gun` node has `Ref_nozzle`, which serves as the muzzle.
+- **Clips:**
+  - Idle: rpman_stand_scan.
+  - Advance: rpman_walk_fire (stride 8.2 units/s, 1.65 m/s).
+  - Fire: rpman_stand_fire.
+  - Hits: rpman_hit_med / _med2.
+  - Deaths: rpman_hit_med_die / _spin_die / _gut_die (one-shot, held on the last frame).
+- **EnemyDirector** (`src/game/enemy.*`, unit-tested):
+  - States: Idle, Advance (sight 45 m), Fire (≤ 22 m, 3-shot bursts at 0.35 s, 1.4 s pause), Hit, Dead.
+  - Dead bodies sink after 10 s and are removed.
+  - Capsule raycasts; enemies are kept apart and collide with buildings.
+  - **The AI behaviour and numbers are OURS, not decoded from the original scripts (MISSION_VM not decoded).**
+- **Combat:**
+  - Player bolts do 25 (4 kill a Reaper); haptic on hit and kill.
+  - Reaper bolts: 32 m/s, red, aimed at the player's chest with spread, 7 damage.
+  - Player health 100, regenerating 12/s after 4 s; respawn at the spawn point on death.
+  - Damage feedback: red head-locked flash plus haptics on both hands.
+  - Wrist health bar (FP, left controller) from a 1×1 white texture on the impact quad.
+- **Waves:** 3 Reapers 30–40 m in front of the player (±40°, on land), the next wave 8 s after a clear. This is a temporary test encounter: creature spawns from the mission files are not decoded (B4). The static showcase Reaper was removed.
+- **Terrain edge:** off the heightfield now counts as sea (ground −1.2 m), not "keep the current height" (the player could walk on air past the island edge). A ground rise of more than 0.8 m in one step blocks like a wall (climbing out of the sea needs the jetpack).
+- **Evidence:**
+  - Headless auto-aim (`--auto-aim`, test only): 12 hits killed wave 1 at about 29 m in 4 s; wave 2 spawned 8 s later.
+  - Standing still for 12 s took the player from 100 to 23 health.
+  - Renders show approaching Reapers, red bolts, the damage flash, the wrist bar and the TP crosshair on a Reaper.

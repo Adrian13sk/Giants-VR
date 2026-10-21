@@ -14,6 +14,7 @@
 #include "scene/collision.h"
 #include "game/player.h"
 #include "game/weapon.h"
+#include "game/enemy.h"
 #include "game/vr_rig.h"
 
 using namespace gvr;
@@ -341,12 +342,15 @@ static void testCollision() {
 static void testWeapon() {
     WeaponSystem w;
     // Wall: plane z = -10 facing +z.
-    w.raycast = [](const Vec3& o, const Vec3& d, float maxD, float& t, Vec3& n) {
+    int hitTarget = 99;
+    w.raycast = [](const Vec3& o, const Vec3& d, float maxD, float& t, Vec3& n, int& target) {
         if (d.z >= 0) return false;
         t = (-10.0f - o.z) / d.z;
         n = {0, 0, 1};
+        target = 7;
         return t >= 0 && t <= maxD;
     };
+    w.onHit = [&](int target, const Vec3&, const Vec3&) { hitTarget = target; };
     const float dt = 1.0f / 72.0f;
     CHECK(w.update(dt, true, {0, 1, 0}, {0, 0, -1}));   // fires immediately
     CHECK(!w.update(dt, true, {0, 1, 0}, {0, 0, -1}));  // cooling down
@@ -354,6 +358,7 @@ static void testWeapon() {
     for (int i = 0; i < 20; ++i) w.update(dt, false, {0, 1, 0}, {0, 0, -1});
     CHECK(w.hits() == 1 && w.projectiles().empty());
     CHECK(near(w.lastHitDistance(), 10.0f, 1e-3f));
+    CHECK(hitTarget == 7);
     bool impact = false;
     for (const auto& e : w.effects()) impact |= e.kind == WeaponEffect::Impact && near(e.pos.z, -9.95f, 1e-3f);
     CHECK(impact);
@@ -362,6 +367,50 @@ static void testWeapon() {
     int shots = 0;
     for (int i = 0; i < 72; ++i) shots += a.update(dt, true, {0, 0, 0}, {0, 1, 0}) ? 1 : 0;
     CHECK(shots == 5);  // t = 0, 0.2, 0.4, 0.6, 0.8 s within one second
+}
+
+static void testEnemies() {
+    // Capsule ray: hits the near surface, misses beside it.
+    float t;
+    CHECK(rayCapsule({0, 1, 10}, {0, 0, -1}, 20, {0, 0.5f, 0}, {0, 1.8f, 0}, 0.5f, t) && near(t, 9.5f, 1e-3f));
+    CHECK(!rayCapsule({1, 1, 10}, {0, 0, -1}, 20, {0, 0.5f, 0}, {0, 1.8f, 0}, 0.5f, t));
+    CHECK(!rayCapsule({0, 1, 10}, {0, 0, -1}, 5, {0, 0.5f, 0}, {0, 1.8f, 0}, 0.5f, t));  // out of range
+
+    EnemyDirector d;
+    d.groundHeight = [](float, float) { return 0.0f; };
+    for (auto& c : d.clipDuration) c = 0.6f;
+    d.spawn({0, 0, -60}, 0.0f);
+    std::vector<int> shots;
+    const Vec3 player{0, 0, 0};
+    const float dt = 1.0f / 72.0f;
+    d.update(dt, player, true, shots);
+    CHECK(d.enemies[0].state == EnemyState::Idle);  // 60 m: out of sight
+    d.enemies[0].pos.z = -40;
+    d.update(dt, player, true, shots);
+    d.update(dt, player, true, shots);
+    CHECK(d.enemies[0].state == EnemyState::Advance && d.enemies[0].clip == EnemyClip::Walk);
+    // Walks toward the player until in fire range, then shoots bursts.
+    int fired = 0;
+    for (int i = 0; i < 72 * 20; ++i) { d.update(dt, player, true, shots); fired += int(shots.size()); }
+    CHECK(d.enemies[0].state == EnemyState::Fire);
+    CHECK(-d.enemies[0].pos.z <= d.params.fireRange + 0.1f);
+    CHECK(fired >= 3);
+    // Ray from the player hits it; 4 bolts of 25 kill it.
+    float th;
+    Vec3 n;
+    int idx = -1;
+    const Vec3 dir = normalize(Vec3{d.enemies[0].pos.x, 1.2f, d.enemies[0].pos.z} - Vec3{0, 1.2f, 0});
+    CHECK(d.raycast({0, 1.2f, 0}, dir, 100, th, n, idx) && idx == 0);
+    CHECK(!d.damage(0, 25) && d.enemies[0].state == EnemyState::Hit);
+    for (int i = 0; i < 72; ++i) d.update(dt, player, true, shots);
+    CHECK(d.enemies[0].state == EnemyState::Fire);  // recovered from the hit
+    d.damage(0, 25);
+    d.damage(0, 25);
+    CHECK(d.damage(0, 25) && d.enemies[0].state == EnemyState::Dead && d.aliveCount() == 0);
+    CHECK(!d.raycast({0, 1.2f, 0}, dir, 100, th, n, idx));  // shots pass over corpses
+    // Corpse sinks away and is removed.
+    for (int i = 0; i < 72 * 20; ++i) d.update(dt, player, true, shots);
+    CHECK(d.enemies.empty());
 }
 
 static void testGti() {
@@ -420,6 +469,7 @@ int main() {
     testArmIk();
     testCollision();
     testWeapon();
+    testEnemies();
     if (g_failures) {
         std::printf("%d test failure(s)\n", g_failures);
         return 1;

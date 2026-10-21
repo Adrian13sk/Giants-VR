@@ -31,6 +31,7 @@ int main(int argc, char** argv) {
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
     int jetFrom = -1, jetTo = -1;
+    bool autoAim = false;
     float triggerAmount = 0.0f, aimPitchDeg = -17.2f, aimYawDeg = 0.0f;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -56,6 +57,7 @@ int main(int argc, char** argv) {
         else if (a == "--trigger") triggerAmount = std::atof(next());  // right trigger (fires in play mode)
         else if (a == "--aim-pitch") aimPitchDeg = std::atof(next());  // controller pitch (deg)
         else if (a == "--aim-yaw") aimYawDeg = std::atof(next());      // controller yaw (deg, + = left)
+        else if (a == "--auto-aim") autoAim = true;  // test only: point the right controller at the nearest enemy
         else if (a == "--hands") { handsFwd = std::atof(next()); handsUp = std::atof(next()); }  // controller offset (m)
     }
     if (!initEgl()) return 2;
@@ -106,11 +108,22 @@ int main(int argc, char** argv) {
     in.hand[kRight].trigger = triggerAmount;
     for (int f = 0; f < frames; ++f) {
         if (jetFrom >= 0) in.hand[kRight].primary = f >= jetFrom && f < jetTo;
+        Vec3 chest;
+        if (autoAim && app.nearestEnemy(chest)) {
+            // World target -> tracking-space direction from the right controller.
+            const Pose& rigPose = app.rig().worldFromTracking;
+            const Vec3 ctrlWorld = app.rig().toWorld(in.hand[kRight].aimPose).position;
+            const Vec3 d = rigPose.orientation.conjugate().rotate(normalize(chest - ctrlWorld));
+            const float yaw = std::atan2(-d.x, -d.z), pitch = std::asin(std::max(-1.0f, std::min(1.0f, d.y)));
+            const Quat q = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, pitch);
+            in.hand[kRight].gripPose.orientation = in.hand[kRight].aimPose.orientation = q;
+        }
         app.update(1.0f / 72.0f, in);
     }
     if (app.playMode()) {
         const auto& p = app.player();
         LOGI("weapon: %zu shots, %zu hits, last hit at %.1f m", app.weaponShots(), app.weaponHits(), app.weaponLastHitDistance());
+        LOGI("combat: %zu/%zu Reapers alive, player health %.0f", app.enemiesAlive(), app.enemyCount(), app.playerHealth());
         LOGI("player at (%.2f %.2f %.2f) yaw %.1f deg, %s, anim %d t=%.2f, speed %.2f m/s", p.position.x, p.position.y,
              p.position.z, p.yaw * 180.0f / kPi, p.onGround ? "on ground" : "airborne", int(p.anim()), p.animTime(),
              p.horizontalSpeed());

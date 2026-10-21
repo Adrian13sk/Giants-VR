@@ -36,6 +36,9 @@ Please send the log. It shows the OpenXR runtime, extensions, swapchain sizes, t
 and an fps line every 5 seconds.
 
 ## Controls (current build)
+Waves of three **Reaper soldiers** come at you from ahead; four hits kill one, and the next wave
+arrives 8 s after you clear one. Your health bar is on your left wrist; red flash = you were hit.
+
 You start as the **Meccaryn in first person**: his body is under you, his arms follow your
 controllers (grip = make a fist, trigger = curl the leading finger); the original Meccaryn gun is in your right hand. Walking around your room
 moves him too.

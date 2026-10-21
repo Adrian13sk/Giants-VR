@@ -125,7 +125,6 @@ void AssetWorld::placeShowcase(const Vec3& centre) {
     struct Anim { const char* base; const char* anim; };
     const Anim characters[] = {
         {"sm_L0", "sm_stand.anm"},                  // Smartie
-        {"rpman_l0", "rpman_attention_stand.anm"},  // Reaper
         {"kB_L1", "kb_walk.anm"},                   // Kabuto (walk cycle in place)
     };
     float x = centre.x - 6.0f;

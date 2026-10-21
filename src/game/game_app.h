@@ -2,6 +2,7 @@
 // harness both drive this class: update() once per frame, renderEye() once per eye.
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -9,6 +10,7 @@
 #include "game/input_state.h"
 #include "game/player.h"
 #include "game/weapon.h"
+#include "game/enemy.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
 #include "scene/test_scene.h"
@@ -54,6 +56,20 @@ public:
     void teleportPlayer(const Vec3& p, float yaw);
     size_t weaponShots() const { return weapon_.shotsFired(); }
     size_t weaponHits() const { return weapon_.hits(); }
+    size_t enemiesAlive() const { return enemies_.aliveCount(); }
+    size_t enemyCount() const { return enemies_.enemies.size(); }
+    float playerHealth() const { return playerHealth_; }
+    // Test hook: chest position of the nearest living enemy.
+    bool nearestEnemy(Vec3& chest) const {
+        float best = 1e30f;
+        bool found = false;
+        for (const auto& e : enemies_.enemies) {
+            if (e.state == EnemyState::Dead) continue;
+            const float d = length(e.pos - player_.position);
+            if (d < best) { best = d; chest = e.pos + Vec3{0, 1.2f, 0}; found = true; }
+        }
+        return found;
+    }
     float weaponLastHitDistance() const { return weapon_.lastHitDistance(); }
     VrRig& rig() { return rig_; }
     Renderer& renderer() { return renderer_; }
@@ -96,6 +112,22 @@ private:
     Mat4 gunXf_ = Mat4::identity();
     bool gunValid_ = false;
     WeaponSystem weapon_;
+    std::function<bool(const Vec3&, const Vec3&, float, float&, Vec3&)> worldRay_;  // terrain + buildings
+    // Enemies (Reaper grunts) and combat state.
+    EnemyDirector enemies_;
+    std::vector<std::unique_ptr<SkinnedModel>> enemyPool_;
+    std::vector<uint8_t> slotUsed_;
+    WeaponSystem enemyFire_;
+    std::vector<int> shooters_;
+    float playerHealth_ = 100.0f, sinceDamage_ = 99.0f, damageFlash_ = 0.0f, waveTimer_ = 0.0f;
+    int wave_ = 0;
+    TextureId whiteTex_ = 0;
+    uint32_t rng_ = 987654321u;
+    float frand() { rng_ = rng_ * 1664525u + 1013904223u; return float(rng_ >> 8) / float(1u << 24); }
+    void spawnWave();
+    void updateCombat(float dt);
+    void damagePlayer(float amount);
+    void renderHud();
     Quat headWorldRot_;
     // Third-person aiming: crosshair where the right controller points; character aims there.
     Vec3 aimTarget_;

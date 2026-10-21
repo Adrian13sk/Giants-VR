@@ -20,7 +20,7 @@ gameplay: no AI, weapons, mission logic, audio or menus.
 | M5 | Quest controller input | DEVICE VERIFIED (binding) | touch_controller profile bound on both hands. User confirmed movement, snap turn and trigger haptics work. |
 | M6 | Asset pipeline | BUILD VERIFIED (host) | gzptool validate: 5291 entries; 1561/1561 GBS, 1001 TGA, 32/32 GTI, 782/782 SKN, 1318/1318 ANM parsed |
 | M7 | Original assets render correctly | IN PROGRESS (device feedback applied: mirrored bones, key values, brightness) | Terrain/sky/sea/fog render; 4 characters animate (rigid skinning verified exactly against GBS rest positions). Still provisional: lighting rules, scale (0.2 m/unit), texture tiling and TCB interpolation (linear/slerp used). Object placement DEVICE VERIFIED (device test 3: village buildings, raft and canopy look as intended). |
-| M8 | Original engine/gameplay integrated | NOT STARTED | Needs object-type defs, SKN/ANM, simulation loop |
+| M8 | Original engine/gameplay integrated | IN PROGRESS | Object types, SKN/ANM, placements, collision done; original AI/mission scripts not decoded (B9) |
 | M9 | Meaningful original gameplay | IN PROGRESS | Player Meccaryn: run/strafe/backpedal/jetpack with original clips and cross-fades. First person (default) with full body, arm IK to the controllers and finger curl; third person optional (DEVICE VERIFIED, test 7: "Now it's perfect"). No weapons, AI or missions yet. |
 | M10 | VR cameras & controls integrated | IN PROGRESS | Smooth move, snap/smooth turn, left-handed swap, terrain following |
 | M11 | Performance & stability | NOT STARTED | No on-device profiling possible yet |
@@ -34,7 +34,9 @@ gameplay: no AI, weapons, mission logic, audio or menus.
 3. **First playable slice:** controllable Meccaryn, first person with body and hands: DEVICE VERIFIED.
    Level collision with walls/buildings (stand on tops) DEVICE VERIFIED (test 8).
    First weapon (Meccaryn gun: bolts, muzzle/impact flashes, hits on terrain/buildings) BUILD VERIFIED, device test 9 pending.
-   Next: hostile AI (Reapers) that can be shot, health/damage, then audio. Also GPU skinning and TCB key interpolation.
+   Reaper grunt enemies (waves, AI, shooting, hit/death clips), player health, wrist health bar,
+   damage flash BUILD VERIFIED (behaviour is ours, B9). Device test 10 pending.
+   Next: audio (original WAVs via AAudio/OpenSL), then decode mission/creature data (B4/B9). Also GPU skinning and TCB key interpolation.
 
 Then: world opcode table fixes (24 of 33 worlds still stop early), Kabuto-scale camera
 experiments, audio (WAV in VO_Sfx gzp), fixed-step simulation, Vulkan/multiview evaluation.

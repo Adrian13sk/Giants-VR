@@ -110,7 +110,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             muzzleModel_ = mc->get("muzzle_flash.gbs", "muzzle_flash.anm");
             impactModel_ = mc->get("efx_flash.gbs");
             crosshairTex_ = mc->texture("st_xhair_lock");  // original crosshair (red brackets)
-            weapon_.raycast = [w](const Vec3& o, const Vec3& d, float maxD, float& t, Vec3& n) {
+            worldRay_ = [w](const Vec3& o, const Vec3& d, float maxD, float& t, Vec3& n) {
                 float tc = 0;
                 Vec3 nc;
                 const bool hc = w->collision().raycast(o, d, maxD, tc, nc);
@@ -146,10 +146,66 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 return true;
             };
             
-            player_.collision = &w->collision();
-            player_.groundHeight = [w, this](float x, float z) {
+            // Player bolts hit buildings/terrain (-1) or enemies (index).
+            weapon_.raycast = [this](const Vec3& o, const Vec3& d, float maxD, float& t, Vec3& n, int& target) {
+                float tw = maxD, te = maxD;
+                Vec3 nw, ne;
+                int ie = -1;
+                const bool hw = worldRay_ && worldRay_(o, d, maxD, tw, nw);
+                const bool he = enemies_.raycast(o, d, maxD, te, ne, ie);
+                if (!hw && !he) return false;
+                if (he && (!hw || te < tw)) { t = te; n = ne; target = ie; }
+                else { t = tw; n = nw; target = -1; }
+                return true;
+            };
+            weapon_.onHit = [this](int target, const Vec3&, const Vec3&) {
+                if (target < 0) return;
+                const bool killed = enemies_.damage(target, 25.0f);
+                haptics_.push_back({rig_.turnHand(), killed ? 0.8f : 0.5f, killed ? 0.12f : 0.05f});
+            };
+            // Enemy bolts hit buildings/terrain (-1) or the player (-2: vertical capsule).
+            enemyFire_.projectileSpeed = 32.0f;  // slow enough to see and dodge
+            enemyFire_.raycast = [this](const Vec3& o, const Vec3& d, float maxD, float& t, Vec3& n, int& target) {
+                float tw = maxD, tp = maxD;
+                Vec3 nw;
+                const bool hw = worldRay_ && worldRay_(o, d, maxD, tw, nw);
+                const Vec3 a = player_.position + Vec3{0, 0.35f, 0}, b = player_.position + Vec3{0, 1.65f, 0};
+                const bool hp = playMode_ && rayCapsule(o, d, maxD, a, b, 0.35f, tp);
+                if (!hw && !hp) return false;
+                if (hp && (!hw || tp < tw)) { t = tp; n = d * -1.0f; target = -2; }
+                else { t = tw; n = nw; target = -1; }
+                return true;
+            };
+            enemyFire_.onHit = [this](int target, const Vec3&, const Vec3&) {
+                if (target == -2) damagePlayer(7.0f);
+            };
+            enemies_.groundHeight = [w](float x, float z) {
                 float y;
-                return w->terrain().heightAt(x, z, y) ? y : player_.position.y;
+                return w->terrain().heightAt(x, z, y) ? y : -1.2f;
+            };
+            enemies_.collision = &w->collision();
+            // Reaper grunt model pool with the original clips (order = EnemyClip).
+            const char* eclips[] = {"rpman_stand_scan.anm", "rpman_walk_fire.anm", "rpman_stand_fire.anm",
+                                    "rpman_hit_med.anm", "rpman_hit_med2.anm", "rpman_hit_med_die.anm",
+                                    "rpman_hit_spin_die.anm", "rpman_hit_gut_die.anm"};
+            for (int k = 0; k < 6; ++k) {
+                auto em = std::make_unique<SkinnedModel>();
+                if (!em->load(w->fs(), *mc, renderer_, "rpman_l0", eclips[0])) break;
+                for (int c = 1; c < int(EnemyClip::Count); ++c) em->addAnimation(w->fs(), eclips[c]);
+                if (k == 0)
+                    for (int c = 0; c < int(EnemyClip::Count); ++c) enemies_.clipDuration[c] = std::max(0.1f, em->animDuration(c));
+                enemyPool_.push_back(std::move(em));
+            }
+            slotUsed_.assign(enemyPool_.size(), 0);
+            const uint8_t white[4] = {255, 255, 255, 255};
+            whiteTex_ = renderer_.uploadTexture(1, 1, white, false, false);
+            LOGI("Enemies: %zu Reaper model slots", enemyPool_.size());
+            player_.collision = &w->collision();
+            // Off the terrain heightfield is open sea (surface at 0): wading depth, so walking off
+            // a cliff drops you into the water instead of walking on air.
+            player_.groundHeight = [w](float x, float z) {
+                float y;
+                return w->terrain().heightAt(x, z, y) ? y : -1.2f;
             };
         } else {
             LOGW("Player model unavailable; free camera only");
@@ -279,6 +335,84 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     eyeNow_ = playerModel_->hiddenCentroid() + eyeFromHead_;
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     updateWeapon(dt, in);
+    updateCombat(dt);
+}
+
+void GameApp::spawnWave() {
+    if (enemyPool_.empty()) return;
+    ++wave_;
+    // Three Reapers ~35 m out in front of the player (spread left/right), on solid terrain.
+    const float base = player_.yaw;
+    int placed = 0;
+    for (int attempt = 0; attempt < 24 && placed < 3; ++attempt) {
+        const float a = base + (frand() - 0.5f) * 1.4f;
+        const float r = 30.0f + frand() * 10.0f;
+        const Vec3 p = player_.position + Vec3{-std::sin(a), 0, -std::cos(a)} * r;
+        float h;
+        if (!assetWorld_->terrain().heightAt(p.x, p.z, h)) continue;
+        if (h < 0.5f) continue;  // not in the sea
+        enemies_.spawn(p, a + kPi);  // facing the player
+        ++placed;
+    }
+    LOGI("Wave %d: %d Reapers", wave_, placed);
+}
+
+void GameApp::damagePlayer(float amount) {
+    if (playerHealth_ <= 0) return;
+    playerHealth_ -= amount;
+    sinceDamage_ = 0;
+    damageFlash_ = 1.0f;
+    haptics_.push_back({kLeft, 0.7f, 0.1f});
+    haptics_.push_back({kRight, 0.7f, 0.1f});
+    if (playerHealth_ <= 0) {
+        LOGI("Player died: respawning");
+        playerHealth_ = 100.0f;
+        teleportPlayer(assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
+        damageFlash_ = 2.0f;
+    }
+}
+
+void GameApp::updateCombat(float dt) {
+    // Health regenerates after 4 s without damage.
+    sinceDamage_ += dt;
+    if (sinceDamage_ > 4.0f) playerHealth_ = std::min(100.0f, playerHealth_ + 12.0f * dt);
+    damageFlash_ = std::max(0.0f, damageFlash_ - dt * 3.0f);
+
+    enemies_.update(dt, player_.position, playMode_, shooters_);
+    // Model slots follow the enemies (the director removes sunk corpses).
+    std::fill(slotUsed_.begin(), slotUsed_.end(), 0);
+    for (auto& e : enemies_.enemies)
+        if (e.slot >= 0 && size_t(e.slot) < slotUsed_.size()) slotUsed_[size_t(e.slot)] = 1;
+    for (auto& e : enemies_.enemies)
+        if (e.slot < 0)
+            for (size_t k = 0; k < slotUsed_.size(); ++k)
+                if (!slotUsed_[k]) { e.slot = int(k); slotUsed_[k] = 1; break; }
+    for (auto& e : enemies_.enemies) {
+        if (e.slot < 0) continue;
+        enemyPool_[size_t(e.slot)]->poseBlend(renderer_, int(e.prevClip), e.prevTime, int(e.clip), e.clipTime,
+                                              e.fadeWeight(enemies_.params.crossfade));
+    }
+    // Enemy shots from each Reaper's gun nozzle toward the player's chest, with spread.
+    for (int i : shooters_) {
+        const Enemy& e = enemies_.enemies[size_t(i)];
+        const Quat r = Quat::fromAxisAngle({0, 1, 0}, e.yaw);
+        Vec3 muzzle = e.pos + Vec3{0, 1.5f, 0} + r.rotate(Vec3{0.3f, 0, -0.6f});
+        Mat4 nz;
+        if (e.slot >= 0 && enemyPool_[size_t(e.slot)]->nodeWorld("ref_nozzle", nz))
+            muzzle = e.pos + r.rotate(giantsToRuntime(nz.m[12], nz.m[13], nz.m[14]));
+        const Vec3 target = player_.position + Vec3{0, 1.2f, 0};
+        Vec3 dir = normalize(target - muzzle);
+        dir = normalize(dir + Vec3{frand() - 0.5f, (frand() - 0.5f) * 0.6f, frand() - 0.5f} * 0.09f);
+        enemyFire_.spawnShot(muzzle, dir);
+    }
+    enemyFire_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
+    // Next wave after the last Reaper has fallen.
+    if (enemies_.aliveCount() == 0) {
+        waveTimer_ += dt;
+        if (waveTimer_ > 8.0f) { waveTimer_ = 0; spawnWave(); }
+    } else {
+        waveTimer_ = 0;
+    }
 }
 
 // Gun muzzle, barrel direction and handle in the gun model's GAME frame (forward = -Y like
@@ -294,8 +428,9 @@ void GameApp::updateThirdPersonAim(const InputFrame& in, float dt) {
     const Vec3 dir = aim.orientation.rotate(Vec3{0, 0, -1});
     float t;
     Vec3 n;
-    aimTarget_ = (weapon_.raycast && weapon_.raycast(aim.position, dir, 150.0f, t, n)) ? aim.position + dir * t
-                                                                                        : aim.position + dir * 60.0f;
+    int target = -1;
+    aimTarget_ = (weapon_.raycast && weapon_.raycast(aim.position, dir, 150.0f, t, n, target)) ? aim.position + dir * t
+                                                                                                : aim.position + dir * 60.0f;
     if (c.trigger > 0.1f) tpAimHold_ = 1.0f;  // keep aiming briefly after releasing
     else tpAimHold_ = std::max(0.0f, tpAimHold_ - dt);
     tpAiming_ = tpAimHold_ > 0.0f;
@@ -349,6 +484,38 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     }
     const bool trigger = in.hand[gh].trigger > 0.6f;
     if (weapon_.update(dt, trigger && gunValid_, muzzle, fwd)) haptics_.push_back({gh, 0.35f, 0.04f});
+}
+
+// Wrist health bar (first person, left controller) and the red damage flash.
+void GameApp::renderHud() {
+    if (!impactModel_ || impactModel_->parts.empty() || !whiteTex_) return;
+    const MeshId quad = impactModel_->parts[0].mesh;  // 0.2 m square in the XY plane
+    auto drawQuad = [&](const Mat4& xf, const Vec4& color) {
+        DrawParams dp;
+        dp.texture = whiteTex_;
+        dp.blend = BlendMode::AlphaBlend;
+        dp.unlit = true;
+        dp.noFog = true;
+        dp.depthWrite = false;
+        dp.doubleSided = true;
+        dp.tint = color;
+        renderer_.draw(quad, xf, dp);
+    };
+    const ControllerState& lc = lastInput_.hand[rig_.moveHand()];
+    if (firstPerson_ && lc.gripPoseValid) {
+        const Pose g = rig_.toWorld(lc.gripPose);
+        const Mat4 base = Mat4::translation(g.position + Vec3{0, 0.09f, 0}) * Mat4::rotation(headWorldRot_);
+        const float w = 0.13f, h = 0.016f, f = std::max(0.0f, playerHealth_) / 100.0f;
+        drawQuad(base * Mat4::scale({(w + 0.008f) / 0.2f, (h + 0.008f) / 0.2f, 1}), {0, 0, 0, 0.6f});
+        const Vec4 col{std::min(1.0f, 2.0f * (1.0f - f)), std::min(1.0f, 2.0f * f), 0.1f, 0.9f};
+        drawQuad(base * Mat4::translation({-w * 0.5f * (1.0f - f), 0, 0.002f}) * Mat4::scale({w * f / 0.2f, h / 0.2f, 1}), col);
+    }
+    if (damageFlash_ > 0) {
+        const Vec3 fwd = headWorldRot_.rotate(Vec3{0, 0, -1});
+        const Vec3 eye = renderer_.currentView().eyePosition;
+        drawQuad(Mat4::translation(eye + fwd * 0.12f) * Mat4::rotation(headWorldRot_) * Mat4::scale({4, 4, 1}),
+                 {1.0f, 0.05f, 0.0f, std::min(0.5f, 0.35f * damageFlash_)});
+    }
 }
 
 void GameApp::drawModel(const RenderModel* m, const Mat4& xf, bool additive, float alpha) {
@@ -416,7 +583,10 @@ void GameApp::update(float dt, const InputFrame& in) {
     time_ += dt;
     if (needSpawn_ && in.headValid) {
         rig_.teleportHead(in, assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
-        if (playMode_) teleportPlayer(assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
+        if (playMode_) {
+            teleportPlayer(assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
+            spawnWave();
+        }
         needSpawn_ = false;
     }
     // B (turn hand's secondary) toggles play mode / free camera.
@@ -457,6 +627,28 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (assetWorld_ && assetWorld_->loaded()) assetWorld_->render(renderer_);
     if (playMode_ && playerModel_) playerModel_->render(renderer_, bodyXf_);
     if (playMode_ && gunValid_) drawModel(gunModel_, gunXf_, false);
+    for (const auto& e : enemies_.enemies)
+        if (e.slot >= 0)
+            enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos) *
+                                                              Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
+    // Reaper bolts: the same spark, tinted red.
+    for (const auto& p : enemyFire_.projectiles()) {
+        const Quat r = rotationBetween({0, 0, -1}, p.vel);
+        for (const auto& part : boltModel_ ? boltModel_->parts : std::vector<RenderModel::Part>{}) {
+            DrawParams dp;
+            dp.texture = part.texture;
+            dp.blend = BlendMode::Additive;
+            dp.unlit = true;
+            dp.depthWrite = false;
+            dp.doubleSided = true;
+            dp.tint = {3.0f, 0.6f, 0.4f, 1.0f};
+            renderer_.draw(part.mesh, Mat4::translation(p.pos) * Mat4::rotation(r) * Mat4::scale({0.6f, 0.6f, 0.6f}), dp);
+        }
+    }
+    for (const auto& e : enemyFire_.effects())
+        if (e.kind == WeaponEffect::Impact)
+            drawModel(impactModel_, Mat4::translation(e.pos) * Mat4::rotation(headWorldRot_) *
+                                        Mat4::scale(Vec3{1, 1, 1} * (2.0f + 3.0f * e.progress())), true, 1.0f - e.progress());
     // Bolts: the original spark quads (lying across the model's -Z axis) face along the flight,
     // drawn bright with a short fading trail so the shot reads as a blaster bolt.
     for (const auto& p : weapon_.projectiles()) {
@@ -496,6 +688,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
             drawModel(impactModel_, Mat4::translation(e.pos) * Mat4::rotation(headWorldRot_) *
                                         Mat4::scale(Vec3{1, 1, 1} * (3.0f + 4.0f * k)), true, 1.0f - k);
     }
+    if (playMode_) renderHud();
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
     else if (!(playMode_ && firstPerson_ && playerModel_)) testScene_.renderControllers(renderer_, rig_, lastInput_);
     renderer_.endView();

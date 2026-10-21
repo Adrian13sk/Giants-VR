@@ -105,9 +105,21 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         else { velocity.x = dx / dt; velocity.z = dz / dt; }
     }
 
-    float g = groundHeight ? groundHeight(position.x, position.z) : 0.0f;
-    float og;  // walls' tops, roofs, tables: highest one we can step onto or are falling onto
-    if (collision && collision->groundAt(position.x, position.z, std::max(prevY, position.y) + stepUp, og)) g = std::max(g, og);
+    auto groundAt = [&](float x, float z) {
+        float gg = groundHeight ? groundHeight(x, z) : 0.0f;
+        float og;  // walls' tops, roofs, tables: highest one we can step onto or are falling onto
+        if (collision && collision->groundAt(x, z, std::max(prevY, position.y) + stepUp, og)) gg = std::max(gg, og);
+        return gg;
+    };
+    float g = groundAt(position.x, position.z);
+    if (onGround && !in.jet && g - prevY > params.maxStepUp) {
+        // Cliff face (e.g. climbing out of the sea): blocks like a wall; the jetpack gets you up.
+        position.x = before.x;
+        position.z = before.z;
+        velocity.x = velocity.z = 0;
+        speedNow = 0;
+        g = groundAt(position.x, position.z);
+    }
     if (position.y <= g) {
         if (!onGround && velocity.y < -params.hardLandSpeed) landTimer_ = params.landSeconds;
         position.y = g;

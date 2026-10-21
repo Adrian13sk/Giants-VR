@@ -27,12 +27,17 @@ public:
     float projectileSpeed = 70.0f;  // m/s
     float fireInterval = 0.2f;      // s between shots while the trigger is held
     float range = 250.0f;           // m
-    // World hit test along a segment: origin, unit dir, max distance -> hit distance + normal.
-    std::function<bool(const Vec3&, const Vec3&, float, float&, Vec3&)> raycast;
+    // Hit test along a segment: origin, unit dir, max distance -> hit distance, normal and
+    // target id (-1 = world geometry, >= 0 or other negatives = characters, caller-defined).
+    std::function<bool(const Vec3&, const Vec3&, float, float&, Vec3&, int&)> raycast;
+    // Called on every hit (target id, hit point, bolt direction).
+    std::function<void(int, const Vec3&, const Vec3&)> onHit;
 
     // Advances projectiles/effects; fires if the trigger is held and the weapon is ready.
     // Returns true if a shot was fired this frame.
     bool update(float dt, bool triggerHeld, const Vec3& muzzle, const Vec3& forward);
+    // Fires one bolt now, ignoring the trigger/cooldown (AI-controlled shooters).
+    void spawnShot(const Vec3& muzzle, const Vec3& forward);
 
     const std::vector<Projectile>& projectiles() const { return projectiles_; }
     const std::vector<WeaponEffect>& effects() const { return effects_; }
