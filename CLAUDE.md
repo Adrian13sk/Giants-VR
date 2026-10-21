@@ -32,4 +32,7 @@ source exists; this is a **native reimplementation that loads the user's origina
 ## Conventions
 - Runtime frame: right-handed, +Y up, -Z forward, metres. Giants data is Z-up:
   `runtime = (-x, z, y) * gGameUnitsToMeters` (0.2, provisional). Winding preserved.
+- Delivering an APK to the user's PC: stage it under a UNIQUE name (e.g. `GiantsVR-dev-<commit>.apk`).
+  Re-sending the same staged path can silently deliver stale content. Then stage the PC copy back
+  and compare its sha256 against the build before telling the user to install.
 - Keep docs current: PROJECT_STATUS.md, ENGINEERING_LOG.md, BLOCKERS.md, TEST_REPORT.md.

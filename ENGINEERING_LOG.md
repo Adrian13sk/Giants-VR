@@ -122,3 +122,10 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
 - **Boost:** holding the move-hand grip multiplies speed by 5, both walking (3→15 m/s) and flying (15→75 m/s).
 - **Tests:** unit tests cover the walking boost, climbing by looking up, descending below the ground (noclip), and re-attaching to the ground when fly mode is switched off.
 - Temporary aid for exploring maps. Not a comfort-safe locomotion mode.
+
+### Delivery bug (2026-10-21 14:50)
+- **Symptom:** the user reported the fly mode "doesn't work".
+- **Cause:** the APK on their PC was still the previous build (sha256 84835f3c…). Re-committing
+  the same staged path (`outputs/GiantsVR-dev.apk`) wrote stale content, even though the commit reported success.
+- **Fix:** re-sent the build under a unique staged name. The PC copy is now aa9d6e6d… (5f89e6a), confirmed by staging it back.
+- **Rule added to CLAUDE.md:** always use a unique staged name and verify the hash on the PC before telling the user to install.
