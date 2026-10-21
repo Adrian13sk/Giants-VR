@@ -47,6 +47,7 @@ struct AnmNode {
     Vec3 pos;           // default local transform (game units, Z-up frame)
     Quat rot;           // standard rotation (stored xyz already negated back)
     Vec3 scale{1, 1, 1};
+    bool mirrored = false;  // flag bit 0x08 at +0x94
     std::vector<AnmKeyVec3> posKeys;
     std::vector<AnmKeyQuat> rotKeys;
     std::vector<AnmKeyVec3> scaleKeys;

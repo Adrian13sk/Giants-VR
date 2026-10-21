@@ -50,7 +50,7 @@ struct ViewParams {
 struct EnvironmentParams {
     Vec3 sunDirection{-0.4f, -1.0f, -0.3f};  // direction light travels (world)
     Vec3 sunColor{1.0f, 0.96f, 0.88f};
-    Vec3 ambientColor{0.35f, 0.38f, 0.45f};
+    Vec3 ambientColor{0.50f, 0.52f, 0.58f};  // raised after device test 1 ("a bit dark")
     Vec3 fogColor{0.55f, 0.70f, 0.90f};
     float fogNear = 60.0f;      // linear fog start (metres), like the original D3D fog
     float fogFar = 600.0f;      // linear fog end (metres)

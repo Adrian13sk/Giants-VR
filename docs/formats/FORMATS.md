@@ -92,6 +92,9 @@ Serialized images; pointers = file offsets. NAM tables `{u16 size, u16 type(4), 
 - ANM node: +0x10 parent ptr; +0x6C pos; +0x78 quaternion (stored x,y,z negated); +0x88 scale;
   +0x98/+0x9C/+0xA0 pos/rot/scale track ptrs.
 - Track: `{u8 keyType, u8, u8, u8, u32, u32 count, u32 keyPtr[count]}`. Key types: 4 VEC3_TCB
-  (60 B; tick +0, value +48), 7 QUAT_TCB (72 B; value +24). Other types are assumed (value at +4).
+  (60 B; tick +0, tcb/ease +4, tangents +24/+36, value +48), 7 QUAT_TCB (72 B; tangents +24/+40,
+  **value +56**). Other types are assumed (value at +4).
+- Node flag word +0x94: bit 0x08 = mirrored (negative determinant). Local = T·R·(−S).
+  Verified on the Kabuto left leg and on Smartie.
 - World = Wparent × Local. Vertex = BoneWorld × local. Verified exactly (gzptool skincheck).
 - Interpolation: linear/slerp between keys. The TCB tangents aren't used yet.

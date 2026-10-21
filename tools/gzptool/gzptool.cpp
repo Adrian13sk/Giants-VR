@@ -9,6 +9,8 @@
 #include <cstdio>
 #include <cstring>
 #include <algorithm>
+#include <array>
+#include <cstdlib>
 #include <map>
 #include <string>
 
@@ -169,10 +171,13 @@ static int cmdSkinCheck(const char* dir, const char* base, const char* anim) {
     if (!fs.read(std::string(base) + ".gbs", d) || !parseGbs(d.data(), d.size(), g, &err)) { std::printf("gbs: %s\n", err.c_str()); return 1; }
     if (!fs.read(std::string(base) + ".skn", d) || !parseSkn(d.data(), d.size(), sk, &err)) { std::printf("skn: %s\n", err.c_str()); return 1; }
     if (!fs.read(anim, d) || !parseAnm(d.data(), d.size(), an, &err)) { std::printf("anm: %s\n", err.c_str()); return 1; }
-    // Default (static) transforms only: drop keys.
-    for (auto& n : an.nodes) { n.posKeys.clear(); n.rotKeys.clear(); n.scaleKeys.clear(); }
+    const bool keyed = std::getenv("SKINCHECK_KEYED") != nullptr;
+    // Default (static) transforms only: drop keys (unless SKINCHECK_KEYED is set).
+    if (!keyed)
+        for (auto& n : an.nodes) { n.posKeys.clear(); n.rotKeys.clear(); n.scaleKeys.clear(); }
     std::vector<Mat4> world;
     an.evaluate(0.0f, world);
+    std::map<std::string, std::array<double, 7>> cent;  // rest xyz, posed xyz, n
     int exact = 0, total = 0;
     std::map<std::string, std::pair<int, int>> perBone;
     for (size_t o = 0; o < sk.objects.size() && o < g.maxObjs.size(); ++o)
@@ -186,12 +191,19 @@ static int cmdSkinCheck(const char* dir, const char* base, const char* anim) {
                 const auto& p = g.positions[size_t(g.maxObjs[o].vstart) + v.index];
                 const float e = std::sqrt((w.x - p[0]) * (w.x - p[0]) + (w.y - p[1]) * (w.y - p[1]) + (w.z - p[2]) * (w.z - p[2]));
                 ++total;
+                auto& ce = cent[bn->second];
+                ce[0] += p[0]; ce[1] += p[1]; ce[2] += p[2]; ce[3] += w.x; ce[4] += w.y; ce[5] += w.z; ce[6] += 1;
                 auto& pb = perBone[bn->second];
                 ++pb.second;
                 if (e < 1e-3f) { ++exact; ++pb.first; }
             }
         }
-    for (auto& [b, c] : perBone) std::printf("  %-14s %3d/%3d exact\n", b.c_str(), c.first, c.second);
+    for (auto& [b, c] : perBone) {
+        const auto& ce = cent[b];
+        const double n = ce[6];
+        std::printf("  %-14s %3d/%3d exact  rest(%.1f %.1f %.1f) posed(%.1f %.1f %.1f)\n", b.c_str(), c.first, c.second,
+                    ce[0] / n, ce[1] / n, ce[2] / n, ce[3] / n, ce[4] / n, ce[5] / n);
+    }
     std::printf("%s + %s: %d/%d vertices reproduced exactly (<1 mm game units)\n", base, anim, exact, total);
     return exact > 0 ? 0 : 1;
 }

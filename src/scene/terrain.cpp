@@ -30,7 +30,8 @@ bool Terrain::build(const GtiTerrain& t, Renderer& r, TextureId ground, TextureI
             // ASSUMPTION (unverified): lightmap is applied like D3D MODULATE2X (128 = neutral);
             // shipped lightmaps average ~70/255. A small floor avoids pitch-black levels whose
             // lightmap is near zero (e.g. M_Reaper_L1) until the original rule is confirmed.
-            for (int k = 0; k < 3; ++k) v.color[k] = uint8_t(std::min(255, 40 + 2 * int(l[k])));
+            // Raised from 40+2x to 56+2.4x after device test 1 reported the scene a bit dark.
+            for (int k = 0; k < 3; ++k) v.color[k] = uint8_t(std::min(255, 56 + int(2.4f * l[k])));
         }
         else { v.color[0] = v.color[1] = v.color[2] = 255; }
         v.color[3] = 255;

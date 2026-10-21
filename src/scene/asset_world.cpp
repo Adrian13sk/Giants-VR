@@ -124,7 +124,7 @@ void AssetWorld::placeShowcase(const Vec3& centre) {
     struct Anim { const char* base; const char* anim; };
     const Anim characters[] = {
         {"sm_L0", "sm_stand.anm"},                  // Smartie
-        {"mc_l0", "mc_idle.anm"},                   // Meccaryn
+        {"mc_l0", "Mc_stand_scan2.anm"},            // Meccaryn (mc_idle is a fidget with kicks)
         {"rpman_l0", "rpman_attention_stand.anm"},  // Reaper
         {"kB_L1", "kb_walk.anm"},                   // Kabuto (walk cycle in place)
     };
@@ -141,7 +141,8 @@ void AssetWorld::placeShowcase(const Vec3& centre) {
         Vec3 p{x, centre.y, centre.z - radius};
         float gy;
         if (hasTerrain_ && terrain_.heightAt(p.x, p.z, gy)) p.y = gy;
-        skinned_.push_back({std::move(m), p, 0.0f});
+        // Original models face -Z in the runtime frame; turn them to face the spawn point.
+        skinned_.push_back({std::move(m), p, kPi});
         x += radius + 1.5f;
     }
     struct Candidate { const char* names[3]; };

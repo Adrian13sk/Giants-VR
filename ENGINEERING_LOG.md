@@ -80,3 +80,20 @@
   - `xrEndFrame` session/instance loss now triggers exit.
   - EGL config prefers WINDOW|PBUFFER (as Meta's samples do).
   - touchscreen/faketouch are marked not required.
+
+### Device test 1 feedback → fixes (2026-10-21 14:30)
+User report: everything visible; movement, turning and haptics work; scene a bit dark; a
+missing leg; weird animations. A new character contact-sheet tool (`build/host/charsheet`) found
+three causes:
+1. **Missing leg (Kabuto):** ANM node flag word +0x94 bit 0x08 marks a **mirrored node** (a
+   negative-determinant transform from the 3ds Max Mirror tool). The left thigh had it, so its
+   leg pointed up into the body. Fix: apply a uniform −1 sign to the scale (Max
+   AffineParts::f). Confirmed: the Kabuto left leg now reaches the ground mirroring the right,
+   and Smartie's exact-reproduction count rose 89 → 124 vertices.
+2. **QUAT_TCB key value:** the key holds three quaternions {A, B, C}. A and B are tangents and
+   **C (+56) is the value**. In mc_idle the first key's C equals the node default for every
+   node, while A doesn't. My earlier +24 choice only worked where all three were equal.
+3. **mc_idle** is a genuinely energetic fidget (stretch and kick). The showcase now uses
+   Mc_stand_scan2. Run, scan and shoot animations all look natural.
+Also: characters turned to face the spawn point (models face −Z). Brightness raised: ambient
+0.35 → 0.5, terrain lightmap 40+2x → 56+2.4x.

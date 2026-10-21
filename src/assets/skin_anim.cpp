@@ -148,6 +148,10 @@ bool parseAnm(const uint8_t* data, size_t size, AnmAnimation& a, std::string* er
         n.pos = {im.f32(p + 0x6C), im.f32(p + 0x70), im.f32(p + 0x74)};
         n.rot = stdQuat(im.f32(p + 0x78), im.f32(p + 0x7C), im.f32(p + 0x80), im.f32(p + 0x84));
         n.scale = {im.f32(p + 0x88), im.f32(p + 0x8C), im.f32(p + 0x90)};
+        // +0x94 flag word: bit 3 marks a mirrored node (negative determinant, as produced by
+        // the 3ds Max Mirror tool). Max decomposes such transforms with a uniform -1 sign
+        // (AffineParts::f), so the local transform is T * R * (-S).
+        n.mirrored = (im.u32(p + 0x94) & 0x8) != 0;
         for (int t = 0; t < 3; ++t) {
             const uint32_t tp = im.u32(p + 0x98 + 4 * t);
             if (!tp) continue;
@@ -157,10 +161,11 @@ bool parseAnm(const uint8_t* data, size_t size, AnmAnimation& a, std::string* er
             for (uint32_t k = 0; k < count; ++k) {
                 const uint32_t kp = im.u32(tp + 12 + 4 * k);
                 const int32_t tick = static_cast<int32_t>(im.u32(kp));
-                // Value offsets: TCB verified (vec3 +48, quat +24); LIN/BEZ assumed +4.
+                // Value offsets: TCB verified (vec3 +48, quat +56 = last field, the first key of every node
+                // equals the node default there); LIN/BEZ assumed +4.
                 if (t == 1) {
                     size_t vo;
-                    if (keyType == 7) vo = 24;
+                    if (keyType == 7) vo = 56;  // QUAT_TCB: {tick, tcb[5], tanA, tanB, value}
                     else if (keyType == 8 || keyType == 9) vo = 4;
                     else { ++a.unsupportedTracks; break; }
                     n.rotKeys.push_back({tick, stdQuat(im.f32(kp + vo), im.f32(kp + vo + 4), im.f32(kp + vo + 8),
@@ -230,8 +235,9 @@ void AnmAnimation::evaluate(float seconds, std::vector<Mat4>& world) const {
         const AnmNode& n = nodes[i];
         // Linear position / slerp rotation between keys. The TCB tangents stored in the file
         // are not used yet (approximation; motion is slightly less smooth than the original).
-        local[i] = Mat4::trs(sampleVec(n.posKeys, tick, n.pos), sampleQuat(n.rotKeys, tick, n.rot),
-                             sampleVec(n.scaleKeys, tick, n.scale));
+        Vec3 sc = sampleVec(n.scaleKeys, tick, n.scale);
+        if (n.mirrored) sc = sc * -1.0f;
+        local[i] = Mat4::trs(sampleVec(n.posKeys, tick, n.pos), sampleQuat(n.rotKeys, tick, n.rot), sc);
     }
     world.assign(nodes.size(), Mat4::identity());
     std::vector<uint8_t> state(nodes.size(), 0);
