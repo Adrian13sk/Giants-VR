@@ -36,7 +36,9 @@ gameplay: no AI, weapons, mission logic, audio or menus.
    First weapon (Meccaryn gun: bolts, muzzle/impact flashes, hits on terrain/buildings) BUILD VERIFIED, device test 9 pending.
    Reaper grunt enemies (waves, AI, shooting, hit/death clips), player health, wrist health bar,
    damage flash: DEVICE VERIFIED (test 10, "works fine"); movement/feet/jetpack-fuel fixes BUILD VERIFIED, device test 11 pending.
-   Next: audio (original WAVs via AAudio/OpenSL), then decode mission/creature data (B4/B9). Also GPU skinning and TCB key interpolation.
+   Audio: original sound effects via AAudio + software 3D mixer BUILD VERIFIED (device test pending;
+   sound-name meanings inferred).
+   Next: decode mission/creature data (B4/B9) so the island gets its original encounters. Also GPU skinning and TCB key interpolation.
 
 Then: world opcode table fixes (24 of 33 worlds still stop early), Kabuto-scale camera
 experiments, audio (WAV in VO_Sfx gzp), fixed-step simulation, Vulkan/multiview evaluation.

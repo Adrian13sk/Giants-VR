@@ -15,6 +15,7 @@
 #include "game/player.h"
 #include "game/weapon.h"
 #include "game/enemy.h"
+#include "audio/mixer.h"
 #include "game/vr_rig.h"
 
 using namespace gvr;
@@ -479,6 +480,52 @@ static void testEnemies() {
     CHECK(d.enemies.empty());
 }
 
+static std::vector<uint8_t> makeWav(uint32_t rate, const std::vector<int16_t>& samples) {
+    std::vector<uint8_t> d;
+    auto u32 = [&](uint32_t v) { for (int i = 0; i < 4; ++i) d.push_back(uint8_t(v >> (8 * i))); };
+    auto u16 = [&](uint16_t v) { d.push_back(uint8_t(v)); d.push_back(uint8_t(v >> 8)); };
+    d.insert(d.end(), {'R', 'I', 'F', 'F'}); u32(36 + uint32_t(samples.size()) * 2);
+    d.insert(d.end(), {'W', 'A', 'V', 'E', 'f', 'm', 't', ' '}); u32(16);
+    u16(1); u16(1); u32(rate); u32(rate * 2); u16(2); u16(16);
+    d.insert(d.end(), {'d', 'a', 't', 'a'}); u32(uint32_t(samples.size()) * 2);
+    for (int16_t s : samples) u16(uint16_t(s));
+    return d;
+}
+
+static void testAudio() {
+    std::vector<int16_t> tone(2205);
+    for (size_t i = 0; i < tone.size(); ++i) tone[i] = int16_t(16000 * std::sin(float(i) * 0.3f));
+    const auto bytes = makeWav(22050, tone);
+    WavData w;
+    CHECK(parseWav(bytes.data(), bytes.size(), w) && w.rate == 22050 && w.mono.size() == 2205);
+    CHECK(near(w.mono[1], 16000.0f * std::sin(0.3f) / 32768.0f, 1e-4f));
+    AudioMixer m(48000);
+    WavData w2 = w;
+    CHECK(m.addSound("tone", std::move(w2)));
+    m.setListener({0, 0, 0}, Quat{});  // looking down -Z, right = +X
+    std::vector<float> buf(2 * 480);
+    auto energy = [&](int ch) { float e = 0; for (size_t i = 0; i < 480; ++i) e += buf[2 * i + ch] * buf[2 * i + ch]; return e; };
+    // A source on the right is louder in the right channel.
+    uint32_t id = m.play("tone", {5, 0, 0});
+    m.mix(buf.data(), 480);
+    CHECK(energy(1) > 10.0f * energy(0));
+    m.stop(id);
+    // Far away: silent. Head-relative (2D): centred.
+    m.play("tone", {0, 0, -500});
+    m.mix(buf.data(), 480);
+    CHECK(energy(0) + energy(1) < 1e-9f);
+    m.stop(2);
+    uint32_t c = m.play2D("tone");
+    m.mix(buf.data(), 480);
+    CHECK(near(energy(0), energy(1), 1e-4f) && energy(0) > 0.1f);
+    // One-shot voices end (0.1 s at 22.05 kHz = 0.1 s at 48 kHz); loops keep playing.
+    for (int i = 0; i < 20; ++i) m.mix(buf.data(), 480);
+    CHECK(!m.playing(c));
+    uint32_t l = m.play2D("tone", 1.0f, 1.0f, true);
+    for (int i = 0; i < 20; ++i) m.mix(buf.data(), 480);
+    CHECK(m.playing(l) && m.activeVoices() == 1);
+}
+
 static void testGti() {
     // 2x1 interior cells, lightmap flag; stream: skip 0, literal run of 2 cells.
     std::vector<uint8_t> d;
@@ -536,6 +583,7 @@ int main() {
     testCollision();
     testWeapon();
     testEnemies();
+    testAudio();
     if (g_failures) {
         std::printf("%d test failure(s)\n", g_failures);
         return 1;

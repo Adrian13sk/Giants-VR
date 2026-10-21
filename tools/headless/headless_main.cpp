@@ -9,6 +9,9 @@
 #include <EGL/eglext.h>
 
 #include <cstdlib>
+#include <cstdio>
+
+#include "audio/mixer.h"
 #include <cstring>
 #include <string>
 #include <vector>
@@ -32,6 +35,7 @@ int main(int argc, char** argv) {
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
     int jetFrom = -1, jetTo = -1;
     bool autoAim = false, viewBody = false;
+    std::string audioOut;
     float triggerAmount = 0.0f, aimPitchDeg = -17.2f, aimYawDeg = 0.0f;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -59,12 +63,16 @@ int main(int argc, char** argv) {
         else if (a == "--aim-yaw") aimYawDeg = std::atof(next());      // controller yaw (deg, + = left)
         else if (a == "--auto-aim") autoAim = true;  // test only: point the right controller at the nearest enemy
         else if (a == "--view-body") viewBody = true; // test only: after the frames, stand 4 m from an enemy body
+        else if (a == "--audio-out") audioOut = next();  // write the mixed game audio (48 kHz stereo WAV)
         else if (a == "--hands") { handsFwd = std::atof(next()); handsUp = std::atof(next()); }  // controller offset (m)
     }
     if (!initEgl()) return 2;
 
     GameApp app;
     if (!app.init(dataDir, world)) return 3;
+    AudioMixer mixer(48000);
+    std::vector<float> audio;
+    if (!audioOut.empty()) app.setAudio(&mixer);
     LOGI("original assets loaded: %s", app.hasOriginalAssets() ? "yes" : "no");
 
     // Scripted tracking-space poses, approximating a standing Quest 2 user.
@@ -120,6 +128,24 @@ int main(int argc, char** argv) {
             in.hand[kRight].gripPose.orientation = in.hand[kRight].aimPose.orientation = q;
         }
         app.update(1.0f / 72.0f, in);
+        if (!audioOut.empty()) {
+            const size_t n = audio.size();
+            audio.resize(n + 2 * 667);
+            mixer.mix(audio.data() + n, 667);
+        }
+    }
+    if (!audioOut.empty()) {
+        FILE* f = std::fopen(audioOut.c_str(), "wb");
+        if (f) {
+            const uint32_t frames = uint32_t(audio.size() / 2), bytes = frames * 4;
+            auto u32 = [&](uint32_t v) { std::fwrite(&v, 4, 1, f); };
+            auto u16 = [&](uint16_t v) { std::fwrite(&v, 2, 1, f); };
+            std::fwrite("RIFF", 1, 4, f); u32(36 + bytes); std::fwrite("WAVEfmt ", 1, 8, f); u32(16);
+            u16(1); u16(2); u32(48000); u32(48000 * 4); u16(4); u16(16); std::fwrite("data", 1, 4, f); u32(bytes);
+            for (float v : audio) { const int16_t s = int16_t(std::max(-1.0f, std::min(1.0f, v)) * 32767.0f); u16(uint16_t(s)); }
+            std::fclose(f);
+            LOGI("wrote %s (%.1f s of audio)", audioOut.c_str(), frames / 48000.0f);
+        }
     }
     Vec3 body;
     if (viewBody && app.anyEnemy(body)) {

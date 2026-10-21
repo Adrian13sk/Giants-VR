@@ -34,6 +34,7 @@ add_library(gvr_core STATIC
   src/game/arm_ik.cpp
   src/game/weapon.cpp
   src/game/enemy.cpp
+  src/audio/mixer.cpp
   src/game/game_app.cpp
 )
 target_include_directories(gvr_core PUBLIC src third_party)
@@ -56,6 +57,7 @@ if(ANDROID)
 
   add_library(giantsvr SHARED
     src/platform/android/android_main.cpp
+    src/platform/android/audio_aaudio.cpp
     src/xr/xr_app.cpp
     src/xr/xr_input.cpp
   )
@@ -64,7 +66,7 @@ if(ANDROID)
   # ANativeActivity_onCreate must stay exported from the glue library.
   set_target_properties(giantsvr PROPERTIES LINK_FLAGS "-u ANativeActivity_onCreate -Wl,--build-id=sha1 -Wl,-z,max-page-size=16384")
   target_link_libraries(giantsvr PRIVATE gvr_core native_app_glue openxr_loader
-                        android log EGL GLESv3)
+                        android log EGL GLESv3 aaudio)
 else()
   # ----------------------------------------------------------------------------------------
   # Host tools: headless renderer (Mesa EGL surfaceless), asset tool, unit tests.

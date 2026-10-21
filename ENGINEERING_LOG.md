@@ -325,3 +325,24 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - On ground steeper than 50° they slide downhill at 6 m/s.
   - The original AI's exact cliff handling is unknown (B9); this mirrors the player's rule.
 - **Evidence:** unit test where the enemy below a 60° cliff never rises above 1.5 m in 20 s while the player stands on top. Regression: a normal wave still closes from 30 m to 12 m.
+
+### Audio: original sound effects (2026-10-21 23:20)
+- **Assets:** 597 WAVs across 25 archives. All are RIFF PCM 16-bit: 582 mono 22.05 kHz, 11 mono 16 kHz, 4 stereo.
+- **Names are 2-letter-prefixed codes; meanings INFERRED from the names and waveform shape (attack, duration):**
+  - Meccaryn: me_peas1/2 (pea-shooter gun), me_jpkst/jpklp/jpken/jpkno (jetpack start/loop/end/empty), me_fsgr1/2 (footsteps on grass), me_hdfl1/2 (landing), me_sld1/slden (slide loop/end), me_shrt1–3 (hurt).
+  - Impacts: bi_dirt1, bi_hit1/2, ex_bdys1 (body).
+  - Reapers: rh_sprsh (shot), rh_fsld1 (footstep), rpman_hit1–4, rpman_die1–5.
+- **AudioMixer** (`src/audio/mixer.*`, unit-tested):
+  - WAV parser (8/16-bit, mono/stereo, downmix to mono float).
+  - Positional voices with inverse-distance rolloff (ref 2 m, silent at 90 m), equal-power pan from the listener's head pose, and 25% quieter behind.
+  - Linear-interpolation resampling with pitch, per-block gain ramps, 48-voice cap, tanh soft clip.
+- **Quest output:** `AAudioOutput` (`src/platform/android/audio_aaudio.*`).
+  - Float stereo, low latency, usage GAME, mixed by the data callback.
+  - Paused with the activity. On disconnect the error callback only flags it, and the main loop reopens the stream. Linked against libaaudio.
+- **Game events:**
+  - Gun shot (alternating, pitch-varied), world impacts, Reaper hit (body plus voice 60%) and death voice.
+  - Reaper shots and running footsteps; player hurt (0.6 s cooldown).
+  - Jetpack start/loop/end/empty, slide loop/end, landing (hard above 6 m/s), footsteps on run-cycle halves.
+- **Headless:** `--audio-out file.wav` records the mixed game audio (667 frames per 1/72 s frame).
+  - 10 s scripted fight: continuous gunfire at the 0.2 s cadence, right channel louder (gun in the right hand), no clipping (peak −5.4 dBFS).
+  - **Not listened to yet:** the device test will judge whether the sound choices are right.

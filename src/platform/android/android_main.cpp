@@ -6,10 +6,13 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <memory>
 #include <string>
 
 #include "core/log.h"
+#include "audio/mixer.h"
 #include "game/game_app.h"
+#include "platform/android/audio_aaudio.h"
 #include "render/gl.h"
 #include "xr/xr_app.h"
 
@@ -126,6 +129,20 @@ void android_main(android_app* app) {
     ok = ok && game.init(dataDir);
     if (!ok) LOGE("Initialisation failed; see log above. Exiting.");
 
+    // Audio: AAudio stream -> software mixer with the original sound effects.
+    gvr::AAudioOutput audioOut;
+    std::unique_ptr<gvr::AudioMixer> mixer;
+    if (ok) {
+        const int32_t rate = audioOut.open();
+        if (rate > 0) {
+            mixer = std::make_unique<gvr::AudioMixer>(uint32_t(rate));
+            mixer->setMasterVolume(0.85f);
+            audioOut.attach(mixer.get());
+            game.setAudio(mixer.get());
+        }
+    }
+    bool audioRunning = false;
+
     bool exitRequested = !ok;
     bool finishRequested = false;
     double last = nowSeconds();
@@ -152,6 +169,11 @@ void android_main(android_app* app) {
             usleep(10000);
             continue;
         }
+
+        // Audio follows the activity lifecycle (silent while paused / in the system menu).
+        audioOut.poll();
+        if (state.resumed && !audioRunning && audioOut.isOpen()) audioRunning = audioOut.start();
+        if (!state.resumed && audioRunning) { audioOut.pause(); audioRunning = false; }
 
         xr.pollEvents(exitRequested);
         if (!xr.sessionRunning()) {
@@ -210,6 +232,9 @@ void android_main(android_app* app) {
         }
     }
 
+    audioOut.close();  // stop callbacks before the mixer and game go away
+    game.setAudio(nullptr);
+    mixer.reset();
     game.shutdown();
     xr.destroy();
     egl.destroy();

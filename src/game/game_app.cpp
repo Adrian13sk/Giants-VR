@@ -2,6 +2,7 @@
 
 #include "core/log.h"
 #include "scene/asset_world.h"
+#include "audio/mixer.h"
 #include "game/arm_ik.h"
 #include "scene/model_cache.h"
 #include "scene/skinned_model.h"
@@ -159,10 +160,18 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 else { t = tw; n = nw; target = -1; }
                 return true;
             };
-            weapon_.onHit = [this](int target, const Vec3&, const Vec3&) {
-                if (target < 0) return;
+            weapon_.onHit = [this](int target, const Vec3& p, const Vec3&) {
+                if (target < 0) {
+                    sfx(frand() < 0.5f ? "bi_dirt1" : (frand() < 0.5f ? "bi_hit1" : "bi_hit2"), p, 0.45f, 0.9f + 0.2f * frand());
+                    return;
+                }
                 const bool killed = enemies_.damage(target, 25.0f);
                 haptics_.push_back({rig_.turnHand(), killed ? 0.8f : 0.5f, killed ? 0.12f : 0.05f});
+                sfx("ex_bdys1", p, 0.35f, 1.1f + 0.2f * frand());
+                static const char* hits[] = {"rpman_hit1", "rpman_hit2", "rpman_hit3", "rpman_hit4"};
+                static const char* dies[] = {"rpman_die1", "rpman_die2", "rpman_die3", "rpman_die4", "rpman_die5"};
+                if (killed) sfx(dies[int(frand() * 4.99f)], p, 1.0f);
+                else if (frand() < 0.6f) sfx(hits[int(frand() * 3.99f)], p, 0.9f);
             };
             // Enemy bolts hit buildings/terrain (-1) or the player (-2: vertical capsule).
             enemyFire_.projectileSpeed = 32.0f;  // slow enough to see and dodge
@@ -177,8 +186,9 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 else { t = tw; n = nw; target = -1; }
                 return true;
             };
-            enemyFire_.onHit = [this](int target, const Vec3&, const Vec3&) {
+            enemyFire_.onHit = [this](int target, const Vec3& p, const Vec3&) {
                 if (target == -2) damagePlayer(5.0f);
+                else sfx(frand() < 0.5f ? "bi_hit1" : "bi_dirt1", p, 0.35f, 0.9f + 0.2f * frand());
             };
             enemies_.groundHeight = [w](float x, float z) {
                 float y;
@@ -357,6 +367,96 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     updateWeapon(dt, in);
     updateCombat(dt);
+    updateAudio(dt);
+}
+
+void GameApp::sfx(const char* name, const Vec3& pos, float vol, float pitch) {
+    if (audio_) audio_->play(name, pos, vol, pitch);
+}
+void GameApp::sfx2D(const char* name, float vol, float pitch) {
+    if (audio_) audio_->play2D(name, vol, pitch);
+}
+
+void GameApp::setAudio(AudioMixer* mixer) {
+    audio_ = mixer;
+    if (!audio_ || !assetWorld_) return;
+    static const char* names[] = {
+        "me_peas1", "me_peas2", "bi_dirt1", "bi_hit1", "bi_hit2", "ex_bdys1", "rh_sprsh", "rh_fsld1",
+        "rpman_hit1", "rpman_hit2", "rpman_hit3", "rpman_hit4", "rpman_die1", "rpman_die2", "rpman_die3",
+        "rpman_die4", "rpman_die5", "me_shrt1", "me_shrt2", "me_shrt3", "me_jpkst", "me_jpklp", "me_jpken",
+        "me_jpkno", "me_fsgr1", "me_fsgr2", "me_hdfl1", "me_hdfl2", "me_sld1", "me_slden"};
+    size_t ok = 0;
+    for (const char* n : names) {
+        std::vector<uint8_t> bytes;
+        WavData w;
+        std::string err;
+        if (assetWorld_->fs().read(std::string(n) + ".wav", bytes) && parseWav(bytes.data(), bytes.size(), w, &err) &&
+            audio_->addSound(n, std::move(w)))
+            ++ok;
+        else
+            LOGW("Sound %s unavailable %s", n, err.c_str());
+    }
+    LOGI("Audio: %zu/%zu original sounds loaded", ok, sizeof(names) / sizeof(names[0]));
+}
+
+void GameApp::updateAudio(float dt) {
+    if (!audio_) return;
+    hurtCooldown_ -= dt;
+    audio_->setListener(rig_.toWorld(lastInput_.head).position, headWorldRot_);
+    if (!playMode_) {
+        if (jetLoop_) { audio_->stop(jetLoop_); jetLoop_ = 0; }
+        if (slideLoop_) { audio_->stop(slideLoop_); slideLoop_ = 0; }
+        return;
+    }
+    // Jetpack: start, loop while thrusting, end; a sputter when the tank runs dry.
+    const bool thr = player_.thrusting();
+    if (thr && !wasThrusting_) {
+        sfx2D("me_jpkst", 0.6f);
+        jetLoop_ = audio_->play2D("me_jpklp", 0.45f, 1.0f, true);
+    }
+    if (!thr && wasThrusting_) {
+        if (jetLoop_) { audio_->stop(jetLoop_); jetLoop_ = 0; }
+        sfx2D(player_.fuel() <= 0.0f ? "me_jpkno" : "me_jpken", 0.6f);
+    }
+    wasThrusting_ = thr;
+    // Slide loop on steep ground.
+    const bool sl = player_.sliding();
+    if (sl && !wasSliding_) slideLoop_ = audio_->play2D("me_sld1", 0.5f, 1.0f, true);
+    if (!sl && wasSliding_) {
+        if (slideLoop_) { audio_->stop(slideLoop_); slideLoop_ = 0; }
+        sfx2D("me_slden", 0.5f);
+    }
+    wasSliding_ = sl;
+    // Landing after a real fall.
+    if (!player_.onGround) {
+        airTime_ += dt;
+        fallSpeed_ = std::max(fallSpeed_, -player_.velocity.y);
+    } else {
+        if (!wasOnGround_ && airTime_ > 0.3f) sfx2D(fallSpeed_ > 6.0f ? "me_hdfl1" : "me_hdfl2", fallSpeed_ > 6.0f ? 0.8f : 0.45f);
+        airTime_ = 0;
+        fallSpeed_ = 0;
+    }
+    wasOnGround_ = player_.onGround;
+    // Footsteps on the run/strafe cycle (two per cycle).
+    const PlayerAnim pa = player_.anim();
+    if (player_.onGround && (pa == PlayerAnim::Run || pa == PlayerAnim::Strafe) && playerModel_) {
+        const float dur = std::max(0.1f, playerModel_->animDuration(clip_[int(pa)]));
+        // Half-cycle counter: a footstep each time the clip enters a new half (either direction).
+        const float halfIndex = std::floor(player_.animTime() / dur * 2.0f);
+        if (halfIndex != prevRunPhase_) sfx2D(int(halfIndex) & 1 ? "me_fsgr2" : "me_fsgr1", 0.3f, 0.95f + 0.1f * frand());
+        prevRunPhase_ = halfIndex;
+    }
+    // Reaper footsteps while running.
+    if (slotStep_.size() != enemyPool_.size()) slotStep_.assign(enemyPool_.size(), 0.0f);
+    for (const auto& e : enemies_.enemies) {
+        if (e.slot < 0 || e.clip != EnemyClip::Run || e.state == EnemyState::Dead) continue;
+        float& t = slotStep_[size_t(e.slot)];
+        t -= dt;
+        if (t <= 0) {
+            t = 0.3f;
+            if (length(e.pos - player_.position) < 30.0f) sfx("rh_fsld1", e.pos, 0.5f, 0.9f + 0.2f * frand());
+        }
+    }
 }
 
 void GameApp::spawnWave() {
@@ -383,6 +483,11 @@ void GameApp::damagePlayer(float amount) {
     playerHealth_ -= amount;
     sinceDamage_ = 0;
     damageFlash_ = 1.0f;
+    if (hurtCooldown_ <= 0) {
+        static const char* hurt[] = {"me_shrt1", "me_shrt2", "me_shrt3"};
+        sfx2D(hurt[int(frand() * 2.99f)], 0.8f);
+        hurtCooldown_ = 0.6f;
+    }
     haptics_.push_back({kLeft, 0.7f, 0.1f});
     haptics_.push_back({kRight, 0.7f, 0.1f});
     if (playerHealth_ <= 0) {
@@ -433,6 +538,7 @@ void GameApp::updateCombat(float dt) {
         const float spread = 0.06f + 0.004f * length(target - muzzle);
         dir = normalize(dir + Vec3{frand() - 0.5f, (frand() - 0.5f) * 0.6f, frand() - 0.5f} * spread);
         enemyFire_.spawnShot(muzzle, dir);
+        sfx("rh_sprsh", muzzle, 0.8f, 0.9f + 0.2f * frand());
     }
     enemyFire_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
     // Next wave after the last Reaper has fallen.
@@ -512,7 +618,10 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         if (!firstPerson_ && tpAiming_) fwd = normalize(aimTarget_ - muzzle);  // shots go to the crosshair
     }
     const bool trigger = in.hand[gh].trigger > 0.6f;
-    if (weapon_.update(dt, trigger && gunValid_, muzzle, fwd)) haptics_.push_back({gh, 0.35f, 0.04f});
+    if (weapon_.update(dt, trigger && gunValid_, muzzle, fwd)) {
+        haptics_.push_back({gh, 0.35f, 0.04f});
+        sfx((weapon_.shotsFired() & 1) ? "me_peas1" : "me_peas2", muzzle, 0.7f, 0.95f + 0.1f * frand());
+    }
 }
 
 // Wrist health bar (first person, left controller) and the red damage flash.

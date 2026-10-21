@@ -32,6 +32,7 @@ struct HapticRequest {
 class AssetWorld;    // original-asset scene (defined in scene/asset_world.h)
 class SkinnedModel;  // scene/skinned_model.h
 struct RenderModel;  // scene/model_cache.h
+class AudioMixer;   // audio/mixer.h
 
 class GameApp {
 public:
@@ -45,6 +46,8 @@ public:
     void shutdown();
 
     std::vector<HapticRequest>& hapticRequests() { return haptics_; }
+    // Attaches the platform's audio mixer and loads the original sound effects into it.
+    void setAudio(AudioMixer* mixer);
 
     // Play mode: you control the original Meccaryn (third person by default). Otherwise the
     // free camera (stick locomotion, Y = fly/noclip) is active. B toggles at runtime.
@@ -136,6 +139,15 @@ private:
     void updateCombat(float dt);
     void damagePlayer(float amount);
     void renderHud();
+    // Audio (original WAVs from the user's archives; names decoded by guesswork, see the log).
+    AudioMixer* audio_ = nullptr;
+    void sfx(const char* name, const Vec3& pos, float vol = 1.0f, float pitch = 1.0f);
+    void sfx2D(const char* name, float vol = 1.0f, float pitch = 1.0f);
+    void updateAudio(float dt);
+    uint32_t jetLoop_ = 0, slideLoop_ = 0;
+    bool wasThrusting_ = false, wasSliding_ = false, wasOnGround_ = true;
+    float airTime_ = 0, prevRunPhase_ = 0, hurtCooldown_ = 0, fallSpeed_ = 0;
+    std::vector<float> slotStep_;
     Quat headWorldRot_;
     // Third-person aiming: crosshair where the right controller points; character aims there.
     Vec3 aimTarget_;
