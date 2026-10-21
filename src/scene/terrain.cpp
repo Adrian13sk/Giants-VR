@@ -108,9 +108,18 @@ bool Terrain::heightAt(float rx, float rz, float& outY) const {
     if (fx < 0 || fy < 0) return false;
     const uint32_t x = uint32_t(fx), y = uint32_t(fy);
     if (!t_.valid(x, y) || !t_.valid(x + 1, y) || !t_.valid(x, y + 1) || !t_.valid(x + 1, y + 1)) return false;
+    // Same two triangles as the rendered mesh (diagonal from the cell's triangle code), so the
+    // ground height matches the visible surface exactly (bilinear was metres off on cliffs).
     const float u = fx - x, v = fy - y;
-    const float h = (1 - u) * (1 - v) * t_.h(x, y) + u * (1 - v) * t_.h(x + 1, y) +
-                    (1 - u) * v * t_.h(x, y + 1) + u * v * t_.h(x + 1, y + 1);
+    const float h00 = t_.h(x, y), h10 = t_.h(x + 1, y), h01 = t_.h(x, y + 1), h11 = t_.h(x + 1, y + 1);
+    const bool altDiag = (t_.triangles[size_t(y) * t_.gridW + x] & 4) != 0;
+    float h;
+    if (altDiag) {  // diagonal (0,0)-(1,1): triangles (00,10,11) and (00,11,01)
+        h = u >= v ? h00 + u * (h10 - h00) + v * (h11 - h10) : h00 + v * (h01 - h00) + u * (h11 - h01);
+    } else {        // diagonal (1,0)-(0,1): triangles (00,10,01) and (10,11,01)
+        h = u + v <= 1.0f ? h00 + u * (h10 - h00) + v * (h01 - h00)
+                          : h11 + (1.0f - u) * (h01 - h11) + (1.0f - v) * (h10 - h11);
+    }
     outY = h * gGameUnitsToMeters;
     return true;
 }

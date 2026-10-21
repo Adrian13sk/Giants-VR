@@ -67,10 +67,44 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         if (sinceThrust_ > params.fuelRefillDelay)
             fuel_ = std::min(params.fuelSeconds, fuel_ + params.fuelRefillRate * params.fuelSeconds * dt);
     }
-    if (onGround && !thrusting_) {
-        // On foot: instant response (VR comfort).
-        velocity.x = dir.x * speed;
-        velocity.z = dir.z * speed;
+    // Ground steepness under the feet (terrain gradient over +-0.5 m).
+    Vec3 downhill{0, 0, 0};
+    bool steep = false;
+    if (onGround && !thrusting_ && groundHeight) {
+        const float e = 0.5f;
+        const float gx = (groundHeight(position.x + e, position.z) - groundHeight(position.x - e, position.z)) / (2 * e);
+        const float gz = (groundHeight(position.x, position.z + e) - groundHeight(position.x, position.z - e)) / (2 * e);
+        const float grade = std::sqrt(gx * gx + gz * gz);
+        steep = grade > params.maxSlope;  // steeper than 50 deg
+        if (grade > 1e-4f) downhill = Vec3{-gx / grade, 0, -gz / grade};
+    }
+    sliding_ = steep;
+    if (sliding_) {
+        // Too steep to stand: skid downhill, accelerating; the stick only steers sideways.
+        const float along = velocity.x * downhill.x + velocity.z * downhill.z;
+        Vec3 lat{velocity.x - downhill.x * along, 0, velocity.z - downhill.z * along};
+        const float newAlong = std::min(params.slideMaxSpeed, std::max(0.0f, along) + params.slideAccel * dt);
+        const Vec3 side{-downhill.z, 0, downhill.x};
+        const float steer = (dir.x * side.x + dir.z * side.z) * mag;
+        lat = lat * 0.98f + side * (steer * params.slideSteer * dt);
+        velocity.x = downhill.x * newAlong + lat.x;
+        velocity.z = downhill.z * newAlong + lat.z;
+        slideCarry_ = true;
+    } else if (onGround && !thrusting_) {
+        const float tx = dir.x * speed, tz = dir.z * speed;
+        if (slideCarry_) {
+            // Off the slope: the slide speed bleeds off instead of stopping dead.
+            float dx = tx - velocity.x, dz = tz - velocity.z;
+            const float l = std::sqrt(dx * dx + dz * dz), step = params.slideFriction * dt;
+            if (l <= step) slideCarry_ = false;
+            else { dx *= step / l; dz *= step / l; }
+            velocity.x += dx;
+            velocity.z += dz;
+        } else {
+            // On foot: instant response (VR comfort).
+            velocity.x = tx;
+            velocity.z = tz;
+        }
     } else {
         // In the air: thrust builds horizontal speed gradually up to the jetpack's limit;
         // without thrust, momentum carries and the stick steers gently.
@@ -107,6 +141,8 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         yaw = angleDelta(0.0f, yaw);
     } else if (in.aiming) {
         turnToward(in.aimYaw, params.turnRate * 1.5f);  // strafe/backpedal clips handle travel
+    } else if (sliding_) {
+        turnToward(std::atan2(-downhill.x, -downhill.z), params.turnRate);  // skid facing downhill
     } else if (speed > 0.05f) {
         turnToward(moveYaw, params.turnRate);
     }
@@ -122,7 +158,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     const float prevY = position.y;
     const Vec3 before = position;
     position += velocity * dt;
-    float speedNow = speed;
+    float speedNow = slideCarry_ ? std::sqrt(velocity.x * velocity.x + velocity.z * velocity.z) : speed;
     if (collision && collision->pushOut(position, radius, height, stepUp)) {
         // Blocked or sliding along a wall: animate (and report) the motion that happened.
         const float dx = position.x - before.x, dz = position.z - before.z;
@@ -168,6 +204,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     // Movement relative to the body: forward run, sidestep (right = clip forward), backpedal.
     const float rel = angleDelta(yaw, moveYaw);
     if (!onGround) want = thrusting_ ? PlayerAnim::Thrust : PlayerAnim::Hover;
+    else if (sliding_) want = PlayerAnim::Slide;
     else if (speedNow > 0.15f) {
         const float clampRate = params.maxPlayback;
         if (std::fabs(rel) < 0.87f) {           // within ~50 deg of facing

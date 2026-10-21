@@ -42,7 +42,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
     if (assetWorld_->hasTerrain()) {
         auto m = std::make_unique<SkinnedModel>();
         if (m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "mc_l0", "mc_stand.anm")) {
-            const char* clips[] = {"mc_stand.anm", "mc_run.anm", "mc_thrust.anm", "mc_hover.anm", "mc_land_soft.anm", "mc_sidestep.anm"};
+            const char* clips[] = {"mc_stand.anm", "mc_run.anm", "mc_thrust.anm", "mc_hover.anm", "mc_land_soft.anm", "mc_sidestep.anm",
+                                   "mc_skid.anm"};
             for (int i = 1; i < int(PlayerAnim::Count); ++i) clip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
             // Eye point from the idle pose: at the front of the face (-Z), so looking down shows
             // the chest and arms instead of the inside of the collar armour.
@@ -264,6 +265,19 @@ void GameApp::placeCamera(float dt, bool snap, const InputFrame* in) {
     if (snap || dt <= 0) camFloor_ = floorY;
     else camFloor_ += (floorY - camFloor_) * (1.0f - std::exp(-dt / kSmooth));
     pos.y = firstPerson_ ? player_.position.y : camFloor_;
+    // Camera collision: if a cliff or building is between the character and the viewer's eyes,
+    // pull the camera in front of it so the character stays visible.
+    const float eyeH = (in && in->headValid) ? in->head.position.y : 1.6f;
+    const Vec3 chest = player_.position + Vec3{0, 1.4f, 0};
+    const Vec3 eye = pos + Vec3{0, eyeH, 0};
+    const Vec3 toEye = eye - chest;
+    const float dist = length(toEye);
+    float t;
+    Vec3 n;
+    if (worldRay_ && dist > 0.5f && worldRay_(chest, toEye * (1.0f / dist), dist, t, n)) {
+        const Vec3 newEye = chest + toEye * (std::max(0.3f, t - 0.4f) / dist);
+        pos = newEye - Vec3{0, eyeH, 0};
+    }
     rig_.worldFromTracking = Pose{q, pos};
 }
 

@@ -257,6 +257,18 @@ static void testPlayer() {
         if (k == 0) CHECK(sl.position.y < 0.2f);   // stuck at the foot of the cliff
         else CHECK(sl.position.y > 3.0f);          // walked up the hill
     }
+    // Steeper than 50 deg: you skid downhill (mc_skid clip) without input; 30 deg: you stay put.
+    for (int k = 0; k < 2; ++k) {
+        PlayerController sl;
+        const float grade = k == 0 ? std::tan(60.0f * kPi / 180.0f) : std::tan(30.0f * kPi / 180.0f);
+        sl.groundHeight = [grade](float, float z) { return std::max(0.0f, -z * grade); };
+        sl.teleport({0, 0, -3.0f}, 0.0f);
+        PlayerInput none;
+        bool slid = false;
+        for (int i = 0; i < 72 * 3; ++i) { sl.update(1.0f / 72.0f, none); slid |= sl.anim() == PlayerAnim::Slide; }
+        if (k == 0) CHECK(slid && sl.position.y < 0.3f && sl.position.z > -0.6f);  // reached the foot of the slope
+        else CHECK(!slid && near(sl.position.z, -3.0f, 1e-3f));
+    }
     // Jetpack: horizontal speed builds up gradually; fuel runs out (~4 s) and refills later.
     PlayerController jp;
     jp.groundHeight = [](float, float) { return 0.0f; };

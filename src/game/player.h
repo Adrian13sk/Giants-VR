@@ -12,7 +12,7 @@
 
 namespace gvr {
 
-enum class PlayerAnim : int { Idle = 0, Run, Thrust, Hover, Land, Strafe, Count };
+enum class PlayerAnim : int { Idle = 0, Run, Thrust, Hover, Land, Strafe, Slide, Count };
 
 struct PlayerInput {
     Vec2 move;            // stick, -1..1, +y = forward (deadzone applied by the controller)
@@ -46,6 +46,10 @@ struct PlayerParams {
     float stepDown = 0.6f;        // m: stay glued to the terrain when walking downhill
     float maxStepUp = 0.8f;       // m: a bigger ground rise in one step is a cliff (blocks)
     float maxSlope = 1.19f;       // rise/run: steeper uphill ground blocks walking (50 deg, the original's gate)
+    float slideAccel = 9.0f;      // m/s^2 downhill acceleration on ground steeper than 50 deg
+    float slideMaxSpeed = 10.0f;  // m/s
+    float slideSteer = 2.0f;      // m/s^2 sideways steering while sliding
+    float slideFriction = 12.0f;  // m/s^2 decay of slide speed once back on walkable ground
     float crossfade = 0.2f;       // s
     float deadzone = 0.2f;
 };
@@ -76,6 +80,7 @@ public:
     float fadeWeight() const;  // weight of the CURRENT clip (1 = fully current)
     float horizontalSpeed() const;
     float fuel() const { return fuel_ / params.fuelSeconds; }  // 0..1
+    bool sliding() const { return sliding_; }
     bool thrusting() const { return thrusting_; }
 
 private:
@@ -85,6 +90,8 @@ private:
     float landTimer_ = 0;
     float fuel_ = 4.0f, sinceThrust_ = 99.0f;
     bool thrusting_ = false;
+    bool sliding_ = false;      // on ground too steep to stand on: skidding downhill
+    bool slideCarry_ = false;   // still carrying slide momentum on walkable ground
 };
 
 // Shortest signed angle from a to b (radians).

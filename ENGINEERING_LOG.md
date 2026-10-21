@@ -302,3 +302,17 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
 - **Cliffs:** per-step rise vs horizontal distance is limited to rise/run 1.19 (50°, the original's walkable gate), on top of the 0.8 m step limit. The old per-frame rise check let 85° slopes through, because steps are only ~7 cm per frame.
   - Unit test: 60° slope blocked, 30° hill walkable.
   - In the world: from the sea the player is stuck at the cliff base; with the jetpack he reaches the top (52.5 m). Normal island running is unaffected (5 routes checked).
+
+### Device test 12 feedback → sliding down cliffs (2026-10-21 22:40)
+- **User report:** landing on a cliff should make you slide down, using an animation the original has.
+- **Clip:** mc_skid.anm (crouched balancing skid, 0.97 s), the only slide/skid clip for the Meccaryn.
+- **Behaviour:**
+  - On ground steeper than 50° (terrain gradient over ±0.5 m), the player skids downhill.
+  - Acceleration 9 m/s² up to 10 m/s, sideways steering 2 m/s², body turns downhill (third person), clip PlayerAnim::Slide.
+  - On reaching walkable ground the slide speed bleeds off at 12 m/s² instead of stopping dead. The jetpack still works.
+  - Unit test: 60° slope slides to the bottom with no input; 30° stays put.
+  - World: landed 16 m up the cliff and skidded down, reaching about 9 m/s.
+- **Terrain height bug found on the way:**
+  - `Terrain::heightAt` used bilinear interpolation, but the mesh uses two triangles per cell (diagonal from the triangle code). On cliff cells they differ by metres; the third-person render showed the character inside the rock.
+  - heightAt now evaluates the same triangles, so ground, feet, slopes and collision match the visible surface everywhere.
+- **Third-person camera collision:** if terrain or a building is between the chest and the eyes, the camera pulls in front of it.
