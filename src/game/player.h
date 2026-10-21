@@ -45,6 +45,7 @@ struct PlayerParams {
     float landSeconds = 0.45f;    // landing clip hold when not moving
     float stepDown = 0.6f;        // m: stay glued to the terrain when walking downhill
     float maxStepUp = 0.8f;       // m: a bigger ground rise in one step is a cliff (blocks)
+    float maxSlope = 1.19f;       // rise/run: steeper uphill ground blocks walking (50 deg, the original's gate)
     float crossfade = 0.2f;       // s
     float deadzone = 0.2f;
 };

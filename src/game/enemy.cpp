@@ -90,43 +90,33 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 if (sees) { e.state = EnemyState::Advance; e.stateTime = 0; }
                 break;
             case EnemyState::Advance: {
+                // Run (no shooting while moving) toward a spot beside the player, then stop and fire.
                 if (!sees) { e.state = EnemyState::Idle; break; }
-                if (dist <= params.fireRange) {
+                e.flankTimer -= dt;
+                const Vec3 dirTo = to * (1.0f / std::max(dist, 1e-3f));
+                const Vec3 side{-dirTo.z, 0, dirTo.x};
+                const Vec3 goal{player.x + side.x * e.flank - dirTo.x * params.fireRange - e.pos.x, 0,
+                                player.z + side.z * e.flank - dirTo.z * params.fireRange - e.pos.z};
+                const float goalDist = std::sqrt(goal.x * goal.x + goal.z * goal.z);
+                const bool arrived = goalDist < 1.0f || dist <= params.fireRange;
+                // Stop to shoot when in range and the current run has lasted long enough (or arrived).
+                if (dist <= params.shootRange && (arrived || e.flankTimer <= 0)) {
                     e.state = EnemyState::Fire;
                     e.stateTime = 0;
                     e.burstLeft = params.burstSize;
-                    e.fireCooldown = 0.3f;
+                    e.burstsLeft = params.burstsPerStop;
+                    e.fireCooldown = 0.35f;
                     break;
                 }
-                // Approach a point beside the player (each enemy has its own flank offset that
-                // changes every few seconds), so a group spreads out and circles in.
-                e.flankTimer -= dt;
-                if (e.flankTimer <= 0) {
-                    e.flank = (float(nextRand() % 2001) / 1000.0f - 1.0f) * 9.0f;
-                    e.flankTimer = 3.0f + float(nextRand() % 3000) / 1000.0f;
-                }
-                const Vec3 dirTo = to * (1.0f / std::max(dist, 1e-3f));
-                const Vec3 side{-dirTo.z, 0, dirTo.x};
-                const float lateral = e.flank * std::min(1.0f, dist / 25.0f);
-                const Vec3 goal{player.x + side.x * lateral - e.pos.x, 0, player.z + side.z * lateral - e.pos.z};
-                const bool run = dist > params.runRange;
-                setClip(e, run ? EnemyClip::Run : EnemyClip::Walk, true);
+                setClip(e, EnemyClip::Run, true);
                 turn(std::atan2(-goal.x, -goal.z));
                 const Vec3 fwd{-std::sin(e.yaw), 0, -std::cos(e.yaw)};
-                e.pos += fwd * ((run ? params.runSpeed : params.walkSpeed) * dt);
-                // Walking Reapers shoot as they come (the walk clip is a walk-and-fire cycle).
-                e.fireCooldown -= dt;
-                if (!run && dist <= params.shootRange && e.fireCooldown <= 0 &&
-                    std::fabs(angleDelta(e.yaw, faceYaw)) < 0.6f) {
-                    shooters.push_back(int(i));
-                    e.fireCooldown = params.fireInterval * 2.5f + float(nextRand() % 1000) * 0.0012f;
-                }
+                e.pos += fwd * (params.runSpeed * dt);
                 break;
             }
             case EnemyState::Fire:
                 turn(faceYaw);
                 if (!sees) { e.state = EnemyState::Idle; break; }
-                if (dist > params.fireRange * 1.5f) { e.state = EnemyState::Advance; break; }
                 e.fireCooldown -= dt;
                 if (e.burstLeft > 0) {
                     setClip(e, EnemyClip::Fire, true);
@@ -138,15 +128,26 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     }
                 } else {
                     setClip(e, EnemyClip::Idle, true);
-                    if (e.fireCooldown <= 0) { e.burstLeft = params.burstSize; e.fireCooldown = 0; }
+                    if (e.fireCooldown <= 0) {
+                        if (--e.burstsLeft > 0) {
+                            e.burstLeft = params.burstSize;
+                        } else {
+                            // Reposition: pick a new flank spot and run there.
+                            e.flank = (float(nextRand() % 2001) / 1000.0f - 1.0f) * 10.0f;
+                            e.flankTimer = 1.5f + float(nextRand() % 2000) / 1000.0f;
+                            e.state = EnemyState::Advance;
+                            e.stateTime = 0;
+                        }
+                    }
                 }
                 break;
             case EnemyState::Hit:
                 if (e.stateTime >= clipDuration[int(e.clip)] * 0.95f) {
-                    e.state = dist <= params.fireRange ? EnemyState::Fire : EnemyState::Advance;
+                    // After being hit: usually run for cover to a new spot.
+                    e.state = EnemyState::Advance;
                     e.stateTime = 0;
-                    e.burstLeft = params.burstSize;
-                    e.fireCooldown = 0.4f;
+                    e.flank = (float(nextRand() % 2001) / 1000.0f - 1.0f) * 10.0f;
+                    e.flankTimer = 1.0f + float(nextRand() % 1500) / 1000.0f;
                 }
                 break;
             case EnemyState::Dead:

@@ -59,6 +59,12 @@ public:
     size_t enemiesAlive() const { return enemies_.aliveCount(); }
     size_t enemyCount() const { return enemies_.enemies.size(); }
     float playerHealth() const { return playerHealth_; }
+    // Test hook: feet position of any enemy (alive or dead).
+    bool anyEnemy(Vec3& feet) const {
+        if (enemies_.enemies.empty()) return false;
+        feet = enemies_.enemies.front().pos;
+        return true;
+    }
     // Test hook: chest position of the nearest living enemy.
     bool nearestEnemy(Vec3& chest) const {
         float best = 1e30f;
@@ -117,6 +123,7 @@ private:
     EnemyDirector enemies_;
     std::vector<std::unique_ptr<SkinnedModel>> enemyPool_;
     std::vector<uint8_t> slotUsed_;
+    std::vector<float> slotLift_;   // per model slot: lift so the posed body's lowest point is on the ground
     WeaponSystem enemyFire_;
     std::vector<int> shooters_;
     float enemyFootOffset_ = 0.0f;  // rpman's origin is at the waist: lift so the feet touch the ground

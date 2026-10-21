@@ -245,6 +245,18 @@ static void testPlayer() {
     CHECK(fp.yaw > 1.0f - 0.55f);  // carried within the cone after 1 s
     for (int i = 0; i < 72 * 5; ++i) fp.update(1.0f / 72.0f, look);
     CHECK(near(fp.yaw, 1.0f, 0.05f));  // re-centred
+    // Slope limit: walking straight up a 60-degree slope is blocked; a 30-degree one is fine.
+    for (int k = 0; k < 2; ++k) {
+        PlayerController sl;
+        const float grade = k == 0 ? std::tan(60.0f * kPi / 180.0f) : std::tan(30.0f * kPi / 180.0f);
+        sl.groundHeight = [grade](float, float z) { return std::max(0.0f, -z * grade); };  // rises toward -Z
+        sl.teleport({0, 0, 0.5f}, 0.0f);
+        PlayerInput up;
+        up.move = {0, 1};
+        for (int i = 0; i < 72 * 2; ++i) sl.update(1.0f / 72.0f, up);
+        if (k == 0) CHECK(sl.position.y < 0.2f);   // stuck at the foot of the cliff
+        else CHECK(sl.position.y > 3.0f);          // walked up the hill
+    }
     // Jetpack: horizontal speed builds up gradually; fuel runs out (~4 s) and refills later.
     PlayerController jp;
     jp.groundHeight = [](float, float) { return 0.0f; };
@@ -406,14 +418,24 @@ static void testEnemies() {
     d.update(dt, player, true, shots);
     d.update(dt, player, true, shots);
     CHECK(d.enemies[0].state == EnemyState::Advance && d.enemies[0].clip == EnemyClip::Run);  // far: runs
-    for (int i = 0; i < 72 * 4; ++i) d.update(dt, player, true, shots);
-    CHECK(d.enemies[0].state == EnemyState::Advance && d.enemies[0].clip == EnemyClip::Walk);  // closer: walk-and-fire
-    // Walks toward the player until in fire range, then shoots bursts.
-    int fired = 0;
-    for (int i = 0; i < 72 * 20; ++i) { d.update(dt, player, true, shots); fired += int(shots.size()); }
+    // Runs in, stops to shoot, runs to new spots: never shoots while running.
+    int fired = 0, firedWhileRunning = 0, stops = 0;
+    EnemyState prevState = d.enemies[0].state;
+    float closest = 1e9f;
+    for (int i = 0; i < 72 * 20; ++i) {
+        d.update(dt, player, true, shots);
+        fired += int(shots.size());
+        if (!shots.empty() && d.enemies[0].clip == EnemyClip::Run) ++firedWhileRunning;
+        if (d.enemies[0].state == EnemyState::Fire && prevState == EnemyState::Advance) ++stops;
+        prevState = d.enemies[0].state;
+        closest = std::min(closest, length(d.enemies[0].pos - player));
+    }
+    CHECK(fired >= 6 && firedWhileRunning == 0);
+    CHECK(stops >= 2);                                   // repositioned between stops
+    CHECK(closest <= d.params.shootRange);
+    // Bring it to a stop for the hit test below.
+    for (int i = 0; i < 72 * 10 && d.enemies[0].state != EnemyState::Fire; ++i) d.update(dt, player, true, shots);
     CHECK(d.enemies[0].state == EnemyState::Fire);
-    CHECK(-d.enemies[0].pos.z <= d.params.fireRange + 0.1f);
-    CHECK(fired >= 3);
     // Ray from the player hits it; 4 bolts of 25 kill it.
     float th;
     Vec3 n;
@@ -422,7 +444,7 @@ static void testEnemies() {
     CHECK(d.raycast({0, 1.2f, 0}, dir, 100, th, n, idx) && idx == 0);
     CHECK(!d.damage(0, 25) && d.enemies[0].state == EnemyState::Hit);
     for (int i = 0; i < 72; ++i) d.update(dt, player, true, shots);
-    CHECK(d.enemies[0].state == EnemyState::Fire);  // recovered from the hit
+    CHECK(d.enemies[0].state != EnemyState::Hit);  // recovered from the hit (runs to a new spot)
     d.damage(0, 25);
     d.damage(0, 25);
     CHECK(d.damage(0, 25) && d.enemies[0].state == EnemyState::Dead && d.aliveCount() == 0);

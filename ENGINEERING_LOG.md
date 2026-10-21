@@ -290,3 +290,15 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - Horizontal speed builds at 4 m/s² up to 9 m/s while thrusting. Air momentum is kept, with 3 m/s² stick control.
   - Fuel: 4 s of thrust, refilling after 1.2 s at 0.5 tank/s.
   - Blue fuel bar under the wrist health bar. Unit-tested (gradual speed, empty tank, refill).
+
+### Device test 11 feedback → running enemies, ground contact for bodies, real cliff block (2026-10-21 22:15)
+- **User report:** enemies should also run, and must not shoot while moving; dead bodies float in mid-air; cliffs can still be climbed on foot (only the jetpack should get you up).
+- **Enemy AI:**
+  - Run (rpman_bzka_run) to a spot about 10 m in front of the player, offset ±10 m sideways.
+  - Stop within 30 m, or after a 1.5–3.5 s run, and fire 2 bursts of 3 (stand_fire).
+  - Then pick a new spot and run again. After a hit reaction they also run to a new spot. No shooting while moving.
+  - Unit test: ≥6 shots fired, 0 while running, ≥2 stops in 20 s.
+- **Bodies:** the fixed idle foot offset (1.10 m) kept lying death poses lifted. Each Reaper is now lifted per frame by −(posed min Y) (lightly smoothed): the planted foot when standing, the body when lying. Render confirms corpses lying on the grass.
+- **Cliffs:** per-step rise vs horizontal distance is limited to rise/run 1.19 (50°, the original's walkable gate), on top of the 0.8 m step limit. The old per-frame rise check let 85° slopes through, because steps are only ~7 cm per frame.
+  - Unit test: 60° slope blocked, 30° hill walkable.
+  - In the world: from the sea the player is stuck at the cliff base; with the jetpack he reaches the top (52.5 m). Normal island running is unaffected (5 routes checked).

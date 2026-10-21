@@ -203,6 +203,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 enemyPool_.push_back(std::move(em));
             }
             slotUsed_.assign(enemyPool_.size(), 0);
+            slotLift_.assign(enemyPool_.size(), enemyFootOffset_);
             const uint8_t white[4] = {255, 255, 255, 255};
             whiteTex_ = renderer_.uploadTexture(1, 1, white, false, false);
             LOGI("Enemies: %zu Reaper model slots", enemyPool_.size());
@@ -392,11 +393,17 @@ void GameApp::updateCombat(float dt) {
     for (auto& e : enemies_.enemies)
         if (e.slot < 0)
             for (size_t k = 0; k < slotUsed_.size(); ++k)
-                if (!slotUsed_[k]) { e.slot = int(k); slotUsed_[k] = 1; break; }
+                if (!slotUsed_[k]) { e.slot = int(k); slotUsed_[k] = 1; slotLift_[k] = enemyFootOffset_; break; }
     for (auto& e : enemies_.enemies) {
         if (e.slot < 0) continue;
-        enemyPool_[size_t(e.slot)]->poseBlend(renderer_, int(e.prevClip), e.prevTime, int(e.clip), e.clipTime,
-                                              e.fadeWeight(enemies_.params.crossfade));
+        SkinnedModel& m = *enemyPool_[size_t(e.slot)];
+        m.poseBlend(renderer_, int(e.prevClip), e.prevTime, int(e.clip), e.clipTime, e.fadeWeight(enemies_.params.crossfade));
+        // Ground contact from the actual pose: the lowest point (planted foot, or the body lying
+        // in a death pose) rests on the ground. Smoothed lightly against single-frame pops.
+        Vec3 mn, mx;
+        m.posedBounds(mn, mx);
+        float& lift = slotLift_[size_t(e.slot)];
+        lift += (-mn.y - lift) * std::min(1.0f, dt / 0.06f);
     }
     // Enemy shots from each Reaper's gun nozzle toward the player's chest, with spread.
     for (int i : shooters_) {
@@ -405,7 +412,7 @@ void GameApp::updateCombat(float dt) {
         Vec3 muzzle = e.pos + Vec3{0, 1.5f, 0} + r.rotate(Vec3{0.3f, 0, -0.6f});
         Mat4 nz;
         if (e.slot >= 0 && enemyPool_[size_t(e.slot)]->nodeWorld("ref_nozzle", nz))
-            muzzle = e.pos + Vec3{0, enemyFootOffset_, 0} + r.rotate(giantsToRuntime(nz.m[12], nz.m[13], nz.m[14]));
+            muzzle = e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0} + r.rotate(giantsToRuntime(nz.m[12], nz.m[13], nz.m[14]));
         const Vec3 target = player_.position + Vec3{0, 1.2f, 0};
         Vec3 dir = normalize(target - muzzle);
         // Spread grows with distance: long shots mostly miss, close ones are dangerous.
@@ -643,7 +650,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (playMode_ && gunValid_) drawModel(gunModel_, gunXf_, false);
     for (const auto& e : enemies_.enemies)
         if (e.slot >= 0)
-            enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, enemyFootOffset_, 0}) *
+            enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
                                                               Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
     // Reaper bolts: the same spark, tinted red.
     for (const auto& p : enemyFire_.projectiles()) {

@@ -138,7 +138,11 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         return gg;
     };
     float g = groundAt(position.x, position.z);
-    if (onGround && !thrusting_ && g - prevY > params.maxStepUp) {
+    const float hx = position.x - before.x, hz = position.z - before.z;
+    const float run = std::sqrt(hx * hx + hz * hz);
+    const float rise = g - prevY;
+    const bool tooSteep = rise > 0.02f && run > 1e-4f && rise / run > params.maxSlope;
+    if (onGround && !thrusting_ && (rise > params.maxStepUp || tooSteep)) {
         // Cliff face (e.g. climbing out of the sea): blocks like a wall; the jetpack gets you up.
         position.x = before.x;
         position.z = before.z;

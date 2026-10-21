@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
     int jetFrom = -1, jetTo = -1;
-    bool autoAim = false;
+    bool autoAim = false, viewBody = false;
     float triggerAmount = 0.0f, aimPitchDeg = -17.2f, aimYawDeg = 0.0f;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -58,6 +58,7 @@ int main(int argc, char** argv) {
         else if (a == "--aim-pitch") aimPitchDeg = std::atof(next());  // controller pitch (deg)
         else if (a == "--aim-yaw") aimYawDeg = std::atof(next());      // controller yaw (deg, + = left)
         else if (a == "--auto-aim") autoAim = true;  // test only: point the right controller at the nearest enemy
+        else if (a == "--view-body") viewBody = true; // test only: after the frames, stand 4 m from an enemy body
         else if (a == "--hands") { handsFwd = std::atof(next()); handsUp = std::atof(next()); }  // controller offset (m)
     }
     if (!initEgl()) return 2;
@@ -118,6 +119,13 @@ int main(int argc, char** argv) {
             const Quat q = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, pitch);
             in.hand[kRight].gripPose.orientation = in.hand[kRight].aimPose.orientation = q;
         }
+        app.update(1.0f / 72.0f, in);
+    }
+    Vec3 body;
+    if (viewBody && app.anyEnemy(body)) {
+        const Vec3 at = body + Vec3{0, 0, 4.0f};
+        app.teleportPlayer(at, 0.0f);
+        in.hand[kRight].trigger = 0;
         app.update(1.0f / 72.0f, in);
     }
     if (app.playMode()) {
