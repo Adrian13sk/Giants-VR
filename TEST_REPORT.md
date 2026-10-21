@@ -34,8 +34,21 @@ The start-up lines were not in the capture.
 | OpenXR session running, frames submitted | **PASS** | continuous frame loop; the display refresh request was applied |
 | Frame rate | **PASS** 71.8 fps at 72 Hz, stable for about 2 min | `perf:` lines every 5 s |
 | Touch controllers bound | **PASS** | `/interaction_profiles/oculus/touch_controller` on both hands. The profile events repeat on controller sleep/wake and system menu use. |
-| Scene content | probable | 218–246 draw calls per frame (both eyes), consistent with the Story1 world plus animated characters, not the test scene. Needs the user's visual confirmation. |
-| Start-up path (loader, runtime name, data dir, world load) | not captured | the start-up lines were not in the log |
+| Scene content | probable, start-up log confirms the world loaded | 218–246 draw calls per frame (both eyes), consistent with the Story1 world plus animated characters, not the test scene. Needs the user's visual confirmation. |
+| Start-up path | **PASS** (device test 1b, 14:15) | See below |
+
+### Device test 1b — start-up log (2026-10-21 14:15)
+- GL: Adreno 650, OpenGL ES 3.2. Runtime **Oculus 85.200.0**, system "Oculus Quest2".
+- Views 1440×1584 per eye. Swapchain format 0x8C43 (GL_SRGB8_ALPHA8), 3 images per eye.
+- Reference space: LOCAL_FLOOR_EXT (1000426000).
+- Session went IDLE → READY → SYNCHRONIZED → VISIBLE → FOCUSED with no errors.
+- Supported refresh rates: 60/72/80/90/96/100/120 Hz. 72 Hz requested and applied (the system briefly reported 90 first).
+- Data directory `/storage/emulated/0/Android/data/io.github.giantsvr.dev/files/Bin`: **129 archives mounted**, the full user `Bin` folder.
+- Story1 world, terrain, 4 skinned characters and 2 props loaded, all 100 % bound.
+- Start-up timing: process start to world loaded in 0.53 s; to FOCUSED in 0.76 s.
+- Frame rate: 65.5 fps in the first 5 s window (start-up), then a steady 72.0 fps.
+- Draw calls: 174 per frame, 218–246 when the controllers are visible.
+- No warnings or errors from GiantsVR.
 
 ## NOT verified (requires hardware)
 - APK install and launch on Quest 2; OpenXR runtime negotiation (loader broker, extensions)
