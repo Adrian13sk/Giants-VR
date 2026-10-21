@@ -74,3 +74,6 @@ the animations look natural, and the brightness is acceptable.
 - Story4 placed 2 objects, Rstory1 36, Story2 0 (world stream stops early, B5).
 - APK: `scripts/build_apk.sh` produced a signed APK, 2,859,507 bytes, sha256 84835f3c…97d2. Copied to the user's
   Documents\GiantsQuestVR. **Not yet device-tested.**
+
+## Device test 3 — 2026-10-21 15:13, user's Quest 2 (build f817084)
+User report: "that worked, now it is as it is supposed". The village buildings (skinned walls and houses in their default pose), the raft, the canopy and the fly/noclip mode are confirmed in the headset.
