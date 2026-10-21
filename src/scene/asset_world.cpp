@@ -196,7 +196,7 @@ void AssetWorld::placeWorldObjects(const std::string& dataDir) {
     for (const auto& p : all) {
         const std::string name = registry_.modelName(p.type);
         if (name.empty() || isInvisibleHelper(name)) { ++hidden; continue; }
-        const RenderModel* m = cache_->get(name + ".gbs");
+        const RenderModel* m = cache_->get(name + ".gbs", registry_.modelAnim(p.type));
         if (!m) { ++missing; continue; }
         const Mat4 xf = placementMatrix(p);
         const Vec3 lc = (m->boundsMin + m->boundsMax) * 0.5f;

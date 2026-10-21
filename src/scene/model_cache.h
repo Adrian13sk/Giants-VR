@@ -40,7 +40,9 @@ class ModelCache {
 public:
     ModelCache(const AssetFS& fs, Renderer& r) : fs_(fs), renderer_(r) {}
     // Returns nullptr if the model cannot be found or parsed (reason logged).
-    const RenderModel* get(const std::string& gbsName);
+    // skinAnim: for skinned static objects (<base>.skn + this .anm), the mesh is baked in the
+    // animation's default (rest) pose; their vertex RGB is skin data, not lighting.
+    const RenderModel* get(const std::string& gbsName, const std::string& skinAnim = std::string());
     TextureId texture(const std::string& name, bool* hadAlpha = nullptr);
 
 private:
@@ -59,6 +61,12 @@ struct BuiltPart {
     uint32_t subFlags = 0;
     bool lit = false;
 };
-std::vector<BuiltPart> buildGbsParts(const GbsModel& m);
+// ignoreRgb: treat every sub-object as dynamically lit (skinned meshes, whose RGB array holds
+// skinning data rather than baked lighting).
+std::vector<BuiltPart> buildGbsParts(const GbsModel& m, bool ignoreRgb = false);
+// Replaces g.positions with <base>.skn evaluated in the default pose of `anim`. False if the
+// object has no usable skin.
+bool looksLikeSkinData(const std::array<uint8_t, 3>* rgb, size_t n);
+bool bakeDefaultSkinPose(const AssetFS& fs, const std::string& base, const std::string& anim, GbsModel& g);
 
 }  // namespace gvr

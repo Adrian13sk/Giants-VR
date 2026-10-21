@@ -59,6 +59,14 @@ void ObjectRegistry::addDefinitionFile(const uint8_t* d, size_t n) {
                 if (d[g + 4] == 0x51 && rd32(d + g + 5) == meshId) {
                     meshNames_[meshId] = std::string(reinterpret_cast<const char*>(d + i), e - i);
                     groupMesh_.emplace(rd32(d + g), meshId);
+                    // Optional animation entry after the 13-byte LOD record: 0x52, u8 n, strz.
+                    const size_t a = g + 4 + 13;
+                    if (a + 3 < n && d[a] == 0x52) {
+                        size_t q = a + 2, qe = q;
+                        while (qe < n && printableChar(d[qe]) && qe - q < 64) ++qe;
+                        if (qe < n && d[qe] == 0 && qe - q > 4)
+                            meshAnims_[meshId] = std::string(reinterpret_cast<const char*>(d + q), qe - q);
+                    }
                     break;
                 }
             }
@@ -96,6 +104,15 @@ std::string ObjectRegistry::modelName(uint32_t type) const {
     if (g == groupMesh_.end()) return {};
     auto m = meshNames_.find(g->second);
     return m == meshNames_.end() ? std::string() : m->second;
+}
+
+std::string ObjectRegistry::modelAnim(uint32_t type) const {
+    auto t = typeToGroup_.find(type);
+    if (t == typeToGroup_.end()) return {};
+    auto g = groupMesh_.find(t->second);
+    if (g == groupMesh_.end()) return {};
+    auto a = meshAnims_.find(g->second);
+    return a == meshAnims_.end() ? std::string() : a->second;
 }
 
 std::vector<ObjectPlacement> scanMissionPlacements(const uint8_t* d, size_t n, const ObjectRegistry& reg,

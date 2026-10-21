@@ -74,6 +74,8 @@ else()
 
   add_executable(charsheet tools/headless/charsheet.cpp)
   target_link_libraries(charsheet PRIVATE gvr_core ${HOST_EGL} ${HOST_GLES})
+  add_executable(modelsheet tools/headless/modelsheet.cpp)
+  target_link_libraries(modelsheet PRIVATE gvr_core ${HOST_EGL} ${HOST_GLES})
 
   add_executable(gzptool tools/gzptool/gzptool.cpp)
   target_link_libraries(gzptool PRIVATE gvr_core ${HOST_EGL} ${HOST_GLES})

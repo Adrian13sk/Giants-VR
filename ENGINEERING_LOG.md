@@ -129,3 +129,19 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   the same staged path (`outputs/GiantsVR-dev.apk`) wrote stale content, even though the commit reported success.
 - **Fix:** re-sent the build under a unique staged name. The PC copy is now aa9d6e6d… (5f89e6a), confirmed by staging it back.
 - **Rule added to CLAUDE.md:** always use a unique staged name and verify the hash on the PC before telling the user to install.
+
+### Device test 3 feedback → building fixes (2026-10-21 15:20)
+- **User report:** fences and wells look right; houses are rainbow-coloured and look damaged or underground; the boat is black; the tent tarp is black on top.
+- **New tool** `build/host/modelsheet <Bin> <out.png> <model.gbs>[@anim.anm]...` renders static models from four directions. Prototype decoder: `tools/py/gbs.py`.
+- **Smartie walls and houses are skinned meshes** (`smw_*`, plus sm_hatch, ripnest, s_weeds, smtimmy...). Each has `.skn` + `.anm`, and the object definition names the anim (`0x52 01 name.anm` after the LOD record; now in ObjectRegistry::modelAnim).
+  - The GBS rest positions are a distorted copy of the shape.
+  - The default node transforms (keys ignored) reproduce the clean master mesh exactly. Evidence: posed smw_curvelow equals smw_curvelow_m (mirrored in X).
+  - The keyed animation starts with parts underground, which explains "damaged/underground".
+  - Their RGB is **parametric skin data**: R ramps 2→252 along the piece, B is 0 or 254 by side. It is not lighting.
+- **Fix:** ModelCache bakes skinned objects in their default skin pose once (static mesh, no per-frame cost) and ignores their RGB, lighting them dynamically.
+- **Black parts:** baked RGB is per **sub-object**. Raft planks, the canopy top, palm leaves and barracks have all-zero RGB on some sub-objects. The baked-vs-dynamic decision moved from per model to per sub-object.
+- **Rejected approaches:**
+  - Borrowing a sibling skin for smw_wall_hi_hole (it uses smw_wall_hi's skin): vertex order differs, so the result was garbage. It now keeps its stored shape, lit dynamically.
+  - Flag 0x10/0x80000000 as a "not lighting" marker: both are common on correctly lit models.
+  - RGB saturation threshold: genuine warm lighting is just as saturated.
+- **Open:** bw_* fortress walls, bw_bunker1 and mc_gun models still show rainbow-like RGB without the strict signature. None are in Story1.

@@ -4,6 +4,7 @@
 #include <map>
 
 #include "assets/image.h"
+#include "assets/skin_anim.h"
 #include "core/log.h"
 
 namespace gvr {
@@ -16,17 +17,24 @@ float gGameUnitsToMeters = 0.2f;
 // faces are counter-clockwise (GL convention). Determined from closed meshes; see tests.
 static constexpr bool kFlipWinding = false;  // gzptool validate: 103/106 closed-ish meshes have positive volume without a flip
 
-std::vector<BuiltPart> buildGbsParts(const GbsModel& m) {
-    // Character models ship an all-zero RGB array; the original engine lights those
-    // dynamically. Only treat RGBs as baked lighting when they contain data.
-    bool bakedRgb = false;
-    for (const auto& c : m.rgbs)
-        if (c[0] | c[1] | c[2]) { bakedRgb = true; break; }
+std::vector<BuiltPart> buildGbsParts(const GbsModel& m, bool ignoreRgb) {
     std::map<std::pair<std::string, uint32_t>, size_t> partIndex;
     std::vector<BuiltPart> parts;
     for (const auto& so : m.subObjects) {
+        // Baked lighting is per sub-object: many models (rafts, canopies, barracks, palm
+        // leaves, characters) ship all-zero RGB for some or all sub-objects; those are lit
+        // dynamically instead of rendering black.
+        // Sub-objects whose RGB is parametric skin data (see looksLikeSkinData) are lit too.
+        bool bakedRgb = false;
+        if (!ignoreRgb && !m.rgbs.empty()) {
+            const size_t b = std::min(size_t(std::max(so.vstart, 0)), m.rgbs.size());
+            const size_t e = std::min(size_t(std::max(so.vstart + so.vcount, 0)), m.rgbs.size());
+            for (size_t i = b; i < e; ++i)
+                if (m.rgbs[i][0] | m.rgbs[i][1] | m.rgbs[i][2]) { bakedRgb = true; break; }
+            if (bakedRgb && looksLikeSkinData(&m.rgbs[b], e - b)) bakedRgb = false;
+        }
         const uint32_t blendFlags = so.flags & (GbsModel::kSubAdditive | GbsModel::kSubSubtractive);
-        auto key = std::make_pair(toLower(so.texture), blendFlags);
+        auto key = std::make_pair(toLower(so.texture), blendFlags | (bakedRgb ? 0u : 0x80000000u));
         size_t pi;
         auto it = partIndex.find(key);
         if (it == partIndex.end()) {
@@ -89,6 +97,60 @@ std::vector<BuiltPart> buildGbsParts(const GbsModel& m) {
     return parts;
 }
 
+bool looksLikeSkinData(const std::array<uint8_t, 3>* rgb, size_t n) {
+    // Skinned buildings export parametric RGB instead of lighting: blue is only 0 or 254
+    // (side of the wall) and red ramps across the full range (position along the piece).
+    if (n == 0) return false;
+    int rmin = 255, rmax = 0;
+    for (size_t i = 0; i < n; ++i) {
+        const auto& c = rgb[i];
+        if (c[2] > 2 && c[2] < 253) return false;
+        rmin = std::min<int>(rmin, c[0]);
+        rmax = std::max<int>(rmax, c[0]);
+    }
+    return rmax - rmin > 200;
+}
+
+bool bakeDefaultSkinPose(const AssetFS& fs, const std::string& base, const std::string& anim, GbsModel& g) {
+    std::vector<uint8_t> bytes;
+    std::string err;
+    SknModel skn;
+    AnmAnimation an;
+    if (!fs.read(base + ".skn", bytes) || !parseSkn(bytes.data(), bytes.size(), skn, &err)) return false;
+    if (!fs.read(anim, bytes) || !parseAnm(bytes.data(), bytes.size(), an, &err)) {
+        LOGW("Skin pose %s: %s unavailable %s", base.c_str(), anim.c_str(), err.c_str());
+        return false;
+    }
+    // The exported GBS positions of skinned buildings are a distorted copy; the intended shape
+    // is the skin evaluated with the nodes' default transforms (keys = build/collapse effects).
+    for (auto& n : an.nodes) { n.posKeys.clear(); n.rotKeys.clear(); n.scaleKeys.clear(); }
+    std::vector<Mat4> world;
+    an.evaluate(0.0f, world);
+    // The skin must match the mesh exactly (object count and per-object vertex counts).
+    if (skn.objects.size() != g.maxObjs.size()) return false;
+    for (size_t o = 0; o < g.maxObjs.size(); ++o)
+        if (int32_t(skn.objects[o].vertexCount) != g.maxObjs[o].vcount) return false;
+    size_t bound = 0;
+    const size_t nObj = g.maxObjs.size();
+    for (size_t o = 0; o < nObj; ++o) {
+        for (const SknCluster& c : skn.objects[o].clusters) {
+            auto bn = skn.boneNames.find(c.bone);
+            if (bn == skn.boneNames.end()) continue;
+            auto ni = an.byName.find(toLower(bn->second));
+            if (ni == an.byName.end()) continue;
+            for (const auto& v : c.verts) {
+                const size_t pi = size_t(g.maxObjs[o].vstart) + v.index;
+                if (pi >= g.positions.size()) continue;
+                const Vec4 w = world[size_t(ni->second)] * Vec4{v.x, v.y, v.z, 1.0f};
+                g.positions[pi] = {w.x, w.y, w.z};
+                ++bound;
+            }
+        }
+    }
+    if (bound == 0) LOGW("Skin pose %s: no vertices bound", base.c_str());
+    return bound > 0;
+}
+
 TextureId ModelCache::texture(const std::string& name, bool* hadAlpha) {
     std::string key = toLower(name);
     auto it = textures_.find(key);
@@ -120,8 +182,8 @@ TextureId ModelCache::texture(const std::string& name, bool* hadAlpha) {
     return e.id;
 }
 
-const RenderModel* ModelCache::get(const std::string& gbsName) {
-    std::string key = toLower(gbsName);
+const RenderModel* ModelCache::get(const std::string& gbsName, const std::string& skinAnim) {
+    std::string key = toLower(gbsName) + "|" + toLower(skinAnim);
     auto it = models_.find(key);
     if (it != models_.end()) return it->second.get();
 
@@ -138,11 +200,19 @@ const RenderModel* ModelCache::get(const std::string& gbsName) {
         models_[key] = nullptr;
         return nullptr;
     }
+    bool skinned = false;
+    std::string base = gbsName;
+    if (base.size() > 4) base.resize(base.size() - 4);
+    if (!skinAnim.empty()) skinned = bakeDefaultSkinPose(fs_, base, skinAnim, gbs);
+    // Meshes exported from a skinned scene without a usable skin of their own (e.g.
+    // smw_wall_hi_hole; borrowing smw_wall_hi's skin was tried and its vertex order differs):
+    // keep the stored shape but never show the parametric RGB as colour.
+    const bool ignoreRgb = skinned || looksLikeSkinData(gbs.rgbs.data(), gbs.rgbs.size());
     auto rm = std::make_unique<RenderModel>();
     rm->name = gbsName;
     rm->boundsMin = {1e30f, 1e30f, 1e30f};
     rm->boundsMax = {-1e30f, -1e30f, -1e30f};
-    for (auto& bp : buildGbsParts(gbs)) {
+    for (auto& bp : buildGbsParts(gbs, ignoreRgb)) {
         RenderModel::Part part;
         part.textureName = bp.texture;
         part.lit = bp.lit;
@@ -165,8 +235,8 @@ const RenderModel* ModelCache::get(const std::string& gbsName) {
         rm->triangles += part.triangles;
         rm->parts.push_back(part);
     }
-    LOGI("Model %s: %zu parts, %u tris, %u missing textures", gbsName.c_str(), rm->parts.size(),
-         rm->triangles, rm->missingTextures);
+    LOGI("Model %s%s: %zu parts, %u tris, %u missing textures", gbsName.c_str(),
+         skinned ? " (skin rest pose)" : "", rm->parts.size(), rm->triangles, rm->missingTextures);
     const RenderModel* out = rm.get();
     models_[key] = std::move(rm);
     return out;

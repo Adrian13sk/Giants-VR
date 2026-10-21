@@ -56,7 +56,7 @@ bool SkinnedModel::load(const AssetFS& fs, ModelCache& textures, Renderer& r, co
 
     bmin_ = {1e30f, 1e30f, 1e30f};
     bmax_ = {-1e30f, -1e30f, -1e30f};
-    for (auto& bp : buildGbsParts(gbs_)) {
+    for (auto& bp : buildGbsParts(gbs_, /*ignoreRgb=*/true)) {
         Part p;
         bool alpha = false;
         if (!bp.texture.empty()) p.texture = textures.texture(bp.texture, &alpha);

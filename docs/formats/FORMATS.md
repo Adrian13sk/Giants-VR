@@ -34,6 +34,10 @@ Rendering facts found here:
 - Character meshes have all-zero RGB and need dynamic lighting.
 - Sub-flag 0x10 appears on opaque meshes, so it is not an additive-blend switch.
 - Winding needs no flip after (-x, z, y).
+- Baked RGB applies **per sub-object**. All-zero sub-objects (raft planks, canopy tops, palm leaves, characters) need dynamic lighting.
+- Skinned static objects (with `.skn` + `.anm`, e.g. smw_* Smartie walls and houses):
+  - The GBS positions are distorted. The real shape is the skin evaluated with the ANM default node transforms (keys ignored); verified by smw_curvelow vs smw_curvelow_m.
+  - Their RGB is parametric skin data (R = position along the piece, B = 0/254 side), not lighting.
 - **Scale:** 1 unit = 0.2 m is provisional. In animated poses this gives Meccaryn 2.17 m,
   Smartie 0.81 m, Reaper 2.26 m and Kabuto 16.2 m. Unconfirmed.
 - UV: stored v is used as-is with top-down texture rows; textures look correct (P).

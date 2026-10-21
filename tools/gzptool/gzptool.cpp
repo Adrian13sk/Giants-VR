@@ -177,6 +177,15 @@ static int cmdSkinCheck(const char* dir, const char* base, const char* anim) {
         for (auto& n : an.nodes) { n.posKeys.clear(); n.rotKeys.clear(); n.scaleKeys.clear(); }
     std::vector<Mat4> world;
     an.evaluate(0.0f, world);
+    const bool dump = std::getenv("SKINCHECK_DUMP") != nullptr;
+    if (dump)
+        for (size_t i = 0; i < an.nodes.size(); ++i) {
+            const auto& n = an.nodes[i];
+            std::printf("node %zu %-12s parent %d pos(%.2f %.2f %.2f) rot(%.3f %.3f %.3f %.3f) scale(%.2f %.2f %.2f)%s keys p%zu r%zu s%zu\n",
+                        i, n.name.c_str(), n.parent, n.pos.x, n.pos.y, n.pos.z, n.rot.x, n.rot.y, n.rot.z, n.rot.w,
+                        n.scale.x, n.scale.y, n.scale.z, n.mirrored ? " MIRRORED" : "", n.posKeys.size(), n.rotKeys.size(),
+                        n.scaleKeys.size());
+        }
     std::map<std::string, std::array<double, 7>> cent;  // rest xyz, posed xyz, n
     int exact = 0, total = 0;
     std::map<std::string, std::pair<int, int>> perBone;
@@ -191,6 +200,9 @@ static int cmdSkinCheck(const char* dir, const char* base, const char* anim) {
                 const auto& p = g.positions[size_t(g.maxObjs[o].vstart) + v.index];
                 const float e = std::sqrt((w.x - p[0]) * (w.x - p[0]) + (w.y - p[1]) * (w.y - p[1]) + (w.z - p[2]) * (w.z - p[2]));
                 ++total;
+                if (dump)
+                    std::printf("  v%-3u %-8s local(%7.2f %7.2f %7.2f) rest(%7.2f %7.2f %7.2f) posed(%7.2f %7.2f %7.2f)\n",
+                                v.index, bn->second.c_str(), v.x, v.y, v.z, p[0], p[1], p[2], w.x, w.y, w.z);
                 auto& ce = cent[bn->second];
                 ce[0] += p[0]; ce[1] += p[1]; ce[2] += p[2]; ce[3] += w.x; ce[4] += w.y; ce[5] += w.z; ce[6] += 1;
                 auto& pb = perBone[bn->second];

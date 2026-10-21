@@ -32,12 +32,15 @@ public:
 
     // Model (mesh) name for an object type, or empty if unknown.
     std::string modelName(uint32_t type) const;
+    // Animation (.anm) listed with the type's LOD0 mesh (0x52 entry), or empty.
+    std::string modelAnim(uint32_t type) const;
     bool knows(uint32_t type) const { return typeToGroup_.count(type) != 0; }
     size_t typeCount() const { return typeToGroup_.size(); }
     size_t meshCount() const { return meshNames_.size(); }
 
 private:
     std::unordered_map<uint32_t, std::string> meshNames_;   // meshId -> name
+    std::unordered_map<uint32_t, std::string> meshAnims_;   // meshId -> .anm name
     std::unordered_map<uint32_t, uint32_t> groupMesh_;      // groupId -> LOD0 meshId
     std::unordered_map<uint32_t, uint32_t> typeToGroup_;    // typeId -> groupId
     std::vector<std::vector<uint8_t>> pending_;             // files kept until finalize()
