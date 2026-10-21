@@ -3,11 +3,15 @@
 #include "core/log.h"
 #include "scene/asset_world.h"
 #include "audio/mixer.h"
+#include "audio/music.h"
 #include "game/arm_ik.h"
 #include "scene/model_cache.h"
 #include "scene/skinned_model.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <dirent.h>
 
 namespace gvr {
 
@@ -26,6 +30,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         LOGE("Test scene init failed");
         return false;
     }
+    dataDir_ = dataDir;
+    worldName_ = worldName;
     assetWorld_ = std::make_unique<AssetWorld>();
     if (!assetWorld_->init(dataDir, renderer_, worldName)) {
         LOGW("Original assets unavailable: %s", assetWorld_->status().c_str());
@@ -178,7 +184,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     std::vector<CreatureEvent> ev;
                     const int ci = target - kCreatureTarget;
                     const float scale = creatures_.creatures[size_t(ci)].scale;
+                    const int slot = creatures_.creatures[size_t(ci)].slot;
                     const bool died = creatures_.damage(ci, 25.0f, shotDir, &ev);
+                    if (died && slot >= 0 && size_t(slot) < chars_.size() && chars_[size_t(slot)].objective >= 0)
+                        completeObjective(chars_[size_t(slot)].objective);
                     for (const auto& e : ev)
                         if (e.kind == CreatureEvent::Die && e.burst) {
                             spawnGore(e.pos, e.dir, scale);
@@ -190,6 +199,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     return;
                 }
                 const bool killed = enemies_.damage(target, 25.0f);
+                if (killed && enemies_.enemies[size_t(target)].objective >= 0)
+                    completeObjective(enemies_.enemies[size_t(target)].objective);
                 haptics_.push_back({rig_.turnHand(), killed ? 0.8f : 0.5f, killed ? 0.12f : 0.05f});
                 sfx("ex_bdys1", p, 0.35f, 1.1f + 0.2f * frand());
                 static const char* hits[] = {"rpman_hit1", "rpman_hit2", "rpman_hit3", "rpman_hit4"};
@@ -249,6 +260,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             whiteTex_ = renderer_.uploadTexture(1, 1, white, false, false);
             LOGI("Enemies: %zu Reaper model slots", enemyPool_.size());
             initCharacters(w, mc);
+            initMission();
             player_.collision = &w->collision();
             // Off the terrain heightfield is open sea (surface at 0): wading depth, so walking off
             // a cliff drops you into the water instead of walking on air.
@@ -433,9 +445,11 @@ void GameApp::setAudio(AudioMixer* mixer) {
             LOGW("Sound %s unavailable %s", n, err.c_str());
     }
     LOGI("Audio: %zu/%zu original sounds loaded", ok, sizeof(names) / sizeof(names[0]));
+    initMusic();
 }
 
 void GameApp::updateAudio(float dt) {
+    updateMusic(dt);
     if (!audio_) return;
     hurtCooldown_ -= dt;
     audio_->setListener(rig_.toWorld(lastInput_.head).position, headWorldRot_);
@@ -500,7 +514,11 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     size_t reapers = 0, rippers = 0, ambient = 0;
     for (const auto& ch : w->characters()) {
         if (ch.objectClass == 51) {  // Reaper grunt: the Reaper AI, at its mission position
-            enemies_.spawn(ch.position, ch.yaw);
+            const int ei = enemies_.spawn(ch.position, ch.yaw);
+            if (ch.trigger == 2) {
+                enemies_.enemies[size_t(ei)].objective = int(objectives_.size());
+                objectives_.push_back({2, ch.position, ch.position});
+            }
             missionHostiles_ = true;
             ++reapers;
             continue;
@@ -531,6 +549,10 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             const float hp = t && t->hitPoints > 0 ? t->hitPoints : 40.0f;
             ci.size = hp <= 25.0f ? CreatureSize::Small : (hp <= 60.0f ? CreatureSize::Medium : CreatureSize::Large);
             const int idx = creatures_.spawn(ch.position, ch.yaw, ch.scale, ci.size, hp, true);
+            if (ch.trigger == 2) {
+                ci.objective = int(objectives_.size());
+                objectives_.push_back({2, ch.position, ch.position});
+            }
             creatures_.creatures[size_t(idx)].slot = int(chars_.size());
             missionHostiles_ = true;
             ++rippers;
@@ -693,6 +715,198 @@ void GameApp::updateCharacters(float dt) {
     }
 }
 
+void GameApp::initMission() {
+    // Proximity triggers on placed objects (death triggers were added with their characters).
+    for (const auto& t : assetWorld_->triggerObjects())
+        if (t.kind == 1) objectives_.push_back({1, t.boundsMin, t.boundsMax});
+    // Starting inventory: a Mecc mission lists the items the player must hold (op 0x0E). Item 1
+    // is read as the jetpack: absent only in 1a_1_timmy, where Baz loses it in the opening
+    // cutscene and Timmy hands it over (provisional reading, see the engineering log).
+    const MissionData& m = assetWorld_->mission();
+    bool jet = true;
+    if (m.setup[0] == 2) jet = std::find(m.items.begin(), m.items.end(), 1u) != m.items.end();
+    player_.jetpackAvailable = jet;
+    LOGI("Mission %s: %zu objectives, jetpack %s", assetWorld_->missionName().c_str(), objectives_.size(),
+         jet ? "available" : "not yet (story)");
+}
+
+void GameApp::completeObjective(int index) {
+    if (index < 0 || size_t(index) >= objectives_.size() || objectives_[size_t(index)].done) return;
+    objectives_[size_t(index)].done = true;
+    ++objectivesDone_;
+    haptics_.push_back({kLeft, 0.4f, 0.08f});
+    LOGI("Objective %d done (%zu/%zu)", index, objectivesDone_, objectives_.size());
+    if (objectivesDone_ < objectives_.size() || missionComplete_) return;
+    missionComplete_ = true;
+    LOGI("Mission %s complete", assetWorld_->missionName().c_str());
+    haptics_.push_back({kLeft, 0.9f, 0.3f});
+    haptics_.push_back({kRight, 0.9f, 0.3f});
+    // The outro cutscene (op 0x19) isn't played yet; its soundtrack carries the dialogue. In
+    // 1a_1_timmy that is Timmy handing Baz the jetpack.
+    const MissionData& m = assetWorld_->mission();
+    if (!m.flick19.empty()) playFlickSoundtrack(m.flick19);
+    if (!player_.jetpackAvailable) {
+        player_.jetpackAvailable = true;
+        LOGI("Jetpack received");
+    }
+    if (music_ && !streamLeft_) { music_->request("mvy"); stingerLeft_ = 8.0f; }
+}
+
+void GameApp::updateMission(float dt) {
+    (void)dt;
+    if (missionComplete_ || !playMode_) return;
+    // Proximity: within 2 m (10 game units) of the object's bounds.
+    const Vec3 p = player_.position + Vec3{0, 0.9f, 0};
+    for (size_t i = 0; i < objectives_.size(); ++i) {
+        const Objective& o = objectives_[i];
+        if (o.done || o.kind != 1) continue;
+        const Vec3 c{std::max(o.boundsMin.x, std::min(o.boundsMax.x, p.x)),
+                     std::max(o.boundsMin.y, std::min(o.boundsMax.y, p.y)),
+                     std::max(o.boundsMin.z, std::min(o.boundsMax.z, p.z))};
+        if (length(c - p) <= 10.0f * gGameUnitsToMeters) completeObjective(int(i));
+    }
+}
+
+namespace {
+// Lists *.wav / *.raw files under `dir` (one level of subdirectories), lower-case name -> path.
+void indexFiles(const std::string& dir, const char* ext, std::vector<std::pair<std::string, std::string>>& out) {
+    DIR* d = opendir(dir.c_str());
+    if (!d) return;
+    while (dirent* e = readdir(d)) {
+        const std::string n = e->d_name;
+        if (n == "." || n == "..") continue;
+        const std::string path = dir + "/" + n;
+        std::string l = toLower(n);
+        if (l.size() > 4 && l.compare(l.size() - 4, 4, ext) == 0) {
+            out.push_back({l.substr(0, l.size() - 4), path});
+        } else if (l.find('.') == std::string::npos) {
+            indexFiles(path, ext, out);
+        }
+    }
+    closedir(d);
+}
+bool readFile(const std::string& path, std::vector<uint8_t>& out) {
+    FILE* f = std::fopen(path.c_str(), "rb");
+    if (!f) return false;
+    std::fseek(f, 0, SEEK_END);
+    const long n = std::ftell(f);
+    std::fseek(f, 0, SEEK_SET);
+    out.resize(n > 0 ? size_t(n) : 0);
+    const bool ok = n > 0 && std::fread(out.data(), 1, out.size(), f) == out.size();
+    std::fclose(f);
+    return ok;
+}
+}  // namespace
+
+void GameApp::initMusic() {
+    if (!audio_ || !assetWorld_) return;
+    std::vector<uint8_t> bytes;
+    musicSet_ = std::make_unique<MusicSet>();
+    std::string err;
+    if (!assetWorld_->fs().read("MusicSet.bin", bytes) || !musicSet_->parse(bytes.data(), bytes.size(), &err)) {
+        LOGW("Music: MusicSet.bin unavailable %s", err.c_str());
+        musicSet_.reset();
+        return;
+    }
+    // The game's Music folder sits next to Bin (copy it to the headset alongside Bin).
+    for (const char* rel : {"/../Music", "/Music"}) indexFiles(dataDir_ + rel, ".raw", musicFiles_);
+    LOGI("Music: %zu songs, %zu transitions, %zu segment files", musicSet_->songCount(), musicSet_->transitionCount(),
+         musicFiles_.size());
+    if (musicFiles_.empty()) { musicSet_.reset(); return; }
+    music_ = std::make_unique<MusicDirector>(*musicSet_);
+    // Ambient mood by story: Mecc a1 (the game also has a2, and Kabuto/Reaper sets).
+    const int race = int(assetWorld_->mission().setup[0]);
+    ambientSet_ = race == 1 ? "ka1" : (race == 3 ? "ra1" : "ma1");
+    music_->request(ambientSet_);
+    audio_->setMusicVolume(0.8f);
+}
+
+std::string GameApp::findMusicFile(const std::string& segment) const {
+    for (const auto& f : musicFiles_)
+        if (f.first == segment) return f.second;
+    return {};
+}
+
+void GameApp::updateMusic(float dt) {
+    if (!music_ || !audio_) return;
+    streamLeft_ = std::max(0.0f, streamLeft_ - dt);
+    stingerLeft_ = std::max(0.0f, stingerLeft_ - dt);
+    // Mood from the fight around the player (our mapping; the original's is native code):
+    // small battle (msb), large battle with 4+ attackers (mlb), victory stinger, ambient.
+    size_t engaged = 0;
+    for (const auto& c : creatures_.creatures)
+        if (c.state != CreatureState::Dead && c.state != CreatureState::Idle && c.state != CreatureState::Return &&
+            length(c.pos - player_.position) < 45.0f)
+            ++engaged;
+    for (const auto& e : enemies_.enemies)
+        if (e.state != EnemyState::Dead && e.state != EnemyState::Idle && length(e.pos - player_.position) < 60.0f) ++engaged;
+    const char* race = ambientSet_.c_str();  // "ma1" -> prefix 'm'
+    const std::string pre(1, race[0]);
+    std::string want = ambientSet_;
+    if (engaged > 0) combatHold_ = 6.0f;
+    else combatHold_ = std::max(0.0f, combatHold_ - dt);
+    if (combatHold_ > 0) want = pre + (engaged >= 4 ? "lb" : "sb");
+    if (stingerLeft_ > 0) want = pre + "vy";
+    if (streamLeft_ > 0) want.clear();  // a cutscene soundtrack is playing
+    music_->request(want);
+    static std::string lastMood = "?";
+    if (want != lastMood) {
+        LOGI("Music mood: %s", want.empty() ? "(soundtrack)" : want.c_str());
+        lastMood = want;
+    }
+    // Keep one segment queued behind the playing one (mood changes land on segment ends).
+    for (int guard = 0; guard < 2 && audio_->musicQueued() < 2; ++guard) {
+        const std::string seg = music_->next();
+        if (seg.empty()) break;
+        const std::string path = findMusicFile(seg);
+        std::vector<uint8_t> bytes;
+        if (path.empty() || !readFile(path, bytes)) {
+            static std::vector<std::string> warned;
+            if (std::find(warned.begin(), warned.end(), seg) == warned.end()) {
+                warned.push_back(seg);
+                LOGW("Music segment %s missing", seg.c_str());
+            }
+            continue;
+        }
+        audio_->queueMusic(decodeMusicRaw(bytes.data(), bytes.size()), 22050);
+    }
+    if (want.empty() && audio_->musicQueued() > 0 && streamLeft_ > 0) audio_->clearMusic();
+}
+
+bool GameApp::playFlickSoundtrack(const std::string& flick) {
+    if (!audio_) return false;
+    std::vector<uint8_t> bytes;
+    if (!assetWorld_->fs().read("flk_" + flick + ".bin", bytes)) return false;
+    // The flick names its stream as a NUL-terminated "f_..." string.
+    std::string stream;
+    for (size_t i = 0; i + 3 < bytes.size() && stream.empty(); ++i) {
+        if ((i == 0 || bytes[i - 1] == 0) && (bytes[i] == 'f' || bytes[i] == 'F') && bytes[i + 1] == '_') {
+            size_t e = i;
+            while (e < bytes.size() && bytes[e] >= 0x20 && bytes[e] < 0x7f) ++e;
+            if (e < bytes.size() && bytes[e] == 0 && e - i > 2) stream = toLower(std::string(bytes.begin() + long(i), bytes.begin() + long(e)));
+        }
+    }
+    if (stream.empty()) return false;
+    std::vector<std::pair<std::string, std::string>> files;
+    for (const char* rel : {"/../Stream/", "/Stream/"}) indexFiles(dataDir_ + rel + worldName_, ".wav", files);
+    for (const auto& f : files) {
+        if (f.first != stream) continue;
+        std::vector<uint8_t> wav;
+        WavData w;
+        std::string err;
+        if (!readFile(f.second, wav) || !parseWav(wav.data(), wav.size(), w, &err)) break;
+        const float seconds = float(w.mono.size()) / float(w.rate);
+        audio_->addSound("stream_" + stream, std::move(w));
+        audio_->play2D(("stream_" + stream).c_str(), 1.0f);
+        streamLeft_ = seconds;
+        audio_->clearMusic();
+        LOGI("Cutscene soundtrack %s (%.0f s)", stream.c_str(), seconds);
+        return true;
+    }
+    LOGW("Cutscene soundtrack %s not found (copy the game's Stream folder next to Bin)", stream.c_str());
+    return false;
+}
+
 void GameApp::spawnWave() {
     if (enemyPool_.empty()) return;
     ++wave_;
@@ -777,6 +991,7 @@ void GameApp::updateCombat(float dt) {
     enemyFire_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
     // Next wave after the last Reaper has fallen.
     updateCharacters(dt);
+    updateMission(dt);
     if (enemies_.aliveCount() == 0 && !missionHostiles_) {
         waveTimer_ += dt;
         if (waveTimer_ > 8.0f) { waveTimer_ = 0; spawnWave(); }
@@ -882,12 +1097,24 @@ void GameApp::renderHud() {
         drawQuad(base * Mat4::scale({(w + 0.008f) / 0.2f, (h + 0.008f) / 0.2f, 1}), {0, 0, 0, 0.6f});
         const Vec4 col{std::min(1.0f, 2.0f * (1.0f - f)), std::min(1.0f, 2.0f * f), 0.1f, 0.9f};
         drawQuad(base * Mat4::translation({-w * 0.5f * (1.0f - f), 0, 0.002f}) * Mat4::scale({w * f / 0.2f, h / 0.2f, 1}), col);
-        // Jetpack fuel underneath (blue).
-        const float jf = player_.fuel();
-        const Mat4 fb = base * Mat4::translation({0, -0.024f, 0});
-        drawQuad(fb * Mat4::scale({(w + 0.008f) / 0.2f, (h * 0.7f + 0.008f) / 0.2f, 1}), {0, 0, 0, 0.6f});
-        drawQuad(fb * Mat4::translation({-w * 0.5f * (1.0f - jf), 0, 0.002f}) * Mat4::scale({w * jf / 0.2f, h * 0.7f / 0.2f, 1}),
-                 {0.2f, 0.6f, 1.0f, 0.9f});
+        // Jetpack fuel underneath (blue), once the jetpack is in the inventory.
+        if (player_.jetpackAvailable) {
+            const float jf = player_.fuel();
+            const Mat4 fb = base * Mat4::translation({0, -0.024f, 0});
+            drawQuad(fb * Mat4::scale({(w + 0.008f) / 0.2f, (h * 0.7f + 0.008f) / 0.2f, 1}), {0, 0, 0, 0.6f});
+            drawQuad(fb * Mat4::translation({-w * 0.5f * (1.0f - jf), 0, 0.002f}) *
+                         Mat4::scale({w * jf / 0.2f, h * 0.7f / 0.2f, 1}),
+                     {0.2f, 0.6f, 1.0f, 0.9f});
+        }
+        // Mission objectives above the health bar: one pip each, gold when done.
+        const size_t n = objectives_.size();
+        for (size_t i = 0; i < n && n <= 16; ++i) {
+            const float px = (float(i) - 0.5f * float(n - 1)) * 0.018f;
+            const Mat4 pm = base * Mat4::translation({px, 0.022f, 0});
+            drawQuad(pm * Mat4::scale({0.013f / 0.2f, 0.013f / 0.2f, 1}), {0, 0, 0, 0.6f});
+            const Vec4 col = objectives_[i].done ? Vec4{1.0f, 0.8f, 0.1f, 0.95f} : Vec4{0.5f, 0.5f, 0.5f, 0.6f};
+            drawQuad(pm * Mat4::translation({0, 0, 0.002f}) * Mat4::scale({0.009f / 0.2f, 0.009f / 0.2f, 1}), col);
+        }
     }
     if (damageFlash_ > 0) {
         const Vec3 fwd = headWorldRot_.rotate(Vec3{0, 0, -1});

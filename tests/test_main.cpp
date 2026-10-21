@@ -20,6 +20,7 @@
 #include "game/enemy.h"
 #include "game/creature.h"
 #include "audio/mixer.h"
+#include "audio/music.h"
 #include "game/vr_rig.h"
 
 using namespace gvr;
@@ -755,6 +756,69 @@ static void testCreatures() {
     CHECK(reached);
 }
 
+static void testMusic() {
+    using namespace gvr;
+    // Songs: amb (a1,a2,a3 loop), bat (b1 -> chain batloop), batloop (b2,b3 loop), trn song (t1, b3).
+    // Sets: bat -> {batloop, batx}. Pairs: a2 -> t1 (into "bat" via a variant), a1 -> b2.
+    struct Song { const char* name; std::vector<const char*> segs; int end; const char* next; };
+    std::vector<Song> songs = {{"amb", {"a1", "a2", "a3"}, 1, nullptr},
+                               {"bat", {"b1"}, 2, "batloop"},
+                               {"batloop", {"b2", "b3"}, 0, nullptr},
+                               {"batx", {"t1", "b4"}, 1, nullptr}};
+    std::vector<std::pair<const char*, const char*>> pairs = {{"a2", "t1"}, {"a1", "b2"}};
+    std::vector<std::pair<const char*, const char*>> sets = {{"bat", "batloop"}, {"bat", "batx"}};
+    Bytes b;
+    b.u32(uint32_t(songs.size())).u32(uint32_t(pairs.size())).u32(uint32_t(sets.size()));
+    const size_t offAt = b.v.size();
+    for (size_t i = 0; i < songs.size(); ++i) b.u32(0);
+    auto n16 = [&](const char* s) { b.str(s, 16); };
+    for (auto& p : pairs) { n16(p.first); n16(p.second); }
+    for (auto& p : sets) { n16(p.first); n16(p.second); }
+    for (size_t i = 0; i < songs.size(); ++i) {
+        const uint32_t o = uint32_t(b.v.size());
+        std::memcpy(&b.v[offAt + 4 * i], &o, 4);
+        n16(songs[i].name);
+        for (auto* sg : songs[i].segs) n16(sg);
+        b.u8(uint8_t(songs[i].end));
+        if (songs[i].next) n16(songs[i].next); else { b.u8(0).u8(0).u8(0); }
+    }
+    MusicSet ms;
+    std::string err;
+    CHECK(ms.parse(b.v.data(), b.v.size(), &err));
+    CHECK(ms.songCount() == 4 && ms.transitionCount() == 2);
+    CHECK(ms.setOfSong("batloop") == "bat" && ms.setOfSong("batx") == "bat" && ms.setOfSong("amb") == "amb");
+    CHECK(ms.transition("a2", "bat") == "t1" && ms.transition("a1", "bat") == "b2");
+    MusicDirector md(ms);
+    md.request("amb");
+    CHECK(md.next() == "a1" && md.next() == "a2" && md.next() == "a3" && md.next() == "a1");  // loops
+    md.next();                 // a2 queued
+    md.request("bat");
+    CHECK(md.next() == "t1");  // transition from a2 enters the variant song at its bridge
+    CHECK(md.next() == "b4");
+    md.request("amb");
+    CHECK(md.next() == "a1");  // no transition from b4: the ambient song starts over
+    md.request("bat");
+    CHECK(md.next() == "b2" && md.next() == "b3" && md.next() == "b2");  // a1 -> b2, batloop loops
+    MusicDirector m2(ms);
+    m2.request("bat");
+    CHECK(m2.next() == "b1" && m2.next() == "b2");  // the set's own song chains into its loop
+    // Mixer: two queued buffers play back to back without a gap.
+    AudioMixer mix(100);
+    mix.setMasterVolume(1.0f);
+    mix.setMusicVolume(1.0f);
+    mix.queueMusic(std::vector<float>(2 * 50, 0.25f), 100);
+    mix.queueMusic(std::vector<float>(2 * 50, 0.25f), 100);
+    std::vector<float> out(2 * 120);
+    mix.mix(out.data(), 120);
+    bool continuous = true;
+    for (int i = 0; i < 100; ++i) continuous &= std::fabs(out[2 * i] - std::tanh(0.25f)) < 1e-4f;
+    CHECK(continuous);
+    CHECK(std::fabs(out[2 * 110]) < 1e-6f && mix.musicQueued() == 0);
+    std::vector<uint8_t> raw = {0x00, 0x40, 0x00, 0xC0};  // +0.5, -0.5
+    auto f = decodeMusicRaw(raw.data(), raw.size());
+    CHECK(f.size() == 2 && std::fabs(f[0] - 0.5f) < 1e-6f && std::fabs(f[1] + 0.5f) < 1e-6f);
+}
+
 int main() {
     testGti();
     testWorldBin();
@@ -772,6 +836,7 @@ int main() {
     testEnemies();
     testCreatures();
     testAudio();
+    testMusic();
     if (g_failures) {
         std::printf("%d test failure(s)\n", g_failures);
         return 1;

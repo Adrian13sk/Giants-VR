@@ -26,6 +26,14 @@ adb push "C:\GOG Games\Giants - Citizen Kabuto\Bin\." /sdcard/Android/data/io.gi
 ```
 Launch the app once before pushing if Android refuses to create the folder.
 
+Optional but recommended: the game's **music** (`Music`, about 280 MB) and **cutscene soundtracks**
+(`Stream`) live next to `Bin`. Copy them beside it so the app finds them:
+```
+adb push "C:\GOG Games\Giants - Citizen Kabuto\Music" /sdcard/Android/data/io.github.giantsvr.dev/files/
+adb push "C:\GOG Games\Giants - Citizen Kabuto\Stream" /sdcard/Android/data/io.github.giantsvr.dev/files/
+```
+Without them the game runs silently except for sound effects.
+
 ## 3. Run and collect logs
 ```
 adb logcat -c
@@ -36,8 +44,10 @@ Please send the log. It shows the OpenXR runtime, extensions, swapchain sizes, t
 and an fps line every 5 seconds.
 
 ## Controls (current build)
-Waves of three **Reaper soldiers** come at you from ahead; four hits kill one, and the next wave
-arrives 8 s after you clear one. Your health bar is on your left wrist; red flash = you were hit.
+Story1 plays its first mission, "A Boy Called Timmy": you start without the jetpack (as in the
+original), Rippers guard Timmy's tower at the north end of the island. Kill them and reach the
+tower; the wrist shows one pip per objective. Timmy then gives you the jetpack. Worlds whose
+mission has no enemies fall back to waves of Reaper soldiers. Your health bar is on your left wrist; red flash = you were hit.
 
 You start as the **Meccaryn in first person**: his body is under you, his arms follow your
 controllers (grip = make a fist, trigger = curl the leading finger); the original Meccaryn gun is in your right hand. Walking around your room

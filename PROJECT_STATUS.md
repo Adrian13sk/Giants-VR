@@ -29,13 +29,11 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
-1. **Device test 15** (build 1dc7f45…): mission-populated Story1, start position, Rippers (attack, death, sounds), domes,
-   and frame rate with about 300 objects. If the frame rate drops, implement the decoded LOD tables (0x51 distances) and merge
-   draw calls.
-2. **Mission flow:** objectives and triggers for 1a_1_timmy (rescue Timmy). Study the decompiled mission tick as behaviour
-   notes; flicks (`flk_*.bin`, a bytecode VM) drive cutscenes.
-3. **More creatures:** Smarties (sm_l0, 85 clips), Dactyl flight along the spline paths, Ripper nests (class 47) spawning.
-   Then the world opcode table (B5) so other worlds load their missions.
+1. **Device test 17** (build 50c05f59…): mission 1a objectives (wrist pips), no jetpack until Timmy, completion soundtrack,
+   music (needs `Music` and `Stream` copied next to `Bin`).
+2. **Cutscenes:** decode the flk bytecode (camera and actor tracks, subtitles from GTextEnglish, soundtrack sync) and
+   present them in VR comfortably. Then mission 1b (Wax Smarties: destination-arrival triggers, carrying Smarties).
+3. **More of Story1:** Smarties' AI, Dactyl flight along the spline paths, Ripper nests; the world opcode table (B5).
 
 ## Resume instructions
 1. `scripts/fetch_deps.sh` (or reuse `../toolchains`), then build host + APK (see CLAUDE.md).

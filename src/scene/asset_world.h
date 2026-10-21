@@ -46,8 +46,17 @@ public:
         Vec3 position;
         float yaw;
         float scale;
+        int trigger;  // mission trigger kind: 1 proximity, 2 death, 3 destination arrival, 4 Vimp meat
     };
     const std::vector<Character>& characters() const { return characters_; }
+    // Mission objects (not characters) carrying a trigger, with world-space bounds.
+    struct TriggerObject {
+        int kind;
+        uint32_t type;
+        Vec3 boundsMin, boundsMax;
+    };
+    const std::vector<TriggerObject>& triggerObjects() const { return triggers_; }
+    const std::string& missionName() const { return missionName_; }
 
     struct Placed {
         const RenderModel* model;
@@ -80,6 +89,7 @@ private:
     ObjectRegistry registry_;
     MissionData mission_;
     std::vector<Character> characters_;
+    std::vector<TriggerObject> triggers_;
     std::string missionName_;
     CollisionWorld collision_;
     std::string status_;

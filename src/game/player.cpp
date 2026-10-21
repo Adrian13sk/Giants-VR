@@ -58,7 +58,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     if (dl > 1e-4f) dir = dir * (1.0f / dl);
     const float speed = params.runSpeed * mag * (in.sprint ? params.sprintFactor : 1.0f);
     // Jetpack fuel: drains while thrusting, refills after a short delay.
-    thrusting_ = in.jet && fuel_ > 0.0f;
+    thrusting_ = in.jet && fuel_ > 0.0f && jetpackAvailable;
     if (thrusting_) {
         fuel_ = std::max(0.0f, fuel_ - dt);
         sinceThrust_ = 0;

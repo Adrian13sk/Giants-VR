@@ -146,3 +146,20 @@ Serialized images; pointers = file offsets. NAM tables `{u16 size, u16 type(4), 
   Verified on the Kabuto left leg and on Smartie.
 - World = Wparent × Local. Vertex = BoneWorld × local. Verified exactly (gzptool skincheck).
 - Interpolation: linear/slerp between keys. The TCB tangents aren't used yet.
+
+## MusicSet.bin — V (structure)
+`u32 nSongs, u32 nPairs, u32 nSets, u32 songOff[nSongs]`, pairs `{char from[16], char to[16]}`, sets
+`{char set[16], char song[16]}`; song: `char name[16]`, `char segment[16]...`, `u8 end` (0/1 loop, 2 + `char[16]` chain).
+Two songs share one offset (use the next larger offset as the end). Segment `X` = `Music/<prefix>/<X>.raw`, 16-bit
+stereo PCM at 22050 Hz with no header. A pair means "leaving segment `from`, enter at `to`"; the target mood is the set
+containing `to`'s song.
+
+## GText<Language>.bin — V
+`u32 n, u32 keyBytes, u32 valueBytes, {u32 keyOffset, u32 valueOffset}[n]`, key strings, value strings (NUL-terminated).
+
+## Mission triggers — V (from the decompiled mission code, checked against the data)
+Mission op 8 low 4 bits: 1 proximity (10 game units of the bounds), 2 death, 3 destination arrival, 4 Vimp-meat proximity.
+
+## Cutscene scripts flk_*.bin — P
+They name their soundtrack stream as a NUL-terminated `f_...` string (`f_start`, `f_jetpack`), at `Stream/<World>/F_*.wav`
+(22050 Hz stereo PCM). They embed ANM-style node tables (actors, `camera01`). The bytecode is not decoded yet.

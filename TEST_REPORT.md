@@ -117,3 +117,13 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 
 ## Device test 16 — 2026-10-21 22:38 local, user's Quest 2 (build 74debe0)
 - User: "It's fine now." Ripper steering, spit balls (orange/blue), burst/collapse deaths and data hit points are **DEVICE VERIFIED**.
+
+## Host verification — mission objectives and music (build 50c05f59…)
+- `gvr_tests` pass. New `testMusic`:
+  - set parsing and set membership;
+  - transitions into a variant song via its bridge segment;
+  - chaining into a loop song;
+  - gapless mixer queue;
+  - raw decoding.
+- Harness: `Music: 429 songs, 932 transitions`, 4 objectives, completion, soundtrack, jetpack (see log). **Not yet device-tested.**
+- On the headset, music and soundtracks need the `Music` and `Stream` folders copied next to `Bin` (INSTALL.md).

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstdint>
+#include <deque>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -47,6 +48,13 @@ public:
     void setListener(const Vec3& pos, const Quat& orientation);
     void setMasterVolume(float v);
 
+    // Music: interleaved stereo buffers (any rate) played back to back without gaps.
+    void queueMusic(std::vector<float>&& stereo, uint32_t rate);
+    size_t musicQueued() const;     // buffers waiting or playing
+    void clearMusic();
+    void setMusicVolume(float v);
+    uint64_t musicFramesPlayed() const;  // output frames of music mixed so far
+
     // Mixes `frames` stereo frames (interleaved L,R) into out (overwrites).
     void mix(float* out, uint32_t frames);
     size_t activeVoices() const;
@@ -75,6 +83,11 @@ private:
     Vec3 listenerPos_;
     Quat listenerRot_;
     float master_ = 1.0f;
+    struct MusicBuf { std::vector<float> data; uint32_t rate; };
+    std::deque<MusicBuf> music_;
+    double musicCursor_ = 0;  // source frame position in music_.front()
+    float musicVolume_ = 0.5f;
+    uint64_t musicFrames_ = 0;
 };
 
 }  // namespace gvr

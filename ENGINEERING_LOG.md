@@ -421,3 +421,39 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - 26 m from Timmy's Rippers, standing still: 4 spits in 12 s, about half hit.
   - Misses land 2.5–2.8 m away, past the player's side.
   - Firing back kills all three; `GVR_BURST_CHANCE=1` frames show the flash and the flying gore.
+
+### Device test 16 → Rippers confirmed (2026-10-21 22:38 local): "It's fine now."
+
+### Mission objectives, the story jetpack, original music (2026-10-21 23:55 local)
+- **Data:** the workspace held only 331 of the 899 Bin files. Copied from the user's PC:
+  - the Story1 and intro cutscene scripts (`flk_*.bin`);
+  - `VO_SfxEnglish.gzp`, `GTextEnglish.bin`, `MusicSet.bin`;
+  - the Stream/Story1 soundtracks;
+  - Music segments for ma1, msb and mvy.
+- **Mission triggers (decompiled `mission_trigger_name`, `mission_check_obj_proximity`, used as references):**
+  - Mission op 8 sets the object's trigger: 1 proximity, 2 death, 3 destination arrival, 4 Vimp-meat proximity.
+  - Proximity fires within 10 game units (2 m) of the object's bounds.
+  - Each fired trigger increments the mission counter.
+  - 1a_1_timmy has 4: the three Rippers at Timmy's tower (death) and `sm_tower_timmy` (proximity).
+  - 1b: 8 Smarties (destination). 1c: a trigger sphere (proximity).
+- **Mission text:** `GTextEnglish.bin` = `u32 n, u32 keyBytes, u32 valueBytes, {u32 keyOff, u32 valOff}[n]`, then the key and
+  value strings. 2003 entries, including every cutscene subtitle line ("flk_story1_jetpack_3_2": "There's no way I was
+  giving my new jetpack to that old Ripper!").
+- **Story jetpack:**
+  - The opening cutscene has Baz lose his jetpack ("WAIT!!! Don't shut the hatch... I need my jetpack!").
+  - Mission item lists (op 0x0E) contain item 1 in every later Mecc mission and not in 1a. Item 1 is read as the jetpack
+    (provisional).
+  - The jetpack is off until 1a is complete; the fuel bar is hidden until then.
+- **Completion:**
+  - All objectives done → the outro flick's soundtrack plays. The flick names its stream (`f_jetpack`), resolved in
+    `Stream/<World>/`.
+  - The jetpack is granted. The flick visuals are not played yet.
+- **Music (MusicSet.bin decoded, see FORMATS.md):**
+  - 429 songs (sequential playlists; segment joins are sample-continuous, e.g. a1→a2 jump 10 vs typical step 124).
+  - 380 mood-set variants; 932 resolved transitions (from segment → entry segment of the target set).
+  - Segments are headerless 16-bit stereo PCM at 22050 Hz: gs_ds.dll sets every stream format to 22050 Hz.
+- **Music moods (ours; the original's choice is native code):** ambient `ma1` (Mecc), `msb` with 1–3 engaged enemies,
+  `mlb` with 4+, the `mvy` stinger on mission completion, silence during a cutscene soundtrack.
+- **Headless:**
+  - Idle recording has ambient music (RMS 0.01–0.05).
+  - At Timmy's tower with auto-aim: objectives 4/4 → "Mission 1a_1_timmy complete" → `f_jetpack` (40 s) plays → jetpack granted.

@@ -35,6 +35,8 @@ class SkinnedModel;  // scene/skinned_model.h
 struct RenderModel;  // scene/model_cache.h
 class ModelCache;   // scene/model_cache.h
 class AudioMixer;   // audio/mixer.h
+class MusicSet;     // audio/music.h
+class MusicDirector;
 
 class GameApp {
 public:
@@ -157,6 +159,7 @@ private:
         float yaw = 0, scale = 1, lift = 0, time = 0, stepTimer = 0;
         bool ambient = true, visible = true;
         CreatureSize size = CreatureSize::Medium;
+        int objective = -1;  // mission objective completed by this creature's death
     };
     // Ripper spit balls (orange medium / blue large), blasts and gore from bursting Rippers.
     std::unique_ptr<SkinnedModel> spitBall_[3];
@@ -173,7 +176,35 @@ private:
     CreatureDirector creatures_;
     std::vector<CreatureEvent> creatureEvents_;
     bool missionHostiles_ = false;
-    size_t spitsLaunched_ = 0, spitHits_ = 0;  // the mission placed enemies: no test waves
+    size_t spitsLaunched_ = 0, spitHits_ = 0;
+    // Mission objectives from the mission stream's trigger objects (op 8): 1 proximity (within
+    // 10 game units = 2 m of the object's bounds), 2 death. Kinds 3 (destination arrival) and 4
+    // (Vimp meat) are not implemented yet. All done = mission complete.
+    struct Objective { int kind; Vec3 boundsMin, boundsMax; bool done = false; };
+    std::vector<Objective> objectives_;
+    size_t objectivesDone_ = 0;
+    bool missionComplete_ = false;
+    std::string dataDir_, worldName_;
+    void initMission();
+    void updateMission(float dt);
+    void completeObjective(int index);
+    // Original adaptive music (Music/*.raw + Bin/MusicSet.bin) and cutscene soundtracks.
+    std::unique_ptr<MusicSet> musicSet_;
+    std::unique_ptr<MusicDirector> music_;
+    std::vector<std::pair<std::string, std::string>> musicFiles_;  // lower-case segment -> path
+    std::string ambientSet_ = "ma1";
+    float combatHold_ = 0, streamLeft_ = 0, stingerLeft_ = 0;
+    void initMusic();
+    void updateMusic(float dt);
+    std::string findMusicFile(const std::string& segment) const;
+    // Plays the soundtrack stream of a cutscene (flk_<name>.bin names it, e.g. "f_jetpack").
+    bool playFlickSoundtrack(const std::string& flick);
+public:
+    size_t objectiveCount() const { return objectives_.size(); }
+    size_t objectivesDone() const { return objectivesDone_; }
+    bool missionComplete() const { return missionComplete_; }
+    bool jetpackAvailable() const { return player_.jetpackAvailable; }
+private:  // the mission placed enemies: no test waves
     void initCharacters(AssetWorld* w, ModelCache* mc);
     void updateCharacters(float dt);
     void creatureSound(const CreatureEvent& e);

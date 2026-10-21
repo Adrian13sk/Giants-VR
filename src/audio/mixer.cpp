@@ -148,9 +148,59 @@ void AudioMixer::targetGains(const Voice& v, float& l, float& r) const {
     r = g * std::sin(a);
 }
 
+void AudioMixer::queueMusic(std::vector<float>&& stereo, uint32_t rate) {
+    if (stereo.size() < 4 || rate == 0) return;
+    std::lock_guard<std::mutex> lk(mu_);
+    music_.push_back({std::move(stereo), rate});
+}
+
+size_t AudioMixer::musicQueued() const {
+    std::lock_guard<std::mutex> lk(mu_);
+    return music_.size();
+}
+
+void AudioMixer::clearMusic() {
+    std::lock_guard<std::mutex> lk(mu_);
+    music_.clear();
+    musicCursor_ = 0;
+}
+
+void AudioMixer::setMusicVolume(float v) {
+    std::lock_guard<std::mutex> lk(mu_);
+    musicVolume_ = v;
+}
+
+uint64_t AudioMixer::musicFramesPlayed() const {
+    std::lock_guard<std::mutex> lk(mu_);
+    return musicFrames_;
+}
+
 void AudioMixer::mix(float* out, uint32_t frames) {
     std::fill(out, out + size_t(frames) * 2, 0.0f);
     std::lock_guard<std::mutex> lk(mu_);
+    // Music: seamless across queued buffers (linear interpolation, the next buffer supplies
+    // the sample after the last one of the current buffer).
+    for (uint32_t i = 0; i < frames && !music_.empty(); ++i) {
+        const MusicBuf& b = music_.front();
+        const size_t n = b.data.size() / 2;
+        size_t i0 = size_t(musicCursor_);
+        if (i0 >= n) {
+            musicCursor_ -= double(n);
+            music_.pop_front();
+            --i;
+            continue;
+        }
+        const float f = float(musicCursor_ - double(i0));
+        float l1, r1;
+        if (i0 + 1 < n) { l1 = b.data[2 * i0 + 2]; r1 = b.data[2 * i0 + 3]; }
+        else if (music_.size() > 1) { l1 = music_[1].data[0]; r1 = music_[1].data[1]; }
+        else { l1 = b.data[2 * i0]; r1 = b.data[2 * i0 + 1]; }
+        const float g = musicVolume_ * master_;
+        out[2 * i] += (b.data[2 * i0] + (l1 - b.data[2 * i0]) * f) * g;
+        out[2 * i + 1] += (b.data[2 * i0 + 1] + (r1 - b.data[2 * i0 + 1]) * f) * g;
+        musicCursor_ += double(b.rate) / double(outRate_);
+        ++musicFrames_;
+    }
     for (auto& v : voices_) {
         const Sound& s = *v.sound;
         const double step = double(s.rate) / double(outRate_) * double(v.pitch);

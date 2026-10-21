@@ -175,6 +175,7 @@ struct Placement {
     uint32_t type;
     float x, y, z, yaw, pitch, roll, scale;
     bool mission = false;
+    int trigger = 0;  // mission trigger kind (op 8 low bits)
 };
 
 // Creature object classes ("ospec", type op 0x1E) seen in the mission files: 1 Kabuto,
@@ -239,7 +240,8 @@ void AssetWorld::placeWorldObjects(const std::string& dataDir) {
         }
         for (const auto& o : mission_.objects) {
             if (o.parent >= 0) { ++mounted; continue; }  // carried items (e.g. a jetpack) not shown yet
-            all.push_back({o.type, o.x, o.y, o.z, o.yaw, o.pitch, o.roll, o.scale > 0 ? o.scale : typeScale(o.type), true});
+            all.push_back({o.type, o.x, o.y, o.z, o.yaw, o.pitch, o.roll, o.scale > 0 ? o.scale : typeScale(o.type), true,
+                           int(o.flags & 0x0F)});
         }
         LOGI("Mission %s: %zu objects (%zu mounted), start flick '%s'", sc.name.c_str(), mission_.objects.size(),
              mounted, mission_.startFlick.c_str());
@@ -248,6 +250,30 @@ void AssetWorld::placeWorldObjects(const std::string& dataDir) {
     size_t hidden = 0, missing = 0;
     for (const auto& p : all) {
         const std::string name = registry_.modelName(p.type);
+        if (p.mission && p.trigger && !isCharacter(registry_, p.type, name)) {
+            // Proximity-type triggers on objects (Timmy's tower, invisible trigger spheres): their
+            // world-space bounds, from the model when it has one.
+            TriggerObject t;
+            t.kind = p.trigger;
+            t.type = p.type;
+            const Vec3 at = giantsToRuntime(p.x, p.y, p.z);
+            t.boundsMin = at - Vec3{0.5f, 0.0f, 0.5f};
+            t.boundsMax = at + Vec3{0.5f, 2.0f, 0.5f};
+            if (const RenderModel* m = name.empty() ? nullptr : cache_->get(name + ".gbs", registry_.modelAnim(p.type))) {
+                const Mat4 xf = placementMatrix(p);
+                Vec3 mn{1e30f, 1e30f, 1e30f}, mx{-1e30f, -1e30f, -1e30f};
+                for (int c = 0; c < 8; ++c) {
+                    const Vec3 lc{c & 1 ? m->boundsMax.x : m->boundsMin.x, c & 2 ? m->boundsMax.y : m->boundsMin.y,
+                                  c & 4 ? m->boundsMax.z : m->boundsMin.z};
+                    const Vec4 w = xf * Vec4{lc.x, lc.y, lc.z, 1.0f};
+                    mn = {std::min(mn.x, w.x), std::min(mn.y, w.y), std::min(mn.z, w.z)};
+                    mx = {std::max(mx.x, w.x), std::max(mx.y, w.y), std::max(mx.z, w.z)};
+                }
+                t.boundsMin = mn;
+                t.boundsMax = mx;
+            }
+            triggers_.push_back(t);
+        }
         if (name.empty() || isInvisibleHelper(name)) { ++hidden; continue; }
         if (p.mission && isCharacter(registry_, p.type, name) && fs_.exists(name + ".skn")) {
             // Animated by the game layer (AI or ambient loop), not baked into a static pose.
@@ -255,7 +281,7 @@ void AssetWorld::placeWorldObjects(const std::string& dataDir) {
             Vec3 pos = giantsToRuntime(p.x, p.y, p.z);
             float gy;
             if (hasTerrain_ && terrain_.heightAt(pos.x, pos.z, gy)) pos.y = gy;
-            characters_.push_back({p.type, name, t ? t->objectClass : -1, pos, p.yaw * kPi / 180.0f, p.scale});
+            characters_.push_back({p.type, name, t ? t->objectClass : -1, pos, p.yaw * kPi / 180.0f, p.scale, p.trigger});
             continue;
         }
         const RenderModel* m = cache_->get(name + ".gbs", registry_.modelAnim(p.type));

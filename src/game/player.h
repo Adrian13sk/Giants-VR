@@ -61,6 +61,9 @@ public:
     // First person: the body faces the view direction (strafe/backpedal clips by movement angle)
     // instead of turning toward the travel direction.
     bool faceView = false;
+    // False until the jetpack is in the inventory (Mecc story 1 starts without it: Baz loses it
+    // in the opening cutscene and gets it from Timmy).
+    bool jetpackAvailable = true;
     const CollisionWorld* collision = nullptr;  // level objects (optional)
     float radius = 0.35f, height = 1.8f, stepUp = 0.45f;  // capsule (m)
 

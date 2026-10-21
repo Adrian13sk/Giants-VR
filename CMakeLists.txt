@@ -37,6 +37,7 @@ add_library(gvr_core STATIC
   src/game/enemy.cpp
   src/game/creature.cpp
   src/audio/mixer.cpp
+  src/audio/music.cpp
   src/game/game_app.cpp
 )
 target_include_directories(gvr_core PUBLIC src third_party)
