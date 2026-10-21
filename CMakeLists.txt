@@ -22,6 +22,9 @@ add_library(gvr_core STATIC
   src/scene/model_cache.cpp
   src/scene/asset_world.cpp
   src/scene/test_scene.cpp
+  src/scene/terrain.cpp
+  src/assets/gti.cpp
+  src/assets/world_bin.cpp
   src/game/vr_rig.cpp
   src/game/game_app.cpp
 )

@@ -1,0 +1,35 @@
+# GiantsVR — repository instructions
+
+Unofficial standalone Meta Quest 2 VR port of *Giants: Citizen Kabuto* (2000). No original
+source exists; this is a **native reimplementation that loads the user's original data files**
+(GOG `Bin/` folder) and renders them through OpenXR + OpenGL ES 3 on Android arm64.
+
+## Ground rules
+- Never commit or package proprietary game data (`*.gzp`, extracted `*.gbs/*.tga/...`, renders of
+  them). The APK contains only our code; users copy their own `Bin/` folder to the headset.
+- Do not copy code from the decompilation repo (`YYoudi/vibe-giants-decomp`, no licence) or from
+  GiantsTools (no licence) or GiantZiP (GPL-2.0). Use them only as *factual* format references and
+  verify every claim against real files (record evidence in `docs/formats/`).
+- Label status honestly: IMPLEMENTED / BUILD VERIFIED / DEVICE VERIFIED. Nothing is device
+  verified until it has run on a Quest.
+
+## Layout
+- `src/core` math/log · `src/render` GLES3 renderer · `src/assets` file formats (GZP, GBS, GTI,
+  world .bin, images) · `src/scene` terrain/model cache/worlds · `src/game` VR rig, input state,
+  GameApp (platform-independent app core) · `src/xr` OpenXR · `src/platform/android` entry point.
+- `tools/headless` Mesa/EGL harness running the same GameApp → stereo PNG. `tools/gzptool`
+  archive/asset validator. `tools/py` Python reference decoders used for format RE.
+- `tests/` unit tests on synthetic data (no proprietary data needed).
+
+## Build
+- Toolchain: `scripts/fetch_deps.sh` (GitHub-hosted, checksum pinned; Google hosts are blocked
+  in the cloud dev environment). Default location `../toolchains`.
+- Host: `cmake -S . -B build/host -G Ninja && ninja -C build/host && build/host/gvr_tests`
+- Quest APK: `scripts/build_apk.sh` → `build/apk/GiantsVR-dev.apk`
+- Asset validation: `build/host/gzptool validate <path to Bin>`
+- Visual check: `build/host/headless_render --data <Bin> --world Story1 --out out/x.png`
+
+## Conventions
+- Runtime frame: right-handed, +Y up, -Z forward, metres. Giants data is Z-up:
+  `runtime = (-x, z, y) * gGameUnitsToMeters` (0.3, provisional). Winding preserved.
+- Keep docs current: PROJECT_STATUS.md, ENGINEERING_LOG.md, BLOCKERS.md, TEST_REPORT.md.

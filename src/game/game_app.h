@@ -33,7 +33,7 @@ public:
     ~GameApp();
     // GL context must be current. dataDir: directory holding the user's original game files
     // (the contents of the game's "Bin" folder). Missing data is not fatal.
-    bool init(const std::string& dataDir);
+    bool init(const std::string& dataDir, const std::string& worldName = "Story1");
     void update(float dt, const InputFrame& input);
     void renderEye(const EyeRenderInfo& eye);
     void shutdown();
@@ -53,6 +53,7 @@ private:
     ButtonEdge triggerEdge_[2];
     ButtonEdge modeEdge_;
     bool showTestScene_ = true;
+    bool needSpawn_ = false;
     double time_ = 0.0;
 };
 

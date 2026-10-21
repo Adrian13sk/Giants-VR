@@ -2,7 +2,7 @@
 // (EGL surfaceless + GLES 3), with a scripted head/controller pose, and writes a side-by-side
 // stereo PNG. Used to verify rendering and original-asset loading without a headset.
 //
-// usage: headless_render [--data DIR] [--out file.png] [--size W H] [--frames N]
+// usage: headless_render [--data DIR] [--world Story1] [--out file.png] [--size W H] [--frames N]
 //                        [--move X Y] [--turn X] [--head-yaw DEG] [--no-test-scene]
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -55,7 +55,7 @@ static bool initEgl() {
 }
 
 int main(int argc, char** argv) {
-    std::string dataDir = "", out = "stereo.png";
+    std::string dataDir = "", out = "stereo.png", world = "Story1";
     int w = 720, h = 792, frames = 1;
     float moveX = 0, moveY = 0, turnX = 0, headYawDeg = 0;
     bool testScene = true;
@@ -70,11 +70,12 @@ int main(int argc, char** argv) {
         else if (a == "--turn") turnX = std::atof(next());
         else if (a == "--head-yaw") headYawDeg = std::atof(next());
         else if (a == "--no-test-scene") testScene = false;
+        else if (a == "--world") world = next();
     }
     if (!initEgl()) return 2;
 
     GameApp app;
-    if (!app.init(dataDir)) return 3;
+    if (!app.init(dataDir, world)) return 3;
     LOGI("original assets loaded: %s", app.hasOriginalAssets() ? "yes" : "no");
 
     // Scripted tracking-space poses, approximating a standing Quest 2 user.

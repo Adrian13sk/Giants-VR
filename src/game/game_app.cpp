@@ -8,7 +8,7 @@ namespace gvr {
 GameApp::GameApp() = default;
 GameApp::~GameApp() = default;
 
-bool GameApp::init(const std::string& dataDir) {
+bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
     if (!renderer_.init()) {
         LOGE("Renderer init failed");
         return false;
@@ -18,10 +18,21 @@ bool GameApp::init(const std::string& dataDir) {
         return false;
     }
     assetWorld_ = std::make_unique<AssetWorld>();
-    if (!assetWorld_->init(dataDir, renderer_)) {
+    if (!assetWorld_->init(dataDir, renderer_, worldName)) {
         LOGW("Original assets unavailable: %s", assetWorld_->status().c_str());
     }
-    rig_.groundHeight = [](float, float) { return 0.0f; };
+    if (assetWorld_->hasTerrain()) {
+        showTestScene_ = false;
+        needSpawn_ = true;
+        AssetWorld* w = assetWorld_.get();
+        // Walk on the original terrain; keep the current height when off the heightfield.
+        rig_.groundHeight = [w, this](float x, float z) {
+            float y;
+            return w->terrain().heightAt(x, z, y) ? y : rig_.worldFromTracking.position.y;
+        };
+    } else {
+        rig_.groundHeight = [](float, float) { return 0.0f; };
+    }
     return true;
 }
 
@@ -29,6 +40,10 @@ bool GameApp::hasOriginalAssets() const { return assetWorld_ && assetWorld_->loa
 
 void GameApp::update(float dt, const InputFrame& in) {
     time_ += dt;
+    if (needSpawn_ && in.headValid) {
+        rig_.teleportHead(in, assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
+        needSpawn_ = false;
+    }
     rig_.update(dt, in);
     if (assetWorld_) assetWorld_->update(dt);
 
@@ -48,8 +63,9 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     v.projection = Mat4::projectionFov(eye.fovLeft, eye.fovRight, eye.fovUp, eye.fovDown, 0.05f, 0.0f);
     v.eyePosition = eyeWorld.position;
     renderer_.beginView(v, eye.width, eye.height, true);
-    if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
     if (assetWorld_ && assetWorld_->loaded()) assetWorld_->render(renderer_);
+    if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
+    else testScene_.renderControllers(renderer_, rig_, lastInput_);
     renderer_.endView();
 }
 

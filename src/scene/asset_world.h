@@ -1,7 +1,7 @@
-// Scene built from the user's ORIGINAL Giants: Citizen Kabuto data files.
-// Current scope (M7 step 1): mount the GZP archives and display original character models
-// at their original relative scale around the player. Terrain and level object placement
-// follow in later milestones.
+// Scene built from the user's ORIGINAL Giants: Citizen Kabuto data files:
+// world definition (w_<World>.bin), GTI terrain with its textures and lightmap, sea plane,
+// fog, and a showcase of original character models placed on the terrain.
+// Object placement from the world/mission files is not implemented yet (see BLOCKERS.md).
 #pragma once
 
 #include <memory>
@@ -9,20 +9,27 @@
 #include <vector>
 
 #include "assets/gzp.h"
+#include "assets/world_bin.h"
 #include "render/renderer.h"
 #include "scene/model_cache.h"
+#include "scene/terrain.h"
 
 namespace gvr {
 
 class AssetWorld {
 public:
-    bool init(const std::string& dataDir, Renderer& r);
+    bool init(const std::string& dataDir, Renderer& r, const std::string& worldName);
     void update(float dt);
     void render(Renderer& r);
-    bool loaded() const { return !placed_.empty(); }
+    bool loaded() const { return !placed_.empty() || hasTerrain_; }
+    bool hasTerrain() const { return hasTerrain_; }
     const std::string& status() const { return status_; }
     const AssetFS& fs() const { return fs_; }
     ModelCache* models() { return cache_.get(); }
+    const Terrain& terrain() const { return terrain_; }
+    Vec3 spawnPoint() const { return spawn_; }
+    float spawnYaw() const { return spawnYaw_; }
+    const WorldDefinition& world() const { return world_; }
 
     struct Placed {
         const RenderModel* model;
@@ -33,10 +40,22 @@ public:
     std::vector<Placed>& placed() { return placed_; }
 
 private:
+    bool loadWorld(const std::string& name, Renderer& r);
+    void placeShowcase(const Vec3& centre);
+
     AssetFS fs_;
     std::unique_ptr<ModelCache> cache_;
     std::vector<Placed> placed_;
     std::string status_;
+    WorldDefinition world_;
+    Terrain terrain_;
+    bool hasTerrain_ = false;
+    MeshId seaMesh_ = 0;
+    MeshId skyMesh_ = 0;
+    TextureId skyTexture_ = 0;
+    TextureId seaTexture_ = 0;
+    Vec3 spawn_{0, 0, 0};
+    float spawnYaw_ = 0.0f;
 };
 
 }  // namespace gvr

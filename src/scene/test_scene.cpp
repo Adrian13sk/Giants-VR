@@ -61,6 +61,10 @@ void TestScene::render(Renderer& r, const VrRig& rig, const InputFrame& in) {
     DrawParams cp; cp.tint = {0.95f, 0.8f, 0.2f, 1};
     r.draw(box_, Mat4::trs({0, 1.5f, -2.5f}, Quat::fromAxisAngle({0, 1, 0}, 0.6f), {0.4f, 0.4f, 0.4f}), cp);
 
+    renderControllers(r, rig, in);
+}
+
+void TestScene::renderControllers(Renderer& r, const VrRig& rig, const InputFrame& in) {
     // Controllers: grip box (colour = trigger/squeeze), aim ray, button indicator spheres.
     for (int h = 0; h < 2; ++h) {
         const ControllerState& c = in.hand[h];

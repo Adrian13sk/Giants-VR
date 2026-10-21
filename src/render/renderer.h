@@ -37,6 +37,8 @@ struct DrawParams {
     BlendMode blend = BlendMode::Opaque;
     bool unlit = false;
     bool doubleSided = false;
+    bool noFog = false;
+    bool depthWrite = true;
 };
 
 struct ViewParams {
@@ -50,7 +52,8 @@ struct EnvironmentParams {
     Vec3 sunColor{1.0f, 0.96f, 0.88f};
     Vec3 ambientColor{0.35f, 0.38f, 0.45f};
     Vec3 fogColor{0.55f, 0.70f, 0.90f};
-    float fogDensity = 0.004f;  // exponential-squared fog density per metre
+    float fogNear = 60.0f;      // linear fog start (metres), like the original D3D fog
+    float fogFar = 600.0f;      // linear fog end (metres)
     Vec3 clearColor{0.55f, 0.70f, 0.90f};
 };
 
@@ -71,6 +74,7 @@ public:
     void beginView(const ViewParams& view, int viewportWidth, int viewportHeight, bool clear = true);
     void draw(MeshId mesh, const Mat4& model, const DrawParams& params = {});
     void endView();
+    const ViewParams& currentView() const { return currentView_; }
 
     uint32_t drawCallsThisFrame() const { return drawCalls_; }
     void resetStats() { drawCalls_ = 0; }
@@ -88,7 +92,7 @@ private:
 
     GLuint program_ = 0;
     GLint uMVP_ = -1, uModel_ = -1, uTint_ = -1, uSunDir_ = -1, uSunColor_ = -1, uAmbient_ = -1;
-    GLint uFogColor_ = -1, uFogDensity_ = -1, uEyePos_ = -1, uUnlit_ = -1, uAlphaRef_ = -1, uTex_ = -1;
+    GLint uFogColor_ = -1, uFogRange_ = -1, uEyePos_ = -1, uUnlit_ = -1, uAlphaRef_ = -1, uTex_ = -1;
     GLuint whiteTexture_ = 0;
     std::vector<GpuMesh> meshes_;
     std::vector<GpuTexture> textures_;

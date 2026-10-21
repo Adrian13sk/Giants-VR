@@ -7,10 +7,14 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <algorithm>
 #include <map>
 #include <string>
 
 #include "assets/gbs.h"
+#include "assets/gti.h"
+#include "assets/world_bin.h"
+#include <dirent.h>
 #include "assets/gzp.h"
 #include "assets/image.h"
 #include "scene/model_cache.h"
@@ -63,6 +67,7 @@ static int cmdValidate(const char* dir) {
     AssetFS fs;
     int n = fs.mountAllArchives(dir);
     std::printf("mounted %d archives\n", n);
+    fs.mountDirectory(dir);
     std::map<std::string, int> ok, bad;
     int volPos = 0, volNeg = 0;
     for (const std::string& name : fs.list()) {
@@ -78,10 +83,37 @@ static int cmdValidate(const char* dir) {
                 double v = signedVolume(buildGbsParts(m));
                 (v >= 0 ? volPos : volNeg)++;
             } else { bad["gbs"]++; std::printf("GBS FAIL %s: %s\n", name.c_str(), err.c_str()); }
+        } else if (ext == "gti") {
+            GtiTerrain t;
+            if (parseGti(d.data(), d.size(), t, &err)) {
+                ok["gti"]++;
+                std::printf("GTI %-24s %ux%u cells, consumed %zu/%zu bytes\n", name.c_str(), t.tilesX, t.tilesY,
+                            t.bytesConsumed, d.size());
+            } else { bad["gti"]++; std::printf("GTI FAIL %s: %s\n", name.c_str(), err.c_str()); }
         } else if (ext == "tga") {
             Image img;
             if (decodeImage(d.data(), d.size(), img, &err)) ok["tga"]++;
             else { bad["tga"]++; std::printf("TGA FAIL %s: %s\n", name.c_str(), err.c_str()); }
+        }
+    }
+    // World definition files (loose in Bin/).
+    if (DIR* dd = opendir(dir)) {
+        std::vector<std::string> worlds;
+        while (dirent* de = readdir(dd)) {
+            std::string n = de->d_name;
+            if (n.size() > 6 && toLower(n.substr(0, 2)) == "w_" && toLower(n.substr(n.size() - 4)) == ".bin") worlds.push_back(n);
+        }
+        closedir(dd);
+        std::sort(worlds.begin(), worlds.end());
+        for (const auto& n : worlds) {
+            std::vector<uint8_t> d;
+            if (!fs.read(n, d)) continue;
+            WorldDefinition w;
+            std::string err;
+            if (!parseWorldBin(d.data(), d.size(), w, &err)) { bad["world"]++; std::printf("WORLD FAIL %s: %s\n", n.c_str(), err.c_str()); continue; }
+            (w.complete ? ok["world"] : ok["world-partial"])++;
+            std::printf("WORLD %-24s terrain=%-18s records=%-4zu objects=%-3zu consumed %zu/%zu stop=%d\n", n.c_str(),
+                        w.terrainName.c_str(), w.recordsParsed, w.objects.size(), w.streamConsumed, w.streamSize, w.stopOpcode);
         }
     }
     for (auto& [k, v] : ok) std::printf("ok   %-8s %d\n", k.c_str(), v);

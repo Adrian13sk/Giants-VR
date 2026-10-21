@@ -7,6 +7,8 @@
 
 #include "assets/gbs.h"
 #include "assets/gzp.h"
+#include "assets/gti.h"
+#include "assets/world_bin.h"
 #include "core/math.h"
 #include "game/vr_rig.h"
 
@@ -163,7 +165,53 @@ static void testRig() {
     CHECK(near(r3.worldFromTracking.position.z, 0.0f));
 }
 
+static void testGti() {
+    // 2x1 interior cells, lightmap flag; stream: skip 0, literal run of 2 cells.
+    std::vector<uint8_t> d;
+    put32(d, 0x94965003); put32(d, 0);
+    putf(d, -100); putf(d, -50); putf(d, 0); putf(d, 10);
+    put32(d, 2); put32(d, 1); putf(d, 50.0f); putf(d, 0.5f); putf(d, 0.5f); put32(d, 0); put32(d, 0);
+    d.push_back(2); d.push_back(1); d.push_back(1); d.push_back(0);
+    put32(d, 0); putf(d, 1.0f);
+    char name[32] = "synthetic"; d.insert(d.end(), name, name + 32);
+    d.push_back(1);  // run of 2 literal cells
+    putf(d, 3.0f); d.push_back(5); d.push_back(10); d.push_back(20); d.push_back(30);
+    putf(d, 7.0f); d.push_back(5); d.push_back(1); d.push_back(2); d.push_back(3);
+    GtiTerrain t;
+    std::string err;
+    CHECK(parseGti(d.data(), d.size(), t, &err));
+    CHECK(t.gridW == 4 && t.gridH == 3);
+    CHECK(t.valid(1, 1) && t.valid(2, 1) && !t.valid(0, 0) && !t.valid(1, 2));
+    CHECK(near(t.h(2, 1), 7.0f) && t.light[(1 * 4 + 1) * 3 + 2] == 30);
+    CHECK(near(t.worldX(1), -100.0f) && near(t.worldX(2), -50.0f));
+    CHECK(!parseGti(d.data(), d.size() - 2, t, &err));
+}
+
+static void testWorldBin() {
+    std::vector<uint8_t> d;
+    put32(d, 0x1A0002E5);
+    for (int i = 0; i < 7; ++i) put32(d, 32);
+    std::vector<uint8_t> s;
+    const char* h1 = "box01"; s.insert(s.end(), h1, h1 + 6);
+    const char* h2 = "test.gti"; s.insert(s.end(), h2, h2 + 9);
+    s.push_back(52); { char n[44] = "grnd_tex"; s.insert(s.end(), n, n + 44); }
+    s.push_back(41); putf(s, 10.0f); putf(s, 100.0f); s.push_back(1); s.push_back(2); s.push_back(3);
+    s.push_back(42); put32(s, 1298); putf(s, 1.0f); putf(s, 2.0f); putf(s, 3.0f); putf(s, 0.5f);
+    s.push_back(0xFF);
+    put32(d, uint32_t(s.size()));
+    d.insert(d.end(), s.begin(), s.end());
+    WorldDefinition w;
+    std::string err;
+    CHECK(parseWorldBin(d.data(), d.size(), w, &err));
+    CHECK(w.terrainName == "test.gti" && w.groundTexture == "grnd_tex");
+    CHECK(w.hasFog && near(w.fogFar, 100.0f) && w.fogRGB[2] == 3);
+    CHECK(w.objects.size() == 1 && w.objects[0].type == 1298 && near(w.objects[0].z, 3.0f));
+    CHECK(w.complete && w.stopOpcode == 0xFF);
+}
+
 int main() {
+    testGti();
+    testWorldBin();
     testLzss();
     testGzp();
     testGbs();

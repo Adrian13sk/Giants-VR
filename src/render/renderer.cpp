@@ -64,7 +64,7 @@ uniform vec3 uSunDir;
 uniform vec3 uSunColor;
 uniform vec3 uAmbient;
 uniform vec3 uFogColor;
-uniform float uFogDensity;
+uniform vec2 uFogRange;  // near, 1/(far-near)
 uniform highp vec3 uEyePos;
 uniform float uUnlit;
 uniform float uAlphaRef;
@@ -78,7 +78,7 @@ void main() {
     vec3 lit = base.rgb * (uAmbient + uSunColor * ndl);
     vec3 rgb = mix(lit, base.rgb, uUnlit);
     highp float d = length(vWorldPos - uEyePos);
-    float fog = clamp(exp(-(uFogDensity * d) * (uFogDensity * d)), 0.0, 1.0);
+    float fog = clamp(1.0 - (d - uFogRange.x) * uFogRange.y, 0.0, 1.0);
     oColor = vec4(mix(uFogColor, rgb, fog), base.a);
 }
 )";
@@ -126,7 +126,7 @@ bool Renderer::init() {
     uSunColor_ = glGetUniformLocation(program_, "uSunColor");
     uAmbient_ = glGetUniformLocation(program_, "uAmbient");
     uFogColor_ = glGetUniformLocation(program_, "uFogColor");
-    uFogDensity_ = glGetUniformLocation(program_, "uFogDensity");
+    uFogRange_ = glGetUniformLocation(program_, "uFogRange");
     uEyePos_ = glGetUniformLocation(program_, "uEyePos");
     uUnlit_ = glGetUniformLocation(program_, "uUnlit");
     uAlphaRef_ = glGetUniformLocation(program_, "uAlphaRef");
@@ -248,7 +248,8 @@ void Renderer::beginView(const ViewParams& view, int w, int h, bool clear) {
     glUniform3f(uSunColor_, env_.sunColor.x, env_.sunColor.y, env_.sunColor.z);
     glUniform3f(uAmbient_, env_.ambientColor.x, env_.ambientColor.y, env_.ambientColor.z);
     glUniform3f(uFogColor_, env_.fogColor.x, env_.fogColor.y, env_.fogColor.z);
-    glUniform1f(uFogDensity_, env_.fogDensity);
+    const float fogSpan = env_.fogFar > env_.fogNear ? env_.fogFar - env_.fogNear : 1e9f;
+    glUniform2f(uFogRange_, env_.fogNear, 1.0f / fogSpan);
     glUniform3f(uEyePos_, view.eyePosition.x, view.eyePosition.y, view.eyePosition.z);
     glUniform1i(uTex_, 0);
     glActiveTexture(GL_TEXTURE0);
@@ -293,8 +294,14 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
             break;
     }
     if (p.doubleSided) glDisable(GL_CULL_FACE); else glEnable(GL_CULL_FACE);
+    if (!p.depthWrite) glDepthMask(GL_FALSE);
+    if (p.noFog) glUniform2f(uFogRange_, 1e9f, 0.0f);
     glBindVertexArray(m.vao);
     glDrawElements(GL_TRIANGLES, m.indexCount, GL_UNSIGNED_INT, nullptr);
+    if (p.noFog) {
+        const float fogSpan = env_.fogFar > env_.fogNear ? env_.fogFar - env_.fogNear : 1e9f;
+        glUniform2f(uFogRange_, env_.fogNear, 1.0f / fogSpan);
+    }
     ++drawCalls_;
 }
 
