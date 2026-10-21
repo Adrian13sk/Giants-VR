@@ -97,6 +97,12 @@ private:
     bool gunValid_ = false;
     WeaponSystem weapon_;
     Quat headWorldRot_;
+    // Third-person aiming: crosshair where the right controller points; character aims there.
+    Vec3 aimTarget_;
+    bool tpAiming_ = false;
+    float tpAimHold_ = 0;
+    TextureId crosshairTex_ = 0;
+    void updateThirdPersonAim(const InputFrame& in, float dt);
     void updateWeapon(float dt, const InputFrame& in);
     void drawModel(const RenderModel* m, const Mat4& xf, bool additive, float alpha = 1.0f);
     float camYaw_ = 0;      // play-mode camera yaw (snap turn orbits the character)

@@ -79,6 +79,8 @@ void PlayerController::update(float dt, const PlayerInput& in) {
             follow(angleDelta(yaw, in.viewYaw), 1.5f);
         }
         yaw = angleDelta(0.0f, yaw);
+    } else if (in.aiming) {
+        turnToward(in.aimYaw, params.turnRate * 1.5f);  // strafe/backpedal clips handle travel
     } else if (speed > 0.05f) {
         turnToward(moveYaw, params.turnRate);
     }

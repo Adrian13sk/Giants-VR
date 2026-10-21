@@ -19,6 +19,8 @@ struct PlayerInput {
     float viewYaw = 0;    // world yaw of the viewer's head (radians, 0 = facing -Z)
     bool jet = false;     // jetpack thrust held
     bool sprint = false;  // sprint held
+    bool aiming = false;  // third person: face aimYaw instead of the travel direction
+    float aimYaw = 0;
 };
 
 struct PlayerParams {

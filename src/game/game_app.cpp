@@ -58,7 +58,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             // First-person arm IK: the Meccaryn's arms reach for the tracked controllers.
             m->setPoseModifier([this](const AnmAnimation& clip, const std::vector<std::vector<int>>& children,
                                       std::vector<Mat4>& world) {
-                if (!playMode_ || !firstPerson_) return;
+                if (!playMode_ || (!firstPerson_ && !tpAiming_)) return;
                 auto node = [&](const char* n) {
                     auto it = clip.byName.find(n);
                     return it == clip.byName.end() ? -1 : it->second;
@@ -87,12 +87,12 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     // and swing opposite the controller's up vector (rolling the hand moves the elbow).
                     const Vec3 up = normalize(t.up);
                     t.pole = Vec3{h == kLeft ? 0.7f : -0.7f, 0.4f, -1.0f} - up * 0.5f;
-                    t.handScale = 0.8f;   // the gloves read oversized at first-person distance
+                    t.handScale = firstPerson_ ? 0.8f : 1.0f;  // the gloves read oversized at first-person distance
                     // Meccaryn arms are short for human reach (0.49 vs ~0.6 m): x1.3 base length, and
                     // beyond that the arm keeps stretching so the hand stays on the controller
                     // (user request after device test 6: arms should stretch further).
-                    t.armStretch = 1.3f;
-                    t.maxReachStretch = 1.8f;
+                    t.armStretch = firstPerson_ ? 1.3f : 1.0f;
+                    t.maxReachStretch = firstPerson_ ? 1.8f : 1.0f;
                     solveArmIk(world, children, c, t);
                     // Grip closes the hand; the trigger curls the leading finger (Meccaryn: 4 digits).
                     const float g = armTargets_[h].squeeze, tr = armTargets_[h].trigger;
@@ -109,6 +109,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             boltModel_ = mc->get("mc_bullet.gbs", "mc_bullet.anm");
             muzzleModel_ = mc->get("muzzle_flash.gbs", "muzzle_flash.anm");
             impactModel_ = mc->get("efx_flash.gbs");
+            crosshairTex_ = mc->texture("st_xhair_lock");  // original crosshair (red brackets)
             weapon_.raycast = [w](const Vec3& o, const Vec3& d, float maxD, float& t, Vec3& n) {
                 float tc = 0;
                 Vec3 nc;
@@ -238,6 +239,14 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.viewYaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : camYaw_;
     pi.jet = in.hand[th].primary;              // A
     pi.sprint = in.hand[mh].squeeze > 0.5f;    // move-hand grip
+    if (!firstPerson_) {
+        updateThirdPersonAim(in, dt);
+        pi.aiming = tpAiming_;
+        const Vec3 d = aimTarget_ - player_.position;
+        pi.aimYaw = std::atan2(-d.x, -d.z);
+    } else {
+        tpAiming_ = false;
+    }
     player_.update(dt, pi);
     placeCamera(dt, false, &in);
     if (!playerModel_) return;
@@ -246,6 +255,23 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     } else {
         bodyXf_ = Mat4::translation(player_.position) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
         armTargets_[0].valid = armTargets_[1].valid = false;
+        // Aiming: the gun arm reaches toward the crosshair (model space, game units).
+        Mat4 sh;
+        const int gh = rig_.turnHand();
+        if (tpAiming_ && playerModel_->nodeWorld(gh == kRight ? "arm r" : "arm l", sh)) {
+            const Quat inv = Quat::fromAxisAngle({0, 1, 0}, player_.yaw).conjugate();
+            const Vec3 S{sh.m[12], sh.m[13], sh.m[14]};
+            const Vec3 sw = player_.position + Quat::fromAxisAngle({0, 1, 0}, player_.yaw).rotate(giantsToRuntime(S.x, S.y, S.z));
+            const Vec3 l = inv.rotate(normalize(aimTarget_ - sw));
+            const Vec3 dm = normalize(Vec3{-l.x, l.z, l.y});
+            ArmPose& a = armTargets_[gh];
+            a.valid = true;
+            a.grip = S + dm * 2.6f;  // nearly straight arm toward the target
+            a.forward = dm;
+            a.up = Vec3{0, 0, 1};
+            a.squeeze = 1.0f;
+            a.trigger = 1.0f;
+        }
     }
     playerModel_->setHideEnabled(firstPerson_);
     playerModel_->poseBlend(renderer_, clip_[int(player_.prevAnim())], player_.prevAnimTime(),
@@ -255,29 +281,25 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateWeapon(dt, in);
 }
 
-// Game (Z-up, units) <-> runtime (Y-up, metres) basis change as matrices.
-static Mat4 gameToRuntime() {
-    const float s = gGameUnitsToMeters;
-    Mat4 m = Mat4::identity();
-    m.m[0] = -s; m.m[1] = 0; m.m[2] = 0;   // game X -> -runtime X
-    m.m[4] = 0;  m.m[5] = 0; m.m[6] = s;   // game Y -> runtime Z
-    m.m[8] = 0;  m.m[9] = s; m.m[10] = 0;  // game Z -> runtime Y
-    return m;
-}
-static Mat4 runtimeToGame() {
-    const float s = 1.0f / gGameUnitsToMeters;
-    Mat4 m = Mat4::identity();
-    m.m[0] = -s; m.m[1] = 0; m.m[2] = 0;
-    m.m[4] = 0;  m.m[5] = 0; m.m[6] = s;
-    m.m[8] = 0;  m.m[9] = s; m.m[10] = 0;
-    return m;
-}
-
 // Gun muzzle, barrel direction and handle in the gun model's GAME frame (forward = -Y like
 // the characters; up = +Z).
 static const Vec3 kGunMuzzleGame{0.0f, -1.8f, 0.25f};
 static const Vec3 kGunForwardGame{0.0f, -1.0f, 0.0f};
 static const Vec3 kGunHandleGame{0.0f, 0.6f, -0.8f};
+
+void GameApp::updateThirdPersonAim(const InputFrame& in, float dt) {
+    const ControllerState& c = in.hand[rig_.turnHand()];
+    if (!c.aimPoseValid) { tpAiming_ = false; return; }
+    const Pose aim = rig_.toWorld(c.aimPose);
+    const Vec3 dir = aim.orientation.rotate(Vec3{0, 0, -1});
+    float t;
+    Vec3 n;
+    aimTarget_ = (weapon_.raycast && weapon_.raycast(aim.position, dir, 150.0f, t, n)) ? aim.position + dir * t
+                                                                                        : aim.position + dir * 60.0f;
+    if (c.trigger > 0.1f) tpAimHold_ = 1.0f;  // keep aiming briefly after releasing
+    else tpAimHold_ = std::max(0.0f, tpAimHold_ - dt);
+    tpAiming_ = tpAimHold_ > 0.0f;
+}
 
 void GameApp::updateWeapon(float dt, const InputFrame& in) {
     const int gh = rig_.turnHand();
@@ -298,8 +320,23 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
                      Mat4::translation(handle * -1.0f);
         }
     } else {
-        gunValid_ = gunModel_ && playerModel_ && playerModel_->nodeWorld("ref_rhand", ref);
-        if (gunValid_) gunXf_ = bodyXf_ * gameToRuntime() * ref * runtimeToGame();
+        // Third person: gun in the hand (skeleton's Ref_Rhand position), pointing at the
+        // crosshair while aiming, otherwise forward and slightly down; character-sized.
+        gunValid_ = gunModel_ && playerModel_ && playerModel_->nodeWorld(gh == kRight ? "ref_rhand" : "ref_lhand", ref);
+        if (gunValid_) {
+            const Vec4 hp = bodyXf_ * Vec4{-ref.m[12] * gGameUnitsToMeters, ref.m[14] * gGameUnitsToMeters,
+                                           ref.m[13] * gGameUnitsToMeters, 1.0f};
+            const Vec3 hand{hp.x, hp.y, hp.z};
+            const Quat body = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
+            const Vec3 f = tpAiming_ ? normalize(aimTarget_ - hand) : normalize(body.rotate(Vec3{0, -0.5f, -1}));
+            // Look rotation: -Z -> f, keeping +Y as close to world up as possible.
+            const Quat yawQ = Quat::fromAxisAngle({0, 1, 0}, std::atan2(-f.x, -f.z));
+            const float pitch = std::asin(std::max(-1.0f, std::min(1.0f, f.y)));
+            const Quat look = yawQ * Quat::fromAxisAngle({1, 0, 0}, pitch);
+            const float k = 0.75f;  // a bit larger than FP so it reads at chase-camera distance
+            const Vec3 handle = giantsToRuntime(kGunHandleGame.x, kGunHandleGame.y, kGunHandleGame.z);
+            gunXf_ = Mat4::translation(hand) * Mat4::rotation(look) * Mat4::scale({k, k, k}) * Mat4::translation(handle * -1.0f);
+        }
     }
     if (gunValid_) {
         const Vec3 mr = giantsToRuntime(kGunMuzzleGame.x, kGunMuzzleGame.y, kGunMuzzleGame.z);
@@ -308,6 +345,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         const Vec4 f4 = gunXf_ * Vec4{fr.x, fr.y, fr.z, 0.0f};
         muzzle = {m4.x, m4.y, m4.z};
         fwd = normalize(Vec3{f4.x, f4.y, f4.z});
+        if (!firstPerson_ && tpAiming_) fwd = normalize(aimTarget_ - muzzle);  // shots go to the crosshair
     }
     const bool trigger = in.hand[gh].trigger > 0.6f;
     if (weapon_.update(dt, trigger && gunValid_, muzzle, fwd)) haptics_.push_back({gh, 0.35f, 0.04f});
@@ -429,6 +467,24 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
             if (p.travelled < 0.35f * float(i)) break;  // no trail behind the muzzle
             drawModel(boltModel_, Mat4::translation(p.pos + back * float(i)) * Mat4::rotation(r) * Mat4::scale({s, s, s}),
                       true, 2.5f - 0.7f * float(i));
+        }
+    }
+    // Third-person crosshair: original bracket texture at the aim point, constant angular size.
+    if (playMode_ && !firstPerson_ && crosshairTex_ && impactModel_ && lastInput_.hand[rig_.turnHand()].aimPoseValid) {
+        const Vec3 eye = renderer_.currentView().eyePosition;
+        const Vec3 toEye = eye - aimTarget_;
+        const float dist = length(toEye);
+        const float s = std::max(0.45f, dist * 0.33f);  // impact quad is 0.2 m: ~3.8 deg
+        const Vec3 p = aimTarget_ + toEye * (std::min(0.5f, dist * 0.05f) / std::max(dist, 1e-3f));
+        for (const auto& part : impactModel_->parts) {
+            DrawParams dp;
+            dp.texture = crosshairTex_;
+            dp.blend = BlendMode::AlphaBlend;
+            dp.unlit = true;
+            dp.depthWrite = false;
+            dp.doubleSided = true;
+            dp.noFog = true;
+            renderer_.draw(part.mesh, Mat4::translation(p) * Mat4::rotation(headWorldRot_) * Mat4::scale({s, s, s}), dp);
         }
     }
     for (const auto& e : weapon_.effects()) {

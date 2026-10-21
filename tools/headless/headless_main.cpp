@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
     int jetFrom = -1, jetTo = -1;
-    float triggerAmount = 0.0f, aimPitchDeg = -17.2f;
+    float triggerAmount = 0.0f, aimPitchDeg = -17.2f, aimYawDeg = 0.0f;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         auto next = [&]() { return i + 1 < argc ? argv[++i] : ""; };
@@ -55,6 +55,7 @@ int main(int argc, char** argv) {
         else if (a == "--grip") gripAmount = std::atof(next());  // both grips 0..1
         else if (a == "--trigger") triggerAmount = std::atof(next());  // right trigger (fires in play mode)
         else if (a == "--aim-pitch") aimPitchDeg = std::atof(next());  // controller pitch (deg)
+        else if (a == "--aim-yaw") aimYawDeg = std::atof(next());      // controller yaw (deg, + = left)
         else if (a == "--hands") { handsFwd = std::atof(next()); handsUp = std::atof(next()); }  // controller offset (m)
     }
     if (!initEgl()) return 2;
@@ -75,7 +76,8 @@ int main(int argc, char** argv) {
         float side = hnd == kLeft ? -1.0f : 1.0f;
         c.gripPose.position = {0.2f * side, handsUp, -handsFwd};
         c.squeeze = gripAmount;
-        c.gripPose.orientation = Quat::fromAxisAngle({1, 0, 0}, aimPitchDeg * kPi / 180.0f);
+        c.gripPose.orientation = Quat::fromAxisAngle({0, 1, 0}, aimYawDeg * kPi / 180.0f) *
+                                 Quat::fromAxisAngle({1, 0, 0}, aimPitchDeg * kPi / 180.0f);
         c.aimPose = c.gripPose;
     }
     in.hand[kRight].trigger = 0.0f;  // applied only during the simulated frames (below)
