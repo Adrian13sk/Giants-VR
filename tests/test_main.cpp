@@ -663,7 +663,7 @@ static void testCreatures() {
     CreatureDirector cd;
     cd.groundHeight = [](float, float) { return 0.0f; };
     for (int c = 0; c < int(CreatureClip::Count); ++c) cd.clipDuration[c] = 0.6f;
-    const int i = cd.spawn({0, 0, -15}, 0.0f, 1.0f);
+    const int i = cd.spawn({0, 0, -15}, 0.0f, 1.0f, CreatureSize::Small, 20.0f, false);
     std::vector<CreatureEvent> ev;
     const Vec3 player{0, 0, 0};
     bool alerted = false, struck = false;
@@ -681,29 +681,78 @@ static void testCreatures() {
     // Out of sight: stays idle.
     CreatureDirector far;
     far.groundHeight = cd.groundHeight;
-    far.spawn({0, 0, -60}, 0.0f, 1.0f);
+    far.spawn({0, 0, -60}, 0.0f, 1.0f, CreatureSize::Medium, 40.0f, true);
     for (int f = 0; f < 120; ++f) far.update(1.0f / 60, player, true, ev);
     CHECK(far.creatures[0].state == CreatureState::Idle && std::fabs(far.creatures[0].pos.z + 60) < 1e-3f);
-    // Two 25-damage hits kill a scale-1 creature; bigger ones are tougher.
-    CHECK(!cd.damage(i, 25.0f));
-    CHECK(cd.damage(i, 25.0f));
+    // Hit points come from the type: 20 (small) dies to one 25-damage bolt, 90 (large) takes four.
+    const Vec3 shot{0, 0, -1};
+    CHECK(cd.damage(i, 25.0f, shot));
     CHECK(cd.aliveCount() == 0 && cd.creatures[size_t(i)].clip == CreatureClip::Die);
     CreatureDirector big;
-    big.spawn({0, 0, 0}, 0, 2.3f);
-    CHECK(!big.damage(0, 25.0f) && !big.damage(0, 25.0f) && !big.damage(0, 25.0f));
+    big.spawn({0, 0, 0}, 0, 2.3f, CreatureSize::Large, 90.0f, true);
+    CHECK(!big.damage(0, 25.0f, shot) && !big.damage(0, 25.0f, shot) && !big.damage(0, 25.0f, shot));
+    std::vector<CreatureEvent> dev;
+    CHECK(big.damage(0, 25.0f, shot, &dev) && !dev.empty() && dev.back().kind == CreatureEvent::Die);
     // Raycast hits the living capsule and passes over the dead.
     CreatureDirector rc;
-    rc.spawn({0, 0, -10}, 0, 1.0f);
+    rc.spawn({0, 0, -10}, 0, 1.0f, CreatureSize::Medium, 40.0f, true);
     float t; Vec3 n; int idx = -1;
     CHECK(rc.raycast({0, 0.5f, 0}, {0, 0, -1}, 50, t, n, idx) && idx == 0 && std::fabs(t - 9.55f) < 0.1f);
-    rc.damage(0, 100);
+    rc.damage(0, 100, shot);
     CHECK(!rc.raycast({0, 0.5f, 0}, {0, 0, -1}, 50, t, n, idx));
     // A cliff between creature and player blocks the chase.
     CreatureDirector cl;
     cl.groundHeight = [](float, float z) { return z > -8.0f ? 6.0f : 0.0f; };  // player on a 6 m ledge
-    cl.spawn({0, 0, -12}, 0, 1.0f);
+    cl.spawn({0, 0, -12}, 0, 1.0f, CreatureSize::Small, 20.0f, false);
     for (int f = 0; f < 300; ++f) cl.update(1.0f / 60, Vec3{0, 6, 0}, true, ev);
     CHECK(cl.creatures[0].pos.z < -7.5f && cl.creatures[0].pos.y < 0.1f);
+    // A medium Ripper at mid-range spits; the ball lobs over and bursts at the player.
+    CreatureDirector sp;
+    sp.groundHeight = [](float, float) { return 0.0f; };
+    for (int c = 0; c < int(CreatureClip::Count); ++c) sp.clipDuration[c] = 0.8f;
+    sp.spawn({0, 0, -24}, 0, 1.0f, CreatureSize::Medium, 40.0f, true);
+    sp.params.lungeMax = 0;  // isolate the spit
+    bool launched = false, burst = false;
+    float spitDmg = 0;
+    for (int f = 0; f < 60 * 12 && !burst; ++f) {
+        sp.update(1.0f / 60, player, true, ev);
+        for (const auto& e : ev) {
+            if (e.kind == CreatureEvent::SpitLaunch) launched = true;
+            if (e.kind == CreatureEvent::SpitBurst && launched) { burst = true; spitDmg = e.damage; }
+        }
+    }
+    CHECK(launched && burst);
+    CHECK(spitDmg >= 0.0f && spitDmg <= sp.params.spitDamage[1]);
+    // Small Rippers never spit.
+    CreatureDirector sm;
+    sm.groundHeight = sp.groundHeight;
+    sm.spawn({0, 0, -15}, 0, 1.0f, CreatureSize::Small, 20.0f, true);
+    bool smallSpat = false;
+    for (int f = 0; f < 600; ++f) {
+        sm.update(1.0f / 60, player, true, ev);
+        for (const auto& e : ev) smallSpat |= e.kind == CreatureEvent::SpitLaunch;
+    }
+    CHECK(!smallSpat);
+    // Steering: a wall between creature and player is walked around, not pushed against.
+    CollisionWorld wall;
+    {
+        std::vector<Vec3> tris;
+        auto quad = [&](Vec3 a, Vec3 b, Vec3 c, Vec3 d) { tris.insert(tris.end(), {a, b, c, a, c, d}); };
+        quad({-3, 0, -6}, {3, 0, -6}, {3, 3, -6}, {-3, 3, -6});
+        quad({-3, 0, -6.4f}, {-3, 3, -6.4f}, {3, 3, -6.4f}, {3, 0, -6.4f});
+        wall.addObject(tris);
+    }
+    CreatureDirector wa;
+    wa.groundHeight = sp.groundHeight;
+    wa.collision = &wall;
+    wa.params.lungeMax = 0;
+    wa.spawn({0, 0, -12}, 0, 1.0f, CreatureSize::Small, 20.0f, false);
+    bool reached = false;
+    for (int f = 0; f < 60 * 15 && !reached; ++f) {
+        wa.update(1.0f / 60, player, true, ev);
+        for (const auto& e : ev) reached |= e.kind == CreatureEvent::Swing;
+    }
+    CHECK(reached);
 }
 
 int main() {

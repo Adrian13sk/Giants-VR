@@ -169,14 +169,21 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 else { t = tw; n = nw; target = -1; }
                 return true;
             };
-            weapon_.onHit = [this](int target, const Vec3& p, const Vec3&) {
+            weapon_.onHit = [this](int target, const Vec3& p, const Vec3& shotDir) {
                 if (target < 0) {
                     sfx(frand() < 0.5f ? "bi_dirt1" : (frand() < 0.5f ? "bi_hit1" : "bi_hit2"), p, 0.45f, 0.9f + 0.2f * frand());
                     return;
                 }
                 if (target >= kCreatureTarget) {
                     std::vector<CreatureEvent> ev;
-                    const bool died = creatures_.damage(target - kCreatureTarget, 25.0f, &ev);
+                    const int ci = target - kCreatureTarget;
+                    const float scale = creatures_.creatures[size_t(ci)].scale;
+                    const bool died = creatures_.damage(ci, 25.0f, shotDir, &ev);
+                    for (const auto& e : ev)
+                        if (e.kind == CreatureEvent::Die && e.burst) {
+                            spawnGore(e.pos, e.dir, scale);
+                            blasts_.push_back({e.pos + Vec3{0, 0.5f * scale, 0}, 3, 0.0f});
+                        }
                     haptics_.push_back({rig_.turnHand(), died ? 0.8f : 0.5f, died ? 0.12f : 0.05f});
                     sfx("ex_bdys1", p, 0.35f, 1.2f + 0.2f * frand());
                     for (const auto& e : ev) creatureSound(e);
@@ -409,9 +416,11 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "rpman_hit1", "rpman_hit2", "rpman_hit3", "rpman_hit4", "rpman_die1", "rpman_die2", "rpman_die3",
         "rpman_die4", "rpman_die5", "me_shrt1", "me_shrt2", "me_shrt3", "me_jpkst", "me_jpklp", "me_jpken",
         "me_jpkno", "me_fsgr1", "me_fsgr2", "me_hdfl1", "me_hdfl2", "me_sld1", "me_slden",
-        // Rippers: rs_ = small, rl_ = large (inferred from the names and the two Ripper sizes).
+        // Rippers: rs_ small, rm_ medium, rl_ large (inferred from the names and the three Ripper types).
         "rs_attk1", "rs_attk2", "rs_chitt", "rs_deat1", "rs_deat2", "rs_feet", "rs_injr1", "rs_injr2",
-        "rl_attk1", "rl_chitt", "rl_deat1", "rl_deat2", "rl_feet", "rl_injr1", "rl_injr2"};
+        "rm_atfr1", "rm_atfr2", "rm_attk1", "rm_chitt", "rm_deat1", "rm_deat2", "rm_feet", "rm_frexp", "rm_inj01",
+        "rm_inj02", "rl_atfr1", "rl_atfr2", "rl_attk1", "rl_chitt", "rl_deat1", "rl_deat2", "rl_feet", "rl_frexp1",
+        "rl_frexp2", "rl_injr1", "rl_injr2", "ex_bdyl1", "ex_bdyl2"};
     size_t ok = 0;
     for (const char* n : names) {
         std::vector<uint8_t> bytes;
@@ -505,8 +514,8 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         ci.scale = ch.scale;
         if (ch.objectClass == 23) {
             // Ripper animation slots (xx_ripper.bin): 1 idle, 2 walk, 10 attack, 11 attack jump,
-            // 44 hit, 49 small hit, 45 suffer (used as the death: it ends lying on the ground).
-            static const int slots[int(CreatureClip::Count)] = {1, 2, 10, 11, 44, 49, 45};
+            // 44 hit, 49 small hit, 45 suffer (ends lying on the ground: the collapse death), 50 spit.
+            static const int slots[int(CreatureClip::Count)] = {1, 2, 10, 11, 44, 49, 45, 50};
             for (int c = 1; c < int(CreatureClip::Count); ++c) {
                 const std::string a = reg.anim(ch.type, slots[c]);
                 const int k = a.empty() ? -1 : m->addAnimation(w->fs(), a);
@@ -516,8 +525,12 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
                 for (int c = 0; c < int(CreatureClip::Count); ++c)
                     creatures_.clipDuration[c] = std::max(0.1f, m->animDuration(ci.clipIndex[c]));
             ci.ambient = false;
-            ci.large = ch.scale > 1.5f;
-            const int idx = creatures_.spawn(ch.position, ch.yaw, ch.scale, ci.large ? 1 : 0);
+            // Three Ripper types share the model; their type records carry hit points 20 / 40 / 90
+            // (type op 0x31) and the data has three sound sets (rs_/rm_/rl_) and two spit balls.
+            const ObjectType* t = reg.type(ch.type);
+            const float hp = t && t->hitPoints > 0 ? t->hitPoints : 40.0f;
+            ci.size = hp <= 25.0f ? CreatureSize::Small : (hp <= 60.0f ? CreatureSize::Medium : CreatureSize::Large);
+            const int idx = creatures_.spawn(ch.position, ch.yaw, ch.scale, ci.size, hp, true);
             creatures_.creatures[size_t(idx)].slot = int(chars_.size());
             missionHostiles_ = true;
             ++rippers;
@@ -534,27 +547,82 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     }
     creatures_.groundHeight = enemies_.groundHeight;
     creatures_.collision = enemies_.collision;
+    // Spit leaves from the animated mouth node (ref_mouth) when the skeleton has one.
+    creatures_.mouth = [this](int i, Vec3& out) {
+        const Creature& c = creatures_.creatures[size_t(i)];
+        if (c.slot < 0) return false;
+        const CharacterInst& ci = chars_[size_t(c.slot)];
+        Mat4 m;
+        if (!ci.model->nodeWorld("ref_mouth", m)) return false;
+        const Vec3 local = giantsToRuntime(m.m[12], m.m[13], m.m[14]) * ci.scale;
+        out = ci.pos + Vec3{0, ci.lift, 0} + Quat::fromAxisAngle({0, 1, 0}, ci.yaw).rotate(local);
+        return true;
+    };
+    if (rippers) {
+        const char* balls[3] = {nullptr, "efx_ripper_mspit", "efx_ripper_lspit"};
+        for (int k = 1; k < 3; ++k) {
+            auto b = std::make_unique<SkinnedModel>();
+            if (!b->load(w->fs(), *mc, renderer_, balls[k], std::string(balls[k]) + ".anm")) continue;
+            b->pose(renderer_, 0.0f);
+            Vec3 mn, mx;
+            b->posedBounds(mn, mx);
+            spitCentre_[k] = (mn + mx) * 0.5f;
+            spitBall_[k] = std::move(b);
+        }
+        spitRing_[1] = mc->get("ripspit.gbs");
+        spitRing_[2] = mc->get("ripspitbig.gbs");
+        goreHead_ = mc->get("rip_gore_head.gbs", "", /*dynamicLit=*/true);
+        goreArm_ = mc->get("rip_gore_arm.gbs", "", /*dynamicLit=*/true);
+    }
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
 }
 
+void GameApp::spawnGore(const Vec3& pos, const Vec3& dir, float scale) {
+    // The original gore pieces (rip_gore_head, rip_gore_arm x2) thrown along the killing shot.
+    const RenderModel* parts[3] = {goreHead_, goreArm_, goreArm_};
+    Vec3 push{dir.x, 0, dir.z};
+    if (length(push) > 1e-3f) push = normalize(push);
+    for (const RenderModel* m : parts) {
+        if (!m) continue;
+        Gib g;
+        g.model = m;
+        g.pos = pos + Vec3{0, 0.5f * scale, 0};
+        g.vel = push * (3.0f + 2.0f * frand()) + Vec3{(frand() - 0.5f) * 4.0f, 4.0f + 3.0f * frand(), (frand() - 0.5f) * 4.0f};
+        g.axis = normalize(Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} + Vec3{0.01f, 0, 0});
+        g.angle = frand() * 6.28f;
+        g.spin = 4.0f + 6.0f * frand();
+        g.scale = scale * 0.8f;
+        g.life = 0;
+        gibs_.push_back(g);
+    }
+}
+
 void GameApp::creatureSound(const CreatureEvent& e) {
-    if (e.index < 0 || size_t(e.index) >= creatures_.creatures.size()) return;
-    const bool large = creatures_.creatures[size_t(e.index)].kind == 1;
-    const float pitch = (large ? 0.85f : 1.0f) + 0.15f * frand();
+    // Sound sets by Ripper size: rs_ small, rm_ medium, rl_ large (meanings inferred from names).
+    const int k = int(e.size);
+    const char* pre = k == 0 ? "rs_" : (k == 1 ? "rm_" : "rl_");
+    const float pitch = 0.92f + 0.16f * frand();
+    auto play = [&](const char* a, const char* b, float vol) {
+        const std::string n = std::string(pre) + ((b && frand() < 0.5f) ? b : a);
+        sfx(n.c_str(), e.pos, vol, pitch);
+    };
     switch (e.kind) {
-        case CreatureEvent::Alert: sfx(large ? "rl_chitt" : "rs_chitt", e.pos, 0.8f, pitch); break;
+        case CreatureEvent::Alert: play("chitt", nullptr, 0.8f); break;
         case CreatureEvent::Swing:
         case CreatureEvent::Lunge:
-            sfx(large ? "rl_attk1" : (frand() < 0.5f ? "rs_attk1" : "rs_attk2"), e.pos, 0.9f, pitch);
+            if (k == 0) play("attk1", "attk2", 0.9f); else play("attk1", nullptr, 0.9f);
+            break;
+        case CreatureEvent::SpitLaunch: play("atfr1", "atfr2", 1.0f); break;
+        case CreatureEvent::SpitBurst:
+            if (k == 2) play("frexp1", "frexp2", 1.0f); else sfx("rm_frexp", e.pos, 1.0f, pitch);
             break;
         case CreatureEvent::Strike: break;  // the player's hurt sound covers it
         case CreatureEvent::Hurt:
-            sfx(large ? (frand() < 0.5f ? "rl_injr1" : "rl_injr2") : (frand() < 0.5f ? "rs_injr1" : "rs_injr2"), e.pos,
-                0.9f, pitch);
+            if (k == 1) play("inj01", "inj02", 0.9f); else play("injr1", "injr2", 0.9f);
             break;
         case CreatureEvent::Die:
-            sfx(large ? (frand() < 0.5f ? "rl_deat1" : "rl_deat2") : (frand() < 0.5f ? "rs_deat1" : "rs_deat2"), e.pos,
-                1.0f, pitch);
+            play("deat1", "deat2", 1.0f);
+            if (e.burst) sfx(frand() < 0.5f ? "ex_bdyl1" : "ex_bdyl2", e.pos, 0.9f, 0.95f + 0.1f * frand());
             break;
     }
 }
@@ -563,13 +631,17 @@ void GameApp::updateCharacters(float dt) {
     creatures_.update(dt, player_.position, playMode_ && playerHealth_ > 0, creatureEvents_);
     for (const auto& e : creatureEvents_) {
         creatureSound(e);
-        if (e.kind == CreatureEvent::Strike) damagePlayer(e.damage);
+        if (e.kind == CreatureEvent::SpitLaunch) ++spitsLaunched_;
+        if (e.kind == CreatureEvent::SpitBurst && e.damage > 0.5f) ++spitHits_;
+        if ((e.kind == CreatureEvent::Strike || e.kind == CreatureEvent::SpitBurst) && e.damage > 0.5f)
+            damagePlayer(e.damage);
+        if (e.kind == CreatureEvent::SpitBurst) blasts_.push_back({e.pos, int(e.size), 0.0f});
     }
-    // Rippers: model follows its creature; corpses that have sunk away are hidden.
+    // Rippers: the model follows its creature; burst or sunk-away bodies are hidden.
     for (auto& ci : chars_)
         if (!ci.ambient) ci.visible = false;
     for (auto& c : creatures_.creatures) {
-        if (c.slot < 0 || size_t(c.slot) >= chars_.size()) continue;
+        if (c.slot < 0 || size_t(c.slot) >= chars_.size() || c.exploded) continue;
         CharacterInst& ci = chars_[size_t(c.slot)];
         ci.visible = true;
         ci.pos = c.pos;
@@ -582,14 +654,37 @@ void GameApp::updateCharacters(float dt) {
         ci.model->posedBounds(mn, mx);
         ci.lift += (-mn.y * ci.scale - ci.lift) * std::min(1.0f, dt / 0.06f);
         // Footsteps while running.
-        if (c.clip == CreatureClip::Walk && c.state != CreatureState::Dead && dist < 30.0f) {
+        if (c.clip == CreatureClip::Walk && c.speed > 0.5f && dist < 30.0f) {
             ci.stepTimer -= dt * c.rate;
             if (ci.stepTimer <= 0) {
                 ci.stepTimer = 0.45f;
-                sfx(ci.large ? "rl_feet" : "rs_feet", c.pos, 0.35f, 0.9f + 0.2f * frand());
+                const char* feet[3] = {"rs_feet", "rm_feet", "rl_feet"};
+                sfx(feet[int(ci.size)], c.pos, 0.35f, 0.9f + 0.2f * frand());
             }
         }
     }
+    // Spit balls wobble (their own clip); blasts and gore age.
+    for (auto& b : spitBall_)
+        if (b) b->pose(renderer_, float(time_));
+    for (auto& b : blasts_) b.age += dt;
+    blasts_.erase(std::remove_if(blasts_.begin(), blasts_.end(), [](const Blast& b) { return b.age > 0.6f; }), blasts_.end());
+    for (auto& g : gibs_) {
+        g.life += dt;
+        g.vel.y -= 14.0f * dt;
+        g.pos += g.vel * dt;
+        g.angle += g.spin * dt;
+        const float ground = enemies_.groundHeight ? enemies_.groundHeight(g.pos.x, g.pos.z) : 0.0f;
+        if (g.life > 6.0f) {  // sink away
+            g.pos.y -= 0.4f * dt;
+            continue;
+        }
+        if (g.pos.y < ground + 0.1f * g.scale) {  // bounce, then settle
+            g.pos.y = ground + 0.1f * g.scale;
+            g.vel = Vec3{g.vel.x * 0.5f, std::fabs(g.vel.y) * 0.3f, g.vel.z * 0.5f};
+            g.spin *= 0.5f;
+        }
+    }
+    gibs_.erase(std::remove_if(gibs_.begin(), gibs_.end(), [](const Gib& g) { return g.life > 8.0f; }), gibs_.end());
     // Ambient characters loop their default clip (only animated when near).
     for (auto& ci : chars_) {
         if (!ci.ambient) continue;
@@ -917,6 +1012,28 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
                                        Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, c.yaw)) *
                                        Mat4::scale({c.scale, c.scale, c.scale}));
     }
+    for (const auto& sp : creatures_.spits) {
+        const int k = int(sp.size);
+        if (k > 0 && spitBall_[k])
+            spitBall_[k]->renderGlow(renderer_, Mat4::translation(sp.pos - spitCentre_[k]) *
+                                                    Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, sp.age * 3.0f)), 1.3f);
+    }
+    for (const auto& b : blasts_) {
+        // Burst: the flash plus the splash ring (ripspit / ripspitbig) growing and fading.
+        const float f = b.age / 0.6f;
+        const int k = b.size <= 2 ? b.size : 0;  // 3 = a Ripper bursting: flash only, no spit splash ring
+        const float big = b.size >= 2 ? 1.5f : 1.0f;
+        if (impactModel_)
+            drawModel(impactModel_, Mat4::translation(b.pos) * Mat4::rotation(headWorldRot_) *
+                                        Mat4::scale(Vec3{1, 1, 1} * big * (4.0f + 8.0f * f)), true, 1.0f - f);
+        if (k > 0 && spitRing_[k])
+            drawModel(spitRing_[k], Mat4::translation(b.pos + Vec3{0, 0.1f, 0}) * Mat4::scale(Vec3{1, 1, 1} * (2.0f + 10.0f * f) * big),
+                      true, 1.0f - f);
+    }
+    for (const auto& g : gibs_)
+        drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) *
+                               Mat4::scale({g.scale, g.scale, g.scale}),
+                  false);
     for (const auto& e : enemies_.enemies)
         if (e.slot >= 0)
             enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *

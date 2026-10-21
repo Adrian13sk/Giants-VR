@@ -220,6 +220,17 @@ void SkinnedModel::render(Renderer& r, const Mat4& world) const {
     }
 }
 
+void SkinnedModel::renderGlow(Renderer& r, const Mat4& world, float brightness) const {
+    for (const Part& p : parts_) {
+        DrawParams dp;
+        dp.texture = p.texture;
+        dp.blend = p.blend;
+        dp.unlit = true;
+        dp.tint = {brightness, brightness, brightness, 1.0f};
+        r.draw(p.mesh, world, dp);
+    }
+}
+
 }  // namespace gvr
 
 namespace gvr {

@@ -79,7 +79,8 @@ TYPE_OP_SIZE = {1: 5, 3: 13, 4: 9, 5: 5, 6: 5, 7: 5, 8: 9, 9: 5, 10: 5, 0x0B: 5,
     0x1C: 9, 0x1D: 1, 0x1E: 2, 0x1F: 17, 0x20: 1, 0x21: 9, 0x22: 1, 0x23: 1, 0x24: 1, 0x3F: 1,
     0x43: 1, 0x25: 5, 0x26: 9, 0x27: 1, 0x28: 17, 0x29: 5, 0x2B: 1, 0x2E: 1, 0x2F: 1, 0x30: 5,
     0x31: 5, 0x32: 5, 0x37: 5, 0x3E: 5, 0x33: 9, 0x34: 9, 0x35: 9, 0x36: 2, 0x3B: 5, 0x3C: 17,
-    0x42: 13, 0x45: 5, 0x69: 5, 2: 'z', 0x2C: 's', 0x2D: 's'}
+    0x42: 13, 0x45: 5, 0x69: 5, 2: 'z', 0x2C: 's', 0x2D: 's',
+    0x2A: 1, 0x3A: 1, 0x3D: 1, 0x7D: 1, 0x7E: 1, 0x7F: 1}
 
 def walk_type(b, p):
     """-> dict(group, ospec, scale, stop) from the leading fixed-size type ops."""
@@ -89,6 +90,7 @@ def walk_type(b, p):
         if op == 1: info['group'] = struct.unpack_from('<I', b, p + 1)[0]
         elif op == 0x1E: info['ospec'] = b[p + 1]
         elif op == 0x17: info['scale'] = struct.unpack_from('<f', b, p + 1)[0]
+        elif op == 0x31: info['hp'] = struct.unpack_from('<f', b, p + 1)[0]
         sz = TYPE_OP_SIZE.get(op)
         if sz is None:
             info['stop'] = op; break

@@ -27,6 +27,7 @@ struct ObjectType {
     bool hasGroup = false;
     int objectClass = -1;   // type op 0x1E (the engine's "ospec": 23 Ripper, 60 tree, 61 Smartie building...)
     float scale = 1.0f;     // type op 0x17
+    float hitPoints = 0;    // type op 0x31 (loader stores it as current and maximum health); 0 = unset
 };
 
 class ObjectRegistry {

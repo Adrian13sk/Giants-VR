@@ -389,3 +389,35 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - Player 12 m from Timmy's three Rippers: they close in and bite (100 → 73 health in 4 s, 28 at 8 s if you don't fight back).
   - With `--trigger 1 --auto-aim` all three die and the player stays at 100.
   - The start view shows the village on the far ridge.
+
+### Device test 15 feedback → Ripper spit, burst deaths, steering (2026-10-21 23:30 local)
+- **User report (build 4a1d8c2):**
+  - Frame rate is smooth with the populated level.
+  - The Rippers feel alright, but their navigation toward the player is weird.
+  - In the original they also shoot orange/blue balls that explode.
+  - Killed Rippers either fall to the ground or explode.
+- **Found in the data:**
+  - Three Ripper types share one model: 229 small, 73 medium, 230 large (scale 2.3). Mission 1a has 5 medium and 1 large.
+  - Type op 0x31 is the hit points (the loader stores it as current and maximum health): 20 / 40 / 90. Reaper grunt: 100.
+  - Projectiles: `efx_ripper_mspit` (orange) and `efx_ripper_lspit` (blue), 0.6 m ball clusters with `ref_spit` nodes.
+  - Splash sprites: `ripspit` / `ripspitbig` (smoke_ring).
+  - Gore: `rip_gore_head`, `rip_gore_arm`.
+  - Spit clip: slot 50 `rip_spit`. Mouth node: `ref_mouth`.
+  - Sounds (meanings inferred): `rm_atfr`/`rl_atfr` (fire), `rm_frexp`/`rl_frexp` (explode), `ex_bdyl` (body burst).
+  - Type-op sizes added (flags without payload): 0x2A, 0x3A, 0x3D, 0x7D–0x7F.
+- **Steering (ours):**
+  - Turns before running: speed scales with cos²(heading error), and acceleration is limited.
+  - Look-ahead probes against buildings and climbable slope, with detours preferring the creature's side.
+  - Detours when blocked by a cliff.
+  - Each Ripper closes in from its own angle around the player.
+  - When one notices the player, pack-mates within 15 m join in.
+- **Spit (ours):** medium and large Rippers only.
+  - Range 7–28 m, needs a clear line of sight, 3.5–5.5 s cooldown. Launches at 55% of the clip from `ref_mouth`.
+  - Ballistic lob at 15 m/s horizontal with 12 m/s² gravity.
+  - Bursts on terrain, buildings or the player; splash damage medium 8 within 1.8 m, large 15 within 2.6 m.
+- **Death:** 40% burst into gore (flash, sound, the three original gore pieces thrown along the shot, bouncing, then sinking).
+  Otherwise the existing collapse.
+- **Headless:**
+  - 26 m from Timmy's Rippers, standing still: 4 spits in 12 s, about half hit.
+  - Misses land 2.5–2.8 m away, past the player's side.
+  - Firing back kills all three; `GVR_BURST_CHANCE=1` frames show the flash and the flying gore.

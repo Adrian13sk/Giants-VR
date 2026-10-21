@@ -47,6 +47,7 @@ int typeOpSize(uint8_t op) {
     switch (op) {
         case 0x14: case 0x16: case 0x18: case 0x1B: case 0x1D: case 0x20: case 0x22: case 0x23:
         case 0x24: case 0x3F: case 0x43: case 0x27: case 0x2B: case 0x2E: case 0x2F:
+        case 0x2A: case 0x3A: case 0x3D: case 0x7D: case 0x7E: case 0x7F:
             return 1;
         case 0x13: case 0x1E: case 0x36:
             return 2;
@@ -166,6 +167,7 @@ bool ObjectRegistry::addDefinitionFile(const uint8_t* d, size_t n, std::string* 
             if (op == 0x01) { t.group = c.u32(q + 1); t.hasGroup = true; }
             else if (op == 0x1E) t.objectClass = c.u8(q + 1);
             else if (op == 0x17) t.scale = c.f32(q + 1);
+            else if (op == 0x31) t.hitPoints = c.f32(q + 1);
             const int sz = typeOpSize(op);
             if (sz == 0) break;
             if (sz == -1) q = c.strz(q + 5);

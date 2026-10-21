@@ -7,14 +7,23 @@
 
 namespace gvr {
 
-int CreatureDirector::spawn(const Vec3& pos, float yaw, float scale, int kind) {
+namespace {
+constexpr float kTwoPi = 6.2831853f;
+Vec3 headingDir(float yaw) { return Vec3{-std::sin(yaw), 0, -std::cos(yaw)}; }
+float headingTo(const Vec3& d) { return std::atan2(-d.x, -d.z); }
+}  // namespace
+
+int CreatureDirector::spawn(const Vec3& pos, float yaw, float scale, CreatureSize size, float hitPoints, bool canSpit) {
     Creature c;
     c.pos = c.home = pos;
     if (groundHeight) c.pos.y = c.home.y = groundHeight(pos.x, pos.z);
     c.yaw = yaw;
     c.scale = std::max(0.2f, scale);
-    c.health = params.health * std::min(4.0f, c.scale * c.scale);
-    c.kind = kind;
+    c.health = c.maxHealth = std::max(1.0f, hitPoints);
+    c.size = size;
+    c.canSpit = canSpit && size != CreatureSize::Small;
+    c.surround = rnd() * kTwoPi;
+    c.spitWait = 1.0f + rnd() * 2.0f;
     c.clipTime = rnd() * clipDuration[int(CreatureClip::Idle)];  // desynchronise idles
     creatures.push_back(c);
     return int(creatures.size()) - 1;
@@ -46,7 +55,28 @@ bool CreatureDirector::tryMove(Creature& c, const Vec3& step) {
     return true;
 }
 
-bool CreatureDirector::damage(int i, float amount, std::vector<CreatureEvent>* events) {
+// True if the creature could run `dist` metres along `heading` without meeting a building
+// (knee-height ray) or ground too steep to climb.
+bool CreatureDirector::pathClear(const Creature& c, float heading, float dist) const {
+    const Vec3 d = headingDir(heading);
+    if (collision) {
+        float t;
+        Vec3 n;
+        if (collision->raycast(c.pos + Vec3{0, 0.4f * c.scale, 0}, d, dist, t, n)) return false;
+    }
+    if (groundHeight) {
+        float prev = groundHeight(c.pos.x, c.pos.z);
+        for (float s = 0.5f; s <= dist + 1e-3f; s += 0.5f) {
+            const Vec3 p = c.pos + d * s;
+            const float g = groundHeight(p.x, p.z);
+            if (g - prev > params.maxSlope * 0.5f) return false;  // rise over 0.5 m steeper than the limit
+            prev = g;
+        }
+    }
+    return true;
+}
+
+bool CreatureDirector::damage(int i, float amount, const Vec3& dir, std::vector<CreatureEvent>* events) {
     if (i < 0 || size_t(i) >= creatures.size()) return false;
     Creature& c = creatures[size_t(i)];
     if (c.state == CreatureState::Dead) return false;
@@ -54,20 +84,76 @@ bool CreatureDirector::damage(int i, float amount, std::vector<CreatureEvent>* e
     if (c.health <= 0) {
         c.state = CreatureState::Dead;
         c.stateTime = 0;
+        c.speed = 0;
+        c.exploded = rnd() < params.burstChance;
         setClip(c, CreatureClip::Die, false);
-        if (events) events->push_back({CreatureEvent::Die, i, 0, c.pos});
+        if (events) {
+            CreatureEvent e{CreatureEvent::Die, i, 0, c.pos, c.size, c.exploded, dir};
+            events->push_back(e);
+        }
         return true;
     }
-    // Interrupts everything but a lunge in flight; a hit also makes it notice the player.
+    // A hit interrupts everything but a lunge in flight.
     if (c.state != CreatureState::Lunge) {
         c.state = CreatureState::Hit;
         c.stateTime = 0;
-        setClip(c, amount >= 20.0f ? CreatureClip::Hit : CreatureClip::HitSmall, false);
+        c.speed = 0;
+        setClip(c, amount >= 0.5f * c.maxHealth ? CreatureClip::Hit : CreatureClip::HitSmall, false);
         c.clipTime = 0;
         c.fade = std::min(c.fade, params.crossfade * 0.5f);
     }
-    if (events) events->push_back({CreatureEvent::Hurt, i, 0, c.pos});
+    if (events) events->push_back({CreatureEvent::Hurt, i, 0, c.pos, c.size});
     return false;
+}
+
+void CreatureDirector::launchSpit(int i, const Creature& c, const Vec3& target, std::vector<CreatureEvent>& events) {
+    Vec3 o = c.pos + Vec3{0, 0.6f * c.scale, 0} + headingDir(c.yaw) * (0.8f * c.scale);
+    if (mouth) mouth(i, o);
+    Vec3 aim = target;
+    const float spread = 0.15f + 0.02f * length(target - o);
+    aim.x += (rnd() - 0.5f) * 2.0f * spread;
+    aim.z += (rnd() - 0.5f) * 2.0f * spread;
+    const Vec3 h{aim.x - o.x, 0, aim.z - o.z};
+    const float d = std::max(0.5f, std::sqrt(h.x * h.x + h.z * h.z));
+    const float tFlight = std::max(0.3f, d / params.spitSpeed);
+    const float vy = (aim.y - o.y) / tFlight + 0.5f * params.spitGravity * tFlight;
+    spits.push_back({o, h * (params.spitSpeed / d) + Vec3{0, vy, 0}, c.size, 0.0f});
+    events.push_back({CreatureEvent::SpitLaunch, i, 0, o, c.size});
+}
+
+void CreatureDirector::updateSpits(float dt, const Vec3& player, bool playerAlive, std::vector<CreatureEvent>& events) {
+    const Vec3 pa = player + Vec3{0, 0.3f, 0}, pb = player + Vec3{0, 1.6f, 0};
+    for (auto& s : spits) {
+        s.age += dt;
+        const Vec3 step = s.vel * dt + Vec3{0, -0.5f * params.spitGravity * dt * dt, 0};
+        s.vel.y -= params.spitGravity * dt;
+        const float len = length(step);
+        bool burst = s.age > 4.0f;
+        Vec3 at = s.pos + step;
+        if (len > 1e-5f) {
+            const Vec3 dir = step * (1.0f / len);
+            float t;
+            Vec3 n;
+            if (collision && collision->raycast(s.pos, dir, len, t, n)) { burst = true; at = s.pos + dir * t; }
+            if (playerAlive && rayCapsule(s.pos, dir, len, pa, pb, 0.45f, t)) { burst = true; at = s.pos + dir * t; }
+        }
+        if (!burst && groundHeight && at.y <= groundHeight(at.x, at.z)) {
+            burst = true;
+            at.y = groundHeight(at.x, at.z);
+        }
+        s.pos = at;
+        if (!burst) continue;
+        // Splash damage falls off from the blast centre to the player's body axis.
+        const int k = int(s.size);
+        const Vec3 axis{player.x, std::max(pa.y, std::min(pb.y, at.y)), player.z};
+        const float d = length(at - axis);
+        const float r = params.spitRadius[k];
+        const float dmg = playerAlive && r > 0 && d < r ? params.spitDamage[k] * (1.0f - 0.7f * d / r) : 0.0f;
+        events.push_back({CreatureEvent::SpitBurst, -1, dmg, at, s.size});
+        s.age = 1e9f;  // remove
+    }
+    spits.erase(std::remove_if(spits.begin(), spits.end(), [](const CreatureSpit& s) { return s.age >= 1e8f; }),
+                spits.end());
 }
 
 void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, std::vector<CreatureEvent>& events) {
@@ -75,30 +161,82 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
     for (size_t i = 0; i < creatures.size(); ++i) {
         Creature& c = creatures[i];
         c.stateTime += dt;
-        c.cooldown = std::max(0.0f, c.cooldown - dt);
+        c.lungeWait = std::max(0.0f, c.lungeWait - dt);
         c.biteWait = std::max(0.0f, c.biteWait - dt);
+        c.spitWait = std::max(0.0f, c.spitWait - dt);
+        c.detourTime -= dt;
+        if (c.detourTime <= 0) c.detour = 0;
         const float s = c.scale, ss = std::sqrt(s);
         const Vec3 to{player.x - c.pos.x, 0, player.z - c.pos.z};
         const float dist = std::sqrt(to.x * to.x + to.z * to.z);
-        const float faceYaw = std::atan2(-to.x, -to.z);
+        const float faceYaw = headingTo(to);
         const float fromHome = std::hypot(c.pos.x - c.home.x, c.pos.z - c.home.z);
         auto turn = [&](float target, float rate) {
             const float d = angleDelta(c.yaw, target), st = rate * dt;
             c.yaw = angleDelta(0.0f, c.yaw + (std::fabs(d) <= st ? d : (d > 0 ? st : -st)));
         };
-        const Vec3 fwd{-std::sin(c.yaw), 0, -std::cos(c.yaw)};
+        // Steering toward a goal: avoids buildings and cliffs, turns before running, eases speed.
+        auto steer = [&](const Vec3& goal, float topSpeed) {
+            const Vec3 g{goal.x - c.pos.x, 0, goal.z - c.pos.z};
+            float heading = headingTo(g);
+            if (c.detourTime > 0) {
+                heading += c.detour;
+            } else if (!pathClear(c, heading, std::min(2.5f * s, std::sqrt(g.x * g.x + g.z * g.z)))) {
+                // Probe alternatives, preferring this creature's side, and keep the choice a moment.
+                const float side = std::sin(c.surround) >= 0 ? 1.0f : -1.0f;
+                for (float off : {0.6f, 1.2f, 1.8f, 2.4f}) {
+                    for (float sg : {side, -side}) {
+                        if (pathClear(c, heading + sg * off, 2.0f * s)) {
+                            c.detour = sg * off;
+                            c.detourTime = 0.8f;
+                            break;
+                        }
+                    }
+                    if (c.detourTime > 0) break;
+                }
+                heading += c.detour;
+            }
+            turn(heading, params.turnRate);
+            const float err = std::fabs(angleDelta(c.yaw, heading));
+            const float facing = std::max(0.0f, std::cos(err));
+            const float want = topSpeed * facing * facing;  // nearly stops to turn sharply
+            c.speed += std::max(-params.accel * dt, std::min(params.accel * dt, want - c.speed));
+            if (c.speed > 0.01f) {
+                if (tryMove(c, headingDir(c.yaw) * (c.speed * dt))) {
+                    c.blockedTime = 0;
+                } else {
+                    c.speed = 0;
+                    c.blockedTime += dt;
+                    if (c.blockedTime > 0.25f) {  // cliff or wall right ahead: go around
+                        c.detour = (c.detour > 0 ? -1.2f : 1.2f);
+                        c.detourTime = 1.2f;
+                    }
+                }
+            }
+            const float runRef = params.runSpeed * ss;
+            setClip(c, CreatureClip::Walk, true, std::max(0.8f, params.runPlayback * c.speed / runRef));
+        };
         const float reach = params.reach * s;
         const bool sees = playerAlive && dist < params.sightRange * ss;
-        const float runDur = clipDuration[int(CreatureClip::Attack)];
         switch (c.state) {
-            case CreatureState::Idle:
+            case CreatureState::Idle: {
                 setClip(c, CreatureClip::Idle, true);
-                if (sees) {
+                c.speed = 0;
+                if (c.alertIn >= 0) c.alertIn -= dt;
+                const bool called = c.alertIn >= 0 && c.alertIn <= dt && playerAlive;
+                if (sees || called) {
                     c.state = CreatureState::Chase;
                     c.stateTime = 0;
-                    events.push_back({CreatureEvent::Alert, int(i), 0, c.pos});
+                    c.alertIn = -1;
+                    events.push_back({CreatureEvent::Alert, int(i), 0, c.pos, c.size});
+                    // The pack joins in.
+                    for (auto& o : creatures)
+                        if (&o != &c && o.state == CreatureState::Idle && o.alertIn < 0 &&
+                            length(o.pos - c.pos) < params.packRange)
+                            o.alertIn = 0.2f + 0.6f * rnd();
                 }
                 break;
+            }
             case CreatureState::Chase: {
                 if (!playerAlive || (fromHome > params.leash && dist > params.sightRange * ss)) {
                     c.state = CreatureState::Return;
@@ -106,6 +244,7 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                 }
                 if (dist <= reach) {
                     turn(faceYaw, params.turnRate);
+                    c.speed = 0;
                     if (c.biteWait > 0) {  // catching its breath between bites
                         setClip(c, CreatureClip::Idle, true);
                         break;
@@ -115,34 +254,58 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                     c.struck = false;
                     setClip(c, CreatureClip::Attack, false);
                     c.clipTime = 0;
-                    events.push_back({CreatureEvent::Swing, int(i), 0, c.pos});
+                    events.push_back({CreatureEvent::Swing, int(i), 0, c.pos, c.size});
                     break;
                 }
-                turn(faceYaw, params.turnRate);
-                const bool facing = std::fabs(angleDelta(c.yaw, faceYaw)) < 0.3f;
-                if (facing && c.cooldown <= 0 && dist >= params.lungeMin * s && dist <= params.lungeMax * s &&
+                const bool facing = std::fabs(angleDelta(c.yaw, faceYaw)) < 0.35f;
+                // Spit from mid-range (or when it can't find a way through), with a clear line.
+                const bool stuck = c.blockedTime > 1.5f;
+                if (c.canSpit && c.spitWait <= 0 && facing && dist <= params.spitMax * ss &&
+                    (dist >= params.spitMin * ss || stuck)) {
+                    float t;
+                    Vec3 n;
+                    const Vec3 eye = c.pos + Vec3{0, 0.6f * s, 0};
+                    const Vec3 tgt = player + Vec3{0, 1.2f, 0};
+                    const bool blocked = collision && collision->raycast(eye, normalize(tgt - eye), length(tgt - eye), t, n);
+                    if (!blocked && (stuck || rnd() < dt * 2.0f)) {
+                        c.state = CreatureState::Spit;
+                        c.stateTime = 0;
+                        c.struck = false;
+                        c.speed = 0;
+                        setClip(c, CreatureClip::Spit, false);
+                        c.clipTime = 0;
+                        break;
+                    }
+                }
+                if (facing && c.lungeWait <= 0 && dist >= params.lungeMin * s && dist <= params.lungeMax * s &&
                     rnd() < dt * 1.5f) {
                     c.state = CreatureState::Lunge;
                     c.stateTime = 0;
                     c.struck = false;
-                    c.cooldown = params.lungeCooldown;
+                    c.lungeWait = params.lungeCooldown;
                     setClip(c, CreatureClip::Lunge, false);
                     c.clipTime = 0;
-                    events.push_back({CreatureEvent::Lunge, int(i), 0, c.pos});
+                    events.push_back({CreatureEvent::Lunge, int(i), 0, c.pos, c.size});
                     break;
                 }
-                setClip(c, CreatureClip::Walk, true, params.runPlayback);
-                tryMove(c, fwd * (params.runSpeed * ss * dt));
+                // Close in from this creature's own side so a pack spreads around the player.
+                Vec3 goal = player;
+                if (dist < 8.0f * s) {
+                    const Vec3 ring{std::sin(c.surround), 0, std::cos(c.surround)};
+                    goal = player + ring * (0.8f * reach);
+                }
+                steer(goal, params.runSpeed * ss);
                 break;
             }
             case CreatureState::Attack: {
                 turn(faceYaw, params.turnRate * 0.5f);
-                if (!c.struck && c.clipTime >= runDur * params.biteAt) {
+                const float dur = clipDuration[int(CreatureClip::Attack)];
+                if (!c.struck && c.clipTime >= dur * params.biteAt) {
                     c.struck = true;
                     if (playerAlive && dist <= reach + 0.4f * s)
-                        events.push_back({CreatureEvent::Strike, int(i), params.biteDamage * ss, c.pos});
+                        events.push_back({CreatureEvent::Strike, int(i), params.biteDamage * ss, c.pos, c.size});
                 }
-                if (c.clipTime >= runDur * 0.98f) {
+                if (c.clipTime >= dur * 0.98f) {
                     c.state = CreatureState::Chase;
                     c.stateTime = 0;
                     c.biteWait = params.bitePause;
@@ -151,13 +314,13 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
             }
             case CreatureState::Lunge: {
                 // Airborne between 25% and 70% of the clip: travels toward where it aimed.
-                const float d = clipDuration[int(CreatureClip::Lunge)];
-                const float f = c.clipTime / std::max(d, 1e-3f);
-                if (f > 0.25f && f < 0.7f) tryMove(c, fwd * (params.lungeSpeed * ss * dt));
+                const float dur = clipDuration[int(CreatureClip::Lunge)];
+                const float f = c.clipTime / std::max(dur, 1e-3f);
+                if (f > 0.25f && f < 0.7f) tryMove(c, headingDir(c.yaw) * (params.lungeSpeed * ss * dt));
                 if (!c.struck && f >= 0.55f) {
                     c.struck = true;
                     if (playerAlive && dist <= reach + 0.6f * s)
-                        events.push_back({CreatureEvent::Strike, int(i), params.lungeDamage * ss, c.pos});
+                        events.push_back({CreatureEvent::Strike, int(i), params.lungeDamage * ss, c.pos, c.size});
                 }
                 if (f >= 0.98f) {
                     c.state = CreatureState::Chase;
@@ -165,7 +328,23 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                 }
                 break;
             }
+            case CreatureState::Spit: {
+                turn(faceYaw, params.turnRate);
+                const float dur = clipDuration[int(CreatureClip::Spit)];
+                if (!c.struck && c.clipTime >= dur * params.spitAt) {
+                    c.struck = true;
+                    launchSpit(int(i), c, player + Vec3{0, 1.1f, 0}, events);
+                }
+                if (c.clipTime >= dur * 0.98f) {
+                    c.state = CreatureState::Chase;
+                    c.stateTime = 0;
+                    c.blockedTime = 0;
+                    c.spitWait = params.spitCooldown + rnd() * 2.0f;
+                }
+                break;
+            }
             case CreatureState::Hit:
+                c.speed = 0;
                 if (c.stateTime >= clipDuration[int(c.clip)] * 0.95f) {
                     c.state = playerAlive ? CreatureState::Chase : CreatureState::Return;
                     c.stateTime = 0;
@@ -176,21 +355,19 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                     c.state = CreatureState::Chase;
                     break;
                 }
-                const Vec3 h{c.home.x - c.pos.x, 0, c.home.z - c.pos.z};
-                const float hd = std::sqrt(h.x * h.x + h.z * h.z);
-                if (hd < 0.5f) {
+                if (std::hypot(c.home.x - c.pos.x, c.home.z - c.pos.z) < 0.6f) {
                     c.state = CreatureState::Idle;
                     break;
                 }
-                turn(std::atan2(-h.x, -h.z), params.turnRate);
-                setClip(c, CreatureClip::Walk, true, 1.0f);
-                if (!tryMove(c, fwd * (params.walkSpeed * ss * dt)) && c.stateTime > 6.0f) {
-                    c.state = CreatureState::Idle;  // stuck: settle where it is
+                steer(c.home, params.walkSpeed * ss);
+                if (c.stateTime > 30.0f) {  // can't get back: settle where it is
+                    c.state = CreatureState::Idle;
                     c.home = c.pos;
                 }
                 break;
             }
             case CreatureState::Dead:
+                if (c.exploded) { c.remove = true; break; }  // the game layer shows the gore
                 if (c.stateTime > params.corpseTime) c.sink += dt * 0.25f;
                 if (c.sink > params.height * s + 0.5f) c.remove = true;
                 break;
@@ -231,6 +408,7 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
         const float l = std::sqrt(d.x * d.x + d.z * d.z), minD = params.radius * p.scale + 0.35f;
         if (playerAlive && l < minD && l > 1e-4f) p.pos += d * ((minD - l) / l);
     }
+    updateSpits(dt, player, playerAlive, events);
     creatures.erase(std::remove_if(creatures.begin(), creatures.end(), [](const Creature& c) { return c.remove; }),
                     creatures.end());
 }

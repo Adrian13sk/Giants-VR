@@ -64,6 +64,10 @@ public:
     size_t enemiesAlive() const { return enemies_.aliveCount(); }
     size_t creaturesAlive() const { return creatures_.aliveCount(); }
     size_t characterCount() const { return chars_.size(); }
+    size_t spitsLaunched() const { return spitsLaunched_; }
+    size_t spitHits() const { return spitHits_; }
+    size_t gibCount() const { return gibs_.size(); }
+    const CreatureDirector& creatureDirector() const { return creatures_; }
     size_t enemyCount() const { return enemies_.enemies.size(); }
     float playerHealth() const { return playerHealth_; }
     // Test hook: feet position of any enemy (alive or dead).
@@ -151,12 +155,25 @@ private:
         int clipIndex[int(CreatureClip::Count)] = {};
         Vec3 pos;
         float yaw = 0, scale = 1, lift = 0, time = 0, stepTimer = 0;
-        bool ambient = true, visible = true, large = false;
+        bool ambient = true, visible = true;
+        CreatureSize size = CreatureSize::Medium;
     };
+    // Ripper spit balls (orange medium / blue large), blasts and gore from bursting Rippers.
+    std::unique_ptr<SkinnedModel> spitBall_[3];
+    Vec3 spitCentre_[3];
+    const RenderModel* spitRing_[3] = {};
+    const RenderModel* goreHead_ = nullptr;
+    const RenderModel* goreArm_ = nullptr;
+    struct Blast { Vec3 pos; int size; float age; };
+    std::vector<Blast> blasts_;
+    struct Gib { const RenderModel* model; Vec3 pos, vel, axis; float angle, spin, scale, life; };
+    std::vector<Gib> gibs_;
+    void spawnGore(const Vec3& pos, const Vec3& dir, float scale);
     std::vector<CharacterInst> chars_;
     CreatureDirector creatures_;
     std::vector<CreatureEvent> creatureEvents_;
-    bool missionHostiles_ = false;  // the mission placed enemies: no test waves
+    bool missionHostiles_ = false;
+    size_t spitsLaunched_ = 0, spitHits_ = 0;  // the mission placed enemies: no test waves
     void initCharacters(AssetWorld* w, ModelCache* mc);
     void updateCharacters(float dt);
     void creatureSound(const CreatureEvent& e);

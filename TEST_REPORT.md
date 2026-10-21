@@ -102,3 +102,15 @@ User report: "that worked, now it is as it is supposed". The village buildings (
     - 600 frames without firing: health 28.
     - 300 frames with `--trigger 1 --auto-aim`: the 3 nearby Rippers die, health 100.
 - APK: signed, 3,047,923 bytes, sha256 1dc7f456…2416. **Not yet device-tested.**
+
+## Device test 15 — 2026-10-21 22:25 local, user's Quest 2 (build 4a1d8c2)
+- Frame rate smooth with the mission-populated Story1 (300 objects + 9 characters): **DEVICE VERIFIED**.
+- Rippers "feel alright"; navigation weird; missing the original ranged spit and burst deaths → fixed in the next build.
+
+## Host verification — Ripper spit, bursts, steering (build 220c5ae6…)
+- `gvr_tests` pass. New checks:
+  - a medium Ripper spits and the ball bursts at the player;
+  - small Rippers never spit;
+  - a Ripper walks around a wall to reach the player;
+  - the hit-point thresholds come from the type.
+- Headless runs as logged in ENGINEERING_LOG. **Not yet device-tested.**

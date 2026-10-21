@@ -70,6 +70,9 @@ int main(int argc, char** argv) {
 
     GameApp app;
     if (!app.init(dataDir, world)) return 3;
+    // Test only: force the Ripper death type (GVR_BURST_CHANCE=1 -> always burst into gore).
+    if (const char* bc = std::getenv("GVR_BURST_CHANCE"))
+        const_cast<CreatureDirector&>(app.creatureDirector()).params.burstChance = float(std::atof(bc));
     AudioMixer mixer(48000);
     std::vector<float> audio;
     if (!audioOut.empty()) app.setAudio(&mixer);
@@ -163,6 +166,13 @@ int main(int argc, char** argv) {
         LOGI("combat: %zu/%zu Reapers alive, %zu creatures alive (%zu characters), nearest %.1f m (yaw %.0f deg), "
              "player health %.0f", app.enemiesAlive(), app.enemyCount(), app.creaturesAlive(), app.characterCount(), nd,
              std::atan2(-rel.x, -rel.z) * 180.0f / kPi, app.playerHealth());
+        if (std::getenv("GVR_CREATURE_DUMP"))
+            for (const auto& c : app.creatureDirector().creatures)
+                LOGI("  creature state %d clip %d pos (%.1f %.1f %.1f) dist %.1f speed %.2f spitWait %.1f blocked %.2f detour %.2f",
+                     int(c.state), int(c.clip), c.pos.x, c.pos.y, c.pos.z, length(c.pos - p.position), c.speed, c.spitWait,
+                     c.blockedTime, c.detour);
+        LOGI("creatures: %zu spits launched, %zu spit hits, %zu gore pieces", app.spitsLaunched(), app.spitHits(),
+             app.gibCount());
         LOGI("player at (%.2f %.2f %.2f) yaw %.1f deg, %s, anim %d t=%.2f, speed %.2f m/s", p.position.x, p.position.y,
              p.position.z, p.yaw * 180.0f / kPi, p.onGround ? "on ground" : "airborne", int(p.anim()), p.animTime(),
              p.horizontalSpeed());
