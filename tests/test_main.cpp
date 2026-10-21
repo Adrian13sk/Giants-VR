@@ -228,6 +228,20 @@ static void testPlayer() {
     CHECK(pc.anim() == PlayerAnim::Land);
     for (int i = 0; i < 72; ++i) pc.update(1.0f / 72.0f, in);
     CHECK(pc.anim() == PlayerAnim::Idle);
+    // First person: the body follows the view smoothly (never jumps in one frame), lets the
+    // head look ~30 deg off freely, and re-centres over time.
+    PlayerController fp;
+    fp.faceView = true;
+    fp.groundHeight = [](float, float) { return 0.0f; };
+    fp.teleport({0, 0, 0}, 0.0f);
+    PlayerInput look;
+    look.viewYaw = 1.0f;  // head turned ~57 deg left, standing still
+    fp.update(1.0f / 72.0f, look);
+    CHECK(fp.yaw > 0.0f && fp.yaw < 0.2f);
+    for (int i = 0; i < 72; ++i) fp.update(1.0f / 72.0f, look);
+    CHECK(fp.yaw > 1.0f - 0.55f);  // carried within the cone after 1 s
+    for (int i = 0; i < 72 * 5; ++i) fp.update(1.0f / 72.0f, look);
+    CHECK(near(fp.yaw, 1.0f, 0.05f));  // re-centred
     // Angle wrap helper.
     CHECK(near(angleDelta(3.0f, -3.0f), 2.0f * kPi - 6.0f, 1e-4f));
 }

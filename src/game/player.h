@@ -66,7 +66,6 @@ private:
     PlayerAnim anim_ = PlayerAnim::Idle, prevAnim_ = PlayerAnim::Idle;
     float animTime_ = 0, prevTime_ = 0, fade_ = 1e9f;
     float landTimer_ = 0;
-    bool idleTurning_ = false;
 };
 
 // Shortest signed angle from a to b (radians).

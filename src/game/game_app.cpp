@@ -62,17 +62,18 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     auto it = clip.byName.find(n);
                     return it == clip.byName.end() ? -1 : it->second;
                 };
-                static const char* names[2][11] = {
+                static const char* names[2][12] = {
                     {"arm l", "wrist l", "hand l", "finger 1l1", "finger 2l1", "finger 3l1", "finger 4l1",
-                     "finger 1l2", "finger 2l2", "finger 3l2", "finger 4l2"},
+                     "finger 1l2", "finger 2l2", "finger 3l2", "finger 4l2", "shoulder l"},
                     {"arm r", "wrist r", "hand r", "finger 1r1", "finger 2r1", "finger 3r1", "finger 4r1",
-                     "finger 1r2", "finger 2r2", "finger 3r2", "finger 4r2"}};
+                     "finger 1r2", "finger 2r2", "finger 3r2", "finger 4r2", "shoulder r"}};
                 for (int h = 0; h < 2; ++h) {
                     if (!armTargets_[h].valid) continue;
                     ArmChain c;
                     c.upper = node(names[h][0]);
                     c.fore = node(names[h][1]);
                     c.hand = node(names[h][2]);
+                    c.clavicle = node(names[h][11]);
                     for (int f = 0; f < 4; ++f) {
                         c.finger[f] = node(names[h][3 + f]);
                         c.fingerMid[f] = node(names[h][7 + f]);
@@ -81,8 +82,12 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     t.grip = armTargets_[h].grip;
                     t.forward = armTargets_[h].forward;
                     t.up = armTargets_[h].up;
-                    // Elbows bend down, outward and back (game model space: +X = left, +Y = back, +Z = up).
-                    t.pole = Vec3{h == kLeft ? 0.6f : -0.6f, 0.4f, -1.0f};
+                    // Elbows hang down, out and back (game model space: +X = left, +Y = back, +Z = up)
+                    // and swing opposite the controller's up vector (rolling the hand moves the elbow).
+                    const Vec3 up = normalize(t.up);
+                    t.pole = Vec3{h == kLeft ? 0.7f : -0.7f, 0.4f, -1.0f} - up * 0.5f;
+                    t.handScale = 0.8f;   // the gloves read oversized at first-person distance
+                    t.armStretch = 1.3f;  // Meccaryn arms are short for human reach (0.49 vs ~0.6 m)
                     solveArmIk(world, children, c, t);
                     // Grip closes the hand; the trigger curls the leading finger (Meccaryn: 4 digits).
                     const float g = armTargets_[h].squeeze, tr = armTargets_[h].trigger;
@@ -159,13 +164,26 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     const Quat qOld = Quat::fromAxisAngle({0, 1, 0}, camYaw_);
     camYaw_ += rig_.turnInput(dt, in);
     player_.faceView = firstPerson_;
+    if (in.recenterSerial != recenterSerial_) {
+        // Recentre moves the tracking origin: do not turn that jump into walking.
+        recenterSerial_ = in.recenterSerial;
+        haveHeadPrev_ = false;
+        LOGI("Recentre: head %.2f %.2f %.2f, eye estimate %.2f", in.head.position.x, in.head.position.y,
+             in.head.position.z, userEye_);
+    }
     if (in.headValid) {
-        // Physical walking moves the player (first person); track the standing eye height.
+        // Physical walking moves the player (first person).
         if (firstPerson_ && haveHeadPrev_)
             player_.position += qOld.rotate(Vec3{in.head.position.x - headPrev_.x, 0, in.head.position.z - headPrev_.z});
         headPrev_ = in.head.position;
         haveHeadPrev_ = true;
-        userEye_ = std::min(2.1f, std::max(userEye_, in.head.position.y));
+        // Eye height estimate for the body scale: smoothed, ignoring implausible values, so the
+        // brief lift while putting the headset on does not inflate the body (old running max did).
+        const float hy = in.head.position.y;
+        if (hy > 1.0f && hy < 2.05f) {
+            if (!eyeCalibrated_) { userEye_ = hy; eyeCalibrated_ = true; }
+            else if (dt > 0) userEye_ += (hy - userEye_) * (1.0f - std::exp(-dt / 2.5f));
+        }
     }
     PlayerInput pi;
     pi.move = in.hand[mh].thumbstick;
@@ -198,7 +216,9 @@ void GameApp::poseFirstPersonBody(const InputFrame& in) {
     // body moves back as the run clip leans the torso forward instead of the shoulders
     // swinging into view. Scale uses the upright idle eye height.
     Vec3 base = head - bodyRot.rotate(Vec3{eyeNow_.x, 0, eyeNow_.z} * scale);
-    base.y = player_.position.y;
+    // Vertical pin: the body's eyes are always at the viewer's eyes, so the torso keeps its
+    // place under the view (crouching sinks the legs instead of the chest rising into view).
+    base.y = std::max(player_.position.y - 1.2f, std::min(player_.position.y + 0.5f, head.y - eyeNow_.y * scale));
     bodyXf_ = Mat4::translation(base) * Mat4::rotation(bodyRot) * Mat4::scale({scale, scale, scale});
     const Quat inv = bodyRot.conjugate();
     const float u = gGameUnitsToMeters;

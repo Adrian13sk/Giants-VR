@@ -2,6 +2,8 @@
 // scripted input in the headless harness) and consumed by gameplay / VR rig code.
 #pragma once
 
+#include <cstdint>
+
 #include "core/math.h"
 
 namespace gvr {
@@ -27,6 +29,7 @@ struct InputFrame {
     ControllerState hand[2];
     Pose head;                 // tracking space
     bool headValid = false;
+    uint32_t recenterSerial = 0;  // increments when the user recentres (reference space change)
 };
 
 // Edge detection helper for boolean buttons.

@@ -61,6 +61,7 @@ public:
     float currentRefreshRate() const { return refreshRate_; }
 
 private:
+    uint32_t recenterSerial_ = 0;
     struct Swapchain {
         XrSwapchain handle = XR_NULL_HANDLE;
         int width = 0, height = 0;

@@ -66,14 +66,19 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         yaw = angleDelta(0.0f, yaw);  // keep in (-pi, pi]
     };
     if (faceView) {
-        // Body follows the view: always while moving; when standing, only once the head has
-        // turned well away (like a person turning their feet), then all the way round.
-        const float d = std::fabs(angleDelta(yaw, in.viewYaw));
-        if (speed > 0.05f) idleTurning_ = false;
-        else if (d > 0.9f) idleTurning_ = true;
-        else if (d < 0.05f) idleTurning_ = false;
-        if (speed > 0.05f) turnToward(in.viewYaw, params.turnRate * 1.5f);
-        else if (idleTurning_) turnToward(in.viewYaw, 6.0f);
+        // Body follows the view smoothly (exponential, no snapping). Moving: tight follow.
+        // Standing: the head may look up to ~30 deg off the body freely; beyond that the body
+        // is carried along smoothly, and it slowly re-centres under the view.
+        const float d = angleDelta(yaw, in.viewYaw);
+        const auto follow = [&](float amount, float tau) { yaw += amount * (1.0f - std::exp(-dt / tau)); };
+        if (speed > 0.05f) {
+            follow(d, 0.10f);
+        } else {
+            const float cone = 0.52f;
+            if (std::fabs(d) > cone) follow(d - (d > 0 ? cone : -cone), 0.12f);
+            follow(angleDelta(yaw, in.viewYaw), 1.5f);
+        }
+        yaw = angleDelta(0.0f, yaw);
     } else if (speed > 0.05f) {
         turnToward(moveYaw, params.turnRate);
     }

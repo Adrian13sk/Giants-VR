@@ -12,6 +12,7 @@
 namespace gvr {
 
 struct ArmChain {
+    int clavicle = -1;                     // optional: rotates a little to extend reach
     int upper = -1, fore = -1, hand = -1;  // shoulder joint, elbow joint, wrist joint nodes
     int finger[4] = {-1, -1, -1, -1};      // finger base nodes: [0],[1] index side, [2],[3] pinky side
     int fingerMid[4] = {-1, -1, -1, -1};   // second finger joints
@@ -23,7 +24,15 @@ struct ArmTarget {
     Vec3 forward;  // direction the knuckles point (controller pointing direction)
     Vec3 up;       // direction from pinky side to index side (controller up)
     Vec3 pole;     // direction the elbow should bend toward
+    float twistShare = 0.5f;  // fraction of the wrist roll carried by the forearm (no wrist break)
+    float handScale = 1.0f;   // uniform hand scale about the wrist
+    float armStretch = 1.0f;  // lengthens upper arm and forearm (along the bone) before solving
 };
+
+// Stretches node's own geometry along its bone axis (local +Z, toward `child`) by `factor`
+// and moves the child subtree out by the extra length.
+void stretchBone(std::vector<Mat4>& world, const std::vector<std::vector<int>>& children, int node, int child,
+                 float factor);
 
 Quat rotationBetween(const Vec3& from, const Vec3& to);
 // Rotates `root` and all its descendants about `pivot` by `r` (world space).

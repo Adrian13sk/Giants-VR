@@ -348,6 +348,7 @@ void XrApp::pollEvents(bool& exitRequested) {
                 break;
             case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING:
                 LOGI("Reference space change pending (user recentre)");
+                ++recenterSerial_;
                 break;
             case XR_TYPE_EVENT_DATA_DISPLAY_REFRESH_RATE_CHANGED_FB: {
                 auto* rr = reinterpret_cast<XrEventDataDisplayRefreshRateChangedFB*>(&ev);
@@ -382,6 +383,7 @@ bool XrApp::beginFrame(XrFrameContext& frame) {
         frame.input.headValid = true;
     }
     input_.sync(fs.predictedDisplayTime, appSpace_, frame.input);
+    frame.input.recenterSerial = recenterSerial_;
 
     if (!frame.shouldRender) return true;
 
