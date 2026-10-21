@@ -1,0 +1,13 @@
+build/
+out/
+keys/
+*.apk
+*.keystore
+# Never commit original game data (proprietary): archives, extracted assets, renders of them
+*.gzp
+*.gbs
+*.skn
+*.anm
+*.gti
+*.tga
+game_data/

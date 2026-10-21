@@ -1,0 +1,228 @@
+#include "assets/gzp.h"
+
+#include <algorithm>
+#include <cstdio>
+#include <cstring>
+#include <dirent.h>
+#include <set>
+#include <sys/stat.h>
+
+#include "core/log.h"
+
+namespace gvr {
+
+namespace {
+constexpr uint32_t kGzpMagic = 0x6608F101u;
+
+uint32_t rd32(const uint8_t* p) {
+    return uint32_t(p[0]) | (uint32_t(p[1]) << 8) | (uint32_t(p[2]) << 16) | (uint32_t(p[3]) << 24);
+}
+
+bool readFile(const std::string& path, std::vector<uint8_t>& out) {
+    FILE* f = std::fopen(path.c_str(), "rb");
+    if (!f) return false;
+    std::fseek(f, 0, SEEK_END);
+    long sz = std::ftell(f);
+    std::fseek(f, 0, SEEK_SET);
+    if (sz < 0) { std::fclose(f); return false; }
+    out.resize(static_cast<size_t>(sz));
+    size_t got = sz ? std::fread(out.data(), 1, out.size(), f) : 0;
+    std::fclose(f);
+    return got == out.size();
+}
+
+void setErr(std::string* e, const std::string& msg) {
+    if (e) *e = msg;
+}
+}  // namespace
+
+std::string toLower(std::string s) {
+    for (char& c : s)
+        if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+    return s;
+}
+
+bool lzssDecompress(const uint8_t* in, size_t n, size_t expected, std::vector<uint8_t>& out) {
+    out.clear();
+    out.reserve(expected);
+    uint8_t window[4096];
+    std::memset(window, 0x20, sizeof(window));
+    unsigned r = 0xFEE;
+    unsigned flags = 0;
+    size_t i = 0;
+    while (out.size() < expected) {
+        flags >>= 1;
+        if ((flags & 0x100) == 0) {
+            if (i >= n) break;
+            flags = in[i++] | 0xFF00u;  // high byte counts the 8 remaining flag bits
+        }
+        if (flags & 1) {
+            if (i >= n) break;
+            uint8_t c = in[i++];
+            out.push_back(c);
+            window[r] = c;
+            r = (r + 1) & 0xFFF;
+        } else {
+            if (i + 1 >= n) break;
+            unsigned b1 = in[i++], b2 = in[i++];
+            unsigned pos = b1 | ((b2 & 0xF0u) << 4);
+            unsigned len = (b2 & 0x0Fu) + 3;
+            for (unsigned k = 0; k < len && out.size() < expected; ++k) {
+                uint8_t c = window[(pos + k) & 0xFFF];
+                out.push_back(c);
+                window[r] = c;
+                r = (r + 1) & 0xFFF;
+            }
+        }
+    }
+    return out.size() == expected;
+}
+
+bool GzpArchive::open(const std::string& path, std::string* error) {
+    std::vector<uint8_t> d;
+    if (!readFile(path, d)) {
+        setErr(error, "cannot read " + path);
+        return false;
+    }
+    return openMemory(std::move(d), path, error);
+}
+
+bool GzpArchive::openMemory(std::vector<uint8_t> d, const std::string& label, std::string* error) {
+    path_ = label;
+    data_ = std::move(d);
+    entries_.clear();
+    byLowerName_.clear();
+    if (data_.size() < 8 || rd32(data_.data()) != kGzpMagic) {
+        setErr(error, label + ": bad GZP magic");
+        return false;
+    }
+    const uint32_t indexOff = rd32(data_.data() + 4);
+    if (static_cast<uint64_t>(indexOff) + 8 > data_.size()) {
+        setErr(error, label + ": index offset out of range");
+        return false;
+    }
+    const uint32_t count = rd32(data_.data() + indexOff + 4);
+    size_t p = indexOff + 8;
+    entries_.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        if (p + 18 > data_.size()) {
+            setErr(error, label + ": truncated index");
+            return false;
+        }
+        const uint8_t* e = data_.data() + p;
+        GzpEntry ent;
+        ent.storedSize = rd32(e);
+        ent.uncompressedSize = rd32(e + 4);
+        ent.dosDate = rd32(e + 8);
+        ent.dataOffset = rd32(e + 12);
+        ent.compression = e[16];
+        const uint8_t nameLen = e[17];
+        if (p + 18 + nameLen > data_.size()) {
+            setErr(error, label + ": truncated name");
+            return false;
+        }
+        const char* nm = reinterpret_cast<const char*>(e + 18);
+        ent.name.assign(nm, strnlen(nm, nameLen));
+        p += 18 + nameLen;
+        if (static_cast<uint64_t>(ent.dataOffset) + ent.storedSize > data_.size() || ent.storedSize < 16) {
+            LOGW("%s: entry %s has out-of-range data; skipped", label.c_str(), ent.name.c_str());
+            continue;
+        }
+        byLowerName_[toLower(ent.name)] = entries_.size();
+        entries_.push_back(std::move(ent));
+    }
+    return true;
+}
+
+const GzpEntry* GzpArchive::find(const std::string& name) const {
+    auto it = byLowerName_.find(toLower(name));
+    return it == byLowerName_.end() ? nullptr : &entries_[it->second];
+}
+
+bool GzpArchive::extract(const GzpEntry& e, std::vector<uint8_t>& out, std::string* error) const {
+    const uint8_t* payload = data_.data() + e.dataOffset + 16;
+    const size_t payloadSize = e.storedSize - 16;
+    if (e.compression == 2) {
+        if (payloadSize < e.uncompressedSize) {
+            setErr(error, e.name + ": stored payload shorter than declared size");
+            return false;
+        }
+        out.assign(payload, payload + e.uncompressedSize);
+        return true;
+    }
+    if (e.compression == 1) {
+        if (!lzssDecompress(payload, payloadSize, e.uncompressedSize, out)) {
+            setErr(error, e.name + ": LZSS stream ended early");
+            return false;
+        }
+        return true;
+    }
+    setErr(error, e.name + ": unknown compression " + std::to_string(e.compression));
+    return false;
+}
+
+// ---------------------------------------------------------------------------------------------
+
+bool AssetFS::mountArchive(const std::string& path, std::string* error) {
+    GzpArchive a;
+    if (!a.open(path, error)) return false;
+    archives_.push_back(std::move(a));
+    return true;
+}
+
+void AssetFS::mountDirectory(const std::string& dir) { dirs_.push_back(dir); }
+
+int AssetFS::mountAllArchives(const std::string& dir) {
+    DIR* d = opendir(dir.c_str());
+    if (!d) return 0;
+    std::vector<std::string> names;
+    while (dirent* de = readdir(d)) {
+        std::string n = de->d_name;
+        if (n.size() > 4 && toLower(n.substr(n.size() - 4)) == ".gzp") names.push_back(n);
+    }
+    closedir(d);
+    std::sort(names.begin(), names.end());
+    int mounted = 0;
+    for (const auto& n : names) {
+        std::string err;
+        if (mountArchive(dir + "/" + n, &err)) ++mounted;
+        else LOGW("mount %s failed: %s", n.c_str(), err.c_str());
+    }
+    return mounted;
+}
+
+bool AssetFS::read(const std::string& name, std::vector<uint8_t>& out) const {
+    for (auto it = dirs_.rbegin(); it != dirs_.rend(); ++it)
+        if (readFile(*it + "/" + name, out)) return true;
+    for (auto it = archives_.rbegin(); it != archives_.rend(); ++it) {
+        if (const GzpEntry* e = it->find(name)) {
+            std::string err;
+            if (it->extract(*e, out, &err)) return true;
+            LOGW("extract %s from %s failed: %s", name.c_str(), it->path().c_str(), err.c_str());
+        }
+    }
+    return false;
+}
+
+bool AssetFS::exists(const std::string& name) const {
+    for (const auto& a : archives_)
+        if (a.find(name)) return true;
+    struct stat st;
+    for (const auto& d : dirs_)
+        if (stat((d + "/" + name).c_str(), &st) == 0) return true;
+    return false;
+}
+
+std::vector<std::string> AssetFS::list(const std::string& suffix) const {
+    std::set<std::string> out;
+    const std::string ls = toLower(suffix);
+    for (const auto& a : archives_)
+        for (const auto& e : a.entries()) {
+            std::string l = toLower(e.name);
+            if (ls.empty() || (l.size() >= ls.size() && l.compare(l.size() - ls.size(), ls.size(), ls) == 0))
+                out.insert(e.name);
+        }
+    return {out.begin(), out.end()};
+}
+
+}  // namespace gvr

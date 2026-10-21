@@ -1,0 +1,76 @@
+cmake_minimum_required(VERSION 3.22)
+project(GiantsVR LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE RelWithDebInfo)
+endif()
+
+set(GVR_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
+# ------------------------------------------------------------------------------------------
+# Portable core: renderer, asset formats, scene, gameplay. No platform or VR dependencies.
+# ------------------------------------------------------------------------------------------
+add_library(gvr_core STATIC
+  src/render/renderer.cpp
+  src/assets/gzp.cpp
+  src/assets/gbs.cpp
+  src/assets/image.cpp
+  src/scene/model_cache.cpp
+  src/scene/asset_world.cpp
+  src/scene/test_scene.cpp
+  src/game/vr_rig.cpp
+  src/game/game_app.cpp
+)
+target_include_directories(gvr_core PUBLIC src third_party)
+target_compile_options(gvr_core PRIVATE -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers)
+
+if(ANDROID)
+  # ----------------------------------------------------------------------------------------
+  # Quest runtime: NativeActivity shared library.
+  # ----------------------------------------------------------------------------------------
+  set(OPENXR_LOADER_SO "" CACHE FILEPATH "Path to arm64-v8a libopenxr_loader.so (Khronos AAR)")
+  if(NOT EXISTS "${OPENXR_LOADER_SO}")
+    message(FATAL_ERROR "OPENXR_LOADER_SO not found: ${OPENXR_LOADER_SO}")
+  endif()
+  add_library(openxr_loader SHARED IMPORTED)
+  set_target_properties(openxr_loader PROPERTIES IMPORTED_LOCATION "${OPENXR_LOADER_SO}")
+
+  add_library(native_app_glue STATIC
+    ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
+  target_include_directories(native_app_glue PUBLIC ${ANDROID_NDK}/sources/android/native_app_glue)
+
+  add_library(giantsvr SHARED
+    src/platform/android/android_main.cpp
+    src/xr/xr_app.cpp
+    src/xr/xr_input.cpp
+  )
+  target_include_directories(giantsvr PRIVATE src third_party third_party/openxr/include)
+  target_compile_options(giantsvr PRIVATE -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers)
+  # ANativeActivity_onCreate must stay exported from the glue library.
+  set_target_properties(giantsvr PROPERTIES LINK_FLAGS "-u ANativeActivity_onCreate -Wl,--build-id=sha1 -Wl,-z,max-page-size=16384")
+  target_link_libraries(giantsvr PRIVATE gvr_core native_app_glue openxr_loader
+                        android log EGL GLESv3)
+else()
+  # ----------------------------------------------------------------------------------------
+  # Host tools: headless renderer (Mesa EGL surfaceless), asset tool, unit tests.
+  # ----------------------------------------------------------------------------------------
+  target_include_directories(gvr_core PUBLIC third_party/khronos)
+  target_compile_definitions(gvr_core PUBLIC EGL_NO_X11)
+  find_library(HOST_EGL NAMES EGL libEGL.so.1 PATHS /usr/lib/x86_64-linux-gnu REQUIRED)
+  find_library(HOST_GLES NAMES GLESv2 libGLESv2.so.2 PATHS /usr/lib/x86_64-linux-gnu REQUIRED)
+
+  add_executable(headless_render tools/headless/headless_main.cpp)
+  target_link_libraries(headless_render PRIVATE gvr_core ${HOST_EGL} ${HOST_GLES})
+
+  add_executable(gzptool tools/gzptool/gzptool.cpp)
+  target_link_libraries(gzptool PRIVATE gvr_core ${HOST_EGL} ${HOST_GLES})
+
+  add_executable(gvr_tests tests/test_main.cpp)
+  target_link_libraries(gvr_tests PRIVATE gvr_core ${HOST_EGL} ${HOST_GLES})
+  enable_testing()
+  add_test(NAME unit COMMAND gvr_tests)
+endif()
