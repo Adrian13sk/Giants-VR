@@ -84,3 +84,8 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 - Test 6 (ad9823f): "way better". The user wants the arms to stretch further; my first attempt (556548f) misread this as limiting the stretch.
 - Test 7 (13fdb40, dynamic reach stretch): **"Now it's perfect"**. First-person body, arm IK, hands and turning are DEVICE VERIFIED.
 - Test 8 (ca0d903, level collision): **"Everything works"**. Wall collision, sliding, landing on tops and walk-through plants are DEVICE VERIFIED.
+
+## Device tests 9–14 — 2026-10-21 17:45–18:43, user's Quest 2
+- FP gun on the controller (b2c…): "works flawlessly in FP". Third-person aim and gun size were then reworked (crosshair, scale 0.75).
+- Reapers (49fdcaf → 6b7c586): "works fine". Feedback drove: running and stand-to-shoot, bodies on the ground, the 50° walk slope limit, the mc_skid slide, and the cliff rule for enemies. All accepted on device.
+- Audio (3afbc82, sha256 fab0d844…): **"it works just fine"**. AAudio output, positional mixing and the inferred sound mapping are DEVICE VERIFIED. The user didn't flag any wrong sound.

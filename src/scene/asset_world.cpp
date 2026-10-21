@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "assets/gti.h"
+#include "assets/mission.h"
 #include "core/log.h"
 
 namespace gvr {
@@ -164,20 +165,35 @@ void AssetWorld::placeShowcase(const Vec3& centre) {
     }
 }
 
-// Placement transform in the runtime frame. A yaw of `deg` about the game's +Z axis maps to a
-// yaw of +deg about the runtime +Y axis under the (-x, z, y) conversion (proper rotation).
-static Mat4 placementMatrix(const ObjectPlacement& p) {
-    return Mat4::translation(giantsToRuntime(p.x, p.y, p.z)) *
-           Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, p.yawDegrees * kPi / 180.0f));
+// Placement transform in the runtime frame. The game frame is Z-up; the conversion
+// (-x, z, y) is a proper rotation, so a rotation of a degrees about a game axis g becomes a
+// rotation of a degrees about the converted axis: game Z -> runtime +Y, game X -> runtime -X,
+// game Y -> runtime +Z. Yaw (about Z) is verified on placed walls; the pitch/roll order used for
+// op-4 objects (82 in all missions, small tilts) is provisional.
+struct Placement {
+    uint32_t type;
+    float x, y, z, yaw, pitch, roll, scale;
+};
+static Mat4 placementMatrix(const Placement& p) {
+    const float k = kPi / 180.0f;
+    const Quat q = Quat::fromAxisAngle({0, 1, 0}, p.yaw * k) * Quat::fromAxisAngle({-1, 0, 0}, p.pitch * k) *
+                   Quat::fromAxisAngle({0, 0, 1}, p.roll * k);
+    return Mat4::translation(giantsToRuntime(p.x, p.y, p.z)) * Mat4::rotation(q) *
+           Mat4::scale({p.scale, p.scale, p.scale});
 }
 
 void AssetWorld::placeWorldObjects(const std::string& dataDir) {
     const size_t nTypes = registry_.build(dataDir);
-    LOGI("Object registry: %zu types, %zu meshes", nTypes, registry_.meshCount());
-    std::vector<ObjectPlacement> all;
-    for (const auto& o : world_.objects) all.push_back({o.type, o.x, o.y, o.z, o.angle});
-    // The opening mission's setup places the level's structures (fences, walls, props).
-    const float bounds[4] = {-20000, 20000, -20000, 20000};
+    LOGI("Object registry: %zu types, %zu groups, %zu meshes", nTypes, registry_.groupCount(),
+         registry_.meshCount());
+    auto typeScale = [&](uint32_t t) {
+        const ObjectType* ot = registry_.type(t);
+        return ot && ot->scale > 0 ? ot->scale : 1.0f;
+    };
+    std::vector<Placement> all;
+    for (const auto& o : world_.objects) all.push_back({o.type, o.x, o.y, o.z, o.angle, 0, 0, typeScale(o.type)});
+    // The opening mission's setup stream places the level's structures, plants and creatures.
+    size_t mounted = 0;
     for (const auto& sc : world_.scenarios) {
         if (sc.kind != 2) continue;
         std::vector<uint8_t> bytes;
@@ -185,9 +201,19 @@ void AssetWorld::placeWorldObjects(const std::string& dataDir) {
             LOGW("Mission file wm_%s.bin not found", sc.name.c_str());
             continue;
         }
-        auto p = scanMissionPlacements(bytes.data(), bytes.size(), registry_, bounds);
-        LOGI("Mission %s: %zu placements", sc.name.c_str(), p.size());
-        all.insert(all.end(), p.begin(), p.end());
+        std::string err;
+        if (!parseMission(bytes.data(), bytes.size(), mission_, &err)) {
+            LOGW("Mission %s: %s", sc.name.c_str(), err.c_str());
+            mission_ = MissionData{};
+            continue;
+        }
+        missionName_ = sc.name;
+        for (const auto& o : mission_.objects) {
+            if (o.parent >= 0) { ++mounted; continue; }  // carried items (e.g. a jetpack) not shown yet
+            all.push_back({o.type, o.x, o.y, o.z, o.yaw, o.pitch, o.roll, o.scale > 0 ? o.scale : typeScale(o.type)});
+        }
+        LOGI("Mission %s: %zu objects (%zu mounted), start flick '%s'", sc.name.c_str(), mission_.objects.size(),
+             mounted, mission_.startFlick.c_str());
         break;  // first mission only = level start state
     }
     size_t hidden = 0, missing = 0;
@@ -199,7 +225,7 @@ void AssetWorld::placeWorldObjects(const std::string& dataDir) {
         const Mat4 xf = placementMatrix(p);
         const Vec3 lc = (m->boundsMin + m->boundsMax) * 0.5f;
         const Vec4 wc = xf * Vec4{lc.x, lc.y, lc.z, 1.0f};
-        const float radius = 0.5f * length(m->boundsMax - m->boundsMin);
+        const float radius = 0.5f * length(m->boundsMax - m->boundsMin) * p.scale;
         worldObjects_.push_back({m, xf, Vec3{wc.x, wc.y, wc.z}, radius});
         // Solid unless it is vegetation the original lets you walk through.
         const std::string ln = toLower(name);

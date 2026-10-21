@@ -1,57 +1,59 @@
-// Object type registry and placement records.
+// Object type registry, decoded from the object-definition section (section 3) of the
+// 0x1A0002E5 .bin files (xx_*.bin etc.). See docs/formats/FORMATS.md "Object definitions".
 //
-// Object definitions live in the loose Bin/*.bin files (xx_*.bin etc.). Two record shapes,
-// found by reverse engineering against the GOG data (see docs/formats/FORMATS.md):
-//   mesh/group:  u32 meshId, char name[] NUL (+pad), u32 groupId, 0x51 u32 meshId f32 dist f32 ...
-//   object type: [0xFF end of previous record] u32 typeId, 0x01, u32 groupId, property ops..., 0xFF
-// Placements: world op 42 and mission (wm_*.bin) op 0x03 records share the 21-byte layout
-//   u8 op, u32 typeId, f32 x, f32 y, f32 z (game units, Z-up), f32 yaw (DEGREES).
+//   u32 size; blob[size]                      offsets are relative to the blob
+//   blob: u32 nMesh,  u32 off[nMesh]  -> {u32 meshId, strz name}
+//         u32 nX,     u32 off[nX]            (unused; 0 in all shipped files)
+//         u32 nGroup, u32 off[nGroup] -> {u32 groupId, group ops..., 0xFF}
+//         u32 nType,  u32 off[nType]  -> {u32 typeId, type ops...}
+// Every shipped file parses (1570 meshes, 799 groups, 807 types).
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace gvr {
 
-struct ObjectPlacement {
-    uint32_t type = 0;
-    float x = 0, y = 0, z = 0;  // game units
-    float yawDegrees = 0;
+struct ObjectGroup {
+    std::vector<uint32_t> lodMeshes;     // 0x51 entries in order (LOD0 first)
+    std::map<int, std::string> anims;    // animation slot -> .anm file (0x52 entries)
+};
+
+struct ObjectType {
+    uint32_t group = 0;
+    bool hasGroup = false;
+    int objectClass = -1;   // type op 0x1E (the engine's "ospec": 23 Ripper, 60 tree, 61 Smartie building...)
+    float scale = 1.0f;     // type op 0x17
 };
 
 class ObjectRegistry {
 public:
-    // Scans every *.bin file in `binDir`. Returns number of object types found.
+    // Parses every *.bin file in `binDir`. Returns the number of object types.
     size_t build(const std::string& binDir);
-    // Feeds one definition file (used by build and by tests).
-    void addDefinitionFile(const uint8_t* d, size_t n);
-    void finalize();
+    // Parses one 0x1A0002E5 file's definition section; false if it is malformed.
+    bool addDefinitionFile(const uint8_t* d, size_t n, std::string* error = nullptr);
 
-    // Model (mesh) name for an object type, or empty if unknown.
+    const ObjectType* type(uint32_t id) const;
+    const ObjectGroup* group(uint32_t id) const;
+    // LOD0 mesh name for an object type, or empty if unknown.
     std::string modelName(uint32_t type) const;
-    // Animation (.anm) listed with the type's LOD0 mesh (0x52 entry), or empty.
+    // The type's default animation (slot 1, else the lowest slot), or empty.
     std::string modelAnim(uint32_t type) const;
-    bool knows(uint32_t type) const { return typeToGroup_.count(type) != 0; }
-    size_t typeCount() const { return typeToGroup_.size(); }
+    // Animation in a specific slot, or empty.
+    std::string anim(uint32_t type, int slot) const;
+    bool knows(uint32_t type) const { return types_.count(type) != 0; }
+    size_t typeCount() const { return types_.size(); }
     size_t meshCount() const { return meshNames_.size(); }
+    size_t groupCount() const { return groups_.size(); }
 
 private:
-    std::unordered_map<uint32_t, std::string> meshNames_;   // meshId -> name
-    std::unordered_map<uint32_t, std::string> meshAnims_;   // meshId -> .anm name
-    std::unordered_map<uint32_t, uint32_t> groupMesh_;      // groupId -> LOD0 meshId
-    std::unordered_map<uint32_t, uint32_t> typeToGroup_;    // typeId -> groupId
-    std::vector<std::vector<uint8_t>> pending_;             // files kept until finalize()
+    std::unordered_map<uint32_t, std::string> meshNames_;
+    std::unordered_map<uint32_t, ObjectGroup> groups_;
+    std::unordered_map<uint32_t, ObjectType> types_;
 };
-
-// Heuristic placement scan of a mission file: op-3 records whose type is known to the registry
-// and whose position lies inside `bounds` (minX, maxX, minY, maxY in game units). The mission
-// opcode stream is not fully decoded yet; registry membership plus bounds keeps false positives
-// out in practice (validated on the Story1 missions).
-std::vector<ObjectPlacement> scanMissionPlacements(const uint8_t* d, size_t n, const ObjectRegistry& reg,
-                                                   const float bounds[4]);
 
 // True for engine helper objects that have no visible geometry in the shipped game
 // (markers, collision volumes, reference nodes, ambient sound emitters, lights).

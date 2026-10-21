@@ -70,6 +70,8 @@ std::vector<BuiltPart> buildGbsParts(const GbsModel& m, bool ignoreRgb = false);
 // Replaces g.positions with <base>.skn evaluated in the default pose of `anim`. False if the
 // object has no usable skin.
 bool looksLikeSkinData(const std::array<uint8_t, 3>* rgb, size_t n);
+// Strongly coloured RGB that decodes to unit vectors: not lighting (provisional, B8).
+bool looksLikeEncodedVectors(const std::array<uint8_t, 3>* rgb, size_t n);
 bool bakeDefaultSkinPose(const AssetFS& fs, const std::string& base, const std::string& anim, GbsModel& g);
 
 }  // namespace gvr

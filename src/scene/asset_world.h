@@ -1,7 +1,7 @@
 // Scene built from the user's ORIGINAL Giants: Citizen Kabuto data files:
 // world definition (w_<World>.bin), GTI terrain with its textures and lightmap, sea plane,
 // fog, and a showcase of original character models placed on the terrain.
-// Object placement from the world/mission files is not implemented yet (see BLOCKERS.md).
+// Objects come from the world stream (op 42) and the first mission's setup stream (wm_*.bin).
 #pragma once
 
 #include <memory>
@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "assets/gzp.h"
+#include "assets/mission.h"
 #include "assets/object_defs.h"
 #include "assets/world_bin.h"
 #include "render/renderer.h"
@@ -34,6 +35,8 @@ public:
     float spawnYaw() const { return spawnYaw_; }
     const WorldDefinition& world() const { return world_; }
     const CollisionWorld& collision() const { return collision_; }
+    const ObjectRegistry& registry() const { return registry_; }
+    const MissionData& mission() const { return mission_; }
 
     struct Placed {
         const RenderModel* model;
@@ -64,6 +67,8 @@ private:
     struct WorldObject { const RenderModel* model; Mat4 transform; Vec3 centre; float radius; };
     std::vector<WorldObject> worldObjects_;
     ObjectRegistry registry_;
+    MissionData mission_;
+    std::string missionName_;
     CollisionWorld collision_;
     std::string status_;
     WorldDefinition world_;

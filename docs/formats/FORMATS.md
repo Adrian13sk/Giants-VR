@@ -76,27 +76,57 @@ Verified ops:
 Status: 9/33 world streams walk cleanly to 0xFF; the other 24 stop at an unknown or mis-sized
 opcode (B5). The fog colour byte order is unverified.
 
-## Object definitions xx_*.bin section 3 — P (used for placement)
-- Mesh/group entry: `{u32 meshId, char name[] NUL + 1..4 pad bytes, u32 groupId, 0x51 u32 meshId
-  f32 distance f32 0}`. The LOD record repeats the meshId, which validates the match.
-  Scanning every Bin/*.bin finds 626 meshes.
-- LOD entries: `0x51 u32 meshId f32 distance f32 0`.
-- Animation entry: `0x52 u8 n strz "x.anm"`.
-- Object type: `u32 typeId, u8 1, u32 modelGroupId, property ops…, 0xFF`.
-- Type IDs used by world op 42 are found this way (e.g. 1298 → xx_ambient.bin). Type records are
-  accepted only at a record boundary (0xFF within the 3 preceding bytes, or 000000). That gives 629 types.
-  Every placed type in Story1/Story4/Rstory1 resolved to a model (0 unresolved).
-- Many types are invisible engine helpers (marker*, *_coll, ref_*, a_* ambient sounds, light*).
-  They are skipped by name prefix (src/assets/object_defs.cpp).
+## Object definitions (section 3 of any 0x1A0002E5 .bin) — V
+Container: section offset table index 3 → `u32 size; blob[size]`; offsets below are relative to the blob.
+```
+u32 nMesh,  u32 off[nMesh]   -> {u32 meshId, strz name}
+u32 nX,     u32 off[nX]      (0 in every shipped file)
+u32 nGroup, u32 off[nGroup]  -> {u32 groupId, group ops..., 0xFF}
+u32 nType,  u32 off[nType]   -> {u32 typeId, type ops...}
+```
+Group ops: 0x51 LOD `{u32 mesh, f32 angle, f32 dist}`; 0x59/0x5A/0x5B `u32 mesh` (special LODs);
+0x52 animation `{u8 slot, strz file.anm}` (slot 1 = idle/default, 2 = walk, … per creature);
+0x53 +17; 0x54 +22; 0x55 flag; 0x56 +8; 0x57/0x58/0x5C +12; 0x7F/0x80 timed fx `{u32 tick, 5 strz, u32}`.
+Type ops: 0x01 `u32 groupId` (usually first, not always: type 210), 0x1E `u8` object class
+("ospec": 23 Ripper, 45 Dactyl, 47 Ripper nest, 60 palm tree, 61 Smartie building), 0x17 `f32` default scale.
+Other type-op sizes: see `typeOpSize()` in src/assets/object_defs.cpp; walking stops at an op without a fixed size.
+Sizes come from the original loader (decompilation used as a factual reference).
+Evidence: every shipped file parses (1570 meshes, 799 groups, 807 types). The old heuristic found 629 types and
+missed palm trees, Smartie houses and Ripper nests, because their LOD record doesn't follow the mesh name.
 
-## Mission placements wm_*.bin — P (heuristic scan)
-- Placement record `{u8 0x03, u32 typeId, f32 x, y, z, f32 yaw°}`: the same payload as world op 42.
-- The mission opcode stream is NOT decoded yet. Records are found by scanning for op 3 + a type
-  known to the registry + a position inside the terrain bounds (−500 < z < 3000).
-  1a_1_timmy: 170 placements (135 visible). In the bird's-eye render the curved Smartie wall
-  segments join into closed arcs, so yaw in degrees about +Z looks right (not proven exact).
-- Another block (`02 11 22 33` marker, version 0x0E, …) defines creature types
-  (1290 Smartie, 1379 Reaper).
+## Mission setup stream wm_*.bin — V (structure), P (meanings)
+`u32 version = 4`, then `{u8 op; payload}` until op 2. No control flow: the original runs it once at mission start.
+| op | payload | meaning |
+|----|---------|---------|
+| 01 | – | no-op (stream start) | 
+| 02 | – | end |
+| 03 | u32 type, f32 x,y,z, f32 yaw° | create object (becomes current) |
+| 04 | as 03 + f32 pitch°, f32 roll° | create tilted object |
+| 05 | u8 | current object +0xE8 (team?) |
+| 06 | 12 B | current +0xF4..0xFC |
+| 07 | u32 | current +0x174 |
+| 08 | u8 | flags (low 4 bits) |
+| 09 | f32 | scale |
+| 0A | u8 n, n×u32 | AI list |
+| 0B | 4×u32 | mission setup ([0] player race: 1 Kabuto, 2 Mecc, 3 Reaper) |
+| 0C/0D/0F/10/11/12/21/23 | u32 | mission or AI values |
+| 0E | u32 n, n×u32 | starting items |
+| 13/15/19 | char[32] | flick (cutscene) names; 15 = start flick |
+| 14 | char[32] | current object takes part in this flick |
+| 16 | u32 type, u8, u8 | create object mounted on current (push) |
+| 17 | – | pop mount |
+| 18 | 3×f32 | yaw, pitch, roll of current |
+| 1A/1B/26 | 2×u32 | AI / mission values |
+| 1C/1D/22/24/25 | – | flags |
+| 1E/1F | u32 n, n×i32 | AI lists |
+| 20 | u8 | AI value |
+Evidence: all 56 shipped mission files walk exactly to EOF. 1a_1_timmy has 343 top-level objects + 1 mounted
+(Timmy's jetpack), versus 170 found by the old op-3 scan.
+
+### Vertex RGB that is not lighting (B8, provisional)
+Some sub-objects (sm_dome_l0, bw_bunker1) carry strongly coloured RGB that decodes (`c*2/255-1`) to near-unit
+vectors. Rule used: mean saturation > 0.4 and ≥ 10 % unit vectors → light dynamically instead. Every checked
+correct model has saturation < 0.26, except the raft (0.70, no unit vectors).
 
 ## SKN skin / ANM animation — V (structure), P (interpolation)
 Serialized images; pointers = file offsets. NAM tables `{u16 size, u16 type(4), u32 ptr, name}`.

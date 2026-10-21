@@ -1,5 +1,6 @@
 // Unit tests that need no proprietary data (synthetic inputs only). Asset tests that require
 // the user's original files are run with gzptool validate (see TEST_REPORT.md).
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -9,6 +10,8 @@
 #include "assets/gzp.h"
 #include "assets/gti.h"
 #include "assets/world_bin.h"
+#include "assets/mission.h"
+#include "assets/object_defs.h"
 #include "core/math.h"
 #include "game/arm_ik.h"
 #include "scene/collision.h"
@@ -570,9 +573,95 @@ static void testWorldBin() {
     CHECK(w.complete && w.stopOpcode == 0xFF);
 }
 
+// Byte-builder helpers for synthetic files.
+struct Bytes {
+    std::vector<uint8_t> v;
+    Bytes& u8(uint8_t x) { v.push_back(x); return *this; }
+    Bytes& u32(uint32_t x) { for (int i = 0; i < 4; ++i) v.push_back(uint8_t(x >> (8 * i))); return *this; }
+    Bytes& f32(float f) { uint32_t x; std::memcpy(&x, &f, 4); return u32(x); }
+    Bytes& str(const char* s, size_t pad = 0) {
+        size_t k = std::strlen(s);
+        v.insert(v.end(), s, s + k);
+        for (size_t i = k; i < std::max(pad, k + 1); ++i) v.push_back(0);
+        return *this;
+    }
+};
+
+static void testMission() {
+    using namespace gvr;
+    Bytes b;
+    b.u32(4).u8(1);
+    b.u8(0x0B).u32(2).u32(0).u32(1).u32(0);                     // setup: Mecc
+    b.u8(0x03).u32(73).f32(-100).f32(200).f32(10).f32(45);      // object
+    b.u8(0x09).f32(1.5f).u8(0x05).u8(3).u8(0x14).str("flick_a", 32);
+    b.u8(0x16).u32(254).u8(255).u8(0).u8(0x09).f32(0.6f).u8(0x17);  // mounted child, pop
+    b.u8(0x04).u32(992).f32(1).f32(2).f32(3).f32(10).f32(2).f32(6);  // tilted object
+    b.u8(0x1E).u32(2).u32(7).u32(8);                            // counted list on current object
+    b.u8(0x15).str("start_1", 32).u8(0x02);
+    MissionData m;
+    std::string err;
+    CHECK(parseMission(b.v.data(), b.v.size(), m, &err));
+    CHECK(m.objects.size() == 3);
+    CHECK(m.setup[0] == 2 && m.startFlick == "start_1");
+    if (m.objects.size() == 3) {
+        CHECK(m.objects[0].type == 73 && m.objects[0].x == -100 && m.objects[0].yaw == 45);
+        CHECK(m.objects[0].scale == 1.5f && m.objects[0].team == 3 && m.objects[0].flicks.size() == 1);
+        CHECK(m.objects[1].parent == 0 && m.objects[1].type == 254 && m.objects[1].scale == 0.6f);
+        CHECK(m.objects[2].pitch == 2 && m.objects[2].roll == 6);
+    }
+    // Truncation, unknown ops and trailing data are rejected.
+    CHECK(!parseMission(b.v.data(), b.v.size() - 1, m));
+    Bytes bad;
+    bad.u32(4).u8(0x7E).u8(0x02);
+    CHECK(!parseMission(bad.v.data(), bad.v.size(), m));
+    b.u8(0);
+    CHECK(!parseMission(b.v.data(), b.v.size(), m));
+}
+
+static void testObjectDefs() {
+    using namespace gvr;
+    // Definition blob: 2 meshes, 0 x, 1 group (2 LODs, anims in slots 2 and 1), 2 types.
+    Bytes blob;
+    const size_t hdr = 4 + 8 + 4 + 4 + 4 + 4 + 8;  // table sizes, filled below
+    std::vector<uint32_t> offs;
+    Bytes body;
+    auto at = [&]() { return uint32_t(hdr + body.v.size()); };
+    const uint32_t m0 = at(); body.u32(500).str("tree_l0");
+    const uint32_t m1 = at(); body.u32(501).str("tree_l1");
+    const uint32_t g0 = at();
+    body.u32(40).u8(0x51).u32(500).f32(60).f32(0).u8(0x51).u32(501).f32(60).f32(100);
+    body.u8(0x52).u8(2).str("Tree_Walk.anm").u8(0x52).u8(1).str("tree_idle.anm");
+    body.u8(0x7F).u32(5).str("a").str("b").str("c").str("d").str("e").u32(0xFFFFFFFF).u8(0x55).u8(0xFF);
+    const uint32_t t0 = at(); body.u32(102).u8(0x01).u32(40).u8(0x13).u8(1).u8(0x1E).u8(60).u8(0x17).f32(2.2f).u8(0xFF);
+    const uint32_t t1 = at(); body.u32(210).u8(0x13).u8(0x2D).u8(0x2F).u8(0x01).u32(40).u8(0xFF);
+    blob.u32(2).u32(m0).u32(m1).u32(0).u32(1).u32(g0).u32(2).u32(t0).u32(t1);
+    CHECK(blob.v.size() == hdr);
+    blob.v.insert(blob.v.end(), body.v.begin(), body.v.end());
+    Bytes file;
+    file.u32(0x1A0002E5);
+    const uint32_t sect = 32;
+    for (int i = 0; i < 7; ++i) file.u32(i == 3 ? sect : 0);
+    file.u32(uint32_t(blob.v.size()));
+    file.v.insert(file.v.end(), blob.v.begin(), blob.v.end());
+    ObjectRegistry reg;
+    std::string err;
+    CHECK(reg.addDefinitionFile(file.v.data(), file.v.size(), &err));
+    CHECK(reg.typeCount() == 2 && reg.meshCount() == 2 && reg.groupCount() == 1);
+    CHECK(reg.modelName(102) == "tree_l0" && reg.modelName(210) == "tree_l0");
+    CHECK(reg.modelAnim(102) == "tree_idle.anm" && reg.anim(102, 2) == "tree_walk.anm");
+    const ObjectType* t = reg.type(102);
+    CHECK(t && t->objectClass == 60 && std::fabs(t->scale - 2.2f) < 1e-6f);
+    // A corrupt group op is reported, not read past.
+    file.v[32 + 4 + hdr + (g0 - hdr) + 4] = 0x99;
+    ObjectRegistry r2;
+    CHECK(!r2.addDefinitionFile(file.v.data(), file.v.size()));
+}
+
 int main() {
     testGti();
     testWorldBin();
+    testMission();
+    testObjectDefs();
     testLzss();
     testGzp();
     testGbs();

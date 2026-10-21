@@ -31,7 +31,8 @@ std::vector<BuiltPart> buildGbsParts(const GbsModel& m, bool ignoreRgb) {
             const size_t e = std::min(size_t(std::max(so.vstart + so.vcount, 0)), m.rgbs.size());
             for (size_t i = b; i < e; ++i)
                 if (m.rgbs[i][0] | m.rgbs[i][1] | m.rgbs[i][2]) { bakedRgb = true; break; }
-            if (bakedRgb && looksLikeSkinData(&m.rgbs[b], e - b)) bakedRgb = false;
+            if (bakedRgb && (looksLikeSkinData(&m.rgbs[b], e - b) || looksLikeEncodedVectors(&m.rgbs[b], e - b)))
+                bakedRgb = false;
         }
         const uint32_t blendFlags = so.flags & (GbsModel::kSubAdditive | GbsModel::kSubSubtractive);
         auto key = std::make_pair(toLower(so.texture), blendFlags | (bakedRgb ? 0u : 0x80000000u));
@@ -109,6 +110,28 @@ bool looksLikeSkinData(const std::array<uint8_t, 3>* rgb, size_t n) {
         rmax = std::max<int>(rmax, c[0]);
     }
     return rmax - rmin > 200;
+}
+
+bool looksLikeEncodedVectors(const std::array<uint8_t, 3>* rgb, size_t n) {
+    // Some models (Smartie domes, Mecc bunkers: blocker B8) carry RGB that decodes as
+    // c * 2/255 - 1 to roughly unit-length vectors (normals?) and is strongly coloured, giving a
+    // rainbow when used as lighting. Baked lighting in the shipped data is close to grey (mean
+    // saturation < 0.26 on every model checked, except the raft whose RGB never decodes to unit
+    // vectors). Provisional rule: mean saturation > 0.4 and >= 10% unit-length vectors.
+    if (n < 4) return false;
+    float sat = 0;
+    size_t unit = 0;
+    for (size_t i = 0; i < n; ++i) {
+        const auto& c = rgb[i];
+        sat += float(std::max({c[0], c[1], c[2]}) - std::min({c[0], c[1], c[2]})) / 255.0f;
+        float l2 = 0;
+        for (int k = 0; k < 3; ++k) {
+            const float v = float(c[k]) * (2.0f / 255.0f) - 1.0f;
+            l2 += v * v;
+        }
+        if (l2 >= 0.85f * 0.85f && l2 <= 1.12f * 1.12f) ++unit;
+    }
+    return sat / float(n) > 0.4f && float(unit) >= 0.1f * float(n);
 }
 
 bool bakeDefaultSkinPose(const AssetFS& fs, const std::string& base, const std::string& anim, GbsModel& g) {
