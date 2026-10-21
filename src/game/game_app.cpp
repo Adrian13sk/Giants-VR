@@ -87,7 +87,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     const Vec3 up = normalize(t.up);
                     t.pole = Vec3{h == kLeft ? 0.7f : -0.7f, 0.4f, -1.0f} - up * 0.5f;
                     t.handScale = 0.8f;   // the gloves read oversized at first-person distance
-                    t.armStretch = 1.3f;  // Meccaryn arms are short for human reach (0.49 vs ~0.6 m)
+                    // Meccaryn arms are short for human reach (0.49 vs ~0.6 m). x1.3 read as rubber
+                    // arms (device test 6), so only a mild lengthening; beyond reach the arm goes
+                    // straight and the hand stays on it (it no longer follows the controller out).
+                    t.armStretch = 1.12f;
                     solveArmIk(world, children, c, t);
                     // Grip closes the hand; the trigger curls the leading finger (Meccaryn: 4 digits).
                     const float g = armTargets_[h].squeeze, tr = armTargets_[h].trigger;

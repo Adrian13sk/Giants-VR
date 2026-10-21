@@ -199,3 +199,11 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
     - The elbow pole swings opposite the controller's up vector.
     - Hands scaled ×0.8.
 - **Evidence:** headless renders at rest, aim, reach and low hand poses show the forearms and gauntlets entering the view from the sides. Unit tests cover the smooth-follow behaviour.
+
+### Device test 6 feedback → arm reach limit (2026-10-21 19:00)
+- **User report:** "way better"; the only problem is that arms stretch further than they should.
+- **Fix:**
+  - Arm stretch ×1.3 → ×1.12.
+  - Clavicle assist capped at about 11° (was 26°) and starts at 90% of reach.
+  - Beyond reach the arm goes straight and the hand stays at its end, no longer following the controller outward.
+- **Evidence:** headless renders with the controllers 0.7 m and 1.1 m ahead give the same straight-arm pose.
