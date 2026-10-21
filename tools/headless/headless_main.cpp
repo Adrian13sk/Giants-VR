@@ -31,6 +31,7 @@ int main(int argc, char** argv) {
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
     int jetFrom = -1, jetTo = -1;
+    float triggerAmount = 0.0f, aimPitchDeg = -17.2f;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         auto next = [&]() { return i + 1 < argc ? argv[++i] : ""; };
@@ -52,6 +53,8 @@ int main(int argc, char** argv) {
         else if (a == "--jet") jet = true;                 // hold A (jetpack)
         else if (a == "--jet-window") { jetFrom = std::atoi(next()); jetTo = std::atoi(next()); }  // hold A for frames [from, to)
         else if (a == "--grip") gripAmount = std::atof(next());  // both grips 0..1
+        else if (a == "--trigger") triggerAmount = std::atof(next());  // right trigger (fires in play mode)
+        else if (a == "--aim-pitch") aimPitchDeg = std::atof(next());  // controller pitch (deg)
         else if (a == "--hands") { handsFwd = std::atof(next()); handsUp = std::atof(next()); }  // controller offset (m)
     }
     if (!initEgl()) return 2;
@@ -72,10 +75,10 @@ int main(int argc, char** argv) {
         float side = hnd == kLeft ? -1.0f : 1.0f;
         c.gripPose.position = {0.2f * side, handsUp, -handsFwd};
         c.squeeze = gripAmount;
-        c.gripPose.orientation = Quat::fromAxisAngle({1, 0, 0}, -0.3f);
+        c.gripPose.orientation = Quat::fromAxisAngle({1, 0, 0}, aimPitchDeg * kPi / 180.0f);
         c.aimPose = c.gripPose;
     }
-    in.hand[kRight].trigger = gripAmount;
+    in.hand[kRight].trigger = 0.0f;  // applied only during the simulated frames (below)
     in.hand[kLeft].primary = true;
     in.hand[kRight].primary = jet;
     in.hand[kLeft].thumbstick = {moveX, moveY};
@@ -98,12 +101,14 @@ int main(int argc, char** argv) {
         else app.rig().teleportHead(in, giantsToRuntime(atX, atY, 0.0f), yaw);
         app.update(0.0f, in);  // ground following sets the height
     }
+    in.hand[kRight].trigger = triggerAmount;
     for (int f = 0; f < frames; ++f) {
         if (jetFrom >= 0) in.hand[kRight].primary = f >= jetFrom && f < jetTo;
         app.update(1.0f / 72.0f, in);
     }
     if (app.playMode()) {
         const auto& p = app.player();
+        LOGI("weapon: %zu shots, %zu hits, last hit at %.1f m", app.weaponShots(), app.weaponHits(), app.weaponLastHitDistance());
         LOGI("player at (%.2f %.2f %.2f) yaw %.1f deg, %s, anim %d t=%.2f, speed %.2f m/s", p.position.x, p.position.y,
              p.position.z, p.yaw * 180.0f / kPi, p.onGround ? "on ground" : "airborne", int(p.anim()), p.animTime(),
              p.horizontalSpeed());

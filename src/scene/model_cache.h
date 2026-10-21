@@ -43,7 +43,9 @@ public:
     // Returns nullptr if the model cannot be found or parsed (reason logged).
     // skinAnim: for skinned static objects (<base>.skn + this .anm), the mesh is baked in the
     // animation's default (rest) pose; their vertex RGB is skin data, not lighting.
-    const RenderModel* get(const std::string& gbsName, const std::string& skinAnim = std::string());
+    // dynamicLit: ignore baked RGB (objects carried by characters move, so baked light is wrong).
+    const RenderModel* get(const std::string& gbsName, const std::string& skinAnim = std::string(),
+                           bool dynamicLit = false);
     TextureId texture(const std::string& name, bool* hadAlpha = nullptr);
 
 private:

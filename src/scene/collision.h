@@ -24,6 +24,8 @@ public:
     bool pushOut(Vec3& feet, float radius, float height, float stepUp) const;
     // Highest walkable surface under (x, z) whose height is <= maxY. False if none.
     bool groundAt(float x, float z, float maxY, float& outY) const;
+    // First hit along origin + dir * t, t in [0, maxDist] (dir normalised). Both triangle sides.
+    bool raycast(const Vec3& origin, const Vec3& dir, float maxDist, float& tHit, Vec3& normal) const;
 
 private:
     struct Object {

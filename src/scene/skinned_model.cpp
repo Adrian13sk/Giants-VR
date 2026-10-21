@@ -134,8 +134,10 @@ void SkinnedModel::skin(int ai, float t, std::vector<Vec3>& out) {
 void SkinnedModel::poseBlend(Renderer& r, int a, float ta, int b, float tb, float wb) {
     if (anims_.empty()) return;
     skin(a, ta, posed_);
+    if (wb < 0.5f) { domWorld_ = world_; domClip_ = a; }
     if (wb > 0.0f) {
         skin(b, tb, posedB_);
+        if (wb >= 0.5f) { domWorld_ = world_; domClip_ = b; }
         const float wa = 1.0f - wb;
         for (size_t i = 0; i < posed_.size(); ++i) posed_[i] = posed_[i] * wa + posedB_[i] * wb;
     }
@@ -182,6 +184,15 @@ void SkinnedModel::setHiddenBones(const std::vector<std::string>& names) {
         for (const auto& n : names)
             if (bones_[size_t(b)] == n) hideMask_[i] = 1;
     }
+}
+
+bool SkinnedModel::nodeWorld(const std::string& name, Mat4& out) const {
+    if (domClip_ < 0 || size_t(domClip_) >= anims_.size()) return false;
+    const auto& by = anims_[size_t(domClip_)].anim.byName;
+    auto it = by.find(name);
+    if (it == by.end() || size_t(it->second) >= domWorld_.size()) return false;
+    out = domWorld_[size_t(it->second)];
+    return true;
 }
 
 bool SkinnedModel::boneVertexBounds(const std::string& name, Vec3& mn, Vec3& mx) const {

@@ -8,6 +8,7 @@
 
 #include "game/input_state.h"
 #include "game/player.h"
+#include "game/weapon.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
 #include "scene/test_scene.h"
@@ -28,6 +29,7 @@ struct HapticRequest {
 
 class AssetWorld;    // original-asset scene (defined in scene/asset_world.h)
 class SkinnedModel;  // scene/skinned_model.h
+struct RenderModel;  // scene/model_cache.h
 
 class GameApp {
 public:
@@ -50,6 +52,9 @@ public:
     void setFirstPerson(bool on) { firstPerson_ = on; }
     PlayerController& player() { return player_; }
     void teleportPlayer(const Vec3& p, float yaw);
+    size_t weaponShots() const { return weapon_.shotsFired(); }
+    size_t weaponHits() const { return weapon_.hits(); }
+    float weaponLastHitDistance() const { return weapon_.lastHitDistance(); }
     VrRig& rig() { return rig_; }
     Renderer& renderer() { return renderer_; }
     bool hasOriginalAssets() const;
@@ -83,6 +88,17 @@ private:
     bool haveHeadPrev_ = false;
     struct ArmPose { bool valid = false; Vec3 grip, forward, up; float squeeze = 0, trigger = 0; };
     ArmPose armTargets_[2];           // model space (game units), per hand
+    // Weapon: the original Meccaryn gun in the right hand (attached at the skeleton's Ref_Rhand).
+    const RenderModel* gunModel_ = nullptr;
+    const RenderModel* boltModel_ = nullptr;
+    const RenderModel* muzzleModel_ = nullptr;
+    const RenderModel* impactModel_ = nullptr;
+    Mat4 gunXf_ = Mat4::identity();
+    bool gunValid_ = false;
+    WeaponSystem weapon_;
+    Quat headWorldRot_;
+    void updateWeapon(float dt, const InputFrame& in);
+    void drawModel(const RenderModel* m, const Mat4& xf, bool additive, float alpha = 1.0f);
     float camYaw_ = 0;      // play-mode camera yaw (snap turn orbits the character)
     float camFloor_ = 0;    // smoothed tracking-floor height of the play camera
     ButtonEdge playEdge_, viewEdge_;

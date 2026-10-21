@@ -3,6 +3,7 @@
 #include "core/log.h"
 #include "scene/asset_world.h"
 #include "game/arm_ik.h"
+#include "scene/model_cache.h"
 #include "scene/skinned_model.h"
 
 #include <cmath>
@@ -102,6 +103,48 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             playerModel_ = std::move(m);
             playMode_ = true;
             AssetWorld* w = assetWorld_.get();
+            // Weapon models: gun (held, so dynamically lit), bolt, muzzle flash, impact flash.
+            ModelCache* mc = assetWorld_->models();
+            gunModel_ = mc->get("mc_gun_l0.gbs", "", /*dynamicLit=*/true);
+            boltModel_ = mc->get("mc_bullet.gbs", "mc_bullet.anm");
+            muzzleModel_ = mc->get("muzzle_flash.gbs", "muzzle_flash.anm");
+            impactModel_ = mc->get("efx_flash.gbs");
+            weapon_.raycast = [w](const Vec3& o, const Vec3& d, float maxD, float& t, Vec3& n) {
+                float tc = 0;
+                Vec3 nc;
+                const bool hc = w->collision().raycast(o, d, maxD, tc, nc);
+                // Terrain: march the segment, then bisect the crossing.
+                bool ht = false;
+                float tt = maxD;
+                const float step = 0.5f;
+                for (float s = 0; s <= maxD + step * 0.5f; s += step) {
+                    const float sc = std::min(s, maxD);
+                    const Vec3 p = o + d * sc;
+                    float h;
+                    if (w->terrain().heightAt(p.x, p.z, h) && p.y < h) {
+                        float lo = std::max(0.0f, sc - step), hi = sc;
+                        for (int i = 0; i < 8; ++i) {
+                            const float mid = 0.5f * (lo + hi);
+                            const Vec3 q = o + d * mid;
+                            float hq;
+                            if (w->terrain().heightAt(q.x, q.z, hq) && q.y < hq) hi = mid; else lo = mid;
+                        }
+                        tt = hi;
+                        ht = true;
+                        break;
+                    }
+                }
+                if (!hc && !ht) return false;
+                if (hc && (!ht || tc < tt)) { t = tc; n = nc; return true; }
+                t = tt;
+                const Vec3 p = o + d * tt;
+                float hx0 = p.y, hx1 = p.y, hz0 = p.y, hz1 = p.y;
+                w->terrain().heightAt(p.x - 0.5f, p.z, hx0); w->terrain().heightAt(p.x + 0.5f, p.z, hx1);
+                w->terrain().heightAt(p.x, p.z - 0.5f, hz0); w->terrain().heightAt(p.x, p.z + 0.5f, hz1);
+                n = normalize(Vec3{hx0 - hx1, 1.0f, hz0 - hz1});
+                return true;
+            };
+            
             player_.collision = &w->collision();
             player_.groundHeight = [w, this](float x, float z) {
                 float y;
@@ -208,6 +251,85 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     playerModel_->poseBlend(renderer_, clip_[int(player_.prevAnim())], player_.prevAnimTime(),
                             clip_[int(player_.anim())], player_.animTime(), player_.fadeWeight());
     eyeNow_ = playerModel_->hiddenCentroid() + eyeFromHead_;
+    if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
+    updateWeapon(dt, in);
+}
+
+// Game (Z-up, units) <-> runtime (Y-up, metres) basis change as matrices.
+static Mat4 gameToRuntime() {
+    const float s = gGameUnitsToMeters;
+    Mat4 m = Mat4::identity();
+    m.m[0] = -s; m.m[1] = 0; m.m[2] = 0;   // game X -> -runtime X
+    m.m[4] = 0;  m.m[5] = 0; m.m[6] = s;   // game Y -> runtime Z
+    m.m[8] = 0;  m.m[9] = s; m.m[10] = 0;  // game Z -> runtime Y
+    return m;
+}
+static Mat4 runtimeToGame() {
+    const float s = 1.0f / gGameUnitsToMeters;
+    Mat4 m = Mat4::identity();
+    m.m[0] = -s; m.m[1] = 0; m.m[2] = 0;
+    m.m[4] = 0;  m.m[5] = 0; m.m[6] = s;
+    m.m[8] = 0;  m.m[9] = s; m.m[10] = 0;
+    return m;
+}
+
+// Gun muzzle, barrel direction and handle in the gun model's GAME frame (forward = -Y like
+// the characters; up = +Z).
+static const Vec3 kGunMuzzleGame{0.0f, -1.8f, 0.25f};
+static const Vec3 kGunForwardGame{0.0f, -1.0f, 0.0f};
+static const Vec3 kGunHandleGame{0.0f, 0.6f, -0.8f};
+
+void GameApp::updateWeapon(float dt, const InputFrame& in) {
+    const int gh = rig_.turnHand();
+    Mat4 ref;
+    Vec3 muzzle, fwd;
+    if (firstPerson_) {
+        // First person: the gun follows the controller's aim pose exactly (shots go where you
+        // point); handle at the grip, sized with the body's hands.
+        const ControllerState& c = in.hand[gh];
+        gunValid_ = gunModel_ && c.aimPoseValid && c.gripPoseValid;
+        if (gunValid_) {
+            const Pose aim = rig_.toWorld(c.aimPose);
+            const Pose grip = rig_.toWorld(c.gripPose);
+            const float bodyScale = eyeModel_.y > 0.1f ? userEye_ / eyeModel_.y : 1.0f;
+            const float k = bodyScale * 0.6f;
+            const Vec3 handle = giantsToRuntime(kGunHandleGame.x, kGunHandleGame.y, kGunHandleGame.z);
+            gunXf_ = Mat4::translation(grip.position) * Mat4::rotation(aim.orientation) * Mat4::scale({k, k, k}) *
+                     Mat4::translation(handle * -1.0f);
+        }
+    } else {
+        gunValid_ = gunModel_ && playerModel_ && playerModel_->nodeWorld("ref_rhand", ref);
+        if (gunValid_) gunXf_ = bodyXf_ * gameToRuntime() * ref * runtimeToGame();
+    }
+    if (gunValid_) {
+        const Vec3 mr = giantsToRuntime(kGunMuzzleGame.x, kGunMuzzleGame.y, kGunMuzzleGame.z);
+        const Vec4 m4 = gunXf_ * Vec4{mr.x, mr.y, mr.z, 1.0f};
+        const Vec3 fr = giantsToRuntime(kGunForwardGame.x, kGunForwardGame.y, kGunForwardGame.z);
+        const Vec4 f4 = gunXf_ * Vec4{fr.x, fr.y, fr.z, 0.0f};
+        muzzle = {m4.x, m4.y, m4.z};
+        fwd = normalize(Vec3{f4.x, f4.y, f4.z});
+    }
+    const bool trigger = in.hand[gh].trigger > 0.6f;
+    if (weapon_.update(dt, trigger && gunValid_, muzzle, fwd)) haptics_.push_back({gh, 0.35f, 0.04f});
+}
+
+void GameApp::drawModel(const RenderModel* m, const Mat4& xf, bool additive, float alpha) {
+    if (!m) return;
+    for (const auto& part : m->parts) {
+        DrawParams dp;
+        dp.texture = part.texture;
+        if (additive) {
+            dp.blend = BlendMode::Additive;
+            dp.unlit = true;
+            dp.depthWrite = false;
+            dp.doubleSided = true;
+            dp.tint = {alpha, alpha, alpha, 1.0f};
+        } else {
+            dp.blend = part.blend;
+            dp.unlit = !part.lit;
+        }
+        renderer_.draw(part.mesh, xf, dp);
+    }
 }
 
 // First-person body: scaled so its eyes are at the user's real eye height, placed so its eye
@@ -278,9 +400,9 @@ void GameApp::update(float dt, const InputFrame& in) {
     }
     if (assetWorld_) assetWorld_->update(dt);
 
-    // Haptic confirmation on trigger press (validates the haptics path on device).
+    // Haptic confirmation on trigger press (free camera only; in play mode the trigger fires).
     for (int h = 0; h < 2; ++h)
-        if (triggerEdge_[h].pressed(in.hand[h].trigger > 0.6f))
+        if (triggerEdge_[h].pressed(in.hand[h].trigger > 0.6f) && !playMode_)
             haptics_.push_back({h, 0.5f, 0.05f});
     // Left thumbstick click toggles the engineering test geometry.
     if (modeEdge_.pressed(in.hand[kLeft].thumbstickClick)) showTestScene_ = !showTestScene_;
@@ -296,6 +418,28 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     renderer_.beginView(v, eye.width, eye.height, true);
     if (assetWorld_ && assetWorld_->loaded()) assetWorld_->render(renderer_);
     if (playMode_ && playerModel_) playerModel_->render(renderer_, bodyXf_);
+    if (playMode_ && gunValid_) drawModel(gunModel_, gunXf_, false);
+    // Bolts: the original spark quads (lying across the model's -Z axis) face along the flight,
+    // drawn bright with a short fading trail so the shot reads as a blaster bolt.
+    for (const auto& p : weapon_.projectiles()) {
+        const Quat r = rotationBetween({0, 0, -1}, p.vel);
+        const Vec3 back = normalize(p.vel) * -0.35f;
+        for (int i = 0; i < 3; ++i) {
+            const float s = 0.55f - 0.12f * float(i);
+            if (p.travelled < 0.35f * float(i)) break;  // no trail behind the muzzle
+            drawModel(boltModel_, Mat4::translation(p.pos + back * float(i)) * Mat4::rotation(r) * Mat4::scale({s, s, s}),
+                      true, 2.5f - 0.7f * float(i));
+        }
+    }
+    for (const auto& e : weapon_.effects()) {
+        const float k = e.progress();
+        if (e.kind == WeaponEffect::Muzzle)
+            drawModel(muzzleModel_, Mat4::translation(e.pos) * Mat4::rotation(rotationBetween({0, 0, -1}, e.dir)) *
+                                        Mat4::scale(Vec3{1, 1, 1} * (0.25f + 0.15f * k)), true, 1.0f - k);
+        else  // impact flash: billboard toward the viewer
+            drawModel(impactModel_, Mat4::translation(e.pos) * Mat4::rotation(headWorldRot_) *
+                                        Mat4::scale(Vec3{1, 1, 1} * (3.0f + 4.0f * k)), true, 1.0f - k);
+    }
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
     else if (!(playMode_ && firstPerson_ && playerModel_)) testScene_.renderControllers(renderer_, rig_, lastInput_);
     renderer_.endView();

@@ -182,8 +182,8 @@ TextureId ModelCache::texture(const std::string& name, bool* hadAlpha) {
     return e.id;
 }
 
-const RenderModel* ModelCache::get(const std::string& gbsName, const std::string& skinAnim) {
-    std::string key = toLower(gbsName) + "|" + toLower(skinAnim);
+const RenderModel* ModelCache::get(const std::string& gbsName, const std::string& skinAnim, bool dynamicLit) {
+    std::string key = toLower(gbsName) + "|" + toLower(skinAnim) + (dynamicLit ? "|lit" : "");
     auto it = models_.find(key);
     if (it != models_.end()) return it->second.get();
 
@@ -207,7 +207,7 @@ const RenderModel* ModelCache::get(const std::string& gbsName, const std::string
     // Meshes exported from a skinned scene without a usable skin of their own (e.g.
     // smw_wall_hi_hole; borrowing smw_wall_hi's skin was tried and its vertex order differs):
     // keep the stored shape but never show the parametric RGB as colour.
-    const bool ignoreRgb = skinned || looksLikeSkinData(gbs.rgbs.data(), gbs.rgbs.size());
+    const bool ignoreRgb = dynamicLit || skinned || looksLikeSkinData(gbs.rgbs.data(), gbs.rgbs.size());
     auto rm = std::make_unique<RenderModel>();
     rm->name = gbsName;
     rm->boundsMin = {1e30f, 1e30f, 1e30f};

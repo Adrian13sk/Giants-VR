@@ -32,6 +32,7 @@ add_library(gvr_core STATIC
   src/game/vr_rig.cpp
   src/game/player.cpp
   src/game/arm_ik.cpp
+  src/game/weapon.cpp
   src/game/game_app.cpp
 )
 target_include_directories(gvr_core PUBLIC src third_party)

@@ -224,3 +224,18 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - Running from the village centre stops at the curved wall after 14.9 m (render shows him at the wall).
   - Jetpacking over it carries him across and he lands beyond.
 - **Headless:** new `--jet-window FROM TO`.
+
+### First weapon: Meccaryn gun (2026-10-21 20:00)
+- **Assets:** mc_gun_l0.gbs (gun), mc_bullet.gbs + .anm (bolt: two crossed spark quads), muzzle_flash.gbs + .anm, efx_flash.gbs (impact). The skeleton has Ref_Rhand / Ref_Lhand attachment nodes.
+- **Gun RGB:** the gun's vertex RGB tracks position (R corr +0.72 with the barrel axis, G +0.56 / B −0.44 with height), so it is not lighting. Held objects are now dynamically lit (`ModelCache::get(..., dynamicLit)`), since baked lighting cannot apply to something carried around.
+- **Attachment:**
+  - Third person uses Ref_Rhand from the posed skeleton (`SkinnedModel::nodeWorld`, taken from the dominant clip after IK).
+  - First person attaches the gun to the controller aim pose, so shots go where you point. The handle is at the grip and the gun scales with the body (×0.6). Ref_Rhand's orientation follows the original hand conventions and pointed the gun sideways in VR.
+  - The gun model's forward is game −Y (runtime −Z), confirmed from the side-view model sheet.
+- **WeaponSystem** (`src/game/weapon.*`, unit-tested):
+  - 70 m/s bolts, 0.2 s auto-fire interval, 250 m range.
+  - Swept segment raycast each frame against `CollisionWorld::raycast` (Möller–Trumbore with an AABB slab broadphase) and the terrain (march 0.5 m, then bisect).
+  - Impact flash billboards toward the viewer; muzzle flash lasts 0.07 s. Haptic pulse on each shot.
+- **Rendering:** effects are drawn additive, unlit, double-sided, without depth writes. b_spark is dim (max 158), so bolts are drawn ×2.5 bright with a 3-sprite trail.
+- **Harness:** `--trigger X` (applied only during simulated frames; setup frames had fired at the spawn point), `--aim-pitch DEG`.
+- The trigger haptic test pulse now only happens in the free camera.

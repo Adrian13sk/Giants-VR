@@ -40,6 +40,9 @@ public:
     void setHideEnabled(bool on) { hideEnabled_ = on; }
     // Centroid of the hidden-bone vertices in the last pose (model-local metres).
     Vec3 hiddenCentroid() const { return hiddenCentroid_; }
+    // World matrix (model space, game units, Z-up) of a node in the last pose (dominant clip,
+    // after the pose modifier). False if the node does not exist.
+    bool nodeWorld(const std::string& lowerCaseName, Mat4& out) const;
     // Bounds (posed, model-local runtime metres) of the vertices bound to a bone; false if none.
     bool boneVertexBounds(const std::string& lowerCaseName, Vec3& mn, Vec3& mx) const;
     void render(Renderer& r, const Mat4& world) const;
@@ -62,6 +65,8 @@ private:
     std::vector<uint8_t> hideMask_;  // per GBS position
     bool hideEnabled_ = false;
     Vec3 hiddenCentroid_{0, 0, 0};
+    std::vector<Mat4> domWorld_;
+    int domClip_ = -1;
     void skin(int anim, float t, std::vector<Vec3>& out);
     struct Part {
         MeshId mesh = 0;

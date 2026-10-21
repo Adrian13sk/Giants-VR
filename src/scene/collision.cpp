@@ -100,6 +100,57 @@ bool CollisionWorld::pushOut(Vec3& feet, float radius, float height, float stepU
     return moved;
 }
 
+static bool rayTri(const Vec3& o, const Vec3& d, const Vec3& a, const Vec3& b, const Vec3& c, float& t) {
+    const Vec3 e1 = b - a, e2 = c - a, p = cross(d, e2);
+    const float det = dot(e1, p);
+    if (std::fabs(det) < 1e-9f) return false;
+    const float inv = 1.0f / det;
+    const Vec3 s = o - a;
+    const float u = dot(s, p) * inv;
+    if (u < 0 || u > 1) return false;
+    const Vec3 q = cross(s, e1);
+    const float v = dot(d, q) * inv;
+    if (v < 0 || u + v > 1) return false;
+    t = dot(e2, q) * inv;
+    return t >= 0;
+}
+
+bool CollisionWorld::raycast(const Vec3& o, const Vec3& d, float maxDist, float& tHit, Vec3& normal) const {
+    bool hit = false;
+    tHit = maxDist;
+    for (const auto& ob : objects_) {
+        // Slab test against the object's AABB.
+        float t0 = 0, t1 = tHit;
+        const float oo[3] = {o.x, o.y, o.z}, dd[3] = {d.x, d.y, d.z};
+        const float mn[3] = {ob.mn.x, ob.mn.y, ob.mn.z}, mx[3] = {ob.mx.x, ob.mx.y, ob.mx.z};
+        bool miss = false;
+        for (int k = 0; k < 3 && !miss; ++k) {
+            if (std::fabs(dd[k]) < 1e-9f) {
+                if (oo[k] < mn[k] || oo[k] > mx[k]) miss = true;
+                continue;
+            }
+            float ta = (mn[k] - oo[k]) / dd[k], tb = (mx[k] - oo[k]) / dd[k];
+            if (ta > tb) std::swap(ta, tb);
+            t0 = std::max(t0, ta);
+            t1 = std::min(t1, tb);
+            if (t0 > t1) miss = true;
+        }
+        if (miss) continue;
+        for (const auto* list : {&ob.wall, &ob.floor})
+            for (size_t i = 0; i + 2 < list->size(); i += 3) {
+                float t;
+                const Vec3 &a = (*list)[i], &b = (*list)[i + 1], &c = (*list)[i + 2];
+                if (rayTri(o, d, a, b, c, t) && t < tHit) {
+                    tHit = t;
+                    normal = normalize(cross(b - a, c - a));
+                    if (dot(normal, d) > 0) normal = normal * -1.0f;
+                    hit = true;
+                }
+            }
+    }
+    return hit;
+}
+
 bool CollisionWorld::groundAt(float x, float z, float maxY, float& outY) const {
     bool found = false;
     float best = -1e30f;

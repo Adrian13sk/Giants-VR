@@ -13,6 +13,7 @@
 #include "game/arm_ik.h"
 #include "scene/collision.h"
 #include "game/player.h"
+#include "game/weapon.h"
 #include "game/vr_rig.h"
 
 using namespace gvr;
@@ -337,6 +338,32 @@ static void testCollision() {
     CHECK(!cw.pushOut(top, 0.35f, 1.8f, 0.45f));
 }
 
+static void testWeapon() {
+    WeaponSystem w;
+    // Wall: plane z = -10 facing +z.
+    w.raycast = [](const Vec3& o, const Vec3& d, float maxD, float& t, Vec3& n) {
+        if (d.z >= 0) return false;
+        t = (-10.0f - o.z) / d.z;
+        n = {0, 0, 1};
+        return t >= 0 && t <= maxD;
+    };
+    const float dt = 1.0f / 72.0f;
+    CHECK(w.update(dt, true, {0, 1, 0}, {0, 0, -1}));   // fires immediately
+    CHECK(!w.update(dt, true, {0, 1, 0}, {0, 0, -1}));  // cooling down
+    CHECK(w.projectiles().size() == 1 && w.effects().size() == 1);  // bolt + muzzle flash
+    for (int i = 0; i < 20; ++i) w.update(dt, false, {0, 1, 0}, {0, 0, -1});
+    CHECK(w.hits() == 1 && w.projectiles().empty());
+    CHECK(near(w.lastHitDistance(), 10.0f, 1e-3f));
+    bool impact = false;
+    for (const auto& e : w.effects()) impact |= e.kind == WeaponEffect::Impact && near(e.pos.z, -9.95f, 1e-3f);
+    CHECK(impact);
+    // Holding the trigger: one shot per fireInterval.
+    WeaponSystem a;
+    int shots = 0;
+    for (int i = 0; i < 72; ++i) shots += a.update(dt, true, {0, 0, 0}, {0, 1, 0}) ? 1 : 0;
+    CHECK(shots == 5);  // t = 0, 0.2, 0.4, 0.6, 0.8 s within one second
+}
+
 static void testGti() {
     // 2x1 interior cells, lightmap flag; stream: skip 0, literal run of 2 cells.
     std::vector<uint8_t> d;
@@ -392,6 +419,7 @@ int main() {
     testPlayer();
     testArmIk();
     testCollision();
+    testWeapon();
     if (g_failures) {
         std::printf("%d test failure(s)\n", g_failures);
         return 1;

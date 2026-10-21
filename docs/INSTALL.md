@@ -37,7 +37,7 @@ and an fps line every 5 seconds.
 
 ## Controls (current build)
 You start as the **Meccaryn in first person**: his body is under you, his arms follow your
-controllers (grip = make a fist, trigger = curl the leading finger). Walking around your room
+controllers (grip = make a fist, trigger = curl the leading finger); the original Meccaryn gun is in your right hand. Walking around your room
 moves him too.
 
 | Input | Play mode (Meccaryn) | Free camera |
@@ -45,6 +45,7 @@ moves him too.
 | Left stick | Run (5 m/s) relative to where you look; sideways = sidestep, back = backpedal | Move |
 | Left grip (hold) | Sprint ×1.5 | Speed boost ×5 |
 | Right stick left/right | Snap turn 30° | Snap turn 30° |
+| **Right trigger** | **Fire the Meccaryn gun** (hold for auto-fire, 5 shots/s) | Haptic test pulse |
 | **A** (hold) | **Jetpack** thrust; release to hover down and land (you can land on walls and roofs) | — |
 | Right stick click | First ↔ third person (third: camera behind him) | — |
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
