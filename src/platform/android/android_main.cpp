@@ -32,7 +32,12 @@ struct EglState {
                                    EGL_SAMPLES, 0, EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT_KHR,
                                    EGL_SURFACE_TYPE, EGL_PBUFFER_BIT, EGL_NONE};
         EGLint n = 0;
-        if (!eglChooseConfig(display, cfgAttrs, &config, 1, &n) || n < 1) {
+        const EGLint cfgAttrsWin[] = {EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8,
+                                      EGL_ALPHA_SIZE, 8, EGL_DEPTH_SIZE, 0, EGL_STENCIL_SIZE, 0,
+                                      EGL_SAMPLES, 0, EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT_KHR,
+                                      EGL_SURFACE_TYPE, EGL_WINDOW_BIT | EGL_PBUFFER_BIT, EGL_NONE};
+        if ((!eglChooseConfig(display, cfgAttrsWin, &config, 1, &n) || n < 1) &&
+            (!eglChooseConfig(display, cfgAttrs, &config, 1, &n) || n < 1)) {
             LOGE("eglChooseConfig failed: 0x%x", eglGetError());
             return false;
         }
@@ -171,10 +176,16 @@ void android_main(android_app* app) {
         for (const auto& hr : game.hapticRequests()) xr.input().vibrate(hr.hand, hr.amplitude, hr.seconds);
         game.hapticRequests().clear();
 
+        bool eyesOk = true;
         if (frame.shouldRender) {
             game.renderer().resetStats();
             for (int eye = 0; eye < 2; ++eye) {
-                if (!xr.bindEyeFramebuffer(eye)) continue;
+                const auto bind = xr.bindEyeFramebuffer(eye);
+                if (bind != gvr::XrApp::EyeBindResult::Ok) {
+                    eyesOk = false;
+                    if (bind == gvr::XrApp::EyeBindResult::Fatal) exitRequested = true;
+                    break;
+                }
                 const gvr::EyeView& ev = frame.eyes[eye];
                 gvr::EyeRenderInfo info{ev.pose, ev.fovLeft, ev.fovRight, ev.fovUp, ev.fovDown,
                                         ev.width, ev.height};
@@ -182,7 +193,12 @@ void android_main(android_app* app) {
                 xr.releaseEye(eye);
             }
         }
-        xr.endFrame(frame);
+        // Never submit a projection layer referencing a swapchain without a released image.
+        if (!eyesOk) {
+            for (int eye = 0; eye < 2; ++eye) xr.releaseEye(eye);
+            frame.shouldRender = false;
+        }
+        if (!xr.endFrame(frame)) exitRequested = true;
 
         ++frameCount;
         if (now - statsStart >= 5.0) {

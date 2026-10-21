@@ -47,9 +47,11 @@ public:
     // Frame loop: waitFrame + beginFrame + locate views + input sync.
     bool beginFrame(XrFrameContext& frame);
     // Bind the eye's current swapchain image as the GL draw framebuffer.
-    bool bindEyeFramebuffer(int eye);
+    enum class EyeBindResult { Ok, Skipped, Fatal };
+    EyeBindResult bindEyeFramebuffer(int eye);
     void releaseEye(int eye);
-    void endFrame(const XrFrameContext& frame);
+    // Returns false if the session/instance was lost.
+    bool endFrame(const XrFrameContext& frame);
 
     XrInput& input() { return input_; }
     XrInstance instance() const { return instance_; }

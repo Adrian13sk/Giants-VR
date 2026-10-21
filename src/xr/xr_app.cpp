@@ -413,17 +413,27 @@ bool XrApp::beginFrame(XrFrameContext& frame) {
     return true;
 }
 
-bool XrApp::bindEyeFramebuffer(int eye) {
+XrApp::EyeBindResult XrApp::bindEyeFramebuffer(int eye) {
     Swapchain& sc = swapchains_[eye];
     uint32_t index = 0;
     XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
-    XR_CHECK_RET(xrAcquireSwapchainImage(sc.handle, &ai, &index), false);
-    sc.acquired = true;
+    XrResult r = xrAcquireSwapchainImage(sc.handle, &ai, &index);
+    if (XR_FAILED(r)) {
+        LOGE("xrAcquireSwapchainImage(eye %d) failed: %s", eye, xrResultName(instance_, r));
+        return EyeBindResult::Skipped;
+    }
     XrSwapchainImageWaitInfo wi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
     wi.timeout = XR_INFINITE_DURATION;
-    XR_CHECK_RET(xrWaitSwapchainImage(sc.handle, &wi), false);
+    r = xrWaitSwapchainImage(sc.handle, &wi);
+    if (XR_FAILED(r)) {
+        // An acquired-but-unwaited image cannot be released (spec), so the swapchain is now
+        // unusable: treat as fatal.
+        LOGE("xrWaitSwapchainImage(eye %d) failed: %s", eye, xrResultName(instance_, r));
+        return EyeBindResult::Fatal;
+    }
+    sc.acquired = true;
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sc.framebuffers[index]);
-    return true;
+    return EyeBindResult::Ok;
 }
 
 void XrApp::releaseEye(int eye) {
@@ -438,7 +448,7 @@ void XrApp::releaseEye(int eye) {
     sc.acquired = false;
 }
 
-void XrApp::endFrame(const XrFrameContext& frame) {
+bool XrApp::endFrame(const XrFrameContext& frame) {
     XrCompositionLayerProjection layer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
     const XrCompositionLayerBaseHeader* layers[1] = {};
     uint32_t layerCount = 0;
@@ -464,7 +474,12 @@ void XrApp::endFrame(const XrFrameContext& frame) {
     ei.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
     ei.layerCount = layerCount;
     ei.layers = layers;
-    XR_LOG_FAIL(xrEndFrame(session_, &ei));
+    XrResult r = xrEndFrame(session_, &ei);
+    if (XR_FAILED(r)) {
+        LOGW("xrEndFrame failed: %s", xrResultName(instance_, r));
+        return !(r == XR_ERROR_SESSION_LOST || r == XR_ERROR_INSTANCE_LOST);
+    }
+    return true;
 }
 
 void XrApp::destroy() {

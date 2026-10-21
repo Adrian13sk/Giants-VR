@@ -176,10 +176,21 @@ MeshId Renderer::uploadMesh(const MeshData& data) {
                           reinterpret_cast<void*>(offsetof(Vertex, color)));
     glBindVertexArray(0);
     m.indexCount = static_cast<GLsizei>(data.indices.size());
+    m.vertexCount = data.vertices.size();
     m.live = true;
     meshes_.push_back(m);
     checkGl("uploadMesh");
     return static_cast<MeshId>(meshes_.size());
+}
+
+bool Renderer::updateMeshVertices(MeshId id, const std::vector<Vertex>& vertices) {
+    if (id == 0 || id > meshes_.size()) return false;
+    GpuMesh& m = meshes_[id - 1];
+    if (!m.live || vertices.size() != m.vertexCount) return false;
+    glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(Vertex), vertices.data());
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    return true;
 }
 
 void Renderer::destroyMesh(MeshId id) {

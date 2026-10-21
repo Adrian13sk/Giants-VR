@@ -12,6 +12,7 @@
 #include "assets/world_bin.h"
 #include "render/renderer.h"
 #include "scene/model_cache.h"
+#include "scene/skinned_model.h"
 #include "scene/terrain.h"
 
 namespace gvr {
@@ -21,7 +22,7 @@ public:
     bool init(const std::string& dataDir, Renderer& r, const std::string& worldName);
     void update(float dt);
     void render(Renderer& r);
-    bool loaded() const { return !placed_.empty() || hasTerrain_; }
+    bool loaded() const { return !placed_.empty() || !skinned_.empty() || hasTerrain_; }
     bool hasTerrain() const { return hasTerrain_; }
     const std::string& status() const { return status_; }
     const AssetFS& fs() const { return fs_; }
@@ -38,11 +39,20 @@ public:
         float spin;  // radians/sec turntable speed
     };
     std::vector<Placed>& placed() { return placed_; }
+    size_t skinnedCount() const { return skinned_.size(); }
 
 private:
     bool loadWorld(const std::string& name, Renderer& r);
     void placeShowcase(const Vec3& centre);
 
+    struct SkinnedPlaced {
+        std::unique_ptr<SkinnedModel> model;
+        Vec3 position;
+        float yaw;
+    };
+    std::vector<SkinnedPlaced> skinned_;
+    Renderer* renderer_ = nullptr;
+    float time_ = 0.0f;
     AssetFS fs_;
     std::unique_ptr<ModelCache> cache_;
     std::vector<Placed> placed_;

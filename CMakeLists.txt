@@ -25,6 +25,8 @@ add_library(gvr_core STATIC
   src/scene/terrain.cpp
   src/assets/gti.cpp
   src/assets/world_bin.cpp
+  src/assets/skin_anim.cpp
+  src/scene/skinned_model.cpp
   src/game/vr_rig.cpp
   src/game/game_app.cpp
 )

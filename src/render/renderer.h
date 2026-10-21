@@ -64,6 +64,8 @@ public:
 
     MeshId uploadMesh(const MeshData& data);
     void destroyMesh(MeshId id);
+    // Replaces all vertices of a mesh (same count as at upload); used for CPU skinning.
+    bool updateMeshVertices(MeshId id, const std::vector<Vertex>& vertices);
     // RGBA8 pixels, rows top-to-bottom.
     TextureId uploadTexture(int width, int height, const uint8_t* rgba, bool mipmaps, bool repeat);
     void destroyTexture(TextureId id);
@@ -83,6 +85,7 @@ private:
     struct GpuMesh {
         GLuint vao = 0, vbo = 0, ibo = 0;
         GLsizei indexCount = 0;
+        size_t vertexCount = 0;
         bool live = false;
     };
     struct GpuTexture {

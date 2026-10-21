@@ -17,12 +17,13 @@ bool AssetWorld::init(const std::string& dataDir, Renderer& r, const std::string
     }
     fs_.mountDirectory(dataDir);
     cache_ = std::make_unique<ModelCache>(fs_, r);
+    renderer_ = &r;
 
     hasTerrain_ = loadWorld(worldName, r);
     placeShowcase(spawn_ + Vec3{0, 0, -6.0f});
     status_ = "Mounted " + std::to_string(n) + " archives; world " + worldName +
               (hasTerrain_ ? " loaded" : " NOT loaded") + "; " + std::to_string(placed_.size()) +
-              " original models placed";
+              " static + " + std::to_string(skinned_.size()) + " animated original models placed";
     LOGI("%s", status_.c_str());
     return loaded();
 }
@@ -119,17 +120,36 @@ bool AssetWorld::loadWorld(const std::string& name, Renderer& r) {
 }
 
 void AssetWorld::placeShowcase(const Vec3& centre) {
-    // Original characters (first available LOD), placed in an arc in front of the spawn.
+    // Original characters with original animations (CPU-skinned), then static props.
+    struct Anim { const char* base; const char* anim; };
+    const Anim characters[] = {
+        {"sm_L0", "sm_stand.anm"},                  // Smartie
+        {"mc_l0", "mc_idle.anm"},                   // Meccaryn
+        {"rpman_l0", "rpman_attention_stand.anm"},  // Reaper
+        {"kB_L1", "kb_walk.anm"},                   // Kabuto (walk cycle in place)
+    };
+    float x = centre.x - 6.0f;
+    for (const auto& c : characters) {
+        auto m = std::make_unique<SkinnedModel>();
+        if (!m->load(fs_, *cache_, *renderer_, c.base, c.anim)) continue;
+        m->pose(*renderer_, 0.0f);
+        Vec3 pmn, pmx;
+        m->posedBounds(pmn, pmx);  // the export (rest) pose can be far from the animated pose
+        LOGI("  %s posed height %.2f m", c.base, pmx.y - pmn.y);
+        float radius = 0.5f * std::max(pmx.x - pmn.x, pmx.z - pmn.z);
+        x += radius;
+        Vec3 p{x, centre.y, centre.z - radius};
+        float gy;
+        if (hasTerrain_ && terrain_.heightAt(p.x, p.z, gy)) p.y = gy;
+        skinned_.push_back({std::move(m), p, 0.0f});
+        x += radius + 1.5f;
+    }
     struct Candidate { const char* names[3]; };
-    const Candidate showcase[] = {
-        {{"sm_L0.gbs", "sm_L1.gbs", nullptr}},          // Smartie
-        {{"rpman_l0.gbs", "rpman_l1.gbs", nullptr}},    // Reaper
-        {{"kB_L1.gbs", "kB_L2.gbs", nullptr}},          // Kabuto
+    const Candidate props[] = {
         {{"MC_turret.gbs", "MC_turret_L1.gbs", nullptr}},
         {{"Ptree.gbs", "Ptree_L1.gbs", nullptr}},       // palm tree
     };
-    float x = centre.x - 4.0f;
-    for (const auto& c : showcase) {
+    for (const auto& c : props) {
         const RenderModel* m = nullptr;
         for (const char* nm : c.names)
             if (nm && (m = cache_->get(nm))) break;
@@ -139,13 +159,15 @@ void AssetWorld::placeShowcase(const Vec3& centre) {
         Vec3 p{x, centre.y, centre.z - radius};
         float gy;
         if (hasTerrain_ && terrain_.heightAt(p.x, p.z, gy)) p.y = gy;
-        placed_.push_back({m, p, 0.0f, 0.25f});
+        placed_.push_back({m, p, 0.0f, 0.0f});
         x += radius + 1.5f;
     }
 }
 
 void AssetWorld::update(float dt) {
+    time_ += dt;
     for (auto& p : placed_) p.yaw += p.spin * dt;
+    for (auto& s : skinned_) s.model->pose(*renderer_, time_);
 }
 
 void AssetWorld::render(Renderer& r) {
@@ -170,6 +192,8 @@ void AssetWorld::render(Renderer& r) {
             r.draw(part.mesh, xf, dp);
         }
     }
+    for (const auto& s : skinned_)
+        s.model->render(r, Mat4::translation(s.position) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, s.yaw)));
     if (seaMesh_) {
         DrawParams sp;
         sp.texture = seaTexture_;

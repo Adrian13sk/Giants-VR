@@ -8,8 +8,9 @@
 
 namespace gvr {
 
-// Provisional: 1 Giants unit = 0.3 m. See docs/formats/GBS.md for the evidence and status.
-float gGameUnitsToMeters = 0.3f;
+// Provisional: 1 Giants unit = 0.2 m, chosen so the animated Meccaryn (10.5 units) is ~2.1 m
+// tall; Smartie ~0.8 m, Reaper ~2.2 m, Kabuto ~16 m. Unverified against the original engine.
+float gGameUnitsToMeters = 0.2f;
 
 // Whether triangle winding must be reversed after the Z-up -> Y-up conversion so that front
 // faces are counter-clockwise (GL convention). Determined from closed meshes; see tests.
@@ -62,6 +63,7 @@ std::vector<BuiltPart> buildGbsParts(const GbsModel& m) {
                 v.color[3] = 255;
                 uint32_t ni = static_cast<uint32_t>(part.mesh.vertices.size());
                 part.mesh.vertices.push_back(v);
+                part.posIndex.push_back(m.displayToPosition[di]);
                 remap[di] = ni;
                 part.mesh.indices.push_back(ni);
             }

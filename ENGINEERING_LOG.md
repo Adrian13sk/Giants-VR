@@ -59,3 +59,24 @@
   black characters, which led to the RGB finding above.
 - out/worlds_sheet.png — Story1, Kstory1, Rstory1 and M_Reaper_L1. Terrain was too dark with
   raw lightmap values (averages ~70/255), so I applied MODULATE2X plus a floor (provisional).
+
+### SKN / ANM (same session)
+- Both formats are serialized memory images: pointers are file offsets, there are NAM tables of
+  `{u16 size, u16 type, u32 ptr, name}`, and the table start varies (0x20 or 0x28).
+- **SKN:** object `{0, tree, 0, nverts, nclusters, ptrs}`. Cluster
+  `{0, owner, bone, bbox[6], count, {f32 xyz, u32 index}[count]}` (rigid, one bone per vertex).
+  Bone names are type-8 entries `{…, name, u16 kind, u16 boneIndex}`. Names can contain spaces.
+- **ANM:** node `+0x10` parent, `+0x6C` pos, `+0x78` quat (x,y,z stored negated), `+0x88` scale,
+  `+0x98/9C/A0` pos/rot/scale tracks. Track `{u8 keyType, …, u32 count@+8, ptrs@+12}`.
+  VEC3_TCB value at +48, QUAT_TCB value at +24. Header `{?, 0xB, 0, ptr, start, end, tpf, fps}`
+  is referenced by each node at +0x0C.
+- Verification: SKN clusters posed by the ANM default transforms reproduce the GBS rest
+  positions exactly for bones whose stand pose equals the export pose. This confirms the
+  composition order and the quaternion negation.
+- **Scale changed 0.3 → 0.2 m/unit** so the animated Meccaryn is about 2.1 m. Still provisional.
+- **Review fixes (independent review subagent):**
+  - Never submit a projection layer if an eye's swapchain image wasn't released.
+  - A failed wait after acquire is fatal.
+  - `xrEndFrame` session/instance loss now triggers exit.
+  - EGL config prefers WINDOW|PBUFFER (as Meta's samples do).
+  - touchscreen/faketouch are marked not required.

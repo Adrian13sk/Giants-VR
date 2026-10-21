@@ -5,6 +5,7 @@
 //   gzptool validate <BinDir>          (decompresses every entry, parses every GBS / TGA)
 //   gzptool model <BinDir> <name.gbs>  (prints model structure, bounds, winding statistics)
 #include <cmath>
+#include "core/math.h"
 #include <cstdio>
 #include <cstring>
 #include <algorithm>
@@ -13,6 +14,7 @@
 
 #include "assets/gbs.h"
 #include "assets/gti.h"
+#include "assets/skin_anim.h"
 #include "assets/world_bin.h"
 #include <dirent.h>
 #include "assets/gzp.h"
@@ -90,6 +92,16 @@ static int cmdValidate(const char* dir) {
                 std::printf("GTI %-24s %ux%u cells, consumed %zu/%zu bytes\n", name.c_str(), t.tilesX, t.tilesY,
                             t.bytesConsumed, d.size());
             } else { bad["gti"]++; std::printf("GTI FAIL %s: %s\n", name.c_str(), err.c_str()); }
+        } else if (ext == "skn") {
+            SknModel sk;
+            if (parseSkn(d.data(), d.size(), sk, &err)) ok["skn"]++;
+            else { bad["skn"]++; std::printf("SKN FAIL %s: %s\n", name.c_str(), err.c_str()); }
+        } else if (ext == "anm") {
+            AnmAnimation an;
+            if (parseAnm(d.data(), d.size(), an, &err)) {
+                ok["anm"]++;
+                if (an.unsupportedTracks) ok["anm-unsupported-tracks"] += int(an.unsupportedTracks);
+            } else { bad["anm"]++; std::printf("ANM FAIL %s: %s\n", name.c_str(), err.c_str()); }
         } else if (ext == "tga") {
             Image img;
             if (decodeImage(d.data(), d.size(), img, &err)) ok["tga"]++;
@@ -146,7 +158,46 @@ static int cmdModel(const char* dir, const char* name) {
     return 0;
 }
 
+// Rest-pose consistency: rebuild GBS positions from SKN clusters posed by the animation's
+// default node transforms; bones whose animation pose equals the export pose must match exactly.
+static int cmdSkinCheck(const char* dir, const char* base, const char* anim) {
+    AssetFS fs;
+    fs.mountAllArchives(dir);
+    std::vector<uint8_t> d;
+    std::string err;
+    GbsModel g; SknModel sk; AnmAnimation an;
+    if (!fs.read(std::string(base) + ".gbs", d) || !parseGbs(d.data(), d.size(), g, &err)) { std::printf("gbs: %s\n", err.c_str()); return 1; }
+    if (!fs.read(std::string(base) + ".skn", d) || !parseSkn(d.data(), d.size(), sk, &err)) { std::printf("skn: %s\n", err.c_str()); return 1; }
+    if (!fs.read(anim, d) || !parseAnm(d.data(), d.size(), an, &err)) { std::printf("anm: %s\n", err.c_str()); return 1; }
+    // Default (static) transforms only: drop keys.
+    for (auto& n : an.nodes) { n.posKeys.clear(); n.rotKeys.clear(); n.scaleKeys.clear(); }
+    std::vector<Mat4> world;
+    an.evaluate(0.0f, world);
+    int exact = 0, total = 0;
+    std::map<std::string, std::pair<int, int>> perBone;
+    for (size_t o = 0; o < sk.objects.size() && o < g.maxObjs.size(); ++o)
+        for (const auto& c : sk.objects[o].clusters) {
+            auto bn = sk.boneNames.find(c.bone);
+            if (bn == sk.boneNames.end()) continue;
+            auto ni = an.byName.find(toLower(bn->second));
+            if (ni == an.byName.end()) continue;
+            for (const auto& v : c.verts) {
+                Vec4 w = world[size_t(ni->second)] * Vec4{v.x, v.y, v.z, 1};
+                const auto& p = g.positions[size_t(g.maxObjs[o].vstart) + v.index];
+                const float e = std::sqrt((w.x - p[0]) * (w.x - p[0]) + (w.y - p[1]) * (w.y - p[1]) + (w.z - p[2]) * (w.z - p[2]));
+                ++total;
+                auto& pb = perBone[bn->second];
+                ++pb.second;
+                if (e < 1e-3f) { ++exact; ++pb.first; }
+            }
+        }
+    for (auto& [b, c] : perBone) std::printf("  %-14s %3d/%3d exact\n", b.c_str(), c.first, c.second);
+    std::printf("%s + %s: %d/%d vertices reproduced exactly (<1 mm game units)\n", base, anim, exact, total);
+    return exact > 0 ? 0 : 1;
+}
+
 int main(int argc, char** argv) {
+    if (argc >= 5 && !std::strcmp(argv[1], "skincheck")) return cmdSkinCheck(argv[2], argv[3], argv[4]);
     if (argc >= 3 && !std::strcmp(argv[1], "list")) return cmdList(argv[2]);
     if (argc >= 5 && !std::strcmp(argv[1], "extract")) return cmdExtract(argv[2], argv[3], argv[4]);
     if (argc >= 3 && !std::strcmp(argv[1], "validate")) return cmdValidate(argv[2]);

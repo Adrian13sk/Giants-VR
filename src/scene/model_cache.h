@@ -54,6 +54,7 @@ private:
 // Builds CPU mesh data for one GBS model (exposed for tests and offline tools).
 struct BuiltPart {
     MeshData mesh;
+    std::vector<uint32_t> posIndex;  // per vertex: source GBS position index (for skinning)
     std::string texture;
     uint32_t subFlags = 0;
     bool lit = false;

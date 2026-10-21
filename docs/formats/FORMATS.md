@@ -34,8 +34,8 @@ Rendering facts found here:
 - Character meshes have all-zero RGB and need dynamic lighting.
 - Sub-flag 0x10 appears on opaque meshes, so it is not an additive-blend switch.
 - Winding needs no flip after (-x, z, y).
-- **Scale:** 1 unit = 0.3 m is provisional. It gives Smartie 1.23 m, Reaper 3.4 m and
-  Kabuto ~26 m tall. This is consistent with "units are feet" but unconfirmed.
+- **Scale:** 1 unit = 0.2 m is provisional. In animated poses this gives Meccaryn 2.17 m,
+  Smartie 0.81 m, Reaper 2.26 m and Kabuto 16.2 m. Unconfirmed.
 - UV: stored v is used as-is with top-down texture rows; textures look correct (P).
 
 ## GTI terrain — V
@@ -79,3 +79,19 @@ opcode (B5). The fog colour byte order is unverified.
 - Type IDs used by world op 42 are found this way (e.g. 1298 → xx_ambient.bin).
 - Another block (`02 11 22 33` marker, version 0x0E, …) defines creature types
   (1290 Smartie, 1379 Reaper).
+
+## SKN skin / ANM animation — V (structure), P (interpolation)
+Serialized images; pointers = file offsets. NAM tables `{u16 size, u16 type(4), u32 ptr, name}`.
+- SKN object (NAM type 4): `{u32 0, u32 tree, u32 0, u32 nverts, u32 nclusters, u32 clusterPtr[]}`.
+  Objects map to GBS max-objects in order.
+- SKN cluster: `{u32 0, u32 owner, u32 bone, f32 bbox[6], u32 count, {f32 x,y,z, u32 localIndex}[count]}`.
+  Rigid: one bone per vertex, in bone-local game units.
+- SKN bone names: `{u16 size, u16 8, u32, u32 0, char name[], u16 kind, u16 boneIndex}`.
+- ANM header (pointed to by node+0x0C): `{u32 ?, u32 0xB, u32 0, u32 ptr, i32 start, i32 end,
+  u32 ticksPerFrame, u32 fps, ptr, ptr, u32 numNodes, …, path}`. Duration = (end-start)/(tpf*fps).
+- ANM node: +0x10 parent ptr; +0x6C pos; +0x78 quaternion (stored x,y,z negated); +0x88 scale;
+  +0x98/+0x9C/+0xA0 pos/rot/scale track ptrs.
+- Track: `{u8 keyType, u8, u8, u8, u32, u32 count, u32 keyPtr[count]}`. Key types: 4 VEC3_TCB
+  (60 B; tick +0, value +48), 7 QUAT_TCB (72 B; value +24). Other types are assumed (value at +4).
+- World = Wparent × Local. Vertex = BoneWorld × local. Verified exactly (gzptool skincheck).
+- Interpolation: linear/slerp between keys. The TCB tangents aren't used yet.

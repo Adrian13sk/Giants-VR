@@ -9,11 +9,11 @@ game.
   been run on a headset**.
 - It reads the original `Bin/*.gzp` archives: models (GBS), textures (TGA), terrain (GTI) and
   world definitions.
-- It renders original worlds (terrain, sky, sea, fog) and original character models in stereo
-  VR. This has been verified in a headless desktop harness only.
+- It renders original worlds (terrain, sky, sea, fog) and original characters playing their
+  original animations, in stereo VR. This has been verified in a headless desktop harness only.
 - Touch controller input, smooth locomotion, snap turning and terrain following.
 
-**Not yet:** animation, gameplay, AI, weapons, missions, audio, menus, object/building placement.
+**Not yet:** gameplay, AI, weapons, missions, audio, menus, object/building placement.
 See [PROJECT_STATUS.md](PROJECT_STATUS.md) and [BLOCKERS.md](BLOCKERS.md).
 
 ## Docs

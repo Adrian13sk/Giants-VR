@@ -15,7 +15,7 @@ source exists; this is a **native reimplementation that loads the user's origina
 
 ## Layout
 - `src/core` math/log · `src/render` GLES3 renderer · `src/assets` file formats (GZP, GBS, GTI,
-  world .bin, images) · `src/scene` terrain/model cache/worlds · `src/game` VR rig, input state,
+  world .bin, SKN/ANM, images) · `src/scene` terrain/model cache/worlds · `src/game` VR rig, input state,
   GameApp (platform-independent app core) · `src/xr` OpenXR · `src/platform/android` entry point.
 - `tools/headless` Mesa/EGL harness running the same GameApp → stereo PNG. `tools/gzptool`
   archive/asset validator. `tools/py` Python reference decoders used for format RE.
@@ -31,5 +31,5 @@ source exists; this is a **native reimplementation that loads the user's origina
 
 ## Conventions
 - Runtime frame: right-handed, +Y up, -Z forward, metres. Giants data is Z-up:
-  `runtime = (-x, z, y) * gGameUnitsToMeters` (0.3, provisional). Winding preserved.
+  `runtime = (-x, z, y) * gGameUnitsToMeters` (0.2, provisional). Winding preserved.
 - Keep docs current: PROJECT_STATUS.md, ENGINEERING_LOG.md, BLOCKERS.md, TEST_REPORT.md.
