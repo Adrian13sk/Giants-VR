@@ -37,6 +37,16 @@ original Giants data and renders the original worlds in stereo.
    - **Terrain texture variety:** beach sand by height near sea level, sand under water, several grass and rock
      variants blended by slope, height and noise, plus detail textures. Use original textures where the data has
      them; all in the terrain shader.
+   - **Then, in priority order:**
+     1. Finish Story 1: village Smarties going about their day, flying Dactyls, the 1d sneak mission.
+     2. Save and checkpoints between missions.
+     3. In-headset settings menu: comfort, smooth/snap turn, left-handed mode, HUD size, volume.
+     4. Performance pass on the headset: per-effect cost in the busiest scenes, keep 72 fps with headroom, maybe 90 Hz.
+     5. VR feel: controller vibration for hits and jetpack take-off, weapon holster points on the body.
+     6. Visual upgrades: sharper sky, water foam, light shafts, a short day/night cycle.
+     7. Next characters: Delphi, then Kabuto with his own camera scale.
+     8. Polish: main menu, loading screen with art, the original music per mission.
+   - Resume planned 2026-10-23 00:31 (user).
 2. **Remaining Story1 work:** Smartie AI in the villages, Dactyl flight, 1d (sneak past); the world opcode table (B5).
 3. **Visual fidelity:** compare against original screenshots (B6).
 
