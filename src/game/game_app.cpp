@@ -900,6 +900,7 @@ void GameApp::loadMission(const std::string& name) {
     missionComplete_ = false;
     missionHostiles_ = false;
     advanceTimer_ = 0;
+    piranhaKnown_ = false;
     blasts_.clear();
     gibs_.clear();
     playerHealth_ = 100.0f;
@@ -1222,6 +1223,29 @@ void GameApp::damagePlayer(float amount) {
 }
 
 void GameApp::updateCombat(float dt) {
+    // Piranhas: where the mission briefing warns of them (1b: "Watch out for hungry PIRANHAS in
+    // the water!"), wading or swimming in deep water gets the player bitten. Rate and damage ours.
+    if (!piranhaKnown_ && gameText_ && assetWorld_) {
+        piranhaKnown_ = true;
+        std::string brief = gameText_->get("MO_" + assetWorld_->missionName());
+        for (auto& ch : brief) ch = char(std::toupper(static_cast<unsigned char>(ch)));
+        piranhas_ = brief.find("PIRANHA") != std::string::npos;
+        if (piranhas_) LOGI("Mission %s: piranhas in the water", assetWorld_->missionName().c_str());
+    }
+    if (piranhas_ && playMode_ && player_.position.y < -0.5f) {
+        waterTime_ += dt;
+        if (waterTime_ > 0.8f) {
+            biteTimer_ -= dt;
+            if (biteTimer_ <= 0) {
+                biteTimer_ = 0.5f;
+                sfx(frand() < 0.5f ? "pi_swrm1" : "pi_swrm2", player_.position, 1.0f, 0.9f + 0.2f * frand());
+                damagePlayer(8.0f);
+            }
+        }
+    } else {
+        waterTime_ = 0;
+        biteTimer_ = 0;
+    }
     // Health regenerates after 4 s without damage.
     sinceDamage_ += dt;
     if (sinceDamage_ > 4.0f) playerHealth_ = std::min(100.0f, playerHealth_ + 12.0f * dt);

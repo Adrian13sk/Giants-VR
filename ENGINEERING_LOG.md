@@ -509,3 +509,6 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   fire from there without moving (`Enemy::posted`). Other mounts (Tel in his crashed plane on hardpoint 0, carried
   items) are still not shown: hardpoint positions are in undecoded data.
 - No test Reaper waves in missions that have objectives.
+- **Piranhas:** where the mission briefing (GText `MO_<mission>`) mentions PIRANHAS (1b), standing or swimming in water
+  deeper than 0.5 m gets the player bitten after 0.8 s: 8 damage every 0.5 s with the original `pi_swrm` sounds (rate
+  and damage ours). Headless: health 100 → 16 after 4 s in the water at game (-1850, 3400).

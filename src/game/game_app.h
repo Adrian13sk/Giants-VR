@@ -196,7 +196,9 @@ private:
     size_t objectivesDone_ = 0;
     bool missionComplete_ = false;
     float advanceTimer_ = 0;
-    ButtonEdge missionEdge_;  // after a mission (and its outro) ends: seconds until the next loads
+    ButtonEdge missionEdge_;
+    bool piranhaKnown_ = false, piranhas_ = false;
+    float waterTime_ = 0, biteTimer_ = 0;  // after a mission (and its outro) ends: seconds until the next loads
     void loadMission(const std::string& name);
     std::string dataDir_, worldName_;
     void initMission();
