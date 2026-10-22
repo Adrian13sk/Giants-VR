@@ -761,3 +761,22 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - **Tests:** landing (a 1 m drop shows no air/landing clip; a 4 m drop lands once, held), jetpack with the new tank, Ripper
   box raycast, burn textures/levels. All pass.
 - **Not device-tested.**
+
+### Device test 23 feedback → fuel, Timmy (2026-10-22, build d07dbb9)
+- **Reported (845cb14):** the burning damage look is good; the flight animation is fine; too much fuel. Timmy should
+  face backwards (watching what's behind Baz); he keeps disappearing in flight and when changing direction; his
+  riding animation is wrong and buggy.
+- **Fuel:** 8 s (was 10). At 12 m/s that's 96 m powered plus the glide, still enough for 1b's 97 m gap.
+- **Disappearing, cause found:** a trace of the mount per player clip showed mc_hover and mc_fly_left have no
+  Ref_HolsterB (nor Ref_Smartie). Their node lists, dumped with `gzptool skincheck`, lack every reference node, so
+  updateTimmy returned and he wasn't drawn. Now the holster's transform relative to Baz's spine (present in every clip)
+  is remembered whenever a clip has it, and used when it doesn't.
+- **Pose:** side and back views of sm_mount, sm_fly_idle, sm_sit and sm_fly_yell1 on Baz (new `GVR_TIMMY_CLIP` /
+  `GVR_TIMMY_TURN` hooks):
+  - sm_fly_idle is a Smartie sitting high on a Meccaryn's back, facing backwards: the riding clip;
+  - sm_mount is a sideways clinging pose.
+  - He now loops sm_fly_idle and, while Baz flies, plays sm_fly_yell1/2/3 once every 5–11 s, cross-faded (0.25 s)
+    and held on the last frame, not looped.
+- Ref_Smartie (0, 2.84, 5.38 game units) is lower on the back; it was tried and not used.
+- **Harness:** flight frames 60/300/600 (thrusting, yelling and waving, falling burnt dry); he stays visible and faces
+  the chase camera. **Not device-tested.**

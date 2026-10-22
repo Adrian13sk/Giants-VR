@@ -253,3 +253,9 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - self-damage at 1/2/5 m: 26/14/0;
   - a Ripper hit box of 1.3 × 1.46 × 1.9 m logged.
 - **Not device-tested.**
+
+## Device test 23 — 2026-10-22, user's Quest 2 (build 845cb14)
+- **DEVICE VERIFIED:** the burning/char damage look; the flight animation.
+- **Reported:** too much fuel; Timmy faces the wrong way, disappears in flight, wrong/buggy riding clip.
+- **Fixed in d07dbb9** (APK sha256 639e313b…): fuel 8 s; Timmy facing backwards on sm_fly_idle (+ yells in flight),
+  mount kept in clips without reference nodes. Tests pass; harness flight frames show him throughout. Not device-tested.
