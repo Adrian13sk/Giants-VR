@@ -41,7 +41,10 @@ public:
     Vec3 eyeNow() const { return eyeNow_; }
     // Soundtrack stream to start (once), e.g. "f_jetpack"; empty if none pending.
     std::string takeStream();
-    const std::vector<std::string>& subtitles() const { return shot_.subtitles; }
+    // Timed streams (op 0x2C: sound effects, voice clips) due since the last call.
+    std::vector<std::string> takeCues();
+    // The subtitle line(s) due now: the latest whose time has come (each holds until the next).
+    std::vector<std::string> subtitles() const;
     float blackout() const;      // 0 (clear) .. 1 (black), for the fades between shots
     float shotTime() const { return t_; }
     float shotDuration() const { return duration_; }
@@ -77,6 +80,8 @@ private:
     std::vector<Mat4> world_;
     float t_ = 0, duration_ = 0;
     size_t shotsPlayed_ = 0;
+    size_t cueNext_ = 0;
+    std::vector<std::string> dueCues_;
     Vec3 eye_, eyeNow_, eyeOverride_;
     bool hasEyeOverride_ = false;
     int camNode_ = -1;

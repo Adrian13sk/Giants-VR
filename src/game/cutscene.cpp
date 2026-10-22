@@ -41,6 +41,7 @@ bool CutscenePlayer::loadShot(const std::string& name) {
     shot_ = std::move(s);
     shotName_ = name;
     t_ = 0;
+    cueNext_ = 0;
     duration_ = std::max(0.5f, shot_.duration());
     actors_.clear();
     const AnmAnimation& dir = shot_.director;
@@ -247,6 +248,7 @@ void CutscenePlayer::update(float dt) {
         }
     }
     const float t = std::min(t_, duration_ * 0.999f);
+    while (cueNext_ < shot_.cues.size() && shot_.cues[cueNext_].time <= t_) dueCues_.push_back(shot_.cues[cueNext_++].stream);
     shot_.director.evaluate(t, world_);
     eyeNow_ = eye_;
     if (camNode_ >= 0 && !hasEyeOverride_) {
@@ -309,6 +311,21 @@ bool CutscenePlayer::takeNewShot(Vec3& eye, float& yaw) {
     eye = eye_;
     yaw = yaw_;
     return true;
+}
+
+std::vector<std::string> CutscenePlayer::subtitles() const {
+    std::vector<std::string> v;
+    int cur = -1;
+    for (size_t i = 0; i < shot_.subtitles.size(); ++i)
+        if (i < shot_.subtitleTimes.size() && shot_.subtitleTimes[i] <= t_ + 0.05f) cur = int(i);
+    if (cur >= 0) v.push_back(shot_.subtitles[size_t(cur)]);
+    return v;
+}
+
+std::vector<std::string> CutscenePlayer::takeCues() {
+    std::vector<std::string> v;
+    v.swap(dueCues_);
+    return v;
 }
 
 std::string CutscenePlayer::takeStream() {

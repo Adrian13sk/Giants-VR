@@ -173,7 +173,7 @@ private:
         std::unique_ptr<SkinnedModel> model;
         int clipIndex[int(CreatureClip::Count)] = {};
         Vec3 pos;
-        float yaw = 0, scale = 1, lift = 0, time = 0, stepTimer = 0;
+        float yaw = 0, scale = 1, lift = 0, restLift = 0, time = 0, stepTimer = 0;
         bool ambient = true, visible = true;
         CreatureSize size = CreatureSize::Medium;
         int objective = -1;  // mission objective completed by this creature's death
@@ -228,8 +228,12 @@ private:
     std::string findMusicFile(const std::string& segment) const;
     // Plays the soundtrack stream of a cutscene (flk_<name>.bin names it, e.g. "f_jetpack").
     bool playFlickSoundtrack(const std::string& flick);
-    bool playStream(const std::string& stream);
+    // cue = a timed sound effect / voice clip inside a cutscene (plays alongside the soundtrack).
+    bool playStream(const std::string& stream, bool cue = false);
     uint32_t streamVoice_ = 0;
+    std::vector<uint32_t> cueVoices_;
+    std::vector<std::pair<std::string, std::string>> streamFiles_;  // lower-case name -> path (indexed once)
+    bool streamsIndexed_ = false;
     // Cutscenes (flk shots): fixed viewpoint per shot, fades, subtitles in the game font.
     std::unique_ptr<CutscenePlayer> cutscene_;
     std::unique_ptr<GameText> gameText_;

@@ -26,11 +26,13 @@ adb push "C:\GOG Games\Giants - Citizen Kabuto\Bin\." /sdcard/Android/data/io.gi
 ```
 Launch the app once before pushing if Android refuses to create the folder.
 
-Optional but recommended: the game's **music** (`Music`, about 280 MB) and **cutscene soundtracks**
-(`Stream`) live next to `Bin`. Copy them beside it so the app finds them:
+Optional but recommended: the game's **music** (`Music`, about 280 MB), **cutscene soundtracks and effects**
+(`Stream`) and **spoken dialogue** (`StreamEnglish`, about 100 MB: every voice line in the cutscenes) live next to
+`Bin`. Copy them beside it so the app finds them:
 ```
 adb push "C:\GOG Games\Giants - Citizen Kabuto\Music" /sdcard/Android/data/io.github.giantsvr.dev/files/
 adb push "C:\GOG Games\Giants - Citizen Kabuto\Stream" /sdcard/Android/data/io.github.giantsvr.dev/files/
+adb push "C:\GOG Games\Giants - Citizen Kabuto\StreamEnglish" /sdcard/Android/data/io.github.giantsvr.dev/files/
 ```
 Without them the game runs silently except for sound effects.
 

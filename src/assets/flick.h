@@ -35,6 +35,12 @@ struct FlickShot {
     std::vector<FlickActor> actors;
     std::string stream;               // op 0x34: soundtrack started by this shot ("f_start")
     std::vector<std::string> subtitles;  // op 0x10: GText keys shown during the shot
+    // op 0x2C: a stream (voice clip, sound effect) started at a time in the shot; op 0x10 subtitles
+    // likewise. Times come from the preceding op 9 waits, which name an absolute frame of the
+    // shared Max timeline (story1_start_2 runs from frame 210; its "wait 265" = 1.83 s in).
+    struct Cue { float time; std::string stream; };
+    std::vector<Cue> cues;
+    std::vector<float> subtitleTimes;  // per subtitles[i]
     float duration() const { return hasDirector ? director.durationSeconds() : 0.0f; }
 };
 

@@ -413,6 +413,38 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
             collision_.addObject(w);
         }
     }
+    // Hang points: structures whose own .anm carries ref_smartie_NN nodes (w_story1_hang in 1b:
+    // nine points on the rock pillars' arms, where the opening cutscene shows the Smarties).
+    // Smarties waiting to be rescued (trigger 3) are hung there in order.
+    {
+        std::vector<Vec3> points;
+        for (const auto& p : all) {
+            if (!p.mission) continue;
+            const std::string pm = registry_.modelName(p.type);
+            if (pm.empty() || toLower(pm).find("hang") == std::string::npos) continue;
+            std::vector<uint8_t> ab;
+            AnmAnimation pa;
+            std::string an = registry_.modelAnim(p.type);
+            if (an.empty()) an = pm + ".anm";
+            if (!fs_.read(an, ab) || !parseAnm(ab.data(), ab.size(), pa)) continue;
+            std::vector<Mat4> w;
+            pa.evaluate(0.0f, w);
+            for (size_t n = 0; n < pa.nodes.size(); ++n) {
+                if (toLower(pa.nodes[n].name).rfind("ref_smartie", 0) != 0) continue;
+                const Vec3 lr = giantsToRuntime(w[n].m[12], w[n].m[13], w[n].m[14]);
+                const Vec4 r = placementMatrix(p) * Vec4{lr.x, lr.y, lr.z, 1.0f};
+                points.push_back({r.x, r.y, r.z});
+            }
+        }
+        size_t k = 0;
+        for (auto& c : characters_)
+            if (c.trigger == 3 && c.objectClass == 18 && k < points.size()) {
+                c.hang = points[k++];
+                c.hasHang = true;
+            }
+        if (!points.empty())
+            LOGI("Hang points: %zu, %zu Smarties hung; first at (%.1f %.1f %.1f)", points.size(), k, points[0].x, points[0].y, points[0].z);
+    }
     LOGI("Level objects: %zu placed, %zu characters, %zu helpers skipped, %zu without a model", worldObjects_.size(),
          characters_.size(), hidden, missing);
     LOGI("Collision: %zu solid objects, %zu triangles", collision_.objectCount(), collision_.triangleCount());

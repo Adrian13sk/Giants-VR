@@ -5,6 +5,11 @@
 
 namespace gvr {
 
+float RescueDirector::rnd() {
+    rng_ = rng_ * 1664525u + 1013904223u;
+    return float(rng_ >> 8) / 16777216.0f;
+}
+
 int RescueDirector::add(const Vec3& feet, float yaw, float height) {
     RescueSmartie s;
     s.home = s.pos = feet;
@@ -12,6 +17,22 @@ int RescueDirector::add(const Vec3& feet, float yaw, float height) {
     s.height = height;
     smarties.push_back(s);
     return int(smarties.size()) - 1;
+}
+
+void RescueDirector::hangAgain(RescueSmartie& s) {
+    s.state = SmartieState::Hanging;
+    s.stateTime = 0;
+    s.vel = {0, 0, 0};
+    s.pos = s.hangPoint - Vec3{0, s.height, 0};
+    s.holdFor = holdMin + (holdMax - holdMin) * rnd();
+}
+
+void RescueDirector::setHang(int index, const Vec3& hands) {
+    RescueSmartie& s = smarties[size_t(index)];
+    s.hangPoint = hands;
+    s.hangs = true;
+    hangAgain(s);
+    // Staggered: the first ones give out after holdMin, the rest spread up to holdMax.
 }
 
 size_t RescueDirector::savedCount() const {
@@ -49,11 +70,14 @@ void RescueDirector::update(float dt, const Vec3 hands[2], const float grip[2], 
             float bestD = 1e9f;
             for (size_t i = 0; i < smarties.size(); ++i) {
                 const RescueSmartie& s = smarties[i];
-                if (s.state != SmartieState::Idle && s.state != SmartieState::Falling) continue;
+                const bool hanging = s.state == SmartieState::Hanging;
+                if (s.state != SmartieState::Idle && s.state != SmartieState::Falling && !hanging) continue;
                 const float dx = hands[h].x - s.pos.x, dz = hands[h].z - s.pos.z;
                 const float horiz = std::sqrt(dx * dx + dz * dz);
                 const float above = hands[h].y - (s.pos.y + s.height);
-                if (horiz > reach || above > reachAbove || hands[h].y < s.pos.y - 0.3f) continue;
+                if (horiz > reach) continue;
+                if (hanging ? (above > 0.4f || hands[h].y < s.pos.y - 0.4f) : (above > reachAbove || hands[h].y < s.pos.y - 0.3f))
+                    continue;
                 const float d = horiz + std::max(0.0f, above) * 0.5f;
                 if (d < bestD) { bestD = d; best = int(i); }
             }
@@ -85,6 +109,21 @@ void RescueDirector::update(float dt, const Vec3 hands[2], const float grip[2], 
         RescueSmartie& s = smarties[i];
         s.stateTime += dt;
         switch (s.state) {
+            case SmartieState::Hanging: {
+                // Turns its face toward the player; holds on with both hands, then one, then lets go.
+                const Vec3 d = playerPos - s.pos;
+                if (d.x * d.x + d.z * d.z > 1e-4f) s.yaw = std::atan2(-d.x, -d.z);
+                const bool slipping = s.stateTime > s.holdFor - warnTime;
+                if (slipping && s.clip != SmartieClip::HangOneArm) events.push_back({SmartieEvent::Slipping, int(i), -1, s.pos});
+                s.clip = slipping ? SmartieClip::HangOneArm : SmartieClip::Hang;
+                if (s.stateTime > s.holdFor) {
+                    s.state = SmartieState::Falling;
+                    s.stateTime = 0;
+                    s.vel = {0, 0, 0};
+                    events.push_back({SmartieEvent::LetGo, int(i), -1, s.pos});
+                }
+                break;
+            }
             case SmartieState::Idle: {
                 // Faces the player; waves when the player is near enough to be seen.
                 const Vec3 d = playerPos - s.pos;
@@ -124,7 +163,7 @@ void RescueDirector::update(float dt, const Vec3 hands[2], const float grip[2], 
                 s.clip = SmartieClip::Fall;
                 const float g = ground(s.pos.x, s.pos.z);
                 const bool water = g < seaLevel - 0.15f;
-                const float floor = water ? seaLevel : g;
+                const float floor = water ? seaLevel - 0.6f : g;  // in water: up to the chest
                 if (s.pos.y <= floor) {
                     s.pos.y = floor;
                     s.vel = {0, 0, 0};
@@ -143,12 +182,19 @@ void RescueDirector::update(float dt, const Vec3 hands[2], const float grip[2], 
                 break;
             }
             case SmartieState::Drowning:
+                // The piranhas: it thrashes, then is pulled under.
                 s.clip = SmartieClip::Drowned;
-                s.pos.y -= 0.3f * dt;  // sinks while thrashing
-                if (s.stateTime > 3.0f) {
-                    s.state = SmartieState::Idle;
-                    s.pos = s.home;
+                if (s.stateTime > 2.0f) s.pos.y -= 0.6f * dt;
+                if (s.stateTime > 4.0f) {
+                    s.state = SmartieState::Gone;
                     s.stateTime = 0;
+                    events.push_back({SmartieEvent::Died, int(i), -1, s.pos});
+                }
+                break;
+            case SmartieState::Gone:
+                if (s.stateTime > respawnTime) {
+                    if (s.hangs) hangAgain(s);
+                    else { s.state = SmartieState::Idle; s.pos = s.home; s.stateTime = 0; }
                     events.push_back({SmartieEvent::Returned, int(i), -1, s.pos});
                 }
                 break;

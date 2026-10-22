@@ -1,5 +1,6 @@
 #include "assets/flick.h"
 
+#include <algorithm>
 #include <cstring>
 
 namespace gvr {
@@ -25,6 +26,7 @@ bool parseFlick(const uint8_t* d, size_t n, FlickShot& out, std::string* error) 
     if (rd32(d + 4) != n) return fail("size mismatch");
     if (const uint32_t nx = rd32(d + 20)) out.next = cstr(d, n, nx);
     size_t p = 0x18;
+    float waited = 0;  // shot time reached by the waits so far (cue and subtitle times)
     while (p + 8 <= n) {
         const uint32_t op = rd32(d + p), sz = rd32(d + p + 4);
         if (sz < 2 || p + 4 * size_t(sz) > n) return fail("bad record size");
@@ -63,10 +65,30 @@ bool parseFlick(const uint8_t* d, size_t n, FlickShot& out, std::string* error) 
             case 4: out.cameraNode = cstr(d, n, word(2)); break;
             case 0x10: {
                 const std::string key = cstr(d, n, word(0));
-                if (!key.empty()) out.subtitles.push_back(key);
+                if (!key.empty()) {
+                    out.subtitles.push_back(key);
+                    out.subtitleTimes.push_back(waited);
+                }
                 break;
             }
             case 0x34: if (out.stream.empty()) out.stream = cstr(d, n, word(0)); break;
+            case 9:  // wait until timeline frame N
+                if (out.hasDirector && out.director.fps && out.director.ticksPerFrame) {
+                    const float t = (float(word(0)) * float(out.director.ticksPerFrame) - float(out.director.startTick)) /
+                                    (float(out.director.ticksPerFrame) * float(out.director.fps));
+                    waited = std::max(waited, t);
+                }
+                break;
+            case 10:  // wait until timeline tick N
+                if (out.hasDirector && out.director.fps && out.director.ticksPerFrame)
+                    waited = std::max(waited, (float(word(0)) - float(out.director.startTick)) /
+                                                  (float(out.director.ticksPerFrame) * float(out.director.fps)));
+                break;
+            case 0x2C: {
+                const std::string s = cstr(d, n, word(0));
+                if (!s.empty()) out.cues.push_back({waited, s});
+                break;
+            }
             default: break;
         }
         p += 4 * size_t(sz);

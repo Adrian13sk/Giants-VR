@@ -859,7 +859,7 @@ static void testRescue() {
     hands[0] = {12.0f, 2.0f, 2.0f};
     r.update(dt, hands, grip, {0, 1, 3}, ev);
     grip[0] = 0.0f;
-    for (int f = 0; f < 72 * 5; ++f) { hands[0] = {12.0f, 2.0f, 2.0f}; r.update(dt, hands, grip, {0, 1, 3}, ev); }
+    for (int f = 0; f < 72 * 32; ++f) { hands[0] = {12.0f, 2.0f, 2.0f}; r.update(dt, hands, grip, {0, 1, 3}, ev); }
     bool splashed = false, returned = false;
     for (const auto& e : ev) {
         splashed |= e.kind == SmartieEvent::Splashed && e.index == b;
@@ -867,6 +867,38 @@ static void testRescue() {
     }
     CHECK(splashed && returned);
     CHECK(r.smarties[size_t(b)].state == SmartieState::Idle && length(r.smarties[size_t(b)].pos - Vec3{1, 1, 2}) < 1e-4f);
+    // A hanging Smartie over the water: it holds on for a while, slips, lets go, falls in, is
+    // eaten, and hangs there again later; grabbing it off the hang point works.
+    {
+        RescueDirector h;
+        h.groundHeight = [](float, float) { return -5.0f; };  // all sea
+        h.holdMin = h.holdMax = 10.0f;
+        h.warnTime = 3.0f;
+        h.respawnTime = 5.0f;
+        const int k = h.add({0, -5, 0}, 0, 1.2f);
+        h.setHang(k, {0, 20, 0});
+        CHECK(h.smarties[size_t(k)].state == SmartieState::Hanging);
+        std::vector<SmartieEvent> he;
+        Vec3 hh[2] = {{50, 0, 0}, {50, 0, 0}};
+        float hg[2] = {0, 0};
+        bool slipped = false, letGo = false, died = false, back = false;
+        for (int f = 0; f < 72 * 30; ++f) {
+            h.update(dt, hh, hg, {0, 0, 10}, he);
+            for (const auto& e : he) {
+                slipped |= e.kind == SmartieEvent::Slipping;
+                letGo |= e.kind == SmartieEvent::LetGo;
+                died |= e.kind == SmartieEvent::Died;
+                back |= e.kind == SmartieEvent::Returned;
+            }
+            he.clear();
+        }
+        CHECK(slipped && letGo && died && back);
+        CHECK(h.smarties[size_t(k)].state == SmartieState::Hanging);
+        hh[0] = {0.2f, 19.5f, 0.1f};  // a hand on its body, just below its hands
+        hg[0] = 1.0f;
+        h.update(dt, hh, hg, {0, 0, 10}, he);
+        CHECK(h.smarties[size_t(k)].state == SmartieState::Carried);
+    }
     // Out of reach: nothing is grabbed.
     hands[0] = {3.0f, 2.0f, 2.0f};
     grip[0] = 1.0f;

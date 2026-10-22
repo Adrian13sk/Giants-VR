@@ -123,6 +123,14 @@ missed palm trees, Smartie houses and Ripper nests, because their LOD record doe
 Evidence: all 56 shipped mission files walk exactly to EOF. 1a_1_timmy has 343 top-level objects + 1 mounted
 (Timmy's jetpack), versus 170 found by the old op-3 scan.
 
+**Mount points (op 16) — V for position, P for the index rule.**
+- The first u8 selects a hardpoint: a `Ref_*` node in the parent model's own `.anm`, evaluated at t = 0 and
+  transformed by the parent's placement. 255 = the first `Ref_` node; k = the k-th (only 255 and 0 occur in Story1).
+- Verified:
+  - `guard_tower1.anm` `Ref_guard01` (0.4, 11.3, 67.3) is the crow's nest (1c_2/1d_1 Reaper sentries, mount 255);
+  - `mecc_crash1.anm` `Ref_Lhand` (−2.7, 66.5, 18.3) is on the plane's nose (Tel, 1c_1, mount 0); Tel hangs from it
+    by his left hand (`mc_hang_onehand_yell`).
+
 ### Vertex RGB that is not lighting (B8, provisional)
 Some sub-objects (sm_dome_l0, bw_bunker1) carry strongly coloured RGB that decodes (`c*2/255-1`) to near-unit
 vectors. Rule used: mean saturation > 0.4 and ≥ 10 % unit vectors → light dynamically instead. Every checked
@@ -171,7 +179,12 @@ One file per shot; shots chain into a cutscene through the "next shot" name.
     Examples: jetpack (254) in Timmy's `ref_lhand`, gun (21) in Baz's `ref_rhand`, Timmy (583) on Baz's `ref_holsterb`,
     lander engine flames (135) on `ref_engine1/2`.
   - op 4 camera `{director, animOff, nodeOff}`; op 0x10 subtitle GText key; op 0x34 soundtrack stream (`f_start`);
-    op 0x2C voice clip name; op 0x25 fade; op 9 wait frame; op 5 yield.
+    op 0x25 fade; op 5 yield.
+  - op 9 `{frames}`: wait. The waits of a shot add up to its director length at 70 frames/s (story1_hatch_dilemma:
+    91 + 70 + 210 = 371 frames = 5.3 s). Provisional rate.
+  - op 0x2C `{nameOff}`: start a stream at that point (after the preceding waits). The streams are files in
+    `Stream/<World>/`, e.g. `f_ms_msfto` = `Stream/Story1/F_MS_MSFTO.wav` (a sound effect), or voice clips
+    (`baz006`), presumably in `StreamEnglish/`.
 - The director image holds several NAM node tables sharing one header (one per performance tree):
   - actor trees, usually parented to a mover node named after the actor, in varying spellings:
     `Timmy_mover`, `lander_Moover`, `mover_Baz`, `Flack_mover` (actor `flak`), or anonymous (`mover`, `Moover`);

@@ -454,10 +454,10 @@ void GameApp::updateRescue(float dt, const InputFrame& in) {
             phase = 0;
             int pick = -1;
             for (size_t i = 0; i < rescue_.smarties.size() && pick < 0; ++i)
-                if (rescue_.smarties[i].state == SmartieState::Idle) pick = int(i);
+                if (rescue_.smarties[i].state == SmartieState::Idle || rescue_.smarties[i].state == SmartieState::Hanging) pick = int(i);
             if (pick >= 0) {
                 const RescueSmartie& sm = rescue_.smarties[size_t(pick)];
-                hands[kRight] = sm.pos + Vec3{0, sm.height + 0.2f, 0};
+                hands[kRight] = sm.pos + Vec3{0, sm.height - 0.2f, 0};
                 autoGrip_ = !autoGrip_;  // press on alternate frames (edge)
                 grip[kRight] = autoGrip_ ? 1.0f : 0.0f;
             }
@@ -501,6 +501,22 @@ void GameApp::updateRescue(float dt, const InputFrame& in) {
                 LOGI("Smartie %d saved (%zu/%zu)", e.index, rescue_.savedCount(), rescue_.smarties.size());
                 break;
             }
+            case SmartieEvent::Slipping: {
+                char n[16];
+                std::snprintf(n, sizeof n, "gsm%02d_1", 1 + int(frand() * 5.99f));
+                sfx(n, e.pos, 1.0f, 1.1f);
+                LOGI("Smartie %d is slipping", e.index);
+                break;
+            }
+            case SmartieEvent::LetGo:
+                LOGI("Smartie %d lost its grip", e.index);
+                break;
+            case SmartieEvent::Died:
+                LOGI("Smartie %d was eaten by piranhas", e.index);
+                break;
+            case SmartieEvent::Returned:
+                LOGI("Smartie %d is back", e.index);
+                break;
             case SmartieEvent::Splashed:
                 sfx("se_splsh", e.pos, 0.9f);
                 sfx(frand() < 0.5f ? "pi_swrm1" : "pi_swrm2", e.pos, 0.9f);
@@ -655,7 +671,8 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         if (ch.trigger == 3 && ch.objectClass == 18) {
             // A stranded Smartie to carry to the pad (1b): its own clips for each state.
             static const char* clips[int(SmartieClip::Count)] = {"", "sm_wave.anm", "sm_squirm.anm", "sm_fall.anm",
-                                                                  "sm_celebrate.anm", "sm_drowned.anm"};
+                                                                  "sm_celebrate.anm", "sm_drowned.anm", "sm_hang.anm",
+                                                                  "sm_hang_onearm.anm"};
             for (int c = 1; c < int(SmartieClip::Count); ++c) {
                 const int k = m->addAnimation(w->fs(), clips[c]);
                 ci.clipIndex[c] = k >= 0 ? k : 0;
@@ -668,6 +685,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             ci.objective = int(objectives_.size());
             rescue_.smarties[size_t(ci.rescue)].objective = ci.objective;
             rescue_.smarties[size_t(ci.rescue)].slot = int(chars_.size());
+            if (ch.hasHang) rescue_.setHang(ci.rescue, ch.hang);
             objectives_.push_back({3, ch.position, ch.position});
             ++ambient;
         } else if (ch.objectClass == 23) {
@@ -703,6 +721,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         Vec3 mn, mx;
         m->posedBounds(mn, mx);
         ci.lift = -mn.y * ci.scale;
+        ci.restLift = ci.lift;
         ci.time = frand() * 3.0f;
         Mat4 hand;
         if (hanging && m->nodeWorld(ch.hold, hand)) {
@@ -866,17 +885,27 @@ void GameApp::updateCharacters(float dt) {
     for (auto& ci : chars_) {
         if (ci.rescue < 0) continue;
         const RescueSmartie& r = rescue_.smarties[size_t(ci.rescue)];
-        ci.visible = true;
+        ci.visible = r.visible();
         ci.pos = r.pos;
         ci.yaw = r.yaw;
         ci.time = r.stateTime;
-        if (length(ci.pos - player_.position) < 120.0f) {
+        ci.lift = ci.restLift;
+        if (ci.visible && length(ci.pos - player_.position) < 150.0f) {
             const int k = ci.clipIndex[int(r.clip)];
             const float d = ci.model->animDuration(k);
             // Falling and drowning play once and hold; the rest loop.
             const bool once = r.clip == SmartieClip::Fall || r.clip == SmartieClip::Drowned;
-            const float t = once ? std::min(r.stateTime, d * 0.999f) : float(time_);
+            const float t = once ? std::min(r.stateTime, d * 0.999f) : float(time_ + 0.37 * ci.rescue);
             ci.model->poseBlend(renderer_, k, t, k, t, 0.0f);
+            // Hanging: its hands on the hang point (both hands, or the one still holding on).
+            Mat4 lh, rh;
+            if (r.state == SmartieState::Hanging && ci.model->nodeWorld("l_hand", lh) && ci.model->nodeWorld("r_hand", rh)) {
+                Vec3 g{rh.m[12], rh.m[13], rh.m[14]};
+                if (r.clip == SmartieClip::Hang) g = (g + Vec3{lh.m[12], lh.m[13], lh.m[14]}) * 0.5f;
+                const Vec3 local = giantsToRuntime(g.x, g.y, g.z) * ci.scale;
+                ci.pos = r.hangPoint - Quat::fromAxisAngle({0, 1, 0}, ci.yaw).rotate(local);
+                ci.lift = 0;
+            }
         }
     }
     // Ambient characters loop their default clip (only animated when near).
@@ -1093,13 +1122,32 @@ bool GameApp::playFlickSoundtrack(const std::string& flick) {
     return playStream(stream);
 }
 
-bool GameApp::playStream(const std::string& streamIn) {
+bool GameApp::playStream(const std::string& streamIn, bool cue) {
     if (!audio_) return false;
     const std::string stream = toLower(streamIn);
-    std::vector<std::pair<std::string, std::string>> files;
-    for (const char* rel : {"/../Stream/", "/Stream/"}) indexFiles(dataDir_ + rel + worldName_, ".wav", files);
-    for (const auto& f : files) {
+    if (!streamsIndexed_) {
+        // Soundtracks and effects in Stream/<World>/, voice clips in StreamEnglish/<World>/.
+        // Voice clips live in StreamEnglish/Newstreams (baz006, tim001, ...), effects and soundtracks
+        // in Stream/<World>/ (indexFiles also walks one level of subfolders).
+        for (const char* rel : {"/../Stream/", "/Stream/"}) indexFiles(dataDir_ + rel + worldName_, ".wav", streamFiles_);
+        for (const char* rel : {"/../StreamEnglish", "/StreamEnglish"}) indexFiles(dataDir_ + rel, ".wav", streamFiles_);
+        streamsIndexed_ = true;
+    }
+    for (const auto& f : streamFiles_) {
         if (f.first != stream) continue;
+        const std::string key = "stream_" + stream;
+        if (cue) {
+            if (!audio_->hasSound(key)) {
+                std::vector<uint8_t> wav;
+                WavData w;
+                std::string err;
+                if (!readFile(f.second, wav) || !parseWav(wav.data(), wav.size(), w, &err)) break;
+                audio_->addSound(key, std::move(w));
+            }
+            cueVoices_.push_back(audio_->play2D(key.c_str(), 1.0f));
+            LOGI("Cutscene cue %s", stream.c_str());
+            return true;
+        }
         std::vector<uint8_t> wav;
         WavData w;
         std::string err;
@@ -1112,7 +1160,8 @@ bool GameApp::playStream(const std::string& streamIn) {
         LOGI("Cutscene soundtrack %s (%.0f s)", stream.c_str(), seconds);
         return true;
     }
-    LOGW("Cutscene soundtrack %s not found (copy the game's Stream folder next to Bin)", stream.c_str());
+    LOGW("Cutscene %s %s not found (copy the game's Stream and StreamEnglish folders next to Bin)", cue ? "sound" : "soundtrack",
+         stream.c_str());
     return false;
 }
 
@@ -1130,6 +1179,7 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
     cutscene_->update(dt);
     const std::string stream = cutscene_->takeStream();
     if (!stream.empty()) playStream(stream);
+    for (const auto& c : cutscene_->takeCues()) playStream(c, true);
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     // Skip with either trigger.
     bool skip = false;
@@ -1138,6 +1188,9 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
     if (skip) {
         cutscene_->stop();
         if (audio_ && streamVoice_) audio_->stop(streamVoice_);
+        if (audio_)
+            for (uint32_t v : cueVoices_) audio_->stop(v);
+        cueVoices_.clear();
         streamVoice_ = 0;
         streamLeft_ = 0;
         LOGI("Cutscene skipped");

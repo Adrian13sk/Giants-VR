@@ -30,7 +30,8 @@ int main(int argc, char** argv) {
     float atX = 0, atY = 0, pitchDeg = -8.6f, headHeight = 1.65f;
     bool useAt = false;
     int w = 720, h = 792, frames = 1;
-    float moveX = 0, moveY = 0, turnX = 0, headYawDeg = 0;
+    float moveX = 0, moveY = 0, turnX = 0, headYawDeg = 0, lookX = 0, lookY = 0;
+    bool useLook = false;
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
     int gripFrom = -1, gripTo = -1, handPathFrom = -1, handPathTo = -1, stickFrom = -1, stickTo = -1, trigFrom = -1, trigTo = -1;
@@ -49,6 +50,7 @@ int main(int argc, char** argv) {
         else if (a == "--move") { moveX = std::atof(next()); moveY = std::atof(next()); }
         else if (a == "--turn") turnX = std::atof(next());
         else if (a == "--head-yaw") headYawDeg = std::atof(next());
+        else if (a == "--look-at") { lookX = std::atof(next()); lookY = std::atof(next()); useLook = true; }  // game x y (with --at)
         else if (a == "--no-test-scene") testScene = false;
         else if (a == "--world") world = next();
         else if (a == "--pitch") pitchDeg = std::atof(next());
@@ -88,6 +90,8 @@ int main(int argc, char** argv) {
     // Scripted tracking-space poses, approximating a standing Quest 2 user.
     InputFrame in;
     in.headValid = true;
+    // --look-at: face a game-coordinate point from the --at position (runtime x = -game x).
+    if (useLook) headYawDeg = std::atan2(lookX - atX, -(lookY - atY)) * 180.0f / kPi;
     in.head.position = {0, headHeight, 0};
     in.head.orientation = Quat::fromAxisAngle({0, 1, 0}, headYawDeg * kPi / 180.0f) *
                           Quat::fromAxisAngle({1, 0, 0}, pitchDeg * kPi / 180.0f);
@@ -102,7 +106,7 @@ int main(int argc, char** argv) {
         c.aimPose = c.gripPose;
     }
     in.hand[kRight].trigger = 0.0f;  // applied only during the simulated frames (below)
-    in.hand[kLeft].primary = true;
+    in.hand[kLeft].primary = false;  // X in the free camera skips to the next mission
     in.hand[kRight].primary = jet;
     in.hand[kLeft].thumbstick = {moveX, moveY};
     in.hand[kRight].thumbstick = {turnX, 0};
@@ -171,6 +175,13 @@ int main(int argc, char** argv) {
         app.teleportPlayer(at, 0.0f);
         in.hand[kRight].trigger = 0;
         app.update(1.0f / 72.0f, in);
+    }
+    {
+        const Pose hw = app.rig().toWorld(in.head);
+        const Vec3 f = hw.orientation.rotate(Vec3{0, 0, -1});
+        LOGI("view: eye (%.1f %.1f %.1f) = game (%.0f %.0f %.0f), forward (%.2f %.2f %.2f)", hw.position.x, hw.position.y,
+             hw.position.z, -hw.position.x / gGameUnitsToMeters, hw.position.z / gGameUnitsToMeters,
+             hw.position.y / gGameUnitsToMeters, f.x, f.y, f.z);
     }
     if (app.playMode()) {
         const auto& p = app.player();
