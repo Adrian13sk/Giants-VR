@@ -31,6 +31,9 @@ int EnemyDirector::spawn(const Vec3& pos, float yaw) {
     e.yaw = yaw;
     e.stateTime = float(nextRand() % 1000) * 0.001f;  // desynchronise idle clips
     e.clipTime = e.stateTime;
+    e.uid = nextUid_++;
+    e.home = e.patrolTo = e.pos;
+    e.patrolWait = 2.0f + float(nextRand() % 4000) * 0.001f;
     enemies.push_back(e);
     return int(enemies.size()) - 1;
 }
@@ -62,15 +65,40 @@ bool EnemyDirector::tryMove(Enemy& e, const Vec3& step) {
     return true;
 }
 
-bool EnemyDirector::damage(int i, float amount) {
+bool EnemyDirector::lineOfSight(const Vec3& from, const Vec3& to) const {
+    const Vec3 d = to - from;
+    const float len = length(d);
+    if (len < 1e-3f) return true;
+    if (groundHeight) {
+        const int n = std::max(2, int(len / 3.0f));
+        for (int k = 1; k < n; ++k) {
+            const Vec3 p = from + d * (float(k) / float(n));
+            if (groundHeight(p.x, p.z) > p.y + 0.2f) return false;
+        }
+    }
+    float t;
+    Vec3 nn;
+    return !(collision && collision->raycast(from, d * (1.0f / len), len, t, nn));
+}
+
+void EnemyDirector::alertNear(const Vec3& at, float radius) {
+    for (auto& e : enemies)
+        if (e.state == EnemyState::Idle && !e.aware && length(e.pos - at) < radius) {
+            e.aware = true;
+            e.alert = 0.3f + float(nextRand() % 600) * 0.001f;
+        }
+}
+
+bool EnemyDirector::damage(int i, float amount, bool blast) {
     if (i < 0 || size_t(i) >= enemies.size()) return false;
     Enemy& e = enemies[size_t(i)];
     if (e.state == EnemyState::Dead) return false;
     e.health -= amount;
+    e.aware = true;
     if (e.health <= 0) {
         e.state = EnemyState::Dead;
         e.stateTime = 0;
-        setClip(e, EnemyClip(int(EnemyClip::Die1) + int(nextRand() % 3)), false);
+        setClip(e, blast ? EnemyClip::Blown : EnemyClip(int(EnemyClip::Die1) + int(nextRand() % 3)), false);
         return true;
     }
     e.state = EnemyState::Hit;
@@ -94,12 +122,64 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             const float d = angleDelta(e.yaw, target), step = params.turnRate * dt;
             e.yaw = angleDelta(0.0f, e.yaw + (std::fabs(d) <= step ? d : (d > 0 ? step : -step)));
         };
-        const bool sees = playerAlive && dist < params.sightRange;
+        // Engaged (aware) Reapers keep track of the player within sight range; an unaware one
+        // must see him: in front, with a clear line, or hear him close by.
+        const Vec3 eyeP = e.pos + Vec3{0, 1.6f, 0}, chest = player + Vec3{0, 1.2f, 0};
+        const bool sees = playerAlive && dist < params.sightRange && (e.aware || dist < params.hearRange || lineOfSight(eyeP, chest));
         switch (e.state) {
-            case EnemyState::Idle:
-                setClip(e, EnemyClip::Idle, true);
-                if (sees) { e.state = EnemyState::Advance; e.stateTime = 0; }
+            case EnemyState::Idle: {
+                if (!playerAlive) e.aware = false;
+                if (e.alert > 0) {
+                    // Noticed: stops, turns to the player with the alert scan, then acts.
+                    setClip(e, EnemyClip::Alert, true);
+                    turn(faceYaw);
+                    e.alert -= dt;
+                    if (e.alert <= 0) { e.state = EnemyState::Advance; e.stateTime = 0; }
+                    break;
+                }
+                e.lookTimer -= dt;
+                if (playerAlive && e.lookTimer <= 0) {
+                    e.lookTimer = 0.2f + float(nextRand() % 100) * 0.001f;
+                    const bool front = std::fabs(angleDelta(e.yaw, faceYaw)) < params.noticeAngle;
+                    if (e.aware ? dist < params.sightRange
+                                : (dist < params.hearRange || (dist < params.sightRange && front && lineOfSight(eyeP, chest)))) {
+                        e.aware = true;
+                        e.alert = e.posted ? 0.3f : params.noticeDelay;
+                        // Its squad hears it.
+                        for (auto& o : enemies)
+                            if (&o != &e && o.state == EnemyState::Idle && !o.aware && length(o.pos - e.pos) < 18.0f) {
+                                o.aware = true;
+                                o.alert = params.noticeDelay + float(nextRand() % 800) * 0.001f;
+                            }
+                        break;
+                    }
+                }
+                if (e.posted) { setClip(e, EnemyClip::Idle, true); break; }
+                // Patrol: a short walk to a nearby spot, a look around, back again.
+                if (e.patrolWait > 0) {
+                    setClip(e, EnemyClip::Idle, true);
+                    e.patrolWait -= dt;
+                    if (e.patrolWait <= 0) {
+                        const float a = float(nextRand() % 6283) * 0.001f;
+                        const float r = params.patrolRadius * (0.3f + float(nextRand() % 700) * 0.001f);
+                        e.patrolTo = e.home + Vec3{std::sin(a) * r, 0, std::cos(a) * r};
+                        e.stateTime = 0;
+                    }
+                    break;
+                }
+                const Vec3 g{e.patrolTo.x - e.pos.x, 0, e.patrolTo.z - e.pos.z};
+                const float gd = std::sqrt(g.x * g.x + g.z * g.z);
+                if (gd < 0.4f || e.stateTime > 10.0f) {
+                    e.patrolWait = 3.0f + float(nextRand() % 4000) * 0.001f;
+                    break;
+                }
+                setClip(e, EnemyClip::Patrol, true);
+                turn(std::atan2(-g.x, -g.z));
+                if (std::fabs(angleDelta(e.yaw, std::atan2(-g.x, -g.z))) < 0.5f &&
+                    !tryMove(e, Vec3{-std::sin(e.yaw), 0, -std::cos(e.yaw)} * (params.patrolSpeed * dt)))
+                    e.patrolWait = 1.0f;  // blocked: wait, then pick another spot
                 break;
+            }
             case EnemyState::Advance: {
                 // Run (no shooting while moving) toward a spot beside the player, then stop and fire.
                 if (!sees) { e.state = EnemyState::Idle; break; }
@@ -196,6 +276,11 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 }
                 break;
             case EnemyState::Dead:
+                if (params.corpsesPersist) {
+                    e.sink = e.eaten * 0.5f;  // sinks as the Cleaners eat it
+                    if (e.gibbed || e.eaten >= 1.0f) e.remove = true;
+                    break;
+                }
                 if (e.stateTime > params.corpseTime) e.sink += dt * 0.35f;
                 if (e.sink > params.height) e.remove = true;
                 break;

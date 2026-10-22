@@ -65,6 +65,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             const char* clips[] = {"mc_stand.anm", "mc_run.anm", "mc_thrust.anm", "mc_hover.anm", "mc_land_soft.anm", "mc_sidestep.anm",
                                    "mc_skid.anm"};
             for (int i = 1; i < int(PlayerAnim::Count); ++i) clip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
+            // Death clips: falling dead, going under in the water.
+            const int dieA = m->addAnimation(assetWorld_->fs(), "mc_die.anm");
+            const int dieB = m->addAnimation(assetWorld_->fs(), "mc_drowning_die.anm");
+            if (first) { deathClip_[0] = dieA; deathClip_[1] = dieB; }
             // Eye point from the idle pose: at the front of the face (-Z), so looking down shows
             // the chest and arms instead of the inside of the collar armour.
             m->pose(renderer_, 0.0f);
@@ -212,12 +216,23 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     if (tn < 0 || tn > maxD || (he && tn >= te)) continue;
                     he = true; te = tn; ne = normalize(o + d * tn - c); ie = kNestTarget + int(k);
                 }
+                // Bodies on the ground can be shot too.
+                float tb = maxD;
+                int ib = -1;
+                if (corpseRay(o, d, maxD, tb, ib) && (!he || tb < te)) { he = true; te = tb; ne = d * -1.0f; ie = ib; }
                 if (!hw && !he) return false;
                 if (he && (!hw || te < tw)) { t = te; n = ne; target = ie; }
                 else { t = tw; n = nw; target = -1; }
                 return true;
             };
             weapon_.onHit = [this](int target, const Vec3& p, const Vec3& shotDir) {
+                // Gunfire carries: Reapers nearby hear it.
+                enemies_.alertNear(p, 20.0f);
+                if (target >= kCorpseEnemy) {
+                    shootCorpse(target, p, shotDir);
+                    haptics_.push_back({rig_.turnHand(), 0.4f, 0.04f});
+                    return;
+                }
                 if (target < 0) {
                     sfx(frand() < 0.5f ? "bi_dirt1" : (frand() < 0.5f ? "bi_hit1" : "bi_hit2"), p, 0.45f, 0.9f + 0.2f * frand());
                     return;
@@ -235,6 +250,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     const bool died = creatures_.damage(ci, 25.0f, shotDir, &ev);
                     if (died && slot >= 0 && size_t(slot) < chars_.size() && chars_[size_t(slot)].objective >= 0)
                         completeObjective(chars_[size_t(slot)].objective);
+                    bleed(p, shotDir, died, scale);
+                    if (died && !creatures_.creatures[size_t(ci)].exploded) blood_.pool(creatures_.creatures[size_t(ci)].pos, 0.9f * scale);
                     for (const auto& e : ev)
                         if (e.kind == CreatureEvent::Die && e.burst) {
                             spawnGore(e.pos, e.dir, scale);
@@ -248,6 +265,11 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 const bool killed = enemies_.damage(target, 25.0f);
                 if (killed && enemies_.enemies[size_t(target)].objective >= 0)
                     completeObjective(enemies_.enemies[size_t(target)].objective);
+                bleed(p, shotDir, killed, 1.0f);
+                if (killed) {
+                    blood_.pool(enemies_.enemies[size_t(target)].pos, 1.3f);
+                    enemies_.alertNear(enemies_.enemies[size_t(target)].pos, 25.0f);  // a comrade falls
+                }
                 haptics_.push_back({rig_.turnHand(), killed ? 0.8f : 0.5f, killed ? 0.12f : 0.05f});
                 sfx("ex_bdys1", p, 0.35f, 1.1f + 0.2f * frand());
                 static const char* hits[] = {"rpman_hit1", "rpman_hit2", "rpman_hit3", "rpman_hit4"};
@@ -269,7 +291,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 return true;
             };
             enemyFire_.onHit = [this](int target, const Vec3& p, const Vec3&) {
-                if (target == -2) damagePlayer(5.0f);
+                if (target == -2) damagePlayer(5.0f, DeathCause::Shot);
                 else sfx(frand() < 0.5f ? "bi_hit1" : "bi_dirt1", p, 0.35f, 0.9f + 0.2f * frand());
             };
             // NPCs float in deep water (the sea surface is at 0): they can't walk on the sea floor.
@@ -281,7 +303,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             // Reaper grunt model pool with the original clips (order = EnemyClip).
             const char* eclips[] = {"rpman_stand_scan.anm", "rpman_walk_fire.anm", "rpman_stand_fire.anm",
                                     "rpman_hit_med.anm", "rpman_hit_med2.anm", "rpman_hit_med_die.anm",
-                                    "rpman_hit_spin_die.anm", "rpman_hit_gut_die.anm", "rpman_bzka_run.anm"};
+                                    "rpman_hit_spin_die.anm", "rpman_hit_gut_die.anm", "rpman_bzka_run.anm",
+                                    "rpman_bzka_walk_scan.anm", "rpman_standing_alert_scan.anm", "rpman_hit_blowup.anm"};
             int poolSize = 6;
             {
                 int missionReapers = 0;
@@ -438,6 +461,12 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     }
     followHead(dt, in);
     briefHeld_ = in.hand[mh].thumbstickClick;  // hold the move stick down: the mission briefing
+    if (dying_) {
+        updateDeath(dt, in);
+        updateCombat(dt);
+        updateAudio(dt);
+        return;
+    }
     PlayerInput pi;
     pi.move = in.hand[mh].thumbstick;
     pi.viewYaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : camYaw_;
@@ -891,11 +920,14 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         goreHead_ = mc->get("rip_gore_head.gbs", "", /*dynamicLit=*/true);
         goreArm_ = mc->get("rip_gore_arm.gbs", "", /*dynamicLit=*/true);
     }
+    initGore(w, mc);
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
 }
 
 void GameApp::spawnGore(const Vec3& pos, const Vec3& dir, float scale) {
     // The original gore pieces (rip_gore_head, rip_gore_arm x2) thrown along the killing shot.
+    blood_.burst(pos + Vec3{0, 0.5f * scale, 0}, dir + Vec3{0, 0.8f, 0}, 28, 5.5f, 0.08f * std::max(0.7f, scale));
+    blood_.pool(pos, 1.2f * std::max(0.7f, scale));
     const RenderModel* parts[3] = {goreHead_, goreArm_, goreArm_};
     Vec3 push{dir.x, 0, dir.z};
     if (length(push) > 1e-3f) push = normalize(push);
@@ -944,14 +976,315 @@ void GameApp::creatureSound(const CreatureEvent& e) {
     }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Blood, corpses, Cleaners
+
+void GameApp::initGore(AssetWorld* w, ModelCache* mc) {
+    if (!goreQuad_) {
+        MeshData q;
+        const float c[4][2] = {{-0.5f, -0.5f}, {0.5f, -0.5f}, {0.5f, 0.5f}, {-0.5f, 0.5f}};
+        for (const auto& p : c) {
+            Vertex v{};
+            v.pos[0] = p[0];
+            v.pos[1] = p[1];
+            v.normal[2] = 1;
+            v.uv[0] = p[0] + 0.5f;
+            v.uv[1] = 0.5f - p[1];
+            v.color[0] = v.color[1] = v.color[2] = v.color[3] = 255;
+            q.vertices.push_back(v);
+        }
+        q.indices = {0, 1, 2, 0, 2, 3};
+        goreQuad_ = renderer_.uploadMesh(q);
+        bloodTex_[0] = mc->texture("efx_splat");
+        bloodTex_[1] = mc->texture("efx_splat2");
+        bloodTex_[2] = mc->texture("bloodblob");  // soft round: pools and clouds in the water
+        sprayTex_ = mc->texture("efx_spray");
+        dropTex_ = mc->texture("efx_blood");
+        const char* rc[4] = {"rpman_chunk_head.gbs", "rpman_chunk_body.gbs", "rpman_chunk_main.gbs", "rpman_chunk_hand.gbs"};
+        for (int k = 0; k < 4; ++k) reaperChunk_[k] = mc->get(rc[k], "", /*dynamicLit=*/true);
+        for (int k = 0; k < 6; ++k) meccChunk_[k] = mc->get("MC_chunk" + std::to_string(k + 1) + ".gbs", "", true);
+        for (int k = 0; k < 6; ++k) {
+            auto m = std::make_unique<SkinnedModel>();
+            if (!m->load(w->fs(), *mc, renderer_, "cleaner_l0", "cleaner_walk.anm")) break;
+            m->addAnimation(w->fs(), "cleaner_eat.anm");
+            m->addAnimation(w->fs(), "cleaner_jump.anm");
+            cleanerPool_.push_back(std::move(m));
+        }
+        LOGI("Gore: blood textures %u %u %u, %zu Cleaners, Reaper chunks %d", bloodTex_[0], bloodTex_[1], bloodTex_[2],
+             cleanerPool_.size(), reaperChunk_[0] != nullptr);
+    }
+    auto ground = [w](float x, float z) {
+        float y;
+        return w->terrain().heightAt(x, z, y) ? y : -20.0f;
+    };
+    blood_ = BloodSystem{};
+    blood_.groundHeight = ground;
+    blood_.seaLevel = 0.0f;
+    cleaners_.cleaners.clear();
+    cleaners_.groundHeight = [w](float x, float z) {
+        float y;
+        return std::max(w->terrain().heightAt(x, z, y) ? y : -20.0f, -0.3f);
+    };
+    enemies_.params.corpsesPersist = true;
+    creatures_.params.corpsesPersist = true;
+}
+
+void GameApp::bloodInWater(const Vec3& at, float size) {
+    blood_.pool(Vec3{at.x + (frand() - 0.5f) * 0.8f, -0.5f, at.z + (frand() - 0.5f) * 0.8f}, size);
+}
+
+void GameApp::bleed(const Vec3& at, const Vec3& dir, bool kill, float scale) {
+    // The blood comes out of the far side of a wound and sprays up a little.
+    blood_.burst(at, dir + Vec3{0, 0.4f, 0}, kill ? 16 : 6, kill ? 4.0f : 3.0f, 0.07f * std::max(0.6f, scale));
+}
+
+void GameApp::gibCorpse(const Vec3& pos, float yaw, const Vec3& dir, bool reaper, float scale) {
+    // Either bursts (pieces flung far, a big spray) or falls apart (pieces tumble close by).
+    const bool burst = frand() < 0.5f;
+    const float k = burst ? 1.0f : 0.35f;
+    const RenderModel* reap[4] = {reaperChunk_[0], reaperChunk_[1], reaperChunk_[2], reaperChunk_[3]};
+    const RenderModel* rip[3] = {goreHead_, goreArm_, goreArm_};
+    const int n = reaper ? 4 : 3;
+    Vec3 push{dir.x, 0, dir.z};
+    if (length(push) > 1e-3f) push = normalize(push);
+    for (int i = 0; i < n; ++i) {
+        const RenderModel* m = reaper ? reap[i] : rip[i];
+        if (!m) continue;
+        Gib g;
+        g.model = m;
+        const Vec3 along = Quat::fromAxisAngle({0, 1, 0}, yaw).rotate(Vec3{0, 0, (float(i) - 1.5f) * 0.35f * scale});
+        g.pos = pos + along + Vec3{0, 0.3f * scale, 0};
+        g.vel = (push * (3.0f + 2.0f * frand()) + Vec3{(frand() - 0.5f) * 4.0f, 3.0f + 3.0f * frand(), (frand() - 0.5f) * 4.0f}) * k;
+        g.axis = normalize(Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} + Vec3{0.01f, 0, 0});
+        g.angle = frand() * 6.28f;
+        g.spin = (4.0f + 6.0f * frand()) * k;
+        g.scale = reaper ? 1.0f : scale * 0.8f;
+        g.life = 0;
+        gibs_.push_back(g);
+        blood_.burst(g.pos, g.vel + Vec3{0, 1, 0}, 4, 2.5f, 0.07f);
+    }
+    blood_.burst(pos + Vec3{0, 0.4f * scale, 0}, Vec3{0, 1, 0} + push, burst ? 30 : 14, burst ? 6.0f : 3.0f, 0.08f);
+    blood_.pool(pos, 1.6f * std::max(0.7f, scale));
+    sfx(frand() < 0.5f ? "ex_bdyl1" : "ex_bdyl2", pos, 1.0f, 0.9f + 0.2f * frand());
+    LOGI("A body %s", burst ? "bursts" : "falls apart");
+}
+
+bool GameApp::corpseRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& target) const {
+    // Bodies lying on the ground: the box of the posed body (its death pose) in the body's frame.
+    bool hit = false;
+    float best = maxD;
+    auto test = [&](const Vec3& pos, float yaw, const Vec3& mn, const Vec3& mx, int id) {
+        const Quat inv = Quat::fromAxisAngle({0, 1, 0}, -yaw);
+        const Vec3 lo = inv.rotate(o - pos), ld = inv.rotate(d);
+        float t0 = 0, t1 = best;
+        const float ro[3] = {lo.x, lo.y, lo.z}, rd[3] = {ld.x, ld.y, ld.z}, bmn[3] = {mn.x, mn.y, mn.z}, bmx[3] = {mx.x, mx.y, mx.z};
+        for (int a = 0; a < 3; ++a) {
+            if (std::fabs(rd[a]) < 1e-6f) {
+                if (ro[a] < bmn[a] || ro[a] > bmx[a]) return;
+                continue;
+            }
+            float ta = (bmn[a] - ro[a]) / rd[a], tb = (bmx[a] - ro[a]) / rd[a];
+            if (ta > tb) std::swap(ta, tb);
+            t0 = std::max(t0, ta);
+            t1 = std::min(t1, tb);
+            if (t0 > t1) return;
+        }
+        if (t0 < best) { best = t0; target = id; hit = true; }
+    };
+    for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
+        const Enemy& e = enemies_.enemies[i];
+        if (e.state != EnemyState::Dead || e.stateTime < 0.6f || e.slot < 0) continue;
+        Vec3 mn, mx;
+        enemyPool_[size_t(e.slot)]->posedBounds(mn, mx);
+        const float lift = slotLift_[size_t(e.slot)];
+        test(e.pos + Vec3{0, lift, 0}, e.yaw, mn, mx, kCorpseEnemy + int(i));
+    }
+    for (size_t i = 0; i < creatures_.creatures.size(); ++i) {
+        const Creature& c = creatures_.creatures[i];
+        if (c.state != CreatureState::Dead || c.exploded || c.stateTime < 0.6f || c.slot < 0 || size_t(c.slot) >= chars_.size()) continue;
+        const CharacterInst& ci = chars_[size_t(c.slot)];
+        Vec3 mn, mx;
+        ci.model->posedBounds(mn, mx);
+        test(c.pos + Vec3{0, ci.lift, 0}, c.yaw, mn * ci.scale, mx * ci.scale, kCorpseCreature + int(i));
+    }
+    if (hit) t = best;
+    return hit;
+}
+
+void GameApp::shootCorpse(int target, const Vec3& p, const Vec3& dir) {
+    if (target >= kCorpseCreature) {
+        Creature& c = creatures_.creatures[size_t(target - kCorpseCreature)];
+        bleed(p, dir, false, c.scale);
+        sfx("ex_bdys1", p, 0.5f, 1.1f + 0.2f * frand());
+        c.corpseHp -= 25.0f;
+        if (c.corpseHp <= 0 && !c.gibbed) {
+            c.gibbed = true;
+            gibCorpse(c.pos, c.yaw, dir, false, c.scale);
+        }
+        return;
+    }
+    Enemy& e = enemies_.enemies[size_t(target - kCorpseEnemy)];
+    bleed(p, dir, false, 1.0f);
+    sfx("ex_bdys1", p, 0.5f, 1.0f + 0.2f * frand());
+    e.corpseHp -= 25.0f;
+    if (e.corpseHp <= 0 && !e.gibbed) {
+        e.gibbed = true;
+        gibCorpse(e.pos, e.yaw, dir, true, 1.0f);
+    }
+}
+
+void GameApp::updateGore(float dt) {
+    blood_.update(dt);
+    // Bodies lying a while attract the Cleaners (within sight of the player; far ones just lie).
+    auto consider = [&](uint32_t uid, const Vec3& pos, float age, bool& called, float size) {
+        if (called || age < 14.0f || length(pos - player_.position) > 60.0f || cleanerPool_.empty()) return;
+        float h;
+        if (pos.y < -0.4f || !assetWorld_->terrain().heightAt(pos.x, pos.z, h)) return;  // in the sea: the piranhas' (below)
+        size_t busy = 0;
+        for (const auto& c : cleaners_.cleaners) busy += 1;
+        const int want = size > 0.8f ? 2 : 1;
+        if (busy + size_t(want) > cleanerPool_.size()) return;
+        called = true;
+        cleaners_.call(uid, pos, want, frand() * 6.28f);
+        LOGI("Cleaners called to body %u", uid);
+    };
+    for (auto& e : enemies_.enemies)
+        if (e.state == EnemyState::Dead && !e.gibbed) consider(e.uid, e.pos, e.stateTime, e.cleanersCalled, 1.0f);
+    for (auto& c : creatures_.creatures)
+        if (c.state == CreatureState::Dead && !c.exploded && !c.gibbed) consider(0x80000000u | c.uid, c.pos, c.stateTime, c.cleanersCalled, c.scale);
+    // Bodies in deep water: the piranhas take them (blood in the water, gone in a few seconds).
+    for (auto& e : enemies_.enemies)
+        if (e.state == EnemyState::Dead && !e.gibbed && e.pos.y < -0.4f && e.stateTime > 1.0f) {
+            e.eaten += dt / 6.0f;
+            if (frand() < dt * 2.0f) bloodInWater(e.pos, 0.7f);
+        }
+    for (auto& c : creatures_.creatures)
+        if (c.state == CreatureState::Dead && !c.exploded && !c.gibbed && c.pos.y < -0.4f && c.stateTime > 1.0f) {
+            c.eaten += dt / 5.0f;
+            if (frand() < dt * 2.0f) bloodInWater(c.pos, 0.5f);
+        }
+    auto bodyAt = [this](uint32_t id, Vec3& at) {
+        if (id & 0x80000000u) {
+            for (const auto& c : creatures_.creatures)
+                if (c.uid == (id & 0x7fffffffu)) {
+                    if (c.state != CreatureState::Dead || c.gibbed || c.eaten >= 1.0f) return false;
+                    at = c.pos;
+                    return true;
+                }
+            return false;
+        }
+        for (const auto& e : enemies_.enemies)
+            if (e.uid == id) {
+                if (e.state != EnemyState::Dead || e.gibbed || e.eaten >= 1.0f) return false;
+                at = e.pos;
+                return true;
+            }
+        return false;
+    };
+    eatenNow_.clear();
+    cleanerEvents_.clear();
+    cleaners_.update(dt, bodyAt, eatenNow_, cleanerEvents_);
+    for (const auto& pr : eatenNow_) {
+        if (pr.first & 0x80000000u) {
+            for (auto& c : creatures_.creatures)
+                if (c.uid == (pr.first & 0x7fffffffu)) c.eaten = std::min(1.0f, c.eaten + pr.second * (1.6f / std::max(0.5f, c.scale)));
+        } else {
+            for (auto& e : enemies_.enemies)
+                if (e.uid == pr.first) {
+                    e.eaten = std::min(1.0f, e.eaten + pr.second);
+                    if (e.eaten >= 1.0f) LOGI("Reaper body %u eaten by the Cleaners", e.uid);
+                }
+        }
+    }
+    for (const auto& ev : cleanerEvents_) {
+        if (ev.kind == CleanerEvent::StartEat) {
+            LOGI("Cleaners eating body %u", ev.target);
+            sfx("cl_eatst", ev.pos, 0.9f);
+            if (audio_) eatLoops_.push_back({ev.target, audio_->play("cl_eatlp", ev.pos, 0.7f, 1.0f, true)});
+        }
+    }
+    // Eating finished (or the body went another way): stop the loop, a last gulp.
+    for (auto it = eatLoops_.begin(); it != eatLoops_.end();) {
+        Vec3 at;
+        if (bodyAt(it->first, at)) { ++it; continue; }
+        if (audio_) audio_->stop(it->second);
+        LOGI("Body %u eaten", it->first);
+        for (const auto& c : cleaners_.cleaners)
+            if (c.target == it->first) { sfx("cl_eaten", c.pos, 0.9f); break; }
+        it = eatLoops_.erase(it);
+    }
+    // Cleaner models: walk / eat / (jump while burrowing away).
+    for (size_t k = 0; k < cleaners_.cleaners.size() && k < cleanerPool_.size(); ++k) {
+        const Cleaner& c = cleaners_.cleaners[k];
+        if (length(c.pos - player_.position) > 80.0f) continue;
+        const int clip = c.state == CleanerState::Eat ? 1 : (c.sink > 0 ? 2 : 0);
+        cleanerPool_[k]->poseBlend(renderer_, clip, c.anim * (clip == 0 ? 1.6f : 1.0f), clip, c.anim, 0.0f);
+    }
+}
+
+void GameApp::renderGore() {
+    if (!goreQuad_) return;
+    const Vec3 eye = renderer_.currentView().eyePosition;
+    // Splats and pools: flat on the ground (along its slope) or the water surface.
+    for (const auto& d : blood_.decals) {
+        if (length(d.pos - eye) > 70.0f) continue;
+        const float a = d.alpha();
+        if (a <= 0.01f) continue;
+        DrawParams dp;
+        dp.texture = bloodTex_[d.texture];
+        dp.blend = BlendMode::AlphaBlend;
+        dp.unlit = true;
+        dp.depthWrite = false;
+        dp.doubleSided = true;
+        dp.tint = {1.0f, 1.0f, 1.0f, a * (d.water ? 0.55f : 0.95f)};
+        static const bool xray = std::getenv("GVR_DECAL_XRAY") != nullptr;
+        if (xray) dp.depthTest = false;
+        const Quat tilt = rotationBetween({0, 0, 1}, d.normal);
+        const float sc = d.scale();
+        renderer_.draw(goreQuad_, Mat4::translation(d.pos + d.normal * 0.03f) * Mat4::rotation(tilt * Quat::fromAxisAngle({0, 0, 1}, d.angle)) *
+                                       Mat4::scale({sc, sc, sc}),
+                       dp);
+    }
+    // Drops in flight and spray puffs: billboards toward the viewer.
+    const Quat face = headWorldRot_;
+    for (const auto& dr : blood_.drops) {
+        DrawParams dp;
+        dp.texture = dropTex_;
+        dp.blend = BlendMode::AlphaBlend;
+        dp.unlit = true;
+        dp.depthWrite = false;
+        dp.doubleSided = true;
+        renderer_.draw(goreQuad_, Mat4::translation(dr.pos) * Mat4::rotation(face) * Mat4::scale({dr.size, dr.size, dr.size}), dp);
+    }
+    for (const auto& sp : blood_.sprays) {
+        const float f = sp.age / sp.life;
+        DrawParams dp;
+        dp.texture = sprayTex_ ? sprayTex_ : dropTex_;
+        dp.blend = BlendMode::AlphaBlend;
+        dp.unlit = true;
+        dp.depthWrite = false;
+        dp.doubleSided = true;
+        dp.tint = {1, 1, 1, 1.0f - f};
+        const float sc = sp.size * (0.6f + 1.2f * f);
+        renderer_.draw(goreQuad_, Mat4::translation(sp.pos) * Mat4::rotation(face * Quat::fromAxisAngle({0, 0, 1}, sp.age * 2.0f)) *
+                                      Mat4::scale({sc, sc, sc}),
+                       dp);
+    }
+    for (size_t k = 0; k < cleaners_.cleaners.size() && k < cleanerPool_.size(); ++k) {
+        const Cleaner& c = cleaners_.cleaners[k];
+        if (length(c.pos - eye) > 80.0f) continue;
+        cleanerPool_[k]->render(renderer_, Mat4::translation(c.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, c.yaw)));
+    }
+}
+
 void GameApp::updateCharacters(float dt) {
-    creatures_.update(dt, player_.position, playMode_ && playerHealth_ > 0, creatureEvents_);
+    creatures_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, creatureEvents_);
     for (const auto& e : creatureEvents_) {
         creatureSound(e);
         if (e.kind == CreatureEvent::SpitLaunch) ++spitsLaunched_;
         if (e.kind == CreatureEvent::SpitBurst && e.damage > 0.5f) ++spitHits_;
         if ((e.kind == CreatureEvent::Strike || e.kind == CreatureEvent::SpitBurst) && e.damage > 0.5f)
-            damagePlayer(e.damage);
+            damagePlayer(e.damage, e.kind == CreatureEvent::Strike ? DeathCause::Bitten : DeathCause::Blast);
         if (e.kind == CreatureEvent::SpitBurst) blasts_.push_back({e.pos, int(e.size), 0.0f});
     }
     // Rippers: the model follows its creature; burst or sunk-away bodies are hidden.
@@ -991,7 +1324,7 @@ void GameApp::updateCharacters(float dt) {
         g.pos += g.vel * dt;
         g.angle += g.spin * dt;
         const float ground = enemies_.groundHeight ? enemies_.groundHeight(g.pos.x, g.pos.z) : 0.0f;
-        if (g.life > 6.0f) {  // sink away
+        if (g.life > 18.0f) {  // sink away
             g.pos.y -= 0.4f * dt;
             continue;
         }
@@ -1001,7 +1334,7 @@ void GameApp::updateCharacters(float dt) {
             g.spin *= 0.5f;
         }
     }
-    gibs_.erase(std::remove_if(gibs_.begin(), gibs_.end(), [](const Gib& g) { return g.life > 8.0f; }), gibs_.end());
+    gibs_.erase(std::remove_if(gibs_.begin(), gibs_.end(), [](const Gib& g) { return g.life > 20.0f; }), gibs_.end());
     for (auto& ci : chars_) {
         if (ci.rescue < 0) continue;
         const RescueSmartie& r = rescue_.smarties[size_t(ci.rescue)];
@@ -1101,7 +1434,7 @@ void GameApp::renderShadowMap() {
             enemyPool_[size_t(e.slot)]->renderShadow(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
                                                                     Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
     // The player's own body (whole, also in first person) and Timmy on his back.
-    if (playMode_ && playerModel_ && !cut) playerModel_->renderShadowFull(renderer_, bodyXf_);
+    if (playMode_ && playerModel_ && !cut && !playerGibbed_) playerModel_->renderShadowFull(renderer_, bodyXf_);
     if (playMode_ && timmyOn_ && !cut) timmy_->renderShadow(renderer_, timmyXf_);
     renderer_.endShadowPass();
     renderer_.setShadowsActive(true);
@@ -1157,7 +1490,7 @@ void GameApp::renderReflection() {
     for (const auto& n : nests_)
         if (n.alive && n.shown >= 0.02f) drawModel(n.model, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown), false);
     const Vec3 eye = head.position;
-    if (playMode_ && playerModel_ && !cut) playerModel_->renderFull(renderer_, bodyXf_);
+    if (playMode_ && playerModel_ && !cut && !playerGibbed_) playerModel_->renderFull(renderer_, bodyXf_);
     if (playMode_ && timmyOn_ && !cut) timmy_->render(renderer_, timmyXf_);
     if (playMode_ && gunValid_ && !cut) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
     for (const auto& c : chars_) {
@@ -1689,9 +2022,10 @@ void GameApp::spawnWave() {
     LOGI("Wave %d: %d Reapers", wave_, placed);
 }
 
-void GameApp::damagePlayer(float amount) {
-    if (playerHealth_ <= 0) return;
+void GameApp::damagePlayer(float amount, DeathCause cause) {
+    if (playerHealth_ <= 0 || dying_) return;
     playerHealth_ -= amount;
+    lastHurt_ = cause;
     sinceDamage_ = 0;
     damageFlash_ = 1.0f;
     if (hurtCooldown_ <= 0) {
@@ -1701,11 +2035,84 @@ void GameApp::damagePlayer(float amount) {
     }
     haptics_.push_back({kLeft, 0.7f, 0.1f});
     haptics_.push_back({kRight, 0.7f, 0.1f});
-    if (playerHealth_ <= 0) {
-        LOGI("Player died: respawning");
+    // The player bleeds too (bites and bullets).
+    if (cause != DeathCause::Drowned) bleed(player_.position + Vec3{0, 1.2f, 0}, Vec3{frand() - 0.5f, 0.3f, frand() - 0.5f}, false, 1.0f);
+    if (playerHealth_ <= 0) startDeath();
+}
+
+void GameApp::startDeath() {
+    playerHealth_ = 0;
+    dying_ = true;
+    deathTime_ = 0;
+    deathCause_ = player_.swimming() ? DeathCause::Drowned : lastHurt_;
+    deathWasFp_ = firstPerson_;
+    firstPerson_ = false;  // see the body: the camera steps back from it
+    tpAiming_ = false;
+    armTargets_[0].valid = armTargets_[1].valid = false;
+    haptics_.push_back({kLeft, 1.0f, 0.4f});
+    haptics_.push_back({kRight, 1.0f, 0.4f});
+    if (deathCause_ == DeathCause::Blast) {
+        // Blown apart: the original Meccaryn chunks (MC_chunk1..6), blood everywhere.
+        playerGibbed_ = true;
+        const Vec3 at = player_.position + Vec3{0, 1.0f, 0};
+        for (int k = 0; k < 6; ++k) {
+            if (!meccChunk_[k]) continue;
+            Gib g;
+            g.model = meccChunk_[k];
+            g.pos = at + Vec3{(frand() - 0.5f) * 0.6f, (frand() - 0.3f) * 0.8f, (frand() - 0.5f) * 0.6f};
+            g.vel = Vec3{(frand() - 0.5f) * 9.0f, 4.0f + 5.0f * frand(), (frand() - 0.5f) * 9.0f};
+            g.axis = normalize(Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} + Vec3{0.01f, 0, 0});
+            g.angle = frand() * 6.28f;
+            g.spin = 5.0f + 6.0f * frand();
+            g.scale = 1.0f;
+            g.life = -4.0f;  // lie a little longer than the others
+            gibs_.push_back(g);
+        }
+        blood_.burst(at, Vec3{0, 1, 0}, 40, 7.0f, 0.09f);
+        blood_.pool(player_.position, 2.0f);
+        sfx("me_mslex", at, 1.0f, 0.9f);
+        sfx(frand() < 0.5f ? "ex_bdyl1" : "ex_bdyl2", at, 1.0f);
+    } else {
+        playerGibbed_ = false;
+        sfx2D("me_shrt3", 1.0f, 0.85f);
+        if (deathCause_ != DeathCause::Drowned) blood_.pool(player_.position, 1.4f);
+    }
+    LOGI("Player died (%s)", deathCause_ == DeathCause::Blast ? "blown apart" : (deathCause_ == DeathCause::Drowned ? "eaten in the water" : "fell"));
+}
+
+void GameApp::updateDeath(float dt, const InputFrame& in) {
+    deathTime_ += dt;
+    PlayerInput none;
+    none.viewYaw = player_.yaw;
+    player_.update(dt, none);
+    placeCamera(dt, false, &in);
+    float sink = 0;
+    if (deathCause_ == DeathCause::Drowned) {
+        sink = std::max(0.0f, deathTime_ - 1.2f) * 0.5f;  // goes under
+        if (frand() < dt * 3.0f) bloodInWater(player_.position, 0.8f);
+    }
+    bodyXf_ = Mat4::translation(player_.position - Vec3{0, sink, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
+    if (playerModel_ && !playerGibbed_) {
+        playerModel_->setHideEnabled(false);
+        const int clip = deathClip_[deathCause_ == DeathCause::Drowned ? 1 : 0];
+        if (clip >= 0) {
+            const float d = playerModel_->animDuration(clip);
+            const float t = std::min(deathTime_, d * 0.999f);
+            playerModel_->poseBlend(renderer_, clip, t, clip, t, 0.0f);
+        }
+    }
+    timmyOn_ = false;
+    if (deathTime_ > 5.5f) {
+        // Back at the mission's start, whole again.
+        dying_ = false;
+        playerGibbed_ = false;
         playerHealth_ = 100.0f;
+        firstPerson_ = deathWasFp_;
+        piranhaAttack_ = false;
+        waterTime_ = 0;
         teleportPlayer(assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
-        damageFlash_ = 2.0f;
+        respawnFade_ = 1.0f;
+        LOGI("Player respawned");
     }
 }
 
@@ -1717,9 +2124,23 @@ void GameApp::explode(const Vec3& at, float radius, float damage) {
         if (e.state == EnemyState::Dead) continue;
         const float d = length(e.pos + Vec3{0, 0.9f, 0} - at);
         if (d > radius) continue;
-        if (enemies_.damage(int(i), damage * (1.0f - 0.6f * d / radius)) && enemies_.enemies[i].objective >= 0)
-            completeObjective(enemies_.enemies[i].objective);
+        const bool killed = enemies_.damage(int(i), damage * (1.0f - 0.6f * d / radius), /*blast=*/true);
+        if (killed && enemies_.enemies[i].objective >= 0) completeObjective(enemies_.enemies[i].objective);
+        bleed(enemies_.enemies[i].pos + Vec3{0, 1.0f, 0}, normalize(enemies_.enemies[i].pos - at + Vec3{0, 0.5f, 0}), killed, 1.0f);
+        if (killed) blood_.pool(enemies_.enemies[i].pos, 1.3f);
     }
+    enemies_.alertNear(at, 30.0f);
+    // Bodies near the blast are torn apart.
+    for (auto& e : enemies_.enemies)
+        if (e.state == EnemyState::Dead && e.stateTime > 0.6f && !e.gibbed && length(e.pos - at) < radius * 0.8f) {
+            e.gibbed = true;
+            gibCorpse(e.pos, e.yaw, e.pos - at, true, 1.0f);
+        }
+    for (auto& c : creatures_.creatures)
+        if (c.state == CreatureState::Dead && c.stateTime > 0.6f && !c.exploded && !c.gibbed && length(c.pos - at) < radius * 0.8f) {
+            c.gibbed = true;
+            gibCorpse(c.pos, c.yaw, c.pos - at, false, c.scale);
+        }
     for (size_t i = 0; i < creatures_.creatures.size(); ++i) {
         const Creature& c = creatures_.creatures[i];
         if (c.state == CreatureState::Dead) continue;
@@ -1746,7 +2167,7 @@ void GameApp::explode(const Vec3& at, float radius, float damage) {
     LOGI("Rocket exploded at (%.1f %.1f %.1f), %zu creatures alive", at.x, at.y, at.z, creatures_.aliveCount());
     // The player is not immune to their own rockets.
     const float dp = length(player_.position + Vec3{0, 0.9f, 0} - at);
-    if (playMode_ && dp < radius * 0.6f) damagePlayer(30.0f * (1.0f - dp / (radius * 0.6f)));
+    if (playMode_ && dp < radius * 0.6f) damagePlayer(30.0f * (1.0f - dp / (radius * 0.6f)), DeathCause::Blast);
 }
 
 void GameApp::updateRockets(float dt) {
@@ -1831,6 +2252,62 @@ void GameApp::damageNest(int i, float amount) {
     }
 }
 
+void GameApp::startSchool(School& s) {
+    s.active = true;
+    s.biteTimer = 0.4f;
+    for (int i = 0; i < kPiranhas; ++i) s.fish[i] = Piranha{float(i) * 1.2566f + frand(), -1.0f};
+}
+
+void GameApp::updateSchools(float dt) {
+    // School 0 hunts the player; the others the Smarties in the water (walkthrough: they devour a
+    // Smartie in about five seconds).
+    if (schools_.empty()) schools_.resize(1);
+    School& ps = schools_[0];
+    if (piranhaAttack_ && !ps.active) startSchool(ps);
+    ps.active = piranhaAttack_;
+    if (ps.active) ps.centre = player_.position;
+    for (size_t i = 0; i < rescue_.smarties.size(); ++i) {
+        const RescueSmartie& sm = rescue_.smarties[i];
+        School* found = nullptr;
+        for (size_t k = 1; k < schools_.size(); ++k)
+            if (schools_[k].target == int(i)) found = &schools_[k];
+        const bool prey = sm.state == SmartieState::Drowning;
+        if (prey && !found) {
+            School sc;
+            sc.target = int(i);
+            sc.centre = sm.pos;
+            startSchool(sc);
+            schools_.push_back(sc);
+            continue;
+        }
+        if (found) {
+            found->active = prey;
+            if (prey) {
+                found->centre = Vec3{sm.pos.x, 0.0f, sm.pos.z};
+                found->biteTimer -= dt;
+                if (found->biteTimer <= 0) {
+                    found->biteTimer = 0.55f + 0.3f * frand();
+                    sfx(frand() < 0.5f ? "pi_swrm1" : "pi_swrm2", sm.pos, 0.9f, 0.95f + 0.2f * frand());
+                    bloodInWater(sm.pos, 0.6f);
+                }
+            }
+        }
+    }
+    for (auto& sc : schools_) {
+        sc.vis += ((sc.active ? 1.0f : 0.0f) - sc.vis) * std::min(1.0f, dt * 2.5f);
+        if (sc.vis <= 0.01f) continue;
+        for (int i = 0; i < kPiranhas; ++i) {
+            Piranha& f = sc.fish[i];
+            f.angle += dt * (1.6f + 0.25f * float(i));
+            if (f.jump >= 0) f.jump += dt;
+            if (f.jump > 2.3f) f.jump = -1;
+            if (f.jump < 0 && sc.active && frand() < dt * (sc.target < 0 ? 0.25f : 0.6f)) f.jump = 0;  // leaps at the prey
+        }
+    }
+    schools_.erase(std::remove_if(schools_.begin() + 1, schools_.end(), [](const School& sc) { return !sc.active && sc.vis < 0.01f; }),
+                   schools_.end());
+}
+
 void GameApp::updateCombat(float dt) {
     updateRockets(dt);
     updateNests(dt);
@@ -1857,14 +2334,14 @@ void GameApp::updateCombat(float dt) {
         if (waterTime_ > 0.8f) {
             if (!piranhaAttack_) {
                 piranhaAttack_ = true;
-                for (int i = 0; i < kPiranhas; ++i) piranha_[i] = Piranha{float(i) * 1.2566f + frand(), -1.0f};
                 LOGI("Piranhas!");
             }
             biteTimer_ -= dt;
             if (biteTimer_ <= 0) {
                 biteTimer_ = 0.5f;
                 sfx(frand() < 0.5f ? "pi_swrm1" : "pi_swrm2", player_.position, 1.0f, 0.9f + 0.2f * frand());
-                damagePlayer(8.0f);
+                damagePlayer(8.0f, DeathCause::Drowned);
+                bloodInWater(player_.position, 0.8f);
             }
         }
     } else {
@@ -1872,24 +2349,39 @@ void GameApp::updateCombat(float dt) {
         biteTimer_ = 0;
         piranhaAttack_ = false;
     }
-    // The school follows the player while attacking and fades (dives) away otherwise.
-    piranhaVis_ += ((piranhaAttack_ ? 1.0f : 0.0f) - piranhaVis_) * std::min(1.0f, dt * 2.5f);
-    if (piranhaVis_ > 0.01f) {
-        if (piranhaAttack_) piranhaCentre_ = player_.position;
-        for (int i = 0; i < kPiranhas; ++i) {
-            Piranha& f = piranha_[i];
-            f.angle += dt * (1.6f + 0.25f * float(i));
-            if (f.jump >= 0) f.jump += dt;
-            if (f.jump > 2.3f) f.jump = -1;
-            if (f.jump < 0 && piranhaAttack_ && frand() < dt * 0.25f) f.jump = 0;  // leaps at the player now and then
+    // Wading (feet in the water, not swimming): rings round the legs while moving, splashing steps.
+    const bool wading = playMode_ && !swim && player_.onGround && player_.position.y < player_.seaLevel - 0.08f;
+    if (wading && player_.horizontalSpeed() > 0.4f) {
+        wadeTimer_ -= dt;
+        if (wadeTimer_ <= 0) {
+            wadeTimer_ = 0.35f;
+            waterFx_.push_back({Vec3{player_.position.x, 0.03f, player_.position.z}, 0.0f, 1, 1.4f});
         }
     }
+    // NPCs in the water leave rings too (Rippers and Reapers floating or wading).
+    {
+        size_t k = 0;
+        const size_t n = creatures_.creatures.size() + enemies_.enemies.size();
+        if (npcRipple_.size() != n) npcRipple_.assign(n, 0.0f);
+        auto ripple = [&](const Vec3& p, bool moving, float size) {
+            float& t = npcRipple_[k++];
+            t -= dt;
+            if (p.y < -0.15f && t <= 0 && length(p - player_.position) < 60.0f && waterFx_.size() < 48) {
+                t = moving ? 0.45f : 1.2f;
+                waterFx_.push_back({Vec3{p.x, 0.03f, p.z}, 0.0f, 1, size});
+            }
+        };
+        for (const auto& c : creatures_.creatures) ripple(c.pos, c.speed > 0.3f && c.state != CreatureState::Dead, 1.2f * c.scale);
+        for (const auto& e : enemies_.enemies) ripple(e.pos, e.state == EnemyState::Advance, 1.6f);
+    }
+    updateSchools(dt);
     // Health regenerates after 4 s without damage.
     sinceDamage_ += dt;
-    if (sinceDamage_ > 4.0f) playerHealth_ = std::min(100.0f, playerHealth_ + 12.0f * dt);
+    if (sinceDamage_ > 4.0f && !dying_) playerHealth_ = std::min(100.0f, playerHealth_ + 12.0f * dt);
+    respawnFade_ = std::max(0.0f, respawnFade_ - dt * 1.2f);
     damageFlash_ = std::max(0.0f, damageFlash_ - dt * 3.0f);
 
-    enemies_.update(dt, player_.position, playMode_, shooters_);
+    enemies_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, shooters_);
     // Model slots follow the enemies (the director removes sunk corpses).
     std::fill(slotUsed_.begin(), slotUsed_.end(), 0);
     for (auto& e : enemies_.enemies)
@@ -1928,6 +2420,7 @@ void GameApp::updateCombat(float dt) {
     enemyFire_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
     // Next wave after the last Reaper has fallen.
     updateCharacters(dt);
+    updateGore(dt);
     updateMission(dt);
     if (enemies_.aliveCount() == 0 && !missionHostiles_ && objectives_.empty()) {
         waveTimer_ += dt;
@@ -2264,12 +2757,12 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         drawModel(n.model, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown), false);
     }
     if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
-    if (playMode_ && playerModel_ && !cut) playerModel_->render(renderer_, bodyXf_);
+    if (playMode_ && playerModel_ && !cut && !playerGibbed_) playerModel_->render(renderer_, bodyXf_);
     // Timmy on the back: in first person only when he isn't right in front of the eyes.
     if (playMode_ && timmyOn_ && !cut &&
         (!firstPerson_ || length(Vec3{timmyXf_.m[12], timmyXf_.m[13], timmyXf_.m[14]} - v.eyePosition) > 0.45f))
         timmy_->render(renderer_, timmyXf_);
-    if (playMode_ && gunValid_ && !cut) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
+    if (playMode_ && gunValid_ && !cut && !dying_) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
     if (rocketModel_)
         for (const auto& r : rockets_) {
             // The rocket model points along -Y (game) = -Z (runtime): orient it along its flight.
@@ -2309,26 +2802,29 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         m->pose(renderer_, std::min(f.age, m->animDuration() * 0.999f));
         m->render(renderer_, Mat4::translation(f.pos) * Mat4::scale(Vec3{1, 1, 1} * f.scale));
     }
-    if (piranhaVis_ > 0.01f && pirSwim_) {
-        // Circling just under the surface; one now and then leaps (pir_swim_jump) toward the player.
+    if (pirSwim_) {
+        // Circling just under the surface; one now and then leaps (pir_swim_jump) at the prey.
         pirSwim_->pose(renderer_, float(time_));
-        for (int i = 0; i < kPiranhas; ++i) {
-            const Piranha& f = piranha_[i];
-            const float r = 1.2f + 0.35f * float(i % 3);
-            const Vec3 at = piranhaCentre_ + Vec3{std::cos(f.angle) * r, 0, std::sin(f.angle) * r};
-            const float yaw = std::atan2(-(-std::sin(f.angle)), -std::cos(f.angle));  // swimming along the circle
-            const float depth = -0.25f - (1.0f - piranhaVis_) * 1.5f;
-            if (f.jump >= 0 && pirJump_) {
-                pirJump_->pose(renderer_, f.jump);
-                const Vec3 to = piranhaCentre_ - at;
-                pirJump_->render(renderer_, Mat4::translation(Vec3{at.x, depth, at.z}) *
-                                                Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, std::atan2(-to.x, -to.z))));
-                pirSwim_->pose(renderer_, float(time_));
-            } else {
-                pirSwim_->render(renderer_, Mat4::translation(Vec3{at.x, depth, at.z}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, yaw)));
+        for (const auto& sc : schools_) {
+            if (sc.vis <= 0.01f || length(sc.centre - v.eyePosition) > 120.0f) continue;
+            for (int i = 0; i < kPiranhas; ++i) {
+                const Piranha& f = sc.fish[i];
+                const float r = (sc.target < 0 ? 1.2f : 0.8f) + 0.35f * float(i % 3);
+                const Vec3 at = sc.centre + Vec3{std::cos(f.angle) * r, 0, std::sin(f.angle) * r};
+                const float yaw = std::atan2(std::sin(f.angle), -std::cos(f.angle));  // swimming along the circle
+                const float depth = -0.25f - (1.0f - sc.vis) * 1.5f;
+                if (f.jump >= 0 && pirJump_) {
+                    pirJump_->pose(renderer_, f.jump);
+                    const Vec3 to = sc.centre - at;
+                    pirJump_->render(renderer_, Mat4::translation(Vec3{at.x, depth, at.z}) *
+                                                    Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, std::atan2(-to.x, -to.z))));
+                } else {
+                    pirSwim_->render(renderer_, Mat4::translation(Vec3{at.x, depth, at.z}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, yaw)));
+                }
             }
         }
     }
+    renderGore();
     for (const auto& g : gibs_)
         drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) *
                                Mat4::scale({g.scale, g.scale, g.scale}),
@@ -2400,6 +2896,12 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
     else if (!(playMode_ && firstPerson_ && playerModel_)) testScene_.renderControllers(renderer_, rig_, lastInput_);
     if (load_.phase == LoadPhase::FadeOut) renderLoading();
+    // Death: fade to black before the respawn, and back in after it.
+    const float black = dying_ ? std::min(1.0f, std::max(0.0f, (deathTime_ - 4.3f) / 1.0f)) : respawnFade_;
+    if (black > 0.01f && text_.ready()) {
+        const Vec3 fwd = headWorldRot_.rotate(Vec3{0, 0, -1});
+        text_.drawPanel(Mat4::translation(v.eyePosition + fwd * 0.1f) * Mat4::rotation(headWorldRot_), 1.0f, 1.0f, {0, 0, 0, black});
+    }
     renderer_.endView();
 }
 

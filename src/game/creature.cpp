@@ -25,6 +25,10 @@ int CreatureDirector::spawn(const Vec3& pos, float yaw, float scale, CreatureSiz
     c.surround = rnd() * kTwoPi;
     c.spitWait = 1.0f + rnd() * 2.0f;
     c.clipTime = rnd() * clipDuration[int(CreatureClip::Idle)];  // desynchronise idles
+    c.uid = nextUid_++;
+    c.patrolTo = c.pos;
+    c.patrolWait = 1.0f + 4.0f * rnd();
+    c.lookTimer = rnd() * 0.3f;
     creatures.push_back(c);
     return int(creatures.size()) - 1;
 }
@@ -165,6 +169,23 @@ void CreatureDirector::updateSpits(float dt, const Vec3& player, bool playerAliv
                 spits.end());
 }
 
+bool CreatureDirector::lineOfSight(const Vec3& from, const Vec3& to) const {
+    // Hills (sampled terrain) and buildings in between hide the player.
+    const Vec3 d = to - from;
+    const float len = length(d);
+    if (len < 1e-3f) return true;
+    if (groundHeight) {
+        const int n = std::max(2, int(len / 3.0f));
+        for (int k = 1; k < n; ++k) {
+            const Vec3 p = from + d * (float(k) / float(n));
+            if (groundHeight(p.x, p.z) > p.y + 0.2f) return false;
+        }
+    }
+    float t;
+    Vec3 nn;
+    return !(collision && collision->raycast(from, d * (1.0f / len), len, t, nn));
+}
+
 void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, std::vector<CreatureEvent>& events) {
     events.clear();
     for (size_t i = 0; i < creatures.size(); ++i) {
@@ -226,24 +247,76 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
             setClip(c, CreatureClip::Walk, true, std::max(0.8f, params.runPlayback * c.speed / runRef));
         };
         const float reach = params.reach * s;
-        const bool sees = playerAlive && dist < params.sightRange * ss;
+        // Sees the player: close by from any side, or further in front of it with a clear line.
+        auto spots = [&]() {
+            if (!playerAlive) return false;
+            if (dist < params.hearRange * ss) return true;
+            if (dist > params.sightRange * ss || std::fabs(angleDelta(c.yaw, faceYaw)) > params.noticeAngle) return false;
+            return lineOfSight(c.pos + Vec3{0, 0.6f * s, 0}, player + Vec3{0, 1.2f, 0});
+        };
+        const bool sees = playerAlive && dist < params.sightRange * ss && (dist < params.hearRange * ss || lineOfSight(c.pos + Vec3{0, 0.6f * s, 0}, player + Vec3{0, 1.2f, 0}));
         switch (c.state) {
             case CreatureState::Idle: {
-                setClip(c, CreatureClip::Idle, true);
-                c.speed = 0;
-                if (c.alertIn >= 0) c.alertIn -= dt;
-                const bool called = c.alertIn >= 0 && c.alertIn <= dt && playerAlive;
-                if (sees || called || (c.hunter && playerAlive)) {
+                if (c.hunter && playerAlive) {
                     c.state = CreatureState::Chase;
                     c.stateTime = 0;
+                    break;
+                }
+                if (c.notice > 0) {
+                    // Spotted the player: stops, turns to him, chitters, then charges.
+                    c.speed = 0;
+                    setClip(c, CreatureClip::Idle, true);
+                    turn(faceYaw, params.turnRate);
+                    c.notice -= dt;
+                    if (c.notice <= 0) {
+                        c.state = playerAlive ? CreatureState::Chase : CreatureState::Idle;
+                        c.stateTime = 0;
+                    }
+                    break;
+                }
+                if (c.alertIn >= 0) c.alertIn -= dt;
+                const bool called = c.alertIn >= 0 && c.alertIn <= dt && playerAlive;
+                c.lookTimer -= dt;
+                bool spotted = false;
+                if (c.lookTimer <= 0) {  // looks around a few times a second
+                    c.lookTimer = 0.2f + 0.1f * rnd();
+                    spotted = spots();
+                }
+                if (spotted || called) {
+                    c.notice = called ? 0.05f : params.noticeDelay;
                     c.alertIn = -1;
                     events.push_back({CreatureEvent::Alert, int(i), 0, c.pos, c.size});
                     // The pack joins in.
                     for (auto& o : creatures)
-                        if (&o != &c && o.state == CreatureState::Idle && o.alertIn < 0 &&
+                        if (&o != &c && o.state == CreatureState::Idle && o.alertIn < 0 && o.notice <= 0 &&
                             length(o.pos - c.pos) < params.packRange)
                             o.alertIn = 0.2f + 0.6f * rnd();
+                    break;
                 }
+                // Sniffing about near home: wander to a nearby spot, pause, wander again.
+                if (c.patrolWait > 0) {
+                    c.patrolWait -= dt;
+                    c.speed = 0;
+                    setClip(c, CreatureClip::Idle, true);
+                    if (c.patrolWait <= 0) {
+                        for (int tries = 0; tries < 4; ++tries) {
+                            const float a = rnd() * kTwoPi, r = params.patrolRadius * (0.3f + 0.7f * rnd()) * ss;
+                            const Vec3 p = c.home + Vec3{std::sin(a) * r, 0, std::cos(a) * r};
+                            const Vec3 g{p.x - c.pos.x, 0, p.z - c.pos.z};
+                            if (pathClear(c, headingTo(g), std::min(2.5f * s, std::sqrt(g.x * g.x + g.z * g.z)))) { c.patrolTo = p; break; }
+                            c.patrolTo = c.home;
+                        }
+                    }
+                    break;
+                }
+                if (std::hypot(c.patrolTo.x - c.pos.x, c.patrolTo.z - c.pos.z) < 0.4f * s || c.stateTime > 12.0f) {
+                    c.patrolWait = 2.0f + 4.0f * rnd();
+                    c.stateTime = 0;
+                    c.speed = 0;
+                    setClip(c, CreatureClip::Idle, true);
+                    break;
+                }
+                steer(c.patrolTo, params.patrolSpeed * ss);
                 break;
             }
             case CreatureState::Chase: {
@@ -364,6 +437,7 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                     c.state = CreatureState::Chase;
                     break;
                 }
+                c.patrolTo = c.home;
                 if (std::hypot(c.home.x - c.pos.x, c.home.z - c.pos.z) < 0.6f) {
                     c.state = CreatureState::Idle;
                     break;
@@ -377,6 +451,12 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
             }
             case CreatureState::Dead:
                 if (c.exploded) { c.remove = true; break; }  // the game layer shows the gore
+                if (params.corpsesPersist) {
+                    // Lies there until the Cleaners have eaten it (sinking as they eat) or it is shot apart.
+                    c.sink = c.eaten * 0.35f * s;
+                    if (c.gibbed || c.eaten >= 1.0f) c.remove = true;
+                    break;
+                }
                 if (c.stateTime > params.corpseTime) c.sink += dt * 0.25f;
                 if (c.sink > params.height * s + 0.5f) c.remove = true;
                 break;

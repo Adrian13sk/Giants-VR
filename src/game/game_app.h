@@ -7,12 +7,14 @@
 #include <string>
 #include <vector>
 
+#include "core/log.h"
 #include "game/input_state.h"
 #include "game/player.h"
 #include "game/weapon.h"
 #include "game/enemy.h"
 #include "game/creature.h"
 #include "game/smartie.h"
+#include "game/gore.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
 #include "render/text.h"
@@ -103,6 +105,44 @@ public:
         return found;
     }
     float weaponLastHitDistance() const { return weapon_.lastHitDistance(); }
+    // Test hook: feet of the dead body (or blood pool) nearest the player.
+    bool nearestCorpse(Vec3& feet) const {
+        float best = 1e30f;
+        bool found = false;
+        for (const auto& e : enemies_.enemies)
+            if (e.state == EnemyState::Dead && length(e.pos - player_.position) < best) { best = length(e.pos - player_.position); feet = e.pos; found = true; }
+        for (const auto& c : creatures_.creatures)
+            if (c.state == CreatureState::Dead && length(c.pos - player_.position) < best) { best = length(c.pos - player_.position); feet = c.pos; found = true; }
+        for (const auto& d : blood_.decals)
+            if (!found && d.texture == 2) { feet = d.pos; found = true; }
+        return found;
+    }
+    size_t bloodDecals() const { return blood_.decals.size(); }
+    // Test hook: a Reaper killed by a shot at `at` (blood, a body that stays for the Cleaners).
+    void debugKillReaperAt(const Vec3& at, const Vec3& shotDir) {
+        const int i = enemies_.spawn(at, 0.0f);
+        const Vec3 p = enemies_.enemies[size_t(i)].pos + Vec3{0, 1.2f, 0};
+        for (int k = 0; k < 4; ++k) weapon_.onHit(i, p, shotDir);
+    }
+    void debugKillPlayer(int cause) { damagePlayer(500.0f, DeathCause(cause)); }
+    bool dying() const { return dying_; }
+    void debugDumpBlood() const {
+        Vec3 b;
+        if (nearestCorpse(b)) LOGI("blood: body at (%.1f %.1f %.1f)", b.x, b.y, b.z);
+        for (const auto& d : blood_.decals)
+            LOGI("blood: decal tex %d at (%.1f %.1f %.1f) size %.2f age %.2f alpha %.2f water %d", d.texture, d.pos.x, d.pos.y, d.pos.z, d.scale(), d.age, d.alpha(), int(d.water));
+        LOGI("blood: %zu drops, %zu sprays", blood_.drops.size(), blood_.sprays.size());
+    }
+    // Test hook: shoot the nearest body (until it bursts or falls apart).
+    void debugShootCorpses(int shots) {
+        for (int s = 0; s < shots; ++s)
+            for (size_t i = 0; i < enemies_.enemies.size(); ++i)
+                if (enemies_.enemies[i].state == EnemyState::Dead && !enemies_.enemies[i].gibbed) {
+                    shootCorpse(kCorpseEnemy + int(i), enemies_.enemies[i].pos + Vec3{0, 0.3f, 0}, Vec3{0, -0.3f, -1});
+                    break;
+                }
+    }
+    size_t cleanerCount() const { return cleaners_.cleaners.size(); }
     VrRig& rig() { return rig_; }
     Renderer& renderer() { return renderer_; }
     bool hasOriginalAssets() const;
@@ -199,6 +239,38 @@ private:
     struct Gib { const RenderModel* model; Vec3 pos, vel, axis; float angle, spin, scale, life; };
     std::vector<Gib> gibs_;
     void spawnGore(const Vec3& pos, const Vec3& dir, float scale);
+    // Blood (original aablood.gzp textures), corpses and the Cleaners that eat them.
+    BloodSystem blood_;
+    CleanerDirector cleaners_;
+    TextureId bloodTex_[3] = {};   // efx_splat, efx_splat2, bloodblob (pools)
+    TextureId sprayTex_ = 0, dropTex_ = 0;
+    MeshId goreQuad_ = 0;          // unit quad in XY, facing +Z
+    const RenderModel* reaperChunk_[4] = {};  // rpman_chunk_head / body / main / hand
+    const RenderModel* meccChunk_[6] = {};    // MC_chunk1..6 (the player blown apart)
+    std::vector<std::unique_ptr<SkinnedModel>> cleanerPool_;
+    std::vector<std::pair<uint32_t, uint32_t>> eatLoops_;  // corpse id -> eating sound voice
+    std::vector<std::pair<uint32_t, float>> eatenNow_;
+    std::vector<CleanerEvent> cleanerEvents_;
+    void initGore(AssetWorld* w, ModelCache* mc);
+    void updateGore(float dt);
+    void renderGore();
+    void bloodInWater(const Vec3& at, float size);
+    void bleed(const Vec3& at, const Vec3& dir, bool kill, float scale);  // a hit (or a kill) on flesh
+    // A body shot apart: bursts in a spray of blood or falls to pieces (Reaper chunks / Ripper gore).
+    void gibCorpse(const Vec3& pos, float yaw, const Vec3& dir, bool reaper, float scale);
+    bool corpseRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& target) const;
+    void shootCorpse(int target, const Vec3& p, const Vec3& dir);
+    // Player death: by bullets / bites he falls (mc_die), in the piranhas' water he goes under
+    // (mc_drowning_die), a blast blows him apart (MC_chunk1..6). Then a fade and a respawn.
+    enum class DeathCause { Shot, Bitten, Drowned, Blast };
+    DeathCause lastHurt_ = DeathCause::Shot;
+    bool dying_ = false, deathWasFp_ = false, playerGibbed_ = false;
+    float respawnFade_ = 0;
+    float deathTime_ = 0;
+    DeathCause deathCause_ = DeathCause::Shot;
+    int deathClip_[2] = {-1, -1};  // mc_die, mc_drowning_die (same order in both player variants)
+    void startDeath();
+    void updateDeath(float dt, const InputFrame& in);
     std::vector<CharacterInst> chars_;
     CreatureDirector creatures_;
     RescueDirector rescue_;
@@ -213,6 +285,7 @@ private:
     };
     std::vector<NestInst> nests_;
     static constexpr int kNestTarget = 5000;  // weapon target ids for nests
+    static constexpr int kCorpseEnemy = 6000, kCorpseCreature = 7000;  // and bodies on the ground
     void updateNests(float dt);
     void damageNest(int i, float amount);
     std::vector<SmartieEvent> rescueEvents_;
@@ -277,10 +350,16 @@ private:
     std::unique_ptr<SkinnedModel> splashFx_, ringFx_, pirSwim_, pirJump_;
     static constexpr int kPiranhas = 5;
     struct Piranha { float angle = 0, jump = -1; };
-    Piranha piranha_[kPiranhas];
+    // A school circles its prey just under the surface: the swimming player (school 0) or a
+    // Smartie that fell in (target = its rescue index). It fades in while attacking, then dives.
+    struct School { Vec3 centre; float vis = 0, biteTimer = 0; bool active = false; int target = -1; Piranha fish[kPiranhas]; };
+    std::vector<School> schools_;
+    void startSchool(School& s);
+    void updateSchools(float dt);
     bool wasSwimming_ = false, piranhaAttack_ = false;
-    float ringTimer_ = 0, piranhaVis_ = 0;
-    Vec3 piranhaCentre_;
+    float ringTimer_ = 0, wadeTimer_ = 0;
+    uint32_t swimLoop_ = 0;
+    std::vector<float> npcRipple_;  // per creature / enemy: seconds until its next ripple in water
     float waterTime_ = 0, biteTimer_ = 0;  // after a mission (and its outro) ends: seconds until the next loads
     void loadMission(const std::string& name);
     std::string dataDir_, worldName_;
@@ -330,7 +409,7 @@ private:  // the mission placed enemies: no test waves
     void updateCharacters(float dt);
     void creatureSound(const CreatureEvent& e);
     void updateCombat(float dt);
-    void damagePlayer(float amount);
+    void damagePlayer(float amount, DeathCause cause = DeathCause::Shot);
     void renderHud();
     // Audio (original WAVs from the user's archives; names decoded by guesswork, see the log).
     AudioMixer* audio_ = nullptr;

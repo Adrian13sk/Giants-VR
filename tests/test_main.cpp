@@ -20,6 +20,7 @@
 #include "game/enemy.h"
 #include "game/creature.h"
 #include "game/smartie.h"
+#include "game/gore.h"
 #include "audio/mixer.h"
 #include "audio/music.h"
 #include "assets/gtext.h"
@@ -428,16 +429,47 @@ static void testEnemies() {
     EnemyDirector d;
     d.groundHeight = [](float, float) { return 0.0f; };
     for (auto& c : d.clipDuration) c = 0.6f;
-    d.spawn({0, 0, -60}, 0.0f);
+    d.spawn({0, 0, -70}, kPi);  // facing the player (+Z)
     std::vector<int> shots;
     const Vec3 player{0, 0, 0};
     const float dt = 1.0f / 72.0f;
     d.update(dt, player, true, shots);
-    CHECK(d.enemies[0].state == EnemyState::Idle);  // 60 m: out of sight
+    CHECK(d.enemies[0].state == EnemyState::Idle);  // 70 m: out of sight
     d.enemies[0].pos.z = -40;
+    d.enemies[0].home = d.enemies[0].pos;
+    d.enemies[0].patrolWait = 10.0f;  // standing still, looking this way
+    // Notices the player in front of it, takes a moment (alert scan), then runs.
+    for (int i = 0; i < 36 && !d.enemies[0].aware; ++i) d.update(dt, player, true, shots);
     d.update(dt, player, true, shots);
+    CHECK(d.enemies[0].aware && d.enemies[0].state == EnemyState::Idle && d.enemies[0].clip == EnemyClip::Alert);
+    for (int i = 0; i < 72 * 2 && d.enemies[0].state == EnemyState::Idle; ++i) d.update(dt, player, true, shots);
     d.update(dt, player, true, shots);
     CHECK(d.enemies[0].state == EnemyState::Advance && d.enemies[0].clip == EnemyClip::Run);  // far: runs
+    {
+        // Facing away and not close: doesn't notice the player; patrols near home instead.
+        EnemyDirector p;
+        p.groundHeight = d.groundHeight;
+        for (auto& c : p.clipDuration) c = 0.6f;
+        p.spawn({0, 0, -30}, 0.0f);
+        p.enemies[0].patrolWait = 100.0f;  // standing guard, back to the player
+        for (int i = 0; i < 72 * 3; ++i) p.update(dt, player, true, shots);
+        CHECK(!p.enemies[0].aware && p.enemies[0].state == EnemyState::Idle);
+        // With nobody about, its patrol stays near its post.
+        EnemyDirector q;
+        q.groundHeight = d.groundHeight;
+        for (auto& c : q.clipDuration) c = 0.6f;
+        q.spawn({0, 0, -30}, 0.0f);
+        bool walked = false;
+        for (int i = 0; i < 72 * 30; ++i) {
+            q.update(dt, Vec3{0, 0, 500}, true, shots);
+            walked |= q.enemies[0].clip == EnemyClip::Patrol;
+            CHECK(length(q.enemies[0].pos - Vec3{0, 0, -30}) <= q.params.patrolRadius + 0.5f);
+        }
+        CHECK(walked && q.enemies[0].state == EnemyState::Idle);
+        // Shot at: aware at once.
+        p.damage(0, 10.0f);
+        CHECK(p.enemies[0].aware);
+    }
     // Runs in, stops to shoot, runs to new spots: never shoots while running.
     int fired = 0, firedWhileRunning = 0, stops = 0;
     EnemyState prevState = d.enemies[0].state;
@@ -666,7 +698,7 @@ static void testCreatures() {
     CreatureDirector cd;
     cd.groundHeight = [](float, float) { return 0.0f; };
     for (int c = 0; c < int(CreatureClip::Count); ++c) cd.clipDuration[c] = 0.6f;
-    const int i = cd.spawn({0, 0, -15}, 0.0f, 1.0f, CreatureSize::Small, 20.0f, false);
+    const int i = cd.spawn({0, 0, -15}, kPi, 1.0f, CreatureSize::Small, 20.0f, false);  // facing the player
     std::vector<CreatureEvent> ev;
     const Vec3 player{0, 0, 0};
     bool alerted = false, struck = false;
@@ -685,8 +717,14 @@ static void testCreatures() {
     CreatureDirector far;
     far.groundHeight = cd.groundHeight;
     far.spawn({0, 0, -60}, 0.0f, 1.0f, CreatureSize::Medium, 40.0f, true);
-    for (int f = 0; f < 120; ++f) far.update(1.0f / 60, player, true, ev);
-    CHECK(far.creatures[0].state == CreatureState::Idle && std::fabs(far.creatures[0].pos.z + 60) < 1e-3f);
+    for (int f = 0; f < 600; ++f) far.update(1.0f / 60, player, true, ev);
+    CHECK(far.creatures[0].state == CreatureState::Idle && length(far.creatures[0].pos - Vec3{0, 0, -60}) <= far.params.patrolRadius + 0.5f);
+    // Behind it, not close enough to be heard: it doesn't notice (sniffs about instead).
+    CreatureDirector behind;
+    behind.groundHeight = cd.groundHeight;
+    behind.spawn({0, 0, -20}, 0.0f, 1.0f, CreatureSize::Small, 20.0f, false);
+    for (int f = 0; f < 600; ++f) behind.update(1.0f / 60, player, true, ev);
+    CHECK(behind.creatures[0].state == CreatureState::Idle);
     // Hit points come from the type: 20 (small) dies to one 25-damage bolt, 90 (large) takes four.
     const Vec3 shot{0, 0, -1};
     CHECK(cd.damage(i, 25.0f, shot));
@@ -713,7 +751,7 @@ static void testCreatures() {
     CreatureDirector sp;
     sp.groundHeight = [](float, float) { return 0.0f; };
     for (int c = 0; c < int(CreatureClip::Count); ++c) sp.clipDuration[c] = 0.8f;
-    sp.spawn({0, 0, -24}, 0, 1.0f, CreatureSize::Medium, 40.0f, true);
+    sp.spawn({0, 0, -24}, kPi, 1.0f, CreatureSize::Medium, 40.0f, true);
     sp.params.lungeMax = 0;  // isolate the spit
     bool launched = false, burst = false;
     float spitDmg = 0;
@@ -749,6 +787,7 @@ static void testCreatures() {
     wa.groundHeight = sp.groundHeight;
     wa.collision = &wall;
     wa.params.lungeMax = 0;
+    wa.params.hearRange = 20.0f;  // knows where the player is, but the wall is in the way
     wa.spawn({0, 0, -12}, 0, 1.0f, CreatureSize::Small, 20.0f, false);
     bool reached = false;
     for (int f = 0; f < 60 * 15 && !reached; ++f) {
@@ -926,9 +965,49 @@ static void testGameText() {
     CHECK(!bad.parse(d.data(), d.size(), &err));
 }
 
+static void testGore() {
+    using namespace gvr;
+    // Blood: drops fly, land as splats on the ground and as clouds on the water; splats fade.
+    BloodSystem b;
+    b.groundHeight = [](float x, float) { return x < 5.0f ? 1.0f : -3.0f; };  // land, then sea
+    b.seaLevel = 0.0f;
+    b.burst({0, 2, 0}, {0, 1, 0}, 10, 3.0f, 0.1f);
+    CHECK(b.drops.size() == 10 && b.sprays.size() == 1);
+    for (int i = 0; i < 300; ++i) b.update(1.0f / 60);
+    CHECK(b.drops.empty() && b.sprays.empty() && b.decals.size() == 10);
+    bool onGround = true;
+    for (const auto& d : b.decals) onGround &= !d.water && std::fabs(d.pos.y - 1.0f) < 1e-3f;
+    CHECK(onGround);
+    b.pool({8, -3, 0}, 1.0f);
+    CHECK(b.decals.back().water && std::fabs(b.decals.back().pos.y) < 0.05f);
+    for (int i = 0; i < 60 * 70; ++i) b.update(1.0f / 60);
+    CHECK(b.decals.empty());  // all faded out
+    for (int i = 0; i < 200; ++i) b.pool({0, 1, 0}, 1.0f);
+    CHECK(b.decals.size() == b.maxDecals);
+
+    // Cleaners: come to a body, eat it (it is reported eaten), then go.
+    CleanerDirector c;
+    c.groundHeight = [](float, float) { return 0.0f; };
+    c.call(7, {10, 0, 0}, 2, 0.0f);
+    CHECK(c.cleaners.size() == 2 && c.busyWith(7));
+    float eaten = 0;
+    bool started = false, gone = false;
+    std::vector<std::pair<uint32_t, float>> e;
+    std::vector<CleanerEvent> ev;
+    for (int i = 0; i < 60 * 60 && !gone; ++i) {
+        e.clear();
+        ev.clear();
+        c.update(1.0f / 60, [&](uint32_t id, Vec3& at) { at = {10, 0, 0}; return id == 7 && eaten < 1.0f; }, e, ev);
+        for (const auto& pr : e) if (pr.first == 7) eaten += pr.second;
+        for (const auto& x : ev) { started |= x.kind == CleanerEvent::StartEat; gone |= x.kind == CleanerEvent::Gone; }
+    }
+    CHECK(started && eaten >= 1.0f && gone);
+}
+
 int main() {
     testGameText();
     testRescue();
+    testGore();
     testAffineInverse();
     testGti();
     testWorldBin();

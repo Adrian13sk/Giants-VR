@@ -12,6 +12,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <vector>
 
@@ -51,11 +52,17 @@ struct Creature {
     bool remove = false;
     int slot = -1;          // renderer model (owned by the game app)
     bool hunter = false;    // spawned by a nest: goes straight for the player, never gives up
+    uint32_t uid = 0;       // stable id (corpses, Cleaners)
+    float eaten = 0, corpseHp = 30;
+    bool gibbed = false, cleanersCalled = false;
+    Vec3 patrolTo;
+    float patrolWait = 0, notice = 0;  // notice > 0: spotted the player, about to charge
+    float lookTimer = 0;
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
 
 struct CreatureParams {
-    float sightRange = 25.0f;     // m: notices the player
+    float sightRange = 38.0f;     // m: sees the player (in front, clear line); was 25 (device test 19: too late)
     float packRange = 15.0f;      // m: Rippers this close to one that notices the player join in
     float leash = 45.0f;          // m from home: gives up and walks back
     float runSpeed = 3.0f;        // m/s at scale 1 (speed grows with sqrt(scale))
@@ -84,6 +91,12 @@ struct CreatureParams {
     float radius = 0.45f, height = 1.0f;  // capsule at scale 1 (m)
     float crossfade = 0.15f;
     float corpseTime = 8.0f;
+    bool corpsesPersist = false;  // bodies stay until eaten or gibbed
+    float noticeAngle = 1.6f;     // rad either side of facing: sees the player
+    float hearRange = 9.0f;       // m: notices from any direction
+    float noticeDelay = 0.5f;     // s: chitters and turns before it charges
+    float patrolRadius = 5.0f;    // m around home: sniffs about while idle
+    float patrolSpeed = 0.8f;     // m/s
 };
 
 struct CreatureEvent {
@@ -129,9 +142,11 @@ private:
     void setClip(Creature& c, CreatureClip clip, bool loop, float rate = 1.0f);
     bool tryMove(Creature& c, const Vec3& step);
     bool pathClear(const Creature& c, float heading, float dist) const;
+    bool lineOfSight(const Vec3& from, const Vec3& to) const;
     void launchSpit(int i, const Creature& c, const Vec3& target, std::vector<CreatureEvent>& events);
     void updateSpits(float dt, const Vec3& player, bool playerAlive, std::vector<CreatureEvent>& events);
     unsigned rng_ = 777u;
+    uint32_t nextUid_ = 1;
     float rnd() { rng_ = rng_ * 1664525u + 1013904223u; return float(rng_ >> 8) / 16777216.0f; }
 };
 

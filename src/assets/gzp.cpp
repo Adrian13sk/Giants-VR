@@ -288,7 +288,9 @@ int AssetFS::mountAllArchives(const std::string& dir) {
 bool AssetFS::read(const std::string& name, std::vector<uint8_t>& out) const {
     for (size_t i = dirs_.size(); i-- > 0;)
         if (readFile(resolve(i, name), out)) return true;
-    for (auto it = archives_.rbegin(); it != archives_.rend(); ++it) {
+    // Archives in name order, the first holding the file wins: the override packs are named to
+    // sort first (aablood.gzp: red blood over the green in xx_efx.gzp; arpfix.gzp; aanoeng.gzp).
+    for (auto it = archives_.begin(); it != archives_.end(); ++it) {
         if (const GzpEntry* e = it->find(name)) {
             std::string err;
             if (it->extract(*e, out, &err)) return true;

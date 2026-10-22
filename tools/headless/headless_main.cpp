@@ -38,7 +38,9 @@ int main(int argc, char** argv) {
     int gripFrom = -1, gripTo = -1, handPathFrom = -1, handPathTo = -1, stickFrom = -1, stickTo = -1, trigFrom = -1, trigTo = -1;
     float handDx = 0, handDy = 0, handDz = 0;  // right hand moves by this (tracking metres) over the path frames
     int jetFrom = -1, jetTo = -1;
-    bool autoAim = false, viewBody = false;
+    bool autoAim = false, viewBody = false, viewCorpse = false;
+    int viewFrames = 0, killShots = 0, killPlayerAt = -1, killCause = 0;
+    bool killDemo = false;
     std::string audioOut;
     float triggerAmount = 0.0f, aimPitchDeg = -17.2f, aimYawDeg = 0.0f;
     for (int i = 1; i < argc; ++i) {
@@ -75,6 +77,9 @@ int main(int argc, char** argv) {
         else if (a == "--aim-yaw") aimYawDeg = std::atof(next());      // controller yaw (deg, + = left)
         else if (a == "--auto-aim") autoAim = true;  // test only: point the right controller at the nearest enemy
         else if (a == "--view-body") viewBody = true; // test only: after the frames, stand 4 m from an enemy body
+        else if (a == "--kill-demo") { killDemo = true; killShots = std::atoi(next()); }  // a Reaper killed 5 m ahead at the start (then N shots at the body)
+        else if (a == "--kill-player") { killPlayerAt = std::atoi(next()); killCause = std::atoi(next()); }  // frame, cause (0 shot 1 bitten 2 drowned 3 blast)
+        else if (a == "--view-corpse") { viewCorpse = true; viewFrames = std::atoi(next()); }  // then N more frames 3 m from the nearest body
         else if (a == "--audio-out") audioOut = next();  // write the mixed game audio (48 kHz stereo WAV)
         else if (a == "--hands") { handsFwd = std::atof(next()); handsUp = std::atof(next()); }  // controller offset (m)
     }
@@ -130,6 +135,16 @@ int main(int argc, char** argv) {
     }
     in.hand[kRight].trigger = triggerAmount;
     in.hand[kLeft].thumbstickClick = holdBrief;
+    if (killDemo) {
+        const Pose hw = app.rig().toWorld(in.head);
+        Vec3 f = hw.orientation.rotate(Vec3{0, 0, -1});
+        f.y = 0;
+        f = normalize(f);
+        app.debugKillReaperAt(hw.position + f * 5.0f, f);
+        for (int k = 0; k < 90; ++k) app.update(1.0f / 72.0f, in);  // falls
+        app.debugShootCorpses(killShots);
+        app.debugDumpBlood();
+    }
     for (int f = 0; f < frames; ++f) {
         if (jetFrom >= 0) in.hand[kRight].primary = f >= jetFrom && f < jetTo;
         if (gripFrom >= 0) in.hand[kRight].squeeze = f >= gripFrom && f < gripTo ? 1.0f : 0.0f;
@@ -150,6 +165,7 @@ int main(int argc, char** argv) {
             const Quat q = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, pitch);
             in.hand[kRight].gripPose.orientation = in.hand[kRight].aimPose.orientation = q;
         }
+        if (f == killPlayerAt) app.debugKillPlayer(killCause);
         app.update(1.0f / 72.0f, in);
         if (std::getenv("GVR_PLAYER_TRACE") && f % 12 == 0) {
             const auto& p = app.player();
@@ -176,6 +192,14 @@ int main(int argc, char** argv) {
         }
     }
     Vec3 body;
+    if (viewCorpse && app.nearestCorpse(body)) {
+        const Vec3 at = body + Vec3{2.2f, 0, 2.2f};
+        app.teleportPlayer(at, std::atan2(-(body.x - at.x), -(body.z - at.z)));
+        in.hand[kRight].trigger = 0;
+        in.hand[kLeft].thumbstick = {0, 0};
+        for (int f = 0; f < viewFrames; ++f) app.update(1.0f / 72.0f, in);
+        LOGI("corpse view: %zu blood decals, %zu cleaners", app.bloodDecals(), app.cleanerCount());
+    }
     if (viewBody && app.anyEnemy(body)) {
         const Vec3 at = body + Vec3{0, 0, 4.0f};
         app.teleportPlayer(at, 0.0f);

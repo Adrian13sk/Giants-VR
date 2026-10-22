@@ -7,6 +7,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <vector>
 
@@ -15,7 +16,7 @@
 
 namespace gvr {
 
-enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Count };
+enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, Count };
 enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead };
 
 struct Enemy {
@@ -41,11 +42,21 @@ struct Enemy {
     int objective = -1;     // mission objective this enemy's death completes (game app), -1 none
     bool posted = false;    // sentry on a platform (guard tower): never moves, fires from there
     float postY = 0;        // its floor height
+    uint32_t uid = 0;       // stable id (corpses, Cleaners)
+    // Corpse (corpsesPersist): lies until eaten by Cleaners or blown apart.
+    float eaten = 0, corpseHp = 50;
+    bool gibbed = false, cleanersCalled = false;
+    // Patrol: wanders a little around its post until it notices the player.
+    Vec3 home, patrolTo;
+    float patrolWait = 0;
+    float alert = 0;        // > 0: has noticed the player, turning to him before it acts
+    float lookTimer = 0;
+    bool aware = false;
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
 
 struct EnemyParams {
-    float sightRange = 50.0f;     // m: notices the player
+    float sightRange = 60.0f;     // m: sees the player in front with a clear line (was 50, any side)
     float shootRange = 30.0f;     // m: stops running to shoot when this close
     float fireRange = 10.0f;      // m: closest stand-off distance
     float runSpeed = 3.7f;        // m/s (rpman_bzka_run stride: 18.4 units/s)
@@ -61,6 +72,14 @@ struct EnemyParams {
     float radius = 0.45f, height = 2.2f;  // capsule (m)
     float crossfade = 0.2f;
     float corpseTime = 10.0f;     // s before the body sinks away
+    bool corpsesPersist = false;  // bodies stay until eaten (Enemy::eaten) or gibbed
+    // Noticing the player: within sightRange and roughly in front (or very close, or shot at),
+    // a moment of turning to look before it advances. Until then a short patrol near home.
+    float noticeAngle = 1.4f;     // rad either side of facing
+    float hearRange = 14.0f;      // m: noticed from any direction this close
+    float noticeDelay = 0.7f;     // s from noticing to acting
+    float patrolRadius = 6.0f;    // m around home
+    float patrolSpeed = 1.1f;     // m/s (walk clip)
 };
 
 class EnemyDirector {
@@ -68,23 +87,27 @@ public:
     EnemyParams params;
     std::function<float(float, float)> groundHeight;
     const CollisionWorld* collision = nullptr;
-    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     std::vector<Enemy> enemies;
 
     int spawn(const Vec3& pos, float yaw);
     // Advances AI. `shooters` receives the indices of enemies that fire a shot this frame.
     void update(float dt, const Vec3& playerPos, bool playerAlive, std::vector<int>& shooters);
-    // Applies damage; returns true if this killed the enemy.
-    bool damage(int index, float amount);
+    // Applies damage; returns true if this killed the enemy. A hit always makes it aware.
+    bool damage(int index, float amount, bool blast = false);  // blast: blown off the feet (rpman_hit_blowup)
+    // Alert everyone within `radius` of `at` (gunfire, a comrade's death) to the player.
+    void alertNear(const Vec3& at, float radius);
     // Closest capsule hit along origin + dir * t (t <= maxDist); living and dead bodies.
     bool raycast(const Vec3& origin, const Vec3& dir, float maxDist, float& t, Vec3& normal, int& index) const;
     size_t aliveCount() const;
 
 private:
     void setClip(Enemy& e, EnemyClip c, bool loop);
+    bool lineOfSight(const Vec3& from, const Vec3& to) const;
     // Moves e horizontally by `step` unless the ground rises too steeply (cliff); true if moved.
     bool tryMove(Enemy& e, const Vec3& step);
     unsigned rng_ = 12345u;
+    uint32_t nextUid_ = 1;
     unsigned nextRand() { rng_ = rng_ * 1664525u + 1013904223u; return rng_ >> 8; }
 };
 
