@@ -160,6 +160,28 @@ containing `to`'s song.
 ## Mission triggers — V (from the decompiled mission code, checked against the data)
 Mission op 8 low 4 bits: 1 proximity (10 game units of the bounds), 2 death, 3 destination arrival, 4 Vimp-meat proximity.
 
-## Cutscene scripts flk_*.bin — P
-They name their soundtrack stream as a NUL-terminated `f_...` string (`f_start`, `f_jetpack`), at `Stream/<World>/F_*.wav`
-(22050 Hz stereo PCM). They embed ANM-style node tables (actors, `camera01`). The bytecode is not decoded yet.
+## Cutscene scripts flk_*.bin — V (structure) / P (some op meanings)
+One file per shot; shots chain into a cutscene through the "next shot" name.
+- Header: `u32 version=3, u32 totalSize, u32 nDirectors, u32 nActors, u32 nBlocks, u32 nextShotNameOffset` (0 = last shot).
+- Records from 0x18: `{u32 op, u32 sizeInDwords, payload}`; strings are file offsets into a pool after the bytecode.
+  - op 1 director: word[1] = offset of an embedded ANM image (starts with its u32 size).
+  - op 2 actor: `{director, nodeNameOff, actorIndex, objectType}`; director −1 = not on the director (a prop).
+  - op 3 attach: `{carrierActorIndex, carrierBoneOff, actorIndex, nameOff}`; the name is the prop's own clip
+    (`mcjetpacka1` → `mcjetpacka1.anm`) or its node aligned to the bone (`ref_handle`, `center`).
+    Examples: jetpack (254) in Timmy's `ref_lhand`, gun (21) in Baz's `ref_rhand`, Timmy (583) on Baz's `ref_holsterb`,
+    lander engine flames (135) on `ref_engine1/2`.
+  - op 4 camera `{director, animOff, nodeOff}`; op 0x10 subtitle GText key; op 0x34 soundtrack stream (`f_start`);
+    op 0x2C voice clip name; op 0x25 fade; op 9 wait frame; op 5 yield.
+- The director image holds several NAM node tables sharing one header (one per performance tree):
+  - actor trees, usually parented to a mover node named after the actor, in varying spellings:
+    `Timmy_mover`, `lander_Moover`, `mover_Baz`, `Flack_mover` (actor `flak`), or anonymous (`mover`, `Moover`);
+  - a "Default" tree with `Camera01`, `Camera01.Target`, movers and props.
+  - Some typed actors have no tree in a given shot; some trees have no typed actor (the Mecc crew: `Baz_mover`,
+    `gordon_mover`, 47 nodes = the Meccaryn skeleton).
+- Key types seen in shots (tally over all story1/intro shots): position 4 (TCB, value at +48) and **5 (Bezier, value at
+  +32, verified: the first key equals the node default in every shot)**; rotation 7 (TCB quat) and 2 (look-at camera,
+  no keys); scale 5 (layout differs; ignored).
+- Camera01 positions are world coordinates (e.g. `story1_jetpack_1` near Timmy's tower). The opening shots fly the lander
+  at about 1400 units altitude toward the island. Target cameras face `Camera01.Target`.
+- Soundtrack `Stream/<World>/F_*.wav` (22050 Hz stereo PCM) carries music and dialogue for the whole cutscene
+  (F_Start.wav 64.7 s vs 62.2 s of shots).

@@ -457,3 +457,27 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
 - **Headless:**
   - Idle recording has ambient music (RMS 0.01–0.05).
   - At Timmy's tower with auto-aim: objectives 4/4 → "Mission 1a_1_timmy complete" → `f_jetpack` (40 s) plays → jetpack granted.
+
+### Cutscenes play in VR (2026-10-22, commits f85cb67, 23f52f7, 89ca00b)
+- **Parser:** shot files decoded (layout in FORMATS.md). The 2003-entry GText database supplies the subtitles; the game
+  font (`giantfont_eng.tga`, 63 glyphs measured from alpha) draws them.
+- **Bug found on the way:** Bezier position keys (type 5) were read at +4 (tangents ≈ 0), which put most shot cameras and
+  the flying lander at the world origin. The value is at +32. This only affected type-5 tracks (33 tracks in the shots;
+  character clips use TCB).
+- **Look-at cameras:** their rotation track (type 2) has no keys; facing the `.target` node gives the intended framing
+  (checked: camera→target agrees with the camera's −Z where its rotation is static, and frames the subject elsewhere).
+- **Actor trees:** matched in order: mover named after the actor (fuzzy, Levenshtein ≤ 1), a node named after it, then
+  the unclaimed tree that best fits the actor's skeleton. Untyped trees fitting the Meccaryn skeleton are shown as
+  Meccaryns (Baz and Gordon in the opening). The lander is skinned with its own `M_lander_l0.skn/.anm` (canopy, door,
+  chairs, stick are bones).
+- **Props (op 3):** placed on the carrier's bone each frame (jetpack, gun, Timmy on Baz's back, the flag).
+- **Presentation change (from the agreed fixed viewpoint):** many shots move the camera with the action (the opening
+  shots follow the lander at ~27 m/s). A fixed viewpoint lost the subject within a second. The viewer now travels with
+  the shot camera, translation only; the view never rotates by itself; fades between shots. Needs the user's comfort
+  verdict on the headset. The eye is kept 0.7 m above our terrain (story1_jetpack_2's low camera was inside a hill).
+- **Headless (contact sheets of every shot):**
+  - Opening (story1_start_1…12, 62 s): the lander flies to the island with Baz and Gordon in the cockpit; Baz drops;
+    flak and flags at the end ("YOU VICIOUS BASTARD!!!").
+  - Jetpack (story1_jetpack_1…8, 39 s): Timmy with the jetpack, Baz with gun and flag, Timmy on Baz's back.
+- **Known gaps:** prop alignment for static props (`ref_handle` on the gun) is not applied; actor facial/hand detail
+  depends on the shared skeleton; a few close cameras sit inside geometry at VR scale.

@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-21 22:45 local (missions and creatures)
+Last updated: 2026-10-22 (cutscenes)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -29,11 +29,10 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
-1. **Device test 17** (build 50c05f59…): mission 1a objectives (wrist pips), no jetpack until Timmy, completion soundtrack,
-   music (needs `Music` and `Stream` copied next to `Bin`).
-2. **Cutscenes:** decode the flk bytecode (camera and actor tracks, subtitles from GTextEnglish, soundtrack sync) and
-   present them in VR comfortably. Then mission 1b (Wax Smarties: destination-arrival triggers, carrying Smarties).
-3. **More of Story1:** Smarties' AI, Dactyl flight along the spline paths, Ripper nests; the world opcode table (B5).
+1. **Device test 18:** the opening cutscene (Baz's lander drop, 62 s) at mission start and the jetpack cutscene at 1a
+   completion: comfort of the travelling viewpoint, subtitle readability, skip with a trigger. (Headless verified only.)
+2. **Mission 1b** (Wax Smarties: destination-arrival triggers, carrying Smarties), Smartie AI.
+3. **More of Story1:** Dactyl flight along the spline paths, Ripper nests; the world opcode table (B5).
 
 ## Resume instructions
 1. `scripts/fetch_deps.sh` (or reuse `../toolchains`), then build host + APK (see CLAUDE.md).
