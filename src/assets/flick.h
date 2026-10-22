@@ -25,6 +25,8 @@ struct FlickActor {
     int parentActor = -1;      // op 3: attached to another actor's node
     std::string parentNode;    // e.g. "ref_lhand"
     std::string anim;          // op 3: the attached actor's own clip (e.g. "mcjetpacka1")
+    bool placed = false;       // op 0x20: a free actor at a world position (game units) and yaw
+    float px = 0, py = 0, pz = 0, pyaw = 0;
 };
 
 struct FlickShot {

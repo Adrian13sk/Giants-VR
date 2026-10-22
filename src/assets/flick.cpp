@@ -63,6 +63,13 @@ bool parseFlick(const uint8_t* d, size_t n, FlickShot& out, std::string* error) 
                 break;
             }
             case 4: out.cameraNode = cstr(d, n, word(2)); break;
+            case 0x20: {  // place a free actor: {f32 x, y, z, yaw, actorIdx} (world, game units)
+                const int idx = int(word(4));
+                auto f = [&](size_t i) { float v; const uint32_t u = word(i); std::memcpy(&v, &u, 4); return v; };
+                for (auto& a : out.actors)
+                    if (a.index == idx) { a.placed = true; a.px = f(0); a.py = f(1); a.pz = f(2); a.pyaw = f(3); }
+                break;
+            }
             case 0x10: {
                 const std::string key = cstr(d, n, word(0));
                 if (!key.empty()) {

@@ -102,7 +102,8 @@ bool CutscenePlayer::loadShot(const std::string& name) {
             sm = std::make_unique<SkinnedModel>();
             if (!sm->load(fs_, models_, r_, model, idleAnim)) sm.reset();
         }
-        const size_t needBones = sm ? std::max<size_t>(3, sm->boneCount() / 2) : 0;
+        // At least half the skeleton (small rigs such as the 5-bone hatch need all but a few).
+        const size_t needBones = sm ? std::max<size_t>(std::min<size_t>(3, sm->boneCount()), sm->boneCount() / 2) : 0;
         auto fits = [&](int t) { return !sm || sm->boneMatches(tables[size_t(t)].anim) >= needBones; };
         const std::string me = lower(a.node);
         int table = -1;
@@ -163,6 +164,28 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         a.node = tables[size_t(t)].owner.empty() ? "meccaryn" : tables[size_t(t)].owner;
         a.type = -2;
         place(a, "mc_l0", "mc_stand.anm", true);
+    }
+    // Free actors placed in the world (op 0x20): e.g. the wax-Smartie rig (type 1259) at the
+    // rock pillars in story1_save_sm_2a.
+    for (const auto& a : shot_.actors) {
+        if (!a.placed || a.parentActor >= 0 || a.type < 0) continue;
+        const std::string model = reg_.modelName(uint32_t(a.type));
+        if (model.empty()) continue;
+        Actor act;
+        act.info = a;
+        std::string anim = reg_.modelAnim(uint32_t(a.type));
+        if (anim.empty() && fs_.exists(model + ".anm")) anim = model + ".anm";
+        if (fs_.exists(model + ".skn") && !anim.empty()) {
+            auto sm = std::make_unique<SkinnedModel>();
+            if (sm->load(fs_, models_, r_, model, anim)) { act.clip = 0; act.skinned = std::move(sm); }
+        }
+        if (!act.skinned) act.model = models_.get(model + ".gbs", anim);
+        if (!act.skinned && !act.model) continue;
+        act.fixed = true;
+        act.xf = Mat4::translation(giantsToRuntime(a.px, a.py, a.pz)) *
+                 Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, a.pyaw * 3.14159265f / 180.0f));
+        LOGI("Cutscene %s: placed %s (type %d) at (%.0f %.0f %.0f)", name.c_str(), model.c_str(), a.type, a.px, a.py, a.pz);
+        actors_.push_back(std::move(act));
     }
     // Props carried by actors (op 3): the jetpack in Timmy's hand, Baz's gun, Timmy riding on
     // Baz's back, the lander's engine flames. Placed on the carrier's bone each frame.
@@ -257,11 +280,26 @@ void CutscenePlayer::update(float dt) {
     }
     for (auto& a : actors_) {
         if (a.parent >= 0) continue;  // props: second pass, once their carriers are posed
+        if (a.fixed) {
+            if (a.skinned) a.skinned->pose(r_, t);
+            continue;
+        }
         Mat4 base = Mat4::identity();
         if (a.mover >= 0) base = world_[size_t(a.mover)];
         if (a.skinned) {
             a.skinned->poseBlend(r_, a.clip, t, a.clip, t, 0.0f);
             a.xf = gameMatrixToRuntime(base);
+            // Feet on our ground: our terrain surface differs slightly from the one the shots
+            // were staged on, which sank standing actors' feet into hillsides. Only small offsets
+            // are corrected (actors deliberately below ground - in water, in the hatch - keep theirs).
+            if (groundHeight && a.info.type != 4) {
+                Vec3 mn, mx;
+                a.skinned->posedBounds(mn, mx);
+                const Vec4 c = a.xf * Vec4{0.5f * (mn.x + mx.x), mn.y, 0.5f * (mn.z + mx.z), 1.0f};
+                const float g = groundHeight(c.x, c.z);
+                const float sink = g - c.y;
+                if (sink > 0.02f && sink < 0.6f) a.xf = Mat4::translation({0, sink, 0}) * a.xf;
+            }
         } else {
             a.xf = gameMatrixToRuntime(a.node >= 0 ? world_[size_t(a.node)] : base);
         }

@@ -68,6 +68,8 @@ public:
     std::string nextMission() const;  // empty after the last one
     // World bounds of the first placed object using <model>.gbs (case-insensitive); false if none.
     bool objectBounds(const std::string& model, Vec3& mn, Vec3& mx) const;
+    // Object types not drawn (a cutscene shows its own animated copy, e.g. the hatch).
+    void setHiddenTypes(std::vector<int> types) { hiddenTypes_ = std::move(types); }
 
     struct Placed {
         const RenderModel* model;
@@ -95,7 +97,8 @@ private:
     AssetFS fs_;
     std::unique_ptr<ModelCache> cache_;
     std::vector<Placed> placed_;
-    struct WorldObject { const RenderModel* model; Mat4 transform; Vec3 centre; float radius; };
+    struct WorldObject { const RenderModel* model; Mat4 transform; Vec3 centre; float radius; uint32_t type = 0; };
+    std::vector<int> hiddenTypes_;
     std::vector<WorldObject> worldObjects_;
     ObjectRegistry registry_;
     MissionData mission_;

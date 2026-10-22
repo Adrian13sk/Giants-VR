@@ -186,7 +186,7 @@ bool parseAnm(const uint8_t* data, size_t size, AnmAnimation& a, std::string* er
             const uint32_t count = im.u32(tp + 8);
             if (!im.ok || count > 100000) return fail("bad track");
             n.keyType[t] = keyType;
-            if (std::getenv("GVR_ANM_KEYSTATS")) { std::fprintf(stderr, "KEYSTAT track %d type %d count %u node %s", t, keyType, count, n.name.c_str()); if (keyType == 5 && count) for (int j = 0; j < 16; ++j) std::fprintf(stderr, " %.2f", im.f32(im.u32(tp + 12) + 4 * j)); std::fprintf(stderr, "\n"); }
+            if (std::getenv("GVR_ANM_KEYSTATS")) { std::fprintf(stderr, "KEYSTAT track %d type %d count %u node %s", t, keyType, count, n.name.c_str()); if (keyType == 5 && count) for (int j = 0; j < 24; ++j) std::fprintf(stderr, " %.2f", im.f32(im.u32(tp + 12) + 4 * j)); std::fprintf(stderr, "\n"); }
             if (std::getenv("GVR_ANM_RAWKEYS") && t == std::atoi(std::getenv("GVR_ANM_RAWKEYS")))
                 for (uint32_t k = 0; k < std::min<uint32_t>(count, 2); ++k)
                     for (int j = 0; j < 16; ++j) n.rawKeys.push_back(im.f32(im.u32(tp + 12 + 4 * k) + 4 * j));
@@ -203,13 +203,13 @@ bool parseAnm(const uint8_t* data, size_t size, AnmAnimation& a, std::string* er
                     n.rotKeys.push_back({tick, stdQuat(im.f32(kp + vo), im.f32(kp + vo + 4), im.f32(kp + vo + 8),
                                                        im.f32(kp + vo + 12))});
                 } else {
-                    // Type 5 (Bezier position, used by cutscene cameras): {tick, inTan, outTan, pad,
-                    // value, ...} - value at +32, verified (first key == node default) in every
-                    // story1 shot. Type-5 scale tracks don't follow that layout (values ~0 or a
-                    // negative mirror factor) and are ignored. Type 6 is unverified (+4 assumed).
+                    // Type 5 (Bezier; cutscene cameras, movers and props): {tick, inTan, outTan, pad,
+                    // value, ...} - value at +32, verified for positions (first key == node default
+                    // in every story1 shot). Scale tracks use it to pop props in and out (a flag
+                    // at 0.01 until Baz plants it; -1 = mirrored). Type 6 is unverified (+4).
                     size_t vo;
                     if (keyType == 4) vo = 48;
-                    else if (keyType == 5 && t == 0) vo = 32;
+                    else if (keyType == 5) vo = 32;  // position and scale alike
                     else if (keyType == 6) vo = 4;
                     else { ++a.unsupportedTracks; break; }
                     AnmKeyVec3 key{tick, {im.f32(kp + vo), im.f32(kp + vo + 4), im.f32(kp + vo + 8)}};

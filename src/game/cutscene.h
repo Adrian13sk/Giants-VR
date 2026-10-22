@@ -8,6 +8,7 @@
 // Shots chain through the "next shot" name in each file until the cutscene ends.
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,6 +27,8 @@ Mat4 gameMatrixToRuntime(const Mat4& m);
 
 class CutscenePlayer {
 public:
+    // Terrain height (runtime metres) at (x, z), for keeping actors' feet out of the ground.
+    std::function<float(float, float)> groundHeight;
     CutscenePlayer(const AssetFS& fs, ModelCache& models, Renderer& r, const ObjectRegistry& reg)
         : fs_(fs), models_(models), r_(r), reg_(reg) {}
     // Starts the cutscene at `firstShot` (e.g. "story1_jetpack_1"). False if it can't load.
@@ -66,6 +69,7 @@ private:
         std::string parentNode, align;  // carrier bone; own node aligned to it ("ref_handle")
         Mat4 xf = Mat4::identity();  // runtime transform this frame
         bool visible = true;
+        bool fixed = false;  // placed in the world (op 0x20): xf set once
     };
     bool loadShot(const std::string& name);
     void updateProps(float t);

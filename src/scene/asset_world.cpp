@@ -397,7 +397,7 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
         const Vec3 lc = (m->boundsMin + m->boundsMax) * 0.5f;
         const Vec4 wc = xf * Vec4{lc.x, lc.y, lc.z, 1.0f};
         const float radius = 0.5f * length(m->boundsMax - m->boundsMin) * p.scale;
-        worldObjects_.push_back({m, xf, Vec3{wc.x, wc.y, wc.z}, radius});
+        worldObjects_.push_back({m, xf, Vec3{wc.x, wc.y, wc.z}, radius, p.type});
         // Solid unless it is vegetation the original lets you walk through.
         const std::string ln = toLower(name);
         bool soft = false;
@@ -470,6 +470,7 @@ void AssetWorld::render(Renderer& r) {
     const Vec3 eye = r.currentView().eyePosition;
     const float maxDist = r.environment().fogFar;
     for (const auto& o : worldObjects_) {
+        if (!hiddenTypes_.empty() && std::find(hiddenTypes_.begin(), hiddenTypes_.end(), int(o.type)) != hiddenTypes_.end()) continue;
         // Cull objects outside the view frustum or fully fogged out.
         if (length(o.centre - eye) - o.radius > maxDist || !r.sphereVisible(o.centre, o.radius)) {
             r.countCulled();

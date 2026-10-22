@@ -267,6 +267,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             initCharacters(w, mc);
             initMission();
             cutscene_ = std::make_unique<CutscenePlayer>(w->fs(), *mc, renderer_, w->registry());
+            cutscene_->groundHeight = [w](float x, float z) {
+                float y;
+                return w->terrain().heightAt(x, z, y) ? y : -1e9f;
+            };
             text_.init(w->fs(), renderer_);
             {
                 std::vector<uint8_t> tb;
@@ -1725,10 +1729,11 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     v.projection = Mat4::projectionFov(eye.fovLeft, eye.fovRight, eye.fovUp, eye.fovDown, 0.05f, 0.0f);
     v.eyePosition = eyeWorld.position;
     renderer_.beginView(v, eye.width, eye.height, true);
-    if (assetWorld_ && assetWorld_->loaded()) assetWorld_->render(renderer_);
     const bool cut = cutsceneActive();
     std::vector<int> cutTypes;
     if (cut) cutTypes = cutscene_->actorTypes();
+    if (assetWorld_) assetWorld_->setHiddenTypes(cutTypes);
+    if (assetWorld_ && assetWorld_->loaded()) assetWorld_->render(renderer_);
     if (playMode_ && playerModel_ && !cut) playerModel_->render(renderer_, bodyXf_);
     if (playMode_ && gunValid_ && !cut) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
     if (rocketModel_)
