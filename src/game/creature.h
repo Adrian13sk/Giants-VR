@@ -82,13 +82,17 @@ struct CreatureParams {
     float spitAt = 0.55f;         // fraction of the spit clip when the ball leaves the mouth
     float spitSpeed = 15.0f;      // m/s horizontal launch speed
     float spitGravity = 12.0f;    // m/s^2 on the ball (a visible lob)
-    float spitDamage[3] = {0.0f, 8.0f, 15.0f};   // direct-hit damage by size (splash falls off)
-    float spitRadius[3] = {0.0f, 1.8f, 2.6f};    // m: blast radius by size
+    float spitDamage[3] = {0.0f, 10.0f, 28.0f};  // direct-hit damage by size (splash falls off): the big blue spit hurts (device test 22)
+    float spitRadius[3] = {0.0f, 1.8f, 3.2f};    // m: blast radius by size
     float burstChance = 0.4f;     // a killed Ripper bursts instead of collapsing
     float maxSlope = 1.19f;       // rise/run, as for the player
     float maxStepUp = 0.6f;
     float turnRate = 5.0f;        // rad/s
     float radius = 0.45f, height = 1.0f;  // capsule at scale 1 (m)
+    // Hit box at scale 1 (m, model frame: x right, y up from the feet, -z forward), from the
+    // Ripper model's bounds; used for shots instead of the capsule once set (long low bodies).
+    bool hasBox = false;
+    Vec3 boxMin{-0.45f, 0.0f, -0.45f}, boxMax{0.45f, 1.0f, 0.45f};
     float crossfade = 0.15f;
     float corpseTime = 8.0f;
     bool corpsesPersist = false;  // bodies stay until eaten or gibbed

@@ -61,4 +61,56 @@ void DestructionDirector::update(float dt, std::vector<DestructEvent>& events) {
     }
 }
 
+// Periodic value noise (period `cells` across the tile), smoothly interpolated.
+static float tileNoise(float x, float y, int cells, uint32_t seed) {
+    auto h = [&](int i, int j) {
+        i = ((i % cells) + cells) % cells;
+        j = ((j % cells) + cells) % cells;
+        uint32_t v = uint32_t(i) * 374761393u + uint32_t(j) * 668265263u + seed * 2246822519u;
+        v = (v ^ (v >> 13)) * 1274126177u;
+        return float((v ^ (v >> 16)) & 0xffffu) / 65535.0f;
+    };
+    const float fx = x * float(cells), fy = y * float(cells);
+    const int ix = int(std::floor(fx)), iy = int(std::floor(fy));
+    float tx = fx - float(ix), ty = fy - float(iy);
+    tx = tx * tx * (3 - 2 * tx);
+    ty = ty * ty * (3 - 2 * ty);
+    const float a = h(ix, iy), b = h(ix + 1, iy), c = h(ix, iy + 1), d = h(ix + 1, iy + 1);
+    return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * ty;
+}
+
+void makeBurnTextures(int size, uint32_t seed, std::vector<uint8_t> charTex[3], std::vector<uint8_t>& embers) {
+    const float thresholds[3] = {0.66f, 0.52f, 0.36f};  // noise above this is charred: coverage grows
+    for (int k = 0; k < 3; ++k) charTex[k].assign(size_t(size) * size_t(size) * 4, 0);
+    embers.assign(size_t(size) * size_t(size) * 4, 0);
+    for (int y = 0; y < size; ++y)
+        for (int x = 0; x < size; ++x) {
+            const float u = float(x) / float(size), v = float(y) / float(size);
+            const float n = 0.55f * tileNoise(u, v, 4, seed) + 0.3f * tileNoise(u, v, 8, seed + 1) + 0.15f * tileNoise(u, v, 32, seed + 2);
+            const float grain = tileNoise(u, v, 64, seed + 3);
+            const size_t o = (size_t(y) * size_t(size) + size_t(x)) * 4;
+            for (int k = 0; k < 3; ++k) {
+                const float a = std::max(0.0f, std::min(1.0f, (n - thresholds[k]) / 0.06f + 0.5f));
+                const float dark = 0.55f + 0.45f * grain;  // soot grain
+                charTex[k][o + 0] = uint8_t(24.0f * dark);
+                charTex[k][o + 1] = uint8_t(17.0f * dark);
+                charTex[k][o + 2] = uint8_t(12.0f * dark);
+                charTex[k][o + 3] = uint8_t(std::min(1.0f, a * (0.85f + 0.15f * grain)) * 255.0f);
+            }
+            // Embers: a thin hot band along the heavy char's edge, and specks inside it.
+            const float band = std::max(0.0f, 1.0f - std::fabs(n - thresholds[1]) / 0.022f);
+            const float speck = n > thresholds[1] && grain > 0.82f ? (grain - 0.82f) / 0.18f : 0.0f;
+            const float e = std::min(1.0f, band + speck);
+            embers[o + 0] = uint8_t(255.0f * e);
+            embers[o + 1] = uint8_t(105.0f * e * e);
+            embers[o + 2] = uint8_t(20.0f * e * e * e);
+            embers[o + 3] = 255;
+        }
+}
+
+float burnLevel(const Destructible& d) {
+    if (!d.alive()) return 1.0f;
+    return d.maxHp > 0 ? std::max(0.0f, std::min(1.0f, 1.0f - d.hp / d.maxHp)) : 0.0f;
+}
+
 }  // namespace gvr

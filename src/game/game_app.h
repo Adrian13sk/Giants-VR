@@ -201,7 +201,7 @@ private:
     const RenderModel* launcherModel_ = nullptr;
     // Ref_handle / Ref_nozzle01 of each weapon (game units, model frame; defaults = measured values).
     Vec3 gunHandle_{-0.01f, 1.23f, -0.71f}, gunMuzzle_{-0.01f, -1.84f, 0.33f};
-    Vec3 launcherHandle_{-0.13f, 2.25f, 1.16f}, launcherMuzzle_{0.0f, -4.58f, 0.03f};
+    Vec3 launcherHandle_{0.0f, 3.85f, -0.45f}, launcherMuzzle_{0.0f, -4.58f, 0.03f};
     const RenderModel* rocketModel_ = nullptr;
     bool hasLauncher_ = false;
     int weaponSel_ = 0;  // 0 gun, 1 launcher
@@ -231,6 +231,8 @@ private:
     int wave_ = 0;
     TextureId whiteTex_ = 0;
     uint32_t rng_ = 987654321u;
+    TextureId burnTexIds_[4] = {};  // char light/medium/heavy, embers (procedural)
+    void updateBurn();
     float frand() { rng_ = rng_ * 1664525u + 1013904223u; return float(rng_ >> 8) / float(1u << 24); }
     void spawnWave();
     // Mission characters: Rippers (CreatureDirector AI) and ambient ones (looping default clip).

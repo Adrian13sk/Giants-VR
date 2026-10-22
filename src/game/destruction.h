@@ -7,6 +7,7 @@
 // resistances to bullets and blasts and the timings.
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include "core/math.h"
@@ -50,5 +51,12 @@ public:
     // at first, accelerating like a falling trunk.
     static float fallAngle(float t, float duration);
 };
+
+// Our own (procedural, tileable) damage overlays: char blotches of growing coverage (light,
+// medium, heavy: dark brown-black with soft alpha edges) and an ember texture (glowing orange
+// where the char's edge burns, black elsewhere, for additive drawing). size x size RGBA each.
+void makeBurnTextures(int size, uint32_t seed, std::vector<uint8_t> charTex[3], std::vector<uint8_t>& embers);
+// Burn level 0..1 shown on a destructible: its lost share of hit points; collapsed = 1.
+float burnLevel(const Destructible& d);
 
 }  // namespace gvr

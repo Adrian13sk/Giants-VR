@@ -47,6 +47,27 @@ void GameApp::initDestruction(AssetWorld* w, ModelCache* mc) {
         ++counts[int(kind)];
     }
     downTime_.assign(destruct_.items.size(), 0.0f);
+    // Damage look: the data's scorched texture variants ("<texture>_d": Smartie canopies, stone)
+    // and our char/ember overlays.
+    if (!burnTexIds_[0]) {
+        std::vector<uint8_t> charTex[3], embers;
+        makeBurnTextures(128, 7u, charTex, embers);
+        for (int k = 0; k < 3; ++k) burnTexIds_[k] = renderer_.uploadTexture(128, 128, charTex[k].data(), true, true);
+        burnTexIds_[3] = renderer_.uploadTexture(128, 128, embers.data(), true, true);
+    }
+    w->setBurnTextures(burnTexIds_[0], burnTexIds_[1], burnTexIds_[2], burnTexIds_[3]);
+    size_t variants = 0;
+    for (const auto& d : destruct_.items) {
+        auto& o = objs[size_t(d.object)];
+        o.damagedTex.assign(o.model->parts.size(), 0);
+        for (size_t p = 0; p < o.model->parts.size(); ++p) {
+            const std::string& tn = o.model->parts[p].textureName;
+            if (!tn.empty() && w->fs().exists(tn + "_d.tga")) { o.damagedTex[p] = mc->texture(tn + "_d"); ++variants; }
+        }
+        o.burn = o.glow = 0;
+        o.damaged = false;
+    }
+    LOGI("Damage textures: %zu scorched variants from the data", variants);
     if (debrisStone_.empty()) {
         for (const char* n : {"EFX_Stone_debri_1.gbs", "EFX_debri1.gbs", "EFX_debri2.gbs", "EFX_debri_3.gbs"})
             if (const RenderModel* m = mc->get(n, "", true)) debrisStone_.push_back(m);
@@ -387,6 +408,30 @@ void GameApp::renderFx() {
         fp.texture = fxTex_[k];
         if (fire) { fp.blend = BlendMode::Additive; fp.noFog = true; }
         fxBatch_[k].draw(renderer_, fp);
+    }
+}
+
+// The damage look of each destructible: scorched textures once damaged, char spreading with the
+// hit points lost, embers glowing while badly damaged and for a while after it fell.
+void GameApp::updateBurn() {
+    if (!assetWorld_) return;
+    auto& objs = assetWorld_->worldObjects();
+    const float t = float(time_);
+    for (size_t k = 0; k < destruct_.items.size(); ++k) {
+        const Destructible& d = destruct_.items[k];
+        if (d.object < 0 || size_t(d.object) >= objs.size()) continue;
+        auto& o = objs[size_t(d.object)];
+        const float b = burnLevel(d);
+        const bool flammable = d.kind != DestructKind::Rock;
+        o.burn = flammable ? b : 0.5f * b;  // stone only scorches
+        o.damaged = d.stage >= 1;
+        float g = 0.0f;
+        if (flammable && b > 0.45f) {
+            const float hot = d.alive() ? (b - 0.45f) / 0.55f : std::max(0.0f, 1.0f - d.t / 12.0f);  // cools after the fall
+            const float flicker = 0.6f + 0.25f * std::sin(t * 7.3f + float(k)) + 0.15f * std::sin(t * 17.0f + 2.0f * float(k));
+            g = 0.6f * std::min(1.0f, hot) * flicker;
+        }
+        o.glow = g;
     }
 }
 

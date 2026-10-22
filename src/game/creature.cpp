@@ -508,6 +508,39 @@ bool CreatureDirector::raycast(const Vec3& o, const Vec3& d, float maxDist, floa
     for (size_t i = 0; i < creatures.size(); ++i) {
         const Creature& c = creatures[i];
         if (c.state == CreatureState::Dead) continue;
+        if (params.hasBox) {
+            // Oriented box: the ray in the creature's frame (unscaled), slab test.
+            const Quat inv = Quat::fromAxisAngle({0, 1, 0}, c.yaw).conjugate();
+            const float k = 1.0f / std::max(0.05f, c.scale);
+            const Vec3 lo = inv.rotate(o - c.pos) * k, ld = inv.rotate(d) * k;
+            float t0 = 0.0f, t1 = best;
+            int axis = -1;
+            float sign = 1;
+            bool miss = false;
+            const float lo3[3] = {lo.x, lo.y, lo.z}, ld3[3] = {ld.x, ld.y, ld.z};
+            const float mn3[3] = {params.boxMin.x, params.boxMin.y, params.boxMin.z}, mx3[3] = {params.boxMax.x, params.boxMax.y, params.boxMax.z};
+            for (int a = 0; a < 3 && !miss; ++a) {
+                if (std::fabs(ld3[a]) < 1e-8f) {
+                    if (lo3[a] < mn3[a] || lo3[a] > mx3[a]) miss = true;
+                    continue;
+                }
+                float ta = (mn3[a] - lo3[a]) / ld3[a], tb = (mx3[a] - lo3[a]) / ld3[a];
+                float sgn = -1;
+                if (ta > tb) { std::swap(ta, tb); sgn = 1; }
+                if (ta > t0) { t0 = ta; axis = a; sign = sgn; }
+                t1 = std::min(t1, tb);
+                if (t0 > t1) miss = true;
+            }
+            if (!miss && axis >= 0 && t0 < best) {
+                best = t0;
+                index = int(i);
+                Vec3 nl{0, 0, 0};
+                (axis == 0 ? nl.x : axis == 1 ? nl.y : nl.z) = sign;
+                normal = Quat::fromAxisAngle({0, 1, 0}, c.yaw).rotate(nl);
+                hit = true;
+            }
+            continue;
+        }
         const float r = params.radius * c.scale, h = params.height * c.scale;
         const Vec3 a = c.pos + Vec3{0, r, 0}, b = c.pos + Vec3{0, std::max(r, h - r), 0};
         float th;

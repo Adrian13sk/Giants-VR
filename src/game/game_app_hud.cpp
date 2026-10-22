@@ -126,7 +126,7 @@ void GameApp::hudWeaponStrip() {
     const float a = in * out;
     const float drop = 0.035f * (1.0f - in) * (1.0f - in);
     HudFrame f;
-    f.o = subHead_ + subRot_.rotate(Vec3{0, 0.17f + drop, -0.9f});
+    f.o = rig_.toWorld(lastInput_.head).position + subRot_.rotate(Vec3{0, 0.17f + drop, -0.9f});
     f.r = subRot_.rotate(Vec3{1, 0, 0});
     f.u = subRot_.rotate(Vec3{0, 1, 0});
     const float W = 0.30f, H = W / 4.0f;
@@ -193,7 +193,7 @@ void GameApp::buildHud() {
             // Third person: head-locked at the lower left of the view.
             const float k = 2.2f;
             HudFrame f;
-            f.o = subHead_ + subRot_.rotate(Vec3{-0.33f, -0.24f, -0.9f});
+            f.o = rig_.toWorld(lastInput_.head).position + subRot_.rotate(Vec3{-0.33f, -0.24f, -0.9f});
             f.r = subRot_.rotate(Vec3{k, 0, 0});
             f.u = subRot_.rotate(Vec3{0, k, 0});
             hudStatus(f);
@@ -269,8 +269,14 @@ void GameApp::initPickups(ModelCache* mc) {
         LOGI("Syringe model %.2f x %.2f x %.2f m", s.x, s.y, s.z);
     }
     if (!assetWorld_) return;
-    // Placed health pickups (object class 37, mc_pickup_health) become live pickups.
     auto& objs = assetWorld_->worldObjects();
+    if (const char* dump = std::getenv("GVR_DUMP_OBJECTS"))  // test hook: list objects whose name contains this
+        for (const auto& o : objs)
+            if (o.name.find(dump) != std::string::npos)
+                LOGI("object %s at game (%.0f, %.0f, %.0f) r %.1f m yaw-ish %.2f", o.name.c_str(), -o.placement.m[12] / gGameUnitsToMeters,
+                     o.placement.m[14] / gGameUnitsToMeters, o.placement.m[13] / gGameUnitsToMeters, o.radius,
+                     std::atan2(o.placement.m[8], o.placement.m[10]));
+    // Placed health pickups (object class 37, mc_pickup_health) become live pickups.
     const ObjectRegistry& reg = assetWorld_->registry();
     for (auto& o : objs) {
         const ObjectType* t = reg.type(o.type);

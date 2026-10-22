@@ -170,6 +170,28 @@ static int cmdModel(const char* dir, const char* name) {
     return 0;
 }
 
+// Triangle dump (one vertex per line: sub index, game-unit position, uv) for offline views.
+static int cmdTris(const char* dir, const char* name) {
+    AssetFS fs;
+    fs.mountAllArchives(dir);
+    std::vector<uint8_t> d;
+    if (!fs.read(name, d)) { std::fprintf(stderr, "not found\n"); return 1; }
+    GbsModel m;
+    std::string err;
+    if (!parseGbs(d.data(), d.size(), m, &err)) { std::fprintf(stderr, "%s\n", err.c_str()); return 1; }
+    for (size_t si = 0; si < m.subObjects.size(); ++si) {
+        const auto& s = m.subObjects[si];
+        std::printf("# sub %zu %s\n", si, s.texture.c_str());
+        for (uint32_t di : s.indices) {
+            if (di >= m.displayToPosition.size()) continue;
+            const auto& p = m.positions[m.displayToPosition[di]];
+            const float u = di < m.uvs.size() ? m.uvs[di][0] : 0, v = di < m.uvs.size() ? m.uvs[di][1] : 0;
+            std::printf("%zu %.4f %.4f %.4f %.4f %.4f\n", si, p[0], p[1], p[2], u, v);
+        }
+    }
+    return 0;
+}
+
 // Rest-pose consistency: rebuild GBS positions from SKN clusters posed by the animation's
 // default node transforms; bones whose animation pose equals the export pose must match exactly.
 // Prints duration and root-motion of animations: per-node position-key travel for nodes that
@@ -438,6 +460,7 @@ int main(int argc, char** argv) {
     if (argc >= 5 && !std::strcmp(argv[1], "extract")) return cmdExtract(argv[2], argv[3], argv[4]);
     if (argc >= 3 && !std::strcmp(argv[1], "validate")) return cmdValidate(argv[2]);
     if (argc >= 4 && !std::strcmp(argv[1], "model")) return cmdModel(argv[2], argv[3]);
+    if (argc >= 4 && !std::strcmp(argv[1], "tris")) return cmdTris(argv[2], argv[3]);
     std::fprintf(stderr, "usage: gzptool list|extract|validate|model ...\n");
     return 2;
 }

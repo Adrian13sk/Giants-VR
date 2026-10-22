@@ -104,11 +104,21 @@ public:
         float scale = 1;
         int collision = -1;   // CollisionWorld index (-1: not solid)
         bool hidden = false;
+        // Damage look (set by the game layer): the data's scorched "<texture>_d" variants
+        // swapped in, a char overlay of growing coverage (burn 0..1) and glowing embers.
+        bool damaged = false;
+        std::vector<TextureId> damagedTex;  // per model part (0 = no variant)
+        float burn = 0, glow = 0;
     };
+    // Char overlay textures of growing coverage (light, medium, heavy) and the ember glow.
+    void setBurnTextures(TextureId light, TextureId medium, TextureId heavy, TextureId embers) {
+        burnTex_[0] = light; burnTex_[1] = medium; burnTex_[2] = heavy; emberTex_ = embers;
+    }
     std::vector<WorldObject>& worldObjects() { return worldObjects_; }
     CollisionWorld& collisionMutable() { return collision_; }
 
 private:
+    TextureId burnTex_[3] = {}, emberTex_ = 0;
     bool loadWorld(const std::string& name, Renderer& r);
     void placeShowcase(const Vec3& centre);
     void placeWorldObjects(const std::string& missionName);

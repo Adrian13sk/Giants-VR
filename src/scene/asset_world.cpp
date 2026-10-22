@@ -560,13 +560,52 @@ void AssetWorld::render(Renderer& r, bool reflection) {
             r.countCulled();
             continue;
         }
-        for (const auto& part : o.model->parts) {
+        for (size_t pi = 0; pi < o.model->parts.size(); ++pi) {
+            const auto& part = o.model->parts[pi];
             DrawParams dp;
             dp.texture = part.texture;
+            if (o.damaged && pi < o.damagedTex.size() && o.damagedTex[pi]) dp.texture = o.damagedTex[pi];
             dp.blend = part.blend;
             if (part.glass) { dp.blend = BlendMode::AlphaBlend; dp.tint.w *= 0.3f; }
             dp.unlit = !part.lit;
+            if (part.blend == BlendMode::AlphaTest && o.burn > 0.0f) {
+                // Cut-out parts (leaves, fronds) can't take the overlay: they wither and blacken.
+                const float b = std::min(1.0f, o.burn);
+                dp.tint = {1.0f - 0.72f * b, 1.0f - 0.8f * b, 1.0f - 0.88f * b, dp.tint.w};
+            }
             r.draw(part.mesh, o.transform, dp);
+        }
+        if (o.burn > 0.01f && burnTex_[0] && !reflection) {
+            // Char spreading over the surface: the previous coverage level in full, the next one
+            // fading in (same mesh again, depth-equal, alpha blended); then the embers.
+            const float b = std::min(0.999f, o.burn) * 3.0f;
+            const int level = int(b);
+            const float frac = b - float(level);
+            for (const auto& part : o.model->parts) {
+                if (part.glass || part.blend != BlendMode::Opaque) continue;
+                DrawParams dp;
+                dp.blend = BlendMode::AlphaBlend;
+                dp.depthWrite = false;
+                dp.unlit = !part.lit;
+                dp.doubleSided = false;
+                if (level > 0) {
+                    dp.texture = burnTex_[level - 1];
+                    r.draw(part.mesh, o.transform, dp);
+                }
+                dp.texture = burnTex_[level];
+                dp.tint.w = frac;
+                r.draw(part.mesh, o.transform, dp);
+                if (o.glow > 0.01f && emberTex_) {
+                    DrawParams gp;
+                    gp.texture = emberTex_;
+                    gp.blend = BlendMode::Additive;
+                    gp.depthWrite = false;
+                    gp.unlit = true;
+                    gp.noFog = true;
+                    gp.tint = {o.glow, o.glow, o.glow, 1.0f};
+                    r.draw(part.mesh, o.transform, gp);
+                }
+            }
         }
     }
     for (const auto& p : placed_) {

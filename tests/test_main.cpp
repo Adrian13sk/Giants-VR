@@ -292,19 +292,41 @@ static void testPlayer() {
     CHECK(jp.horizontalSpeed() < 1.0f);  // not instant
     for (int i = 0; i < 72 * 3; ++i) jp.update(1.0f / 72.0f, j);
     CHECK(jp.horizontalSpeed() > 8.0f && jp.horizontalSpeed() <= jp.params.jetAirSpeed + 1e-3f);
-    CHECK(jp.thrusting() && jp.fuel() < 0.45f);
-    for (int i = 0; i < 72 * 2 + 10; ++i) jp.update(1.0f / 72.0f, j);
+    CHECK(jp.thrusting() && jp.fuel() < 1.0f - 3.0f / jp.params.fuelSeconds + 0.05f);
+    for (int i = 0; i < int(72 * (jp.params.fuelSeconds - 3.0f)) + 20; ++i) jp.update(1.0f / 72.0f, j);
     CHECK(!jp.thrusting() && jp.fuel() == 0.0f && jp.overheated() && jp.takeOverheat());  // burnt dry: overheated
     // Falling without thrust: no air control, air friction slows him.
     const float hs0 = jp.horizontalSpeed();
-    for (int i = 0; i < 36; ++i) jp.update(1.0f / 72.0f, j);
+    for (int i = 0; i < 72; ++i) jp.update(1.0f / 72.0f, j);
     CHECK(jp.horizontalSpeed() < hs0 * 0.85f);
     j.jet = false;
     float impact = 0;
     bool stunned = false;
-    for (int i = 0; i < 72 * 7; ++i) { jp.update(1.0f / 72.0f, j); impact = std::max(impact, jp.takeImpact()); stunned |= jp.stunned(); }
+    for (int i = 0; i < 72 * 12; ++i) { jp.update(1.0f / 72.0f, j); impact = std::max(impact, jp.takeImpact()); stunned |= jp.stunned(); }
     CHECK(impact > jp.params.stunSpeed && stunned);  // a hard landing from that height
     CHECK(jp.fuel() > 0.99f && jp.onGround && !jp.overheated());  // refilled on the ground
+    // Landing clips: a 1 m drop keeps the ground clips (no air clip, no landing); a 4 m drop plays
+    // the soft landing once (held on its last frame, not looped), without a stun.
+    for (int k = 0; k < 2; ++k) {
+        PlayerController dp;
+        dp.groundHeight = [](float, float) { return 0.0f; };
+        dp.oneShot[int(PlayerAnim::Land)] = 0.6f;
+        dp.teleport({0, 0, 0}, 0.0f);
+        dp.position.y = k == 0 ? 1.0f : 4.0f;
+        dp.onGround = false;
+        PlayerInput none;
+        bool air = false, landed = false, stun = false;
+        float maxLandTime = 0;
+        for (int i = 0; i < 72 * 2; ++i) {
+            dp.update(1.0f / 72.0f, none);
+            air |= dp.anim() == PlayerAnim::Hover || dp.anim() == PlayerAnim::Fall;
+            landed |= dp.anim() == PlayerAnim::Land;
+            stun |= dp.stunned();
+            if (dp.anim() == PlayerAnim::Land) maxLandTime = std::max(maxLandTime, dp.animTime());
+        }
+        if (k == 0) CHECK(!air && !landed && !stun);
+        else { CHECK(air && landed && !stun && maxLandTime < 0.6f); if (!(air && landed && !stun)) std::printf("air %d landed %d stun %d t %.2f\n", air, landed, stun, maxLandTime); }
+    }
     // Angle wrap helper.
     CHECK(near(angleDelta(3.0f, -3.0f), 2.0f * kPi - 6.0f, 1e-4f));
 }
@@ -1081,7 +1103,35 @@ static void testHudGauge() {
     CHECK(pc.horizontalSpeed() < 0.5f * pc.params.runSpeed);
     for (int i = 0; i < 10; ++i) pc.update(0.1f, in);
     CHECK(!pc.inAction() && pc.anim() == PlayerAnim::Run);
-    std::printf("hud gauge / player action ok\n");
+    // Ripper hit box: a long low body, turned 90 degrees; shots along its length hit its flank.
+    CreatureDirector rb;
+    rb.params.hasBox = true;
+    rb.params.boxMin = {-0.6f, 0.0f, -1.0f};
+    rb.params.boxMax = {0.6f, 1.0f, 1.0f};
+    rb.spawn({0, 0, 0}, 0.5f * kPi, 1.0f, CreatureSize::Medium, 40.0f, false);
+    float rt = 0;
+    Vec3 rn;
+    int ri = -1;
+    // Turned 90 deg, the body's length lies along x: a ray down +z 0.9 m off-centre in x hits.
+    CHECK(rb.raycast({0.9f, 0.5f, -5.0f}, {0, 0, 1}, 50.0f, rt, rn, ri) && ri == 0 && near(rt, 4.4f, 1e-3f) && rn.z < -0.9f);
+    CHECK(!rb.raycast({0.0f, 1.3f, -5.0f}, {0, 0, 1}, 50.0f, rt, rn, ri));   // over its back
+    CHECK(!rb.raycast({1.2f, 0.5f, -5.0f}, {0, 0, 1}, 50.0f, rt, rn, ri));   // past its tail
+    // Burn overlays: coverage grows light < medium < heavy; embers exist; burn level follows hp.
+    std::vector<uint8_t> ct[3], emb;
+    makeBurnTextures(64, 7u, ct, emb);
+    double cov[3] = {};
+    for (int k = 0; k < 3; ++k)
+        for (size_t i = 3; i < ct[k].size(); i += 4) cov[k] += ct[k][i];
+    CHECK(cov[0] > 0 && cov[0] < cov[1] && cov[1] < cov[2]);
+    size_t hot = 0;
+    for (size_t i = 0; i < emb.size(); i += 4) hot += emb[i] > 128;
+    CHECK(hot > 0 && hot < emb.size() / 4 / 2);
+    Destructible bd;
+    bd.hp = 25; bd.maxHp = 100;
+    CHECK(near(burnLevel(bd), 0.75f, 1e-4f));
+    bd.stage = 3;
+    CHECK(burnLevel(bd) == 1.0f);
+    std::printf("hud gauge / player action / hit box / burn ok\n");
 }
 
 int main() {

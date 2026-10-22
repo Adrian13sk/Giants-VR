@@ -63,11 +63,20 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         auto m = std::make_unique<SkinnedModel>();
         if (!m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, base, "mc_stand.anm")) return nullptr;
         {
-            const char* clips[] = {"mc_stand.anm", "mc_run.anm", "mc_thrust.anm", "mc_hover.anm", "mc_land_soft.anm", "mc_sidestep.anm",
-                                   "mc_skid.anm", "mc_hover_turbo_back.anm", "mc_fly_left.anm", "mc_fly_right.anm", "mc_hover_back.anm",
+            const char* clips[] = {"mc_stand.anm", "mc_run.anm", "mc_hover.anm", "mc_hover.anm", "mc_land_soft.anm", "mc_sidestep.anm",
+                                   "mc_skid.anm", "mc_thrust.anm", "mc_fly_left.anm", "mc_fly_right.anm", "mc_hover_back.anm",
                                    "mc_land_hard.anm", "mc_fly_cycle.anm", "mc_health_pup.anm"};
             static_assert(sizeof(clips) / sizeof(clips[0]) == size_t(PlayerAnim::Count), "a clip per PlayerAnim");
             for (int i = 1; i < int(PlayerAnim::Count); ++i) clip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
+            if (first) {
+                for (int i = 0; i < int(PlayerAnim::Count); ++i) LOGI("Player clip %d %s: %.2f s", i, clips[i], m->animDuration(clip_[i]));
+                // Landings and the injection play once. The stun lasts as long as the hard landing.
+                for (PlayerAnim a : {PlayerAnim::Land, PlayerAnim::LandHard, PlayerAnim::Inject})
+                    player_.oneShot[int(a)] = m->animDuration(clip_[int(a)]);
+                if (player_.oneShot[int(PlayerAnim::LandHard)] > 0.5f) player_.params.stunSeconds = player_.oneShot[int(PlayerAnim::LandHard)];
+                if (player_.oneShot[int(PlayerAnim::Land)] > 0.2f) player_.params.landSeconds = player_.oneShot[int(PlayerAnim::Land)];
+            }
+            if (const char* ic = std::getenv("GVR_IDLE_CLIP")) clip_[0] = std::max(0, m->addAnimation(assetWorld_->fs(), ic));  // test hook
             // Death clips: falling dead, going under in the water.
             const int dieA = m->addAnimation(assetWorld_->fs(), "mc_die.anm");
             const int dieB = m->addAnimation(assetWorld_->fs(), "mc_drowning_die.anm");
@@ -167,6 +176,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 ref("mc_gun.anm", "ref_nozzle01", gunMuzzle_);
                 ref("mc_launcher.anm", "ref_handle", launcherHandle_);
                 ref("mc_launcher.anm", "ref_nozzle01", launcherMuzzle_);
+                // Held by its wooden pistol grip (the shaft running down and back to the knob at
+                // the rear), not at Ref_handle: that sits on the knuckles modelled over the neck
+                // (offline side view of mc_launcher_l0; user report after device test 22).
+                launcherHandle_ = {0.0f, 3.85f, -0.45f};
                 LOGI("Weapon refs: gun handle (%.2f %.2f %.2f) muzzle (%.2f %.2f %.2f); launcher handle (%.2f %.2f %.2f) muzzle (%.2f %.2f %.2f)",
                      gunHandle_.x, gunHandle_.y, gunHandle_.z, gunMuzzle_.x, gunMuzzle_.y, gunMuzzle_.z, launcherHandle_.x, launcherHandle_.y,
                      launcherHandle_.z, launcherMuzzle_.x, launcherMuzzle_.y, launcherMuzzle_.z);
@@ -530,6 +543,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         tpAiming_ = false;
     }
     player_.update(dt, pi);
+    if (const char* t = std::getenv("GVR_PLAYER_TURN")) player_.yaw = camYaw_ + std::atof(t) * kPi / 180.0f;  // test hook: side views
     // Hard landings hurt (the original: damage and a 2 s stun; a rocket under him prevents it).
     const float impact = player_.takeImpact();
     if (impact > player_.params.stunSpeed && !player_.swimming()) {
@@ -881,9 +895,22 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
                 const int k = a.empty() ? -1 : m->addAnimation(w->fs(), a);
                 ci.clipIndex[c] = k >= 0 ? k : 0;
             }
-            if (rippers == 0)
+            if (rippers == 0) {
                 for (int c = 0; c < int(CreatureClip::Count); ++c)
                     creatures_.clipDuration[c] = std::max(0.1f, m->animDuration(ci.clipIndex[c]));
+                // Shots hit the Ripper's body box (its idle-pose bounds, a little inside the legs'
+                // reach) rather than an upright capsule: the body is long and low.
+                m->pose(renderer_, 0.0f);
+                Vec3 bmn, bmx;
+                m->posedBounds(bmn, bmx);
+                const Vec3 c0 = (bmn + bmx) * 0.5f, h = (bmx - bmn) * 0.5f;
+                creatures_.params.boxMin = {c0.x - h.x * 0.7f, 0.0f, c0.z - h.z * 0.9f};
+                creatures_.params.boxMax = {c0.x + h.x * 0.7f, (bmx.y - bmn.y) * 0.85f, c0.z + h.z * 0.9f};
+                creatures_.params.hasBox = bmx.x > bmn.x && bmx.z > bmn.z;
+                LOGI("Ripper hit box (scale 1): x %.2f..%.2f y %.2f..%.2f z %.2f..%.2f m", creatures_.params.boxMin.x,
+                     creatures_.params.boxMax.x, creatures_.params.boxMin.y, creatures_.params.boxMax.y, creatures_.params.boxMin.z,
+                     creatures_.params.boxMax.z);
+            }
             ci.ambient = false;
             // Three Ripper types share the model; their type records carry hit points 20 / 40 / 90
             // (type op 0x31) and the data has three sound sets (rs_/rm_/rl_) and two spit balls.
@@ -2258,10 +2285,19 @@ void GameApp::explode(const Vec3& at, float radius, float damage) {
         if (dn < radius + nests_[k].radius * 0.4f) damageNest(int(k), damage * (1.0f - 0.5f * std::min(1.0f, dn / radius)));
     }
     LOGI("Rocket exploded at (%.1f %.1f %.1f), %zu creatures alive", at.x, at.y, at.z, creatures_.aliveCount());
-    // His own rockets don't hurt the Meccaryn, they throw him (rocket jumps and rocket landings,
-    // as in the original: a blast under him kills his fall speed).
+    // His own rockets throw the Meccaryn (rocket jumps; a blast under him kills his fall speed)
+    // and hurt him the closer he is: up to 40 at point blank, nothing at the blast's edge.
     const Vec3 rel = player_.position + Vec3{0, 0.9f, 0} - at;
     const float dp = length(rel);
+    if (playMode_ && dp < radius && !dying_) {
+        const float f = 1.0f - dp / radius;
+        const float hurt = 40.0f * f * std::sqrt(f);
+        if (hurt > 1.0f) {
+            hitFrom_ = at;
+            hitDirTimer_ = 1.2f;
+            damagePlayer(hurt, DeathCause::Blast);
+        }
+    }
     if (playMode_ && dp < radius * 1.2f) {
         const float k = 1.0f - dp / (radius * 1.2f);
         const Vec3 dir = dp > 1e-3f ? rel * (1.0f / dp) : Vec3{0, 1, 0};
@@ -2532,6 +2568,7 @@ void GameApp::updateCombat(float dt) {
     updateCharacters(dt);
     updateGore(dt);
     updateDestruction(dt);
+    updateBurn();
     updateFx(dt);
     // Sentries killed by their fall.
     for (int i : enemies_.landed) {

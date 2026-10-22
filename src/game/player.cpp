@@ -247,6 +247,9 @@ void PlayerController::update(float dt, const PlayerInput& in) {
 
     // --- Animation state machine.
     landTimer_ = std::max(0.0f, landTimer_ - dt);
+    airborne_ = onGround ? 0.0f : airborne_ + dt;
+    // Brief hops (a bump, a small step down) keep the ground clips: no flicker into the air clips.
+    const bool airAnim = !onGround && (thrusting_ || airborne_ > params.airGrace);
     PlayerAnim want;
     float rate = 1.0f;
     // Movement relative to the body: forward run, sidestep (right = clip forward), backpedal.
@@ -256,13 +259,13 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     actionTime_ = (onGround && !swimming_) ? std::max(0.0f, actionTime_ - dt) : 0.0f;
     if (stun_ > 0 && onGround) want = PlayerAnim::LandHard;
     else if (actionTime_ > 0) want = action_;
-    else if (!onGround && thrusting_ && hs > 2.0f) {
+    else if (airAnim && thrusting_ && hs > 2.0f) {
         // Flying: lean into the direction of travel.
         if (std::fabs(velRel) < 0.8f) want = PlayerAnim::FlyFwd;
         else if (std::fabs(velRel) > 2.3f) want = PlayerAnim::FlyBack;
         else want = velRel > 0 ? PlayerAnim::FlyLeft : PlayerAnim::FlyRight;
-    } else if (!onGround && thrusting_) want = velocity.y > 3.0f ? PlayerAnim::Thrust : PlayerAnim::Hover;
-    else if (!onGround) want = velocity.y < -7.0f ? PlayerAnim::Fall : PlayerAnim::Hover;  // a long drop: arms flailing
+    } else if (airAnim && thrusting_) want = velocity.y > 3.0f ? PlayerAnim::Thrust : PlayerAnim::Hover;
+    else if (airAnim) want = velocity.y < -7.0f ? PlayerAnim::Fall : PlayerAnim::Hover;  // a long drop: arms flailing
     else if (swimming_) want = PlayerAnim::Hover;  // treading water (the Meccaryn has no swim clip)
     else if (sliding_) want = PlayerAnim::Slide;
     else if (speedNow > 0.15f) {
@@ -281,6 +284,8 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     else want = PlayerAnim::Idle;
     setAnim(want);
     animTime_ += dt * rate;
+    // One-shot clips stop on their last frame.
+    if (const float len = oneShot[int(anim_)]; len > 0.0f) animTime_ = std::min(animTime_, len - 0.01f);
     prevTime_ += dt;
     fade_ += dt;
 }

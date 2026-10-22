@@ -38,18 +38,19 @@ struct PlayerParams {
     // hurts. Turbo (sprint while flying) is faster and burns fuel twice as fast. Numbers ours.
     float thrust = 22.0f;         // m/s^2 upward while the jetpack fires (net +8 against gravity)
     float maxRise = 6.0f;         // m/s upward speed cap
-    float jetAirSpeed = 10.0f;    // m/s horizontal flight speed
-    float turboFactor = 1.5f;     // turbo: faster, double fuel use
+    float jetAirSpeed = 12.0f;    // m/s horizontal flight speed
+    float turboFactor = 1.6f;     // turbo: faster, double fuel use
     float jetAirAccel = 9.0f;     // m/s^2 horizontal speed build-up while flying
-    float airDrag = 0.6f;         // 1/s horizontal slow-down in the air without thrust
-    float fuelSeconds = 5.0f;     // full tank = seconds of thrust
+    float airDrag = 0.35f;        // 1/s horizontal slow-down in the air without thrust (a long glide)
+    float fuelSeconds = 10.0f;    // full tank = seconds of thrust (1b's broken bridges: gaps up to ~97 m)
     float fuelRefillDelay = 0.3f; // s on the ground without thrust before refilling
     float fuelRefillRate = 0.4f;  // tanks per second (on the ground)
     float overheatResume = 0.3f;  // after burning dry: usable again at this much fuel
-    float stunSpeed = 12.0f;      // m/s impact: hard landing (stun 2 s, fall damage)
-    float stunSeconds = 2.0f;
-    float hardLandSpeed = 3.0f;   // m/s downward speed that triggers the landing clip
-    float landSeconds = 0.45f;    // landing clip hold when not moving
+    float stunSpeed = 17.0f;      // m/s impact: hard landing (stun, fall damage): a ~10 m fall
+    float stunSeconds = 1.5f;     // set to mc_land_hard's length by the game
+    float hardLandSpeed = 8.0f;   // m/s downward speed that triggers the soft landing clip (a ~2.3 m drop)
+    float landSeconds = 0.6f;     // landing clip time when not moving (set to mc_land_soft's length)
+    float airGrace = 0.4f;        // s airborne before the air clips play (small drops and bumps keep the ground clip)
     float stepDown = 0.6f;        // m: stay glued to the terrain when walking downhill
     float maxStepUp = 0.8f;       // m: a bigger ground rise in one step is a cliff (blocks)
     float maxSlope = 1.19f;       // rise/run: steeper uphill ground blocks walking (50 deg, the original's gate)
@@ -103,6 +104,9 @@ public:
     // A one-shot body action (the health injection): plays `a` for `seconds` while standing
     // (walking slowed); the clip stays on screen until it ends or the player leaves the ground.
     void startAction(PlayerAnim a, float seconds) { action_ = a; actionTime_ = seconds; }
+    // Clip lengths of the one-shot clips (landings, the injection): played once and held on
+    // their last frame instead of looping. 0 = looping clip.
+    float oneShot[int(PlayerAnim::Count)] = {};
     bool inAction() const { return actionTime_ > 0; }
     // Downward speed (m/s) of a landing that happened in the last update, once (0 = none).
     float takeImpact() { const float v = impact_; impact_ = 0; return v; }
@@ -113,7 +117,7 @@ private:
     void setAnim(PlayerAnim a);
     PlayerAnim anim_ = PlayerAnim::Idle, prevAnim_ = PlayerAnim::Idle;
     float animTime_ = 0, prevTime_ = 0, fade_ = 1e9f;
-    float landTimer_ = 0;
+    float landTimer_ = 0, airborne_ = 0;
     float fuel_ = 5.0f, sinceThrust_ = 99.0f;
     bool thrusting_ = false, overheated_ = false, overheatEvent_ = false, turbo_ = false;
     float stun_ = 0, impact_ = 0;
