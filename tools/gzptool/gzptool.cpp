@@ -15,6 +15,7 @@
 #include <string>
 
 #include "assets/gbs.h"
+#include "assets/gtext.h"
 #include "assets/gti.h"
 #include "assets/flick.h"
 #include "assets/mission.h"
@@ -461,6 +462,24 @@ int main(int argc, char** argv) {
     if (argc >= 3 && !std::strcmp(argv[1], "validate")) return cmdValidate(argv[2]);
     if (argc >= 4 && !std::strcmp(argv[1], "model")) return cmdModel(argv[2], argv[3]);
     if (argc >= 4 && !std::strcmp(argv[1], "tris")) return cmdTris(argv[2], argv[3]);
+    if (argc >= 3 && !std::strcmp(argv[1], "text")) {  // every key = text of GTextEnglish.bin
+        AssetFS fs;
+        fs.mountAllArchives(argv[2]);
+        std::vector<uint8_t> d;
+        GameText gt;
+        if (!fs.read("GTextEnglish.bin", d)) {
+            FILE* f = std::fopen((std::string(argv[2]) + "/GTextEnglish.bin").c_str(), "rb");
+            if (!f) return 1;
+            int c;
+            while ((c = std::fgetc(f)) != EOF) d.push_back(uint8_t(c));
+            std::fclose(f);
+        }
+        if (!gt.parse(d.data(), d.size())) return 1;
+        std::vector<std::pair<std::string, std::string>> v(gt.all().begin(), gt.all().end());
+        std::sort(v.begin(), v.end());
+        for (const auto& kv : v) std::printf("%s = %s\n", kv.first.c_str(), kv.second.c_str());
+        return 0;
+    }
     std::fprintf(stderr, "usage: gzptool list|extract|validate|model ...\n");
     return 2;
 }

@@ -16,6 +16,7 @@ public:
     // Text for a key (case-insensitive), or empty.
     std::string get(const std::string& key) const;
     size_t size() const { return text_.size(); }
+    const std::unordered_map<std::string, std::string>& all() const { return text_; }
 
 private:
     std::unordered_map<std::string, std::string> text_;

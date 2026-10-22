@@ -582,6 +582,8 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         damagePlayer((impact - player_.params.stunSpeed) * 6.0f + 5.0f, DeathCause::Fall);
         sfx2D("me_hdfl1", 1.0f, 0.9f);
         LOGI("Hard landing at %.1f m/s", impact);
+        timmySay("smchride4", true);  // "I feel sick."
+
     }
     if (player_.takeOverheat()) {
         sfx2D("me_jpkno", 0.9f);
@@ -1074,6 +1076,9 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initGore(w, mc);
     initFx(mc);
     initHud(mc);
+    timmyGreeted_ = false;
+    timmyLineT_ = 0;
+    timmyChatCooldown_ = 4.0f;
     initPickups(mc);
     initDestruction(w, mc);
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
@@ -1125,6 +1130,7 @@ void GameApp::creatureSound(const CreatureEvent& e) {
             if (k == 1) play("inj01", "inj02", 0.9f); else play("injr1", "injr2", 0.9f);
             break;
         case CreatureEvent::Die:
+            ++recentKills_;
             play("deat1", "deat2", 1.0f);
             if (e.burst) sfx(frand() < 0.5f ? "ex_bdyl1" : "ex_bdyl2", e.pos, 0.9f, 0.95f + 0.1f * frand());
             break;
@@ -1575,7 +1581,7 @@ static Mat4 affineInverse(const Mat4& m) {
 
 void GameApp::updateTimmy() {
     timmyOn_ = false;
-    if (!timmy_ || !playerModel_ || worldName_ != "Story1" || !player_.jetpackAvailable) return;
+    if (!timmy_ || !playerModel_ || worldName_ != "Story1" || !player_.jetpackAvailable) { recentKills_ = 0; return; }
     Mat4 spine, mount, centre;
     // Idle loop; in flight a yell now and then (played once, cross-faded in and out).
     const float dt = std::max(0.0f, float(time_) - timmyLastTime_);
@@ -1588,7 +1594,10 @@ void GameApp::updateTimmy() {
         timmyYellIn_ -= dt;
         if (timmyYellIn_ <= 0) {
             const int k = timmyYell_[int(frand() * 2.99f)];
-            if (k > 0) { timmyClip_ = k; timmyClipT_ = 0; timmyFade_ = 0; }
+            if (k > 0) {
+                timmyClip_ = k; timmyClipT_ = 0; timmyFade_ = 0;
+                timmySay(frand() < 0.5f ? "smchride3" : "smchride1");  // "Do that jetpack thing again!" / "Uh, where are you taking me?"
+            }
             timmyYellIn_ = 5.0f + 6.0f * frand();
         }
     }
@@ -1616,12 +1625,66 @@ void GameApp::updateTimmy() {
     const Vec3 cPos = giantsToRuntime(centre.m[12], centre.m[13], centre.m[14]);
     float turn = 0.0f;
     if (const char* t = std::getenv("GVR_TIMMY_TURN")) turn = std::atof(t) * kPi / 180.0f;  // test hook
-    timmyXf_ = bodyXf_ * Mat4::translation(mPos + timmyOffset_) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, turn)) *
+    // Lean: the spine's rotation now relative to its idle rotation (model frame), so he tilts with
+    // Baz's torso - forward in forward flight, sideways when banking (device test 24).
+    Mat4 lean = gameMatrixToRuntime(spine);
+    for (int c = 0; c < 3; ++c) {
+        const float l = std::sqrt(lean.m[c * 4] * lean.m[c * 4] + lean.m[c * 4 + 1] * lean.m[c * 4 + 1] + lean.m[c * 4 + 2] * lean.m[c * 4 + 2]);
+        if (l > 1e-6f)
+            for (int r = 0; r < 3; ++r) lean.m[c * 4 + r] /= l;
+    }
+    lean.m[12] = lean.m[13] = lean.m[14] = 0;
+    lean = lean * timmyRestFix_;
+    if (std::getenv("GVR_TIMMY_TRACE")) {
+        const float tr = lean.m[0] + lean.m[5] + lean.m[10];
+        LOGI("timmy lean: anim %d angle %.0f deg, up -> (%.2f %.2f %.2f)", int(player_.anim()),
+             std::acos(std::max(-1.0f, std::min(1.0f, 0.5f * (tr - 1.0f)))) * 57.3f, lean.m[4], lean.m[5], lean.m[6]);
+    }
+    timmyXf_ = bodyXf_ * Mat4::translation(mPos + timmyOffset_) * lean * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, turn)) *
                Mat4::translation(cPos * -1.0f);
     timmyOn_ = true;
+    timmyChatCooldown_ = std::max(0.0f, timmyChatCooldown_ - dt);
+    timmyLineT_ = std::max(0.0f, timmyLineT_ - dt);
+    if (!timmyGreeted_ && timmyIdleT_ > 2.0f) { timmyGreeted_ = true; timmySay("smchpickup2", true); }  // "I've hopped on!"
+    if (recentKills_ > 0) {
+        if (frand() < 0.5f) timmySay("smchride2");  // "You're one cool geezer!"
+        recentKills_ = 0;
+    }
     // The Timmy who stood on his tower in 1a is now on the back.
     for (auto& c : chars_)
         if (c.ambient && c.type == timmyType_) c.visible = false;
+}
+
+void GameApp::timmySay(const char* key, bool force) {
+    if (!timmy_ || !player_.jetpackAvailable || worldName_ != "Story1" || (!force && timmyChatCooldown_ > 0) || cutsceneActive()) return;
+    std::string line = gameText_ ? gameText_->get(key) : std::string();
+    if (line.empty()) return;
+    for (auto& ch : line)
+        if (static_cast<unsigned char>(ch) == 0x92) ch = '\'';  // the text's Windows apostrophe
+    timmyLine_ = "Timmy: " + line;
+    timmyLineT_ = 3.2f;
+    timmyChatCooldown_ = 10.0f + 6.0f * frand();
+    // A Smartie voice clip from Timmy's seat, pitched up for a child.
+    static const int voices[] = {1, 2, 3, 4, 13, 14};
+    char n[16];
+    std::snprintf(n, sizeof n, "gsm%02d_%d", voices[int(frand() * 5.99f)], frand() < 0.5f ? 1 : 2);
+    const Vec4 p = timmyXf_ * Vec4{0, 0, 0, 1};
+    sfx(n, {p.x, p.y, p.z}, 1.0f, 1.18f);
+    LOGI("Timmy says (%s): %s", key, line.c_str());
+}
+
+// Timmy's line as a subtitle: head-locked below the line of sight (as the cutscene subtitles).
+void GameApp::renderTimmyLine() {
+    if (timmyLineT_ <= 0 || timmyLine_.empty() || !text_.ready() || !subInit_ || cutsceneActive()) return;
+    float w = 0, h = 0;
+    const MeshId m = text_.mesh(timmyLine_, 0.045f, 1.3f, &w, &h);
+    if (!m) return;
+    const float a = std::min(1.0f, timmyLineT_ / 0.4f);
+    const Quat r = subRot_;
+    const Vec3 at = rig_.toWorld(lastInput_.head).position + r.rotate(Vec3{0.5f * w + 0.04f, -0.30f, -1.4f});  // right of centre: clear of the HUD
+    const Mat4 xf = Mat4::translation(at) * Mat4::rotation(r * Quat::fromAxisAngle({1, 0, 0}, 0.22f));
+    text_.drawPanel(xf, w + 0.08f, h + 0.05f, {0, 0, 0, 0.5f * a});
+    text_.draw(m, xf * Mat4::translation({0, 0, 0.003f}), {0.75f, 1.0f, 0.75f, a});
 }
 
 void GameApp::updateQuality(float dt) {
@@ -2218,6 +2281,7 @@ void GameApp::damagePlayer(float amount, DeathCause cause) {
     if (playerHealth_ <= 0 || dying_) return;
     playerHealth_ -= amount;
     lastHurt_ = cause;
+    if (playerHealth_ < 45.0f && playerHealth_ > 0 && cause != DeathCause::Fall) timmySay(frand() < 0.5f ? "smchbaseattack4" : "smchbaseattack1");
     sinceDamage_ = 0;
     damageFlash_ = 1.0f;
     if (hurtCooldown_ <= 0) {
@@ -3088,6 +3152,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     renderFx();
     if (cut) renderCutscene();
     else if (playMode_) renderHud();
+    if (playMode_ && !cut) renderTimmyLine();
     if (briefHeld_ && !cut && playMode_) renderBriefOverlay();
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
     else if (!(playMode_ && firstPerson_ && playerModel_)) testScene_.renderControllers(renderer_, rig_, lastInput_);

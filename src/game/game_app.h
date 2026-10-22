@@ -403,6 +403,15 @@ private:
     bool haveSmartieLocal_ = false;
     Mat4 timmyRestFix_ = Mat4::identity();  // (unused: spine rotation reading kept for reference)
     Vec3 timmyOffset_;
+    // Timmy talks while riding: the game's Smartie chat lines (GTextEnglish smchride1-4,
+    // smchpickup2, smchbaseattack1/4 - shown in the original as Smartie messages) as subtitles,
+    // voiced with the Smarties' gsmNN clips at a child's pitch (that pairing is ours).
+    std::string timmyLine_;
+    float timmyLineT_ = 0, timmyChatCooldown_ = 4.0f;
+    bool timmyGreeted_ = false;
+    int recentKills_ = 0;
+    void timmySay(const char* key, bool force = false);
+    void renderTimmyLine();
     int timmyYell_[3] = {-1, -1, -1}, timmyClip_ = 0, timmyPrevClip_ = 0;
     float timmyClipT_ = 0, timmyPrevT_ = 0, timmyIdleT_ = 0, timmyFade_ = 1, timmyYellIn_ = 3, timmyLastTime_ = 0;                       // model-frame nudge of the seat (m)
     int timmyType_ = 583;
