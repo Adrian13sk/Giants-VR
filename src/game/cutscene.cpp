@@ -251,6 +251,7 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         streamStarted_ = shot_.stream;
     }
     ++shotsPlayed_;
+    groundActors();
     LOGI("Cutscene shot %s: %.1f s, %zu actors, camera (%.1f %.1f %.1f)", name.c_str(), duration_, actors_.size(), eye_.x,
          eye_.y, eye_.z);
     update(0.0f);
@@ -292,19 +293,62 @@ void CutscenePlayer::update(float dt) {
             // Feet on our ground: our terrain surface differs slightly from the one the shots
             // were staged on, which sank standing actors' feet into hillsides. Only small offsets
             // are corrected (actors deliberately below ground - in water, in the hatch - keep theirs).
-            if (groundHeight && a.info.type != 4) {
+            if (a.grounded) {
+                a.xf = Mat4::translation({0, a.groundOffset, 0}) * a.xf;
+            } else if (groundHeight && a.info.type != 4) {
                 Vec3 mn, mx;
                 a.skinned->posedBounds(mn, mx);
                 const Vec4 c = a.xf * Vec4{0.5f * (mn.x + mx.x), mn.y, 0.5f * (mn.z + mx.z), 1.0f};
-                const float g = groundHeight(c.x, c.z);
+                const float g = groundHeight(c.x, c.y, c.z);
                 const float sink = g - c.y;
                 if (sink > 0.02f && sink < 0.6f) a.xf = Mat4::translation({0, sink, 0}) * a.xf;
+                // Test hook: GVR_CUT_GROUND logs each actor's gap above our ground twice a second.
+                static const bool trace = std::getenv("GVR_CUT_GROUND") != nullptr;
+                if (trace && std::floor((t_ - dt) * 2.0f) != std::floor(t_ * 2.0f))
+                    LOGI("cut-ground %s t=%.1f %s gap %.2f m (ground %.2f)", shotName_.c_str(), t_, a.info.node.c_str(), -sink, g);
             }
         } else {
             a.xf = gameMatrixToRuntime(a.node >= 0 ? world_[size_t(a.node)] : base);
         }
     }
     updateProps(t);
+}
+
+void CutscenePlayer::groundActors() {
+    if (!groundHeight) return;
+    const AnmAnimation& dir = shot_.director;
+    for (auto& a : actors_) {
+        a.grounded = false;
+        a.groundOffset = 0;
+        if (!a.info.groundFollow || !a.skinned || a.fixed || a.parent >= 0) continue;
+        // Sample the shot (3 per second): the feet's lowest gap above the ground under the footprint.
+        float minGap = 1e9f;
+        const int samples = std::max(2, int(duration_ * 3.0f) + 1);
+        for (int k = 0; k < samples; ++k) {
+            const float t = std::min(duration_ * 0.999f, duration_ * float(k) / float(samples - 1));
+            dir.evaluate(t, world_);
+            const Mat4 xf = gameMatrixToRuntime(a.mover >= 0 ? world_[size_t(a.mover)] : Mat4::identity());
+            Vec3 mn, mx;
+            a.skinned->boundsAt(a.clip, t, mn, mx);
+            const Vec4 c = xf * Vec4{0.5f * (mn.x + mx.x), mn.y, 0.5f * (mn.z + mx.z), 1.0f};
+            // Footprint corners (game units, actor frame) -> runtime offsets around the feet.
+            float g = groundHeight(c.x, c.y, c.z);
+            for (int q = 0; q < 4; ++q) {
+                const float fx = (q & 1) ? a.info.footMax[0] : a.info.footMin[0];
+                const float fy = (q & 2) ? a.info.footMax[1] : a.info.footMin[1];
+                const Vec4 o = xf * Vec4{-fx * gGameUnitsToMeters * 0.5f, 0.0f, fy * gGameUnitsToMeters * 0.5f, 0.0f};
+                g = std::max(g, groundHeight(c.x + o.x, c.y, c.z + o.z));
+            }
+            if (g < -1e8f) continue;  // off the terrain
+            minGap = std::min(minGap, c.y - g);
+        }
+        // Only plausible staging offsets: an actor up a tree or deep in a hole is left alone.
+        if (minGap < 1e8f && minGap > -0.8f && minGap < 1.2f && std::fabs(minGap) > 0.03f) {
+            a.grounded = true;
+            a.groundOffset = -minGap;
+            LOGI("Cutscene %s: %s grounded (%+.2f m)", shotName_.c_str(), a.info.node.c_str(), a.groundOffset);
+        }
+    }
 }
 
 void CutscenePlayer::updateProps(float t) {

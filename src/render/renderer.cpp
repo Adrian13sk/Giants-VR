@@ -69,11 +69,12 @@ uniform vec3 uAmbient;
 uniform vec3 uFogColor;
 uniform vec2 uFogRange;  // near, 1/(far-near)
 uniform highp vec3 uEyePos;
-uniform float uUnlit;
+uniform float uUnlit;         // 0 lit, 1 baked (lightmaps / vertex colours), 2 emissive (effects, overlays)
 uniform float uAlphaRef;
 uniform int uMaterial;        // 0 standard, 1 water, 2 sky
 uniform highp float uTime;
 uniform highp float uSeaLevel;
+uniform highp float uClipY;   // reflection pass: nothing below the water surface
 uniform vec3 uWaterColor;
 uniform vec3 uSkyHorizon;
 uniform vec3 uSkyZenith;
@@ -81,24 +82,50 @@ uniform highp sampler2DShadow uShadowMap;
 uniform highp mat4 uShadowMat;
 uniform float uShadowOn;
 uniform highp float uShadowTexel;
+uniform vec4 uGrade;          // saturation, contrast, warmth, exposure
+// Planar water reflection (one mirrored render per frame) and the water depth map.
+uniform sampler2D uReflTex;
+uniform highp sampler2D uReflDepth;
+uniform highp mat4 uReflMat;
+uniform highp vec3 uReflEye;
+uniform highp float uReflNear;
+uniform float uReflOn;
+uniform sampler2D uWaterDepth;
+uniform highp vec4 uWaterDepthRect;  // x0, z0, 1/width, 1/depth (world metres)
+uniform float uWaterDepthOn;
 out vec4 oColor;
 
 float sunShadow(highp vec3 wp, vec3 n) {
     if (uShadowOn < 0.5) return 1.0;
-    highp vec4 sp = uShadowMat * vec4(wp + n * 0.06, 1.0);
+    highp vec4 sp = uShadowMat * vec4(wp + n * 0.035, 1.0);
     highp vec3 c = sp.xyz / sp.w * 0.5 + 0.5;
     if (c.x <= 0.0 || c.x >= 1.0 || c.y <= 0.0 || c.y >= 1.0 || c.z >= 1.0) return 1.0;
-    highp float z = c.z - 0.0012;
-    float s = texture(uShadowMap, vec3(c.xy + vec2(-0.5, -0.5) * uShadowTexel, z));
-    s += texture(uShadowMap, vec3(c.xy + vec2(0.5, -0.5) * uShadowTexel, z));
-    s += texture(uShadowMap, vec3(c.xy + vec2(-0.5, 0.5) * uShadowTexel, z));
-    s += texture(uShadowMap, vec3(c.xy + vec2(0.5, 0.5) * uShadowTexel, z));
+    highp float z = c.z - 0.0005;
+    // 5 bilinear PCF taps (hardware 2x2 each): soft edge about two texels wide.
+    float s = texture(uShadowMap, vec3(c.xy, z)) * 2.0;
+    s += texture(uShadowMap, vec3(c.xy + vec2(-0.75, -0.75) * uShadowTexel, z));
+    s += texture(uShadowMap, vec3(c.xy + vec2(0.75, -0.75) * uShadowTexel, z));
+    s += texture(uShadowMap, vec3(c.xy + vec2(-0.75, 0.75) * uShadowTexel, z));
+    s += texture(uShadowMap, vec3(c.xy + vec2(0.75, 0.75) * uShadowTexel, z));
     highp vec2 e = min(c.xy, 1.0 - c.xy);
     float edge = clamp(min(e.x, e.y) * 12.0, 0.0, 1.0);  // fades out toward the map's border
-    return mix(1.0, s * 0.25, edge);
+    return mix(1.0, s / 6.0, edge);
+}
+
+// Colour grade (in a gamma-2 space, so the curve acts on perceived brightness): saturation,
+// an S-shaped contrast, warm highlights / cool shadows, exposure.
+vec3 grade(vec3 c, float satScale) {
+    vec3 g = sqrt(max(c * uGrade.w, vec3(0.0)));
+    float l = dot(g, vec3(0.299, 0.587, 0.114));
+    g = mix(vec3(l), g, mix(1.0, uGrade.x, satScale));
+    g = clamp((g - 0.5) * uGrade.y + 0.5, 0.0, 1.2);
+    g += (l - 0.45) * uGrade.z * vec3(1.0, 0.25, -0.9);
+    g = max(g, vec3(0.0));
+    return g * g;
 }
 
 void main() {
+    if (vWorldPos.y < uClipY) discard;
     highp float d = length(vWorldPos - uEyePos);
     float fog = clamp(1.0 - (d - uFogRange.x) * uFogRange.y, 0.0, 1.0);
     if (uMaterial == 2) {
@@ -109,49 +136,99 @@ void main() {
         highp vec3 vd = normalize(vWorldPos - uEyePos);
         highp float sd = max(dot(vd, -normalize(uSunDir)), 0.0);  // highp: the disc edge is 1e-4 wide
         vec3 rgb = b.rgb + uSunColor * (smoothstep(0.9993, 0.9997, sd) * 6.0 + pow(sd, 48.0) * 0.45 + pow(sd, 6.0) * 0.12);
-        oColor = vec4(rgb, 1.0);
+        oColor = vec4(grade(rgb, 0.25), 1.0);  // the painted sky is already vivid
         return;
     }
     if (uMaterial == 1) {
-        // Water surface: four travelling waves give the normal; fresnel mixes the water body with
-        // the reflected sky; the sun glints off the crests. Shallows show the tinted bed through it.
+        // Water: travelling waves and ripples give the normal; the reflection of the world (planar
+        // reflection, corrected per eye with its depth) or the sky by fresnel; sun glints; the
+        // depth below decides colour and clarity: clear turquoise shallows with foam at the shore,
+        // dark deep water.
         highp vec2 p = vWorldPos.xz;
         highp float t = uTime;
         highp vec2 g = vec2(0.0);
-        g += 0.110 * vec2(0.6, 0.8) * cos(dot(vec2(0.6, 0.8), p) * 0.9 + t * 1.2);
-        g += 0.090 * vec2(-0.7, 0.5) * cos(dot(vec2(-0.7, 0.5), p) * 1.6 + t * 1.8);
-        g += 0.070 * vec2(0.2, -0.9) * cos(dot(vec2(0.2, -0.9), p) * 2.9 + t * 2.6);
-        g += 0.050 * vec2(-0.9, -0.3) * cos(dot(vec2(-0.9, -0.3), p) * 5.1 + t * 3.4);
+        g += 0.100 * vec2(0.6, 0.8) * cos(dot(vec2(0.6, 0.8), p) * 0.9 + t * 1.2);
+        g += 0.080 * vec2(-0.7, 0.5) * cos(dot(vec2(-0.7, 0.5), p) * 1.6 + t * 1.8);
+        g += 0.060 * vec2(0.2, -0.9) * cos(dot(vec2(0.2, -0.9), p) * 2.9 + t * 2.6);
+        g += 0.045 * vec2(-0.9, -0.3) * cos(dot(vec2(-0.9, -0.3), p) * 5.1 + t * 3.4);
+        g += 0.030 * vec2(0.8, -0.55) * cos(dot(vec2(0.8, -0.55), p) * 9.3 + t * 4.7);
+        g += 0.022 * vec2(-0.35, 0.94) * cos(dot(vec2(-0.35, 0.94), p) * 15.7 + t * 6.1);
         g *= clamp(1.0 - d / 160.0, 0.12, 1.0);  // calmer with distance (no moire on far waves)
         vec3 n = normalize(vec3(-g.x, 1.0, -g.y));
-        vec3 v = normalize(uEyePos - vWorldPos);
-        float fres = 0.02 + 0.98 * pow(1.0 - max(dot(n, v), 0.0), 5.0);
+        highp vec3 v = normalize(uEyePos - vWorldPos);
+        float ndv = max(dot(n, v), 0.0);
+        float fres = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
         vec3 r = reflect(-v, n);
-        vec3 sky = mix(uSkyHorizon, uSkyZenith, clamp(r.y * 1.5, 0.0, 1.0));
+        vec3 refl = mix(uSkyHorizon, uSkyZenith, clamp(r.y * 1.5, 0.0, 1.0));
+        if (uReflOn > 0.5) {
+            highp vec4 cw = uReflMat * vec4(vWorldPos, 1.0);
+            highp vec2 uv0 = cw.xy / cw.w * 0.5 + 0.5;
+            highp float dz = texture(uReflDepth, uv0).r;
+            // Distance to what is reflected (from the reflection camera's depth), then where that
+            // point is for THIS eye's reflected ray: correct stereo depth for the reflection.
+            highp float s0 = dz < 0.99999 ? length(vWorldPos - uReflEye) * max(0.0, uReflNear / (1.0 - dz) / cw.w - 1.0) : 2000.0;
+            highp vec3 X = vWorldPos + normalize(reflect(-v, vec3(0.0, 1.0, 0.0))) * s0;
+            highp vec4 cx = uReflMat * vec4(X, 1.0);
+            highp vec2 uv = cx.xy / cx.w * 0.5 + 0.5 + g * 0.06;
+            vec4 rc = texture(uReflTex, clamp(uv, vec2(0.002), vec2(0.998)));
+            refl = mix(refl, rc.rgb, rc.a);
+        }
         float sh = sunShadow(vWorldPos, vec3(0.0, 1.0, 0.0));
         float spec = pow(max(dot(r, -uSunDir), 0.0), 260.0) * sh;
+        float depth = 30.0;
+        if (uWaterDepthOn > 0.5) {
+            highp vec2 wuv = (p - uWaterDepthRect.xy) * uWaterDepthRect.zw;
+            if (wuv.x > 0.0 && wuv.y > 0.0 && wuv.x < 1.0 && wuv.y < 1.0) depth = texture(uWaterDepth, wuv).r * 24.0;
+        }
         vec4 tex = 0.5 * texture(uTex, vUv + vec2(t * 0.010, t * 0.006)) + 0.5 * texture(uTex, vUv * 1.7 - vec2(t * 0.008, -t * 0.011));
-        vec3 body = uWaterColor * (0.55 + 0.9 * tex.rgb) * (uAmbient + uSunColor * 0.5 * sh);
-        vec3 rgb = mix(body, sky, fres) + uSunColor * spec * 4.0;
-        float a = mix(0.70, 0.97, fres) * uTint.a;
-        oColor = vec4(mix(uFogColor, rgb, fog), a);
+        float deep = smoothstep(0.0, 6.0, depth);
+        vec3 shallowCol = vec3(0.10, 0.36, 0.32);
+        vec3 bodyCol = mix(shallowCol, uWaterColor, deep);
+        vec3 body = bodyCol * (0.55 + 0.9 * tex.rgb) * (uAmbient + uSunColor * 0.6 * sh);
+        // Stylised fresnel: never below ~22 %, so the world (and you) show in the water up close.
+        float k = mix(0.2, 0.92, fres);
+        vec3 rgb = mix(body, refl, k) + uSunColor * spec * 4.0;
+        // Foam where the water meets the shore, broken up by the waves.
+        float foamBand = 1.0 - smoothstep(0.02, 0.28, depth);
+        float foamNoise = 0.5 + 0.5 * sin(p.x * 3.1 + t * 1.3 + 40.0 * g.x) * sin(p.y * 2.7 - t * 1.1);
+        float foam = foamBand * smoothstep(0.45, 0.9, foamNoise + foamBand * 0.3) * (1.0 - smoothstep(30.0, 80.0, d));
+        rgb = mix(rgb, vec3(0.85, 0.9, 0.9) * (uAmbient + uSunColor * sh), foam * 0.5);
+        // Clarity: shallows let the bed show through; deep water is nearly opaque.
+        float a = mix(mix(0.35, 0.93, smoothstep(0.0, 3.0, depth)), 1.0, max(fres, foam)) * uTint.a;
+        oColor = vec4(grade(mix(uFogColor, rgb, fog), 0.6), a);
+#ifdef DEBUG_REFL
+        if (uReflOn > 0.5) oColor = vec4(texture(uReflTex, (uReflMat * vec4(vWorldPos, 1.0)).xy / (uReflMat * vec4(vWorldPos, 1.0)).w * 0.5 + 0.5).rgb, 1.0);
+#endif
         return;
     }
     vec4 base = texture(uTex, vUv) * vColor * uTint;
     if (base.a < uAlphaRef) discard;
+    if (uUnlit > 1.5) {  // emissive: effects and overlays keep their own colour
+        oColor = vec4(base.rgb, base.a);
+        return;
+    }
     vec3 n = normalize(vNormal);
     if (!gl_FrontFacing) n = -n;
     float sh = sunShadow(vWorldPos, n);
     float ndl = max(dot(n, -uSunDir), 0.0);
-    vec3 lit = base.rgb * (uAmbient + uSunColor * ndl * sh);
-    // Baked lighting (lightmaps, vertex colours) still darkens under a moving shadow.
-    vec3 rgb = mix(lit, base.rgb * mix(0.38, 1.0, sh), uUnlit);
+    vec3 rgb;
+    if (uUnlit > 0.5) {
+        // Baked lighting (lightmaps, vertex colours) still darkens under a moving shadow, and the
+        // moving sun brightens what faces it a little.
+        rgb = base.rgb * mix(0.36, 1.0, sh) * (0.86 + 0.32 * ndl * sh);
+    } else {
+        // Sky light from above, darker bounce from below; warm sun; a faint rim of sky light.
+        vec3 amb = uAmbient * mix(vec3(0.62, 0.58, 0.52), vec3(1.08, 1.1, 1.18), n.y * 0.5 + 0.5);
+        highp vec3 v = normalize(uEyePos - vWorldPos);
+        float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.25;
+        rgb = base.rgb * (amb + uSunColor * ndl * sh) + uSkyHorizon * rim * base.rgb;
+    }
     if (vWorldPos.y < uSeaLevel) {
         // Under water: the bed fades into the water colour with depth.
         float dep = uSeaLevel - vWorldPos.y;
-        rgb = mix(rgb, uWaterColor * 0.8, clamp(0.25 + dep * 0.22, 0.0, 0.9));
+        rgb = mix(rgb, uWaterColor * 0.8, clamp(0.12 + dep * 0.2, 0.0, 0.9));
     }
-    oColor = vec4(mix(uFogColor, rgb, fog), base.a);
+    oColor = vec4(grade(mix(uFogColor, rgb, fog), 1.0), base.a);
 #ifdef DEBUG_SHADOW
     oColor = vec4(vec3(sh), 1.0);
 #endif
@@ -190,6 +267,7 @@ bool Renderer::init() {
     GLuint vs = compile(GL_VERTEX_SHADER, kVertexShader);
     std::string fsrc = kFragmentShader;
     if (std::getenv("GVR_DEBUG_SHADOW")) fsrc.insert(fsrc.find('\n') + 1, "#define DEBUG_SHADOW 1\n");
+    if (std::getenv("GVR_DEBUG_REFL")) fsrc.insert(fsrc.find('\n') + 1, "#define DEBUG_REFL 1\n");
     GLuint fs = compile(GL_FRAGMENT_SHADER, fsrc.c_str());
     if (!vs || !fs) return false;
     program_ = glCreateProgram();
@@ -228,6 +306,17 @@ bool Renderer::init() {
     uShadowMat_ = glGetUniformLocation(program_, "uShadowMat");
     uShadowOn_ = glGetUniformLocation(program_, "uShadowOn");
     uShadowTexel_ = glGetUniformLocation(program_, "uShadowTexel");
+    uClipY_ = glGetUniformLocation(program_, "uClipY");
+    uGrade_ = glGetUniformLocation(program_, "uGrade");
+    uReflTex_ = glGetUniformLocation(program_, "uReflTex");
+    uReflDepth_ = glGetUniformLocation(program_, "uReflDepth");
+    uReflMat_ = glGetUniformLocation(program_, "uReflMat");
+    uReflEye_ = glGetUniformLocation(program_, "uReflEye");
+    uReflNear_ = glGetUniformLocation(program_, "uReflNear");
+    uReflOn_ = glGetUniformLocation(program_, "uReflOn");
+    uWaterDepth_ = glGetUniformLocation(program_, "uWaterDepth");
+    uWaterDepthRect_ = glGetUniformLocation(program_, "uWaterDepthRect");
+    uWaterDepthOn_ = glGetUniformLocation(program_, "uWaterDepthOn");
     {
         // A 1x1 depth texture bound to the shadow sampler while shadows are off (a sampler with
         // no complete texture is undefined).
@@ -397,6 +486,25 @@ void Renderer::beginView(const ViewParams& view, int w, int h, bool clear) {
     glUniform1f(uShadowOn_, sh ? 1.0f : 0.0f);
     glUniformMatrix4fv(uShadowMat_, 1, GL_FALSE, shadowMat_.m);
     glUniform1f(uShadowTexel_, shadowSize_ > 0 ? 1.0f / float(shadowSize_) : 0.0f);
+    glUniform1f(uClipY_, -1e9f);
+    glUniform4f(uGrade_, env_.grade.x, env_.grade.y, env_.grade.z, env_.grade.w);
+    // Reflection (never sampled while rendering it) and water depth: units 2, 3, 4.
+    const bool refl = reflActive_ && reflFbo_ && !inReflection_;
+    glUniform1i(uReflTex_, 2);
+    glUniform1i(uReflDepth_, 3);
+    glUniform1i(uWaterDepth_, 4);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, refl ? reflColor_ : whiteTexture_);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, refl ? reflDepth_ : whiteTexture_);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, waterDepthTex_ ? waterDepthTex_ : whiteTexture_);
+    glUniform1f(uReflOn_, refl ? 1.0f : 0.0f);
+    glUniformMatrix4fv(uReflMat_, 1, GL_FALSE, reflMat_.m);
+    glUniform3f(uReflEye_, reflEye_.x, reflEye_.y, reflEye_.z);
+    glUniform1f(uReflNear_, reflNear_);
+    glUniform1f(uWaterDepthOn_, waterDepthTex_ ? 1.0f : 0.0f);
+    glUniform4f(uWaterDepthRect_, waterRect_[0], waterRect_[1], waterRect_[2], waterRect_[3]);
     glActiveTexture(GL_TEXTURE0);
 }
 
@@ -408,7 +516,9 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
     glUniformMatrix4fv(uMVP_, 1, GL_FALSE, mvp.m);
     glUniformMatrix4fv(uModel_, 1, GL_FALSE, model.m);
     glUniform4f(uTint_, p.tint.x, p.tint.y, p.tint.z, p.tint.w);
-    glUniform1f(uUnlit_, p.unlit ? 1.0f : 0.0f);
+    // Light mode: lit, baked (unlit but shadowed), emissive (additive effects and overlays).
+    const bool emissive = p.unlit && (p.blend == BlendMode::Additive || p.noFog || !p.depthTest);
+    glUniform1f(uUnlit_, emissive ? 2.0f : (p.unlit ? 1.0f : 0.0f));
     glUniform1i(uMaterial_, int(p.material));
     GLuint tex = whiteTexture_;
     if (p.texture != 0 && p.texture <= textures_.size() && textures_[p.texture - 1].live)
@@ -551,6 +661,82 @@ void Renderer::endShadowPass() {
     glDisable(GL_POLYGON_OFFSET_FILL);
     glEnable(GL_CULL_FACE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+bool Renderer::initReflection(int w, int h) {
+    glGenTextures(1, &reflColor_);
+    glBindTexture(GL_TEXTURE_2D, reflColor_);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glGenTextures(1, &reflDepth_);
+    glBindTexture(GL_TEXTURE_2D, reflDepth_);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, w, h, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glGenFramebuffers(1, &reflFbo_);
+    glBindFramebuffer(GL_FRAMEBUFFER, reflFbo_);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, reflColor_, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, reflDepth_, 0);
+    const bool complete = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    if (!complete) {
+        LOGE("Reflection framebuffer incomplete");
+        glDeleteFramebuffers(1, &reflFbo_);
+        reflFbo_ = 0;
+        return false;
+    }
+    reflW_ = w;
+    reflH_ = h;
+    LOGI("Water reflections: %dx%d", w, h);
+    return checkGl("initReflection");
+}
+
+void Renderer::beginReflectionPass(const ViewParams& view, float nearZ) {
+    inReflection_ = true;
+    glBindFramebuffer(GL_FRAMEBUFFER, reflFbo_);
+    beginView(view, reflW_, reflH_, false);
+    glClearColor(env_.fogColor.x, env_.fogColor.y, env_.fogColor.z, 0.0f);  // alpha 0: nothing reflected (sky fallback)
+    glClearDepthf(1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glFrontFace(GL_CW);  // the mirror flips the winding
+    glUniform1f(uClipY_, env_.seaLevel - 0.05f);
+    reflMat_ = viewProj_;
+    reflEye_ = view.eyePosition;
+    reflNear_ = nearZ;
+}
+
+void Renderer::endReflectionPass() {
+    glBindVertexArray(0);
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
+    glFrontFace(GL_CCW);
+    glUniform1f(uClipY_, -1e9f);
+    // Only the colour is sampled later; depth too (the per-eye correction): keep both.
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    inReflection_ = false;
+}
+
+void Renderer::setWaterDepthMap(int w, int h, const uint8_t* depth, float x0, float z0, float width, float depthZ) {
+    if (!waterDepthTex_) glGenTextures(1, &waterDepthTex_);
+    glBindTexture(GL_TEXTURE_2D, waterDepthTex_);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, depth);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    waterRect_[0] = x0;
+    waterRect_[1] = z0;
+    waterRect_[2] = width > 0 ? 1.0f / width : 0.0f;
+    waterRect_[3] = depthZ > 0 ? 1.0f / depthZ : 0.0f;
+    checkGl("setWaterDepthMap");
 }
 
 bool Renderer::sphereVisible(const Vec3& c, float r) const {

@@ -27,8 +27,9 @@ Mat4 gameMatrixToRuntime(const Mat4& m);
 
 class CutscenePlayer {
 public:
-    // Terrain height (runtime metres) at (x, z), for keeping actors' feet out of the ground.
-    std::function<float(float, float)> groundHeight;
+    // Ground height (runtime metres) under (x, z) for feet near height y: the terrain, or the top
+    // of a structure (walkway, rock) at most a little above y. Keeps actors on our ground.
+    std::function<float(float x, float y, float z)> groundHeight;
     CutscenePlayer(const AssetFS& fs, ModelCache& models, Renderer& r, const ObjectRegistry& reg)
         : fs_(fs), models_(models), r_(r), reg_(reg) {}
     // Starts the cutscene at `firstShot` (e.g. "story1_jetpack_1"). False if it can't load.
@@ -70,7 +71,12 @@ private:
         Mat4 xf = Mat4::identity();  // runtime transform this frame
         bool visible = true;
         bool fixed = false;  // placed in the world (op 0x20): xf set once
+        float groundOffset = 0;  // ground-following actors: vertical correction for this shot (m)
+        bool grounded = false;   // groundOffset applies (otherwise only sunk feet are lifted)
     };
+    // Ground-following actors (op 0x22): the lowest their feet come over the whole shot is put on
+    // our ground, so standing actors neither float nor sink while hops and jumps keep their arc.
+    void groundActors();
     bool loadShot(const std::string& name);
     void updateProps(float t);
     const AssetFS& fs_;

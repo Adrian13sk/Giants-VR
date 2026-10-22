@@ -24,7 +24,7 @@ class AssetWorld {
 public:
     bool init(const std::string& dataDir, Renderer& r, const std::string& worldName);
     void update(float dt);
-    void render(Renderer& r);
+    void render(Renderer& r, bool reflection = false);  // reflection: the mirrored pass (no water, less detail)
     // World objects near `centre` into the current shadow pass.
     void renderShadowCasters(Renderer& r, const Vec3& centre, float radius) const;
     bool loaded() const { return !placed_.empty() || !skinned_.empty() || hasTerrain_; }

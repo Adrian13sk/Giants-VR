@@ -108,6 +108,22 @@ bool AssetWorld::loadWorld(const std::string& name, Renderer& r) {
     placedSea.append(sea, at);
     seaMesh_ = r.uploadMesh(placedSea);
     seaTexture_ = world_.seaTexture.empty() ? 0 : cache_->texture(world_.seaTexture);
+    {
+        // Water depth map for the water shader (clear shallows, foam on the shore, dark deep
+        // water): the terrain's depth below the sea surface, 2 m texels, 0..24 m in a byte.
+        const float x0 = bmin.x - 20.0f, z0 = bmin.z - 20.0f;
+        const float wx = (bmax.x - bmin.x) + 40.0f, wz = (bmax.z - bmin.z) + 40.0f;
+        const int nx = std::max(16, std::min(1024, int(wx / 2.0f))), nz = std::max(16, std::min(1024, int(wz / 2.0f)));
+        std::vector<uint8_t> depth(size_t(nx) * size_t(nz), 255);
+        for (int j = 0; j < nz; ++j)
+            for (int i = 0; i < nx; ++i) {
+                float h;
+                const float x = x0 + (float(i) + 0.5f) * wx / float(nx), z = z0 + (float(j) + 0.5f) * wz / float(nz);
+                if (terrain_.heightAt(x, z, h)) depth[size_t(j) * size_t(nx) + size_t(i)] = uint8_t(std::max(0.0f, std::min(1.0f, (env.seaLevel - h) / 24.0f)) * 255.0f + 0.5f);
+            }
+        r.setWaterDepthMap(nx, nz, depth.data(), x0, z0, wx, wz);
+        LOGI("Water depth map %dx%d over %.0f x %.0f m", nx, nz, wx, wz);
+    }
 
     // Sky: the world's panoramic sky texture (e.g. story1_sky, 2048x512) on a band around
     // the viewer. Band elevation range is a provisional choice (unverified vs. original).
@@ -125,7 +141,7 @@ bool AssetWorld::loadWorld(const std::string& name, Renderer& r) {
                 v.pos[1] = std::sin(el) * radius;
                 v.pos[2] = -std::cos(a) * std::cos(el) * radius;
                 v.uv[0] = float(i) / slices;
-                v.uv[1] = k ? 0.0f : 1.0f;
+                v.uv[1] = k ? 0.01f : 0.99f;  // inset: the texture repeats, v=0 would blend with the bottom row (seam)
                 v.color[0] = v.color[1] = v.color[2] = v.color[3] = 255;
                 band.vertices.push_back(v);
             }
@@ -507,7 +523,7 @@ void AssetWorld::update(float dt) {
     for (auto& s : skinned_) s.model->pose(*renderer_, time_);
 }
 
-void AssetWorld::render(Renderer& r) {
+void AssetWorld::render(Renderer& r, bool reflection) {
     if (skyMesh_) {
         DrawParams sp;
         sp.texture = skyTexture_;
@@ -523,8 +539,11 @@ void AssetWorld::render(Renderer& r) {
     const float maxDist = r.environment().fogFar;
     for (const auto& o : worldObjects_) {
         if (!hiddenTypes_.empty() && std::find(hiddenTypes_.begin(), hiddenTypes_.end(), int(o.type)) != hiddenTypes_.end()) continue;
-        // Cull objects outside the view frustum or fully fogged out.
-        if (length(o.centre - eye) - o.radius > maxDist || !r.sphereVisible(o.centre, o.radius)) {
+        // Cull objects outside the view frustum or fully fogged out. The reflection skips what
+        // can't show in it: anything entirely under water, small things far away.
+        const float dist = length(o.centre - eye) - o.radius;
+        if (dist > maxDist || !r.sphereVisible(o.centre, o.radius) ||
+            (reflection && (o.centre.y + o.radius < r.environment().seaLevel || o.radius < dist * 0.012f))) {
             r.countCulled();
             continue;
         }
@@ -551,7 +570,7 @@ void AssetWorld::render(Renderer& r) {
     }
     for (const auto& s : skinned_)
         s.model->render(r, Mat4::translation(s.position) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, s.yaw)));
-    if (seaMesh_) {
+    if (seaMesh_ && !reflection) {
         DrawParams sp;
         sp.texture = seaTexture_;
         sp.unlit = true;

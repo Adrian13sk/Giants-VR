@@ -35,7 +35,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
     }
     dataDir_ = dataDir;
     worldName_ = worldName;
-    shadowsOn_ = renderer_.initShadows(1024);
+    shadowsOn_ = renderer_.initShadows(2048);  // sharper (user feedback after device test 19)
+    reflOn_ = renderer_.initReflection(1024, 768);
     assetWorld_ = std::make_unique<AssetWorld>();
     if (!assetWorld_->init(dataDir, renderer_, worldName)) {
         LOGW("Original assets unavailable: %s", assetWorld_->status().c_str());
@@ -129,6 +130,13 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         if (m) {
             playerSpare_ = makePlayer("mc_nothrust_l0", false);
             playerHasJet_ = true;
+            // First person hides the head; the whole body still shows in reflections and shadows.
+            m->setKeepFull(true);
+            if (playerSpare_) playerSpare_->setKeepFull(true);
+            {
+                auto t = std::make_unique<SkinnedModel>();
+                if (t->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "smtimmy_l0", "sm_mount.anm")) timmy_ = std::move(t);
+            }
 
             playerModel_ = std::move(m);
             playMode_ = true;
@@ -302,9 +310,13 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             initCharacters(w, mc);
             initMission();
             cutscene_ = std::make_unique<CutscenePlayer>(w->fs(), *mc, renderer_, w->registry());
-            cutscene_->groundHeight = [w](float x, float z) {
-                float y;
-                return w->terrain().heightAt(x, z, y) ? y : -1e9f;
+            cutscene_->groundHeight = [w](float x, float y, float z) {
+                float g;
+                float ground = w->terrain().heightAt(x, z, g) ? g : -1e9f;
+                // A walkway, rock or roof under the feet (at most a little above them) counts too.
+                float top;
+                if (w->collision().groundAt(x, z, y + 0.4f, top)) ground = std::max(ground, top);
+                return ground;
             };
             text_.init(w->fs(), renderer_);
             {
@@ -468,6 +480,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
                             clip_[int(player_.anim())], player_.animTime(), player_.fadeWeight());
     eyeNow_ = playerModel_->hiddenCentroid() + eyeFromHead_;
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
+    updateTimmy();
     updateWeapon(dt, in);
     updateRescue(dt, in);
     updateCombat(dt);
@@ -1049,9 +1062,23 @@ void GameApp::updateSun(float dt) {
 }
 
 void GameApp::renderShadows() {
+    renderShadowMap();
+    renderReflection();
+}
+
+void GameApp::renderShadows(const EyeRenderInfo& left, const EyeRenderInfo& right) {
+    const EyeRenderInfo* e[2] = {&left, &right};
+    for (int k = 0; k < 2; ++k) {
+        eyeFov_[k][0] = e[k]->fovLeft; eyeFov_[k][1] = e[k]->fovRight; eyeFov_[k][2] = e[k]->fovUp; eyeFov_[k][3] = e[k]->fovDown;
+    }
+    haveFov_ = true;
+    renderShadows();
+}
+
+void GameApp::renderShadowMap() {
     if (!shadowsOn_ || !assetWorld_ || !assetWorld_->loaded()) { renderer_.setShadowsActive(false); return; }
     const Vec3 centre = playMode_ ? player_.position : rig_.worldFromTracking.position;
-    const float half = 28.0f;  // 56 m square around the player, ~5.5 cm texels at 1024
+    const float half = 24.0f;  // 48 m square around the player, ~2.3 cm texels at 2048
     renderer_.beginShadowPass(renderer_.sunShadowMatrix(centre, half));
     assetWorld_->renderShadowCasters(renderer_, centre, half * 1.5f);
     const bool cut = cutsceneActive();
@@ -1067,10 +1094,81 @@ void GameApp::renderShadows() {
         if (e.slot >= 0 && length(e.pos - centre) < half * 1.4f)
             enemyPool_[size_t(e.slot)]->renderShadow(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
                                                                     Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
-    // The player's own body (third person; in first person his head is hidden, which would show).
-    if (playMode_ && playerModel_ && !cut && !firstPerson_) playerModel_->renderShadow(renderer_, bodyXf_);
+    // The player's own body (whole, also in first person) and Timmy on his back.
+    if (playMode_ && playerModel_ && !cut) playerModel_->renderShadowFull(renderer_, bodyXf_);
+    if (playMode_ && timmyOn_ && !cut) timmy_->renderShadow(renderer_, timmyXf_);
     renderer_.endShadowPass();
     renderer_.setShadowsActive(true);
+}
+
+void GameApp::updateTimmy() {
+    timmyOn_ = false;
+    if (!timmy_ || !playerModel_ || worldName_ != "Story1" || !player_.jetpackAvailable) return;
+    Mat4 hb, centre;
+    timmy_->pose(renderer_, float(time_));
+    if (!playerModel_->nodeWorld("ref_holsterb", hb) || !timmy_->nodeWorld("center", centre)) return;
+    timmyXf_ = bodyXf_ * gameMatrixToRuntime(hb) * gameMatrixToRuntime(centre).affineInverse();
+    timmyOn_ = true;
+    // The Timmy who stood on his tower in 1a is now on the back.
+    for (auto& c : chars_)
+        if (c.ambient && c.type == timmyType_) c.visible = false;
+}
+
+void GameApp::renderReflection() {
+    renderer_.setReflectionActive(false);
+    if (!reflOn_ || !haveFov_ || !assetWorld_ || !assetWorld_->loaded() || !lastInput_.headValid) return;
+    if (load_.phase != LoadPhase::Idle && load_.phase != LoadPhase::FadeOut) return;
+    const float sea = renderer_.environment().seaLevel;
+    const Pose head = rig_.toWorld(lastInput_.head);
+    if (head.position.y < sea + 0.05f) return;  // under water: no mirror
+    // Mirror about the sea surface: M = T(sea) S(1,-1,1) T(-sea).
+    Mat4 mirror = Mat4::identity();
+    mirror.m[5] = -1.0f;
+    mirror.m[13] = 2.0f * sea;
+    ViewParams v;
+    v.view = Mat4::fromPose(head.inverse()) * mirror;
+    v.eyePosition = Vec3{head.position.x, 2.0f * sea - head.position.y, head.position.z};
+    // Wide enough for both eyes, plus a margin for the wave distortion.
+    const float m = 0.08f;
+    const float l = std::min(eyeFov_[0][0], eyeFov_[1][0]) - m, rr = std::max(eyeFov_[0][1], eyeFov_[1][1]) + m;
+    const float u = std::max(eyeFov_[0][2], eyeFov_[1][2]) + m, d = std::min(eyeFov_[0][3], eyeFov_[1][3]) - m;
+    const float nearZ = 0.1f;
+    // No water in view (looking up at the sky): skip the pass.
+    bool seesDown = false;
+    for (int c = 0; c < 4 && !seesDown; ++c) {
+        const Vec3 ray = head.orientation.rotate(normalize(Vec3{std::tan((c & 1) ? rr : l), std::tan((c & 2) ? u : d), -1.0f}));
+        seesDown = ray.y < -0.01f;
+    }
+    if (!seesDown) return;
+    v.projection = Mat4::projectionFov(l, rr, u, d, nearZ, 0.0f);
+    const uint32_t calls0 = renderer_.drawCallsThisFrame();
+    renderer_.beginReflectionPass(v, nearZ);
+    const bool cut = cutsceneActive();
+    std::vector<int> cutTypes;
+    if (cut) cutTypes = cutscene_->actorTypes();
+    assetWorld_->setHiddenTypes(cutTypes);
+    assetWorld_->render(renderer_, true);
+    for (const auto& n : nests_)
+        if (n.alive && n.shown >= 0.02f) drawModel(n.model, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown), false);
+    const Vec3 eye = head.position;
+    if (playMode_ && playerModel_ && !cut) playerModel_->renderFull(renderer_, bodyXf_);
+    if (playMode_ && timmyOn_ && !cut) timmy_->render(renderer_, timmyXf_);
+    if (playMode_ && gunValid_ && !cut) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
+    for (const auto& c : chars_) {
+        if (!c.visible || length(c.pos - eye) > 90.0f) continue;
+        if (cut && std::find(cutTypes.begin(), cutTypes.end(), c.type) != cutTypes.end()) continue;
+        c.model->render(renderer_, Mat4::translation(c.pos + Vec3{0, c.lift, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, c.yaw)) *
+                                       Mat4::scale({c.scale, c.scale, c.scale}));
+    }
+    for (const auto& e : enemies_.enemies)
+        if (e.slot >= 0 && length(e.pos - eye) < 90.0f)
+            enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
+                                                              Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
+    if (cut) cutscene_->render();
+    renderer_.endReflectionPass();
+    renderer_.setReflectionActive(true);
+    static int logged = 0;
+    if (logged < 3) { ++logged; LOGI("Reflection pass: %u draw calls", renderer_.drawCallsThisFrame() - calls0); }
 }
 
 void GameApp::renderSunRays() {
@@ -1434,6 +1532,22 @@ void GameApp::startCutscene(const std::string& first) {
     skipArmed_ = false;  // a trigger held when the cutscene starts must not skip it
 }
 
+void GameApp::followHead(float dt, const InputFrame& in) {
+    // Head-locked panels (subtitles, the mission briefing): yaw and pitch of the head, no roll,
+    // eased toward the head so small head motions don't shake the text.
+    if (!in.headValid) return;
+    const Pose head = rig_.toWorld(in.head);
+    const Vec3 f = head.orientation.rotate(Vec3{0, 0, -1});
+    const float yaw = std::atan2(-f.x, -f.z), pitch = std::asin(std::max(-1.0f, std::min(1.0f, f.y)));
+    const Quat want = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, pitch);
+    const float k = subInit_ ? std::min(1.0f, dt * 10.0f) : 1.0f;
+    Quat q = subRot_;
+    if (q.x * want.x + q.y * want.y + q.z * want.z + q.w * want.w < 0) q = Quat{-q.x, -q.y, -q.z, -q.w};
+    subRot_ = normalize(Quat{q.x + (want.x - q.x) * k, q.y + (want.y - q.y) * k, q.z + (want.z - q.z) * k, q.w + (want.w - q.w) * k});
+    subHead_ = subInit_ ? subHead_ + (head.position - subHead_) * std::min(1.0f, dt * 20.0f) : head.position;
+    subInit_ = true;
+}
+
 void GameApp::updateCutscene(float dt, const InputFrame& in) {
     cutscene_->update(dt);
     const std::string stream = cutscene_->takeStream();
@@ -1473,12 +1587,14 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
         const Vec3 headT = in.headValid ? in.head.position * rig_.comfort.worldScale : Vec3{0, 1.6f, 0};
         rig_.worldFromTracking.orientation = q;
         rig_.worldFromTracking.position = eye - q.rotate(headT);
+        subInit_ = false;  // the subtitles jump with the cut
     } else if (cutscene_->active()) {
         // Travel with a moving shot camera (translation only; the view never rotates by itself).
         const Vec3 now = aboveGround(cutscene_->eyeNow());
         rig_.worldFromTracking.position = rig_.worldFromTracking.position + (now - cutEye_);
         cutEye_ = now;
     }
+    followHead(dt, in);
     if (!cutscene_->active()) {
         // Back to the game where the player stands.
         if (playMode_) rig_.teleportHead(in, player_.position, player_.yaw);
@@ -1501,9 +1617,11 @@ void GameApp::renderCutscene() {
         if (!lines.empty()) {
             float w = 0, h = 0;
             const MeshId m = text_.mesh(lines, 0.052f, 1.3f, &w, &h);
-            const Quat r = Quat::fromAxisAngle({0, 1, 0}, cutYaw_);
-            const Vec3 at = cutEye_ + r.rotate(Vec3{0, -0.38f, -1.5f});
-            const Mat4 xf = Mat4::translation(at) * Mat4::rotation(r * Quat::fromAxisAngle({1, 0, 0}, 0.25f));
+            // Head-locked (user request after device test 19): the panel follows the headset,
+            // a little below the line of sight, smoothed so it doesn't jitter with the head.
+            const Quat r = subRot_;
+            const Vec3 at = subHead_ + r.rotate(Vec3{0, -0.34f, -1.4f});
+            const Mat4 xf = Mat4::translation(at) * Mat4::rotation(r * Quat::fromAxisAngle({1, 0, 0}, 0.24f));
             text_.drawPanel(xf, w + 0.08f, h + 0.05f, {0, 0, 0, 0.55f});
             text_.draw(m, xf * Mat4::translation({0, 0, 0.003f}), {1.0f, 0.92f, 0.7f, 1.0f});
         }
@@ -2079,6 +2197,13 @@ void GameApp::update(float dt, const InputFrame& in) {
 }
 
 void GameApp::renderEye(const EyeRenderInfo& eye) {
+    {
+        // Remember the eyes' fields of view (the reflection camera covers both).
+        const int k = eye.fovLeft < -eye.fovRight ? 0 : 1;
+        eyeFov_[k][0] = eye.fovLeft; eyeFov_[k][1] = eye.fovRight; eyeFov_[k][2] = eye.fovUp; eyeFov_[k][3] = eye.fovDown;
+        if (k == 1) haveFov_ = true;
+        if (!haveFov_) { eyeFov_[1][0] = eye.fovLeft; eyeFov_[1][1] = eye.fovRight; eyeFov_[1][2] = eye.fovUp; eyeFov_[1][3] = eye.fovDown; }
+    }
     Pose eyeWorld = rig_.toWorld(eye.trackingPose);
     ViewParams v;
     v.view = Mat4::fromPose(eyeWorld.inverse());
@@ -2101,6 +2226,10 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     }
     if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
     if (playMode_ && playerModel_ && !cut) playerModel_->render(renderer_, bodyXf_);
+    // Timmy on the back: in first person only when he isn't right in front of the eyes.
+    if (playMode_ && timmyOn_ && !cut &&
+        (!firstPerson_ || length(Vec3{timmyXf_.m[12], timmyXf_.m[13], timmyXf_.m[14]} - v.eyePosition) > 0.45f))
+        timmy_->render(renderer_, timmyXf_);
     if (playMode_ && gunValid_ && !cut) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
     if (rocketModel_)
         for (const auto& r : rockets_) {

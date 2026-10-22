@@ -70,6 +70,23 @@ bool parseFlick(const uint8_t* d, size_t n, FlickShot& out, std::string* error) 
                     if (a.index == idx) { a.placed = true; a.px = f(0); a.py = f(1); a.pz = f(2); a.pyaw = f(3); }
                 break;
             }
+            case 0x19: {  // ground node: {actorIdx, nodeOff}
+                const int idx = int(word(0));
+                for (auto& a : out.actors)
+                    if (a.index == idx) a.groundNode = cstr(d, n, word(1));
+                break;
+            }
+            case 0x22: {  // ground follow: {actorIdx, 6, 5, f32 x0, y0, x1, y1} (footprint, game units)
+                const int idx = int(word(0));
+                auto f = [&](size_t i) { float v; const uint32_t u = word(i); std::memcpy(&v, &u, 4); return v; };
+                for (auto& a : out.actors)
+                    if (a.index == idx && nw >= 7) {
+                        a.groundFollow = true;
+                        a.footMin[0] = f(3); a.footMin[1] = f(4);
+                        a.footMax[0] = f(5); a.footMax[1] = f(6);
+                    }
+                break;
+            }
             case 0x10: {
                 const std::string key = cstr(d, n, word(0));
                 if (!key.empty()) {

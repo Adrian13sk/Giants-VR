@@ -63,6 +63,9 @@ struct EnvironmentParams {
     Vec3 waterColor{0.020f, 0.095f, 0.110f};     // linear
     Vec3 skyHorizon{0.55f, 0.70f, 0.90f}, skyZenith{0.25f, 0.40f, 0.70f};  // linear, for water reflections
     float time = 0;                              // seconds (waves, cloud drift)
+    // Colour grade: saturation, contrast, warm/cool split, exposure (1 = neutral). Livelier than
+    // the raw textures (user feedback after device test 19: "washed out, boring").
+    Vec4 grade{1.25f, 1.06f, 0.08f, 1.08f};
 };
 
 class Renderer {
@@ -93,6 +96,18 @@ public:
     bool shadowsReady() const { return shadowFbo_ != 0; }
     // Orthographic sun view around `centre` (half-size in metres), snapped to shadow texels.
     Mat4 sunShadowMatrix(const Vec3& centre, float halfSize) const;
+    // Planar water reflection: the world mirrored in the sea surface, rendered once per frame
+    // (from between the eyes, wide enough for both) into its own colour + depth target. The water
+    // shader corrects the lookup per eye with the reflection's depth.
+    bool initReflection(int width, int height);
+    bool reflectionReady() const { return reflFbo_ != 0; }
+    // `view`: the mirrored view (view matrix * mirror), eyePosition = mirrored eye.
+    void beginReflectionPass(const ViewParams& view, float nearZ);
+    void endReflectionPass();
+    void setReflectionActive(bool on) { reflActive_ = on; }
+    bool inReflectionPass() const { return inReflection_; }
+    // Water depth below the sea surface over a rectangle of the world (R8: depth / 24 m).
+    void setWaterDepthMap(int w, int h, const uint8_t* depth, float x0, float z0, float width, float depthZ);
     const ViewParams& currentView() const { return currentView_; }
     // Bounding-sphere test against the current view frustum (world space).
     bool sphereVisible(const Vec3& centre, float radius) const;
@@ -119,6 +134,15 @@ private:
     GLint uFogColor_ = -1, uFogRange_ = -1, uEyePos_ = -1, uUnlit_ = -1, uAlphaRef_ = -1, uTex_ = -1;
     GLint uMaterial_ = -1, uTime_ = -1, uSeaLevel_ = -1, uWaterColor_ = -1, uSkyHorizon_ = -1, uSkyZenith_ = -1;
     GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
+    GLint uClipY_ = -1, uGrade_ = -1, uReflTex_ = -1, uReflDepth_ = -1, uReflMat_ = -1, uReflEye_ = -1, uReflNear_ = -1,
+          uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
+    GLuint reflFbo_ = 0, reflColor_ = 0, reflDepth_ = 0, waterDepthTex_ = 0;
+    int reflW_ = 0, reflH_ = 0;
+    bool reflActive_ = false, inReflection_ = false;
+    Mat4 reflMat_ = Mat4::identity();
+    Vec3 reflEye_;
+    float reflNear_ = 0.1f;
+    float waterRect_[4] = {0, 0, 0, 0};
     GLuint shadowProgram_ = 0, shadowFbo_ = 0, shadowTex_ = 0, dummyShadowTex_ = 0;
     GLint uShadowMVP_ = -1;
     int shadowSize_ = 0;

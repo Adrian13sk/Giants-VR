@@ -232,9 +232,10 @@ int main(int argc, char** argv) {
     const float ipd = 0.064f;
     std::vector<uint8_t> sbs(size_t(w) * 2 * h * 4);
     std::vector<uint8_t> eyePx(size_t(w) * h * 4);
-    app.renderShadows();
+    EyeRenderInfo eyes[2];
     for (int eye = 0; eye < 2; ++eye) {
-        EyeRenderInfo ei{};
+        EyeRenderInfo& ei = eyes[eye];
+        ei = EyeRenderInfo{};
         ei.trackingPose.orientation = in.head.orientation;
         ei.trackingPose.position = in.head.transformPoint({(eye == 0 ? -0.5f : 0.5f) * ipd, 0, 0});
         if (eye == 0) { ei.fovLeft = -0.942f; ei.fovRight = 0.698f; }
@@ -243,6 +244,10 @@ int main(int argc, char** argv) {
         ei.fovDown = -0.837f;
         ei.width = w;
         ei.height = h;
+    }
+    app.renderShadows(eyes[0], eyes[1]);
+    for (int eye = 0; eye < 2; ++eye) {
+        const EyeRenderInfo& ei = eyes[eye];
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         app.renderer().resetStats();
         app.renderEye(ei);

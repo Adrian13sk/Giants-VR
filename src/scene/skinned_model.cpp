@@ -156,20 +156,20 @@ void SkinnedModel::poseBlend(Renderer& r, int a, float ta, int b, float tb, floa
         const float wa = 1.0f - wb;
         for (size_t i = 0; i < posed_.size(); ++i) posed_[i] = posed_[i] * wa + posedB_[i] * wb;
     }
+    bool collapse = false;
+    Vec3 centre{0, 0, 0};
     if (!hideMask_.empty()) {
         // Collapse hidden vertices onto their centroid: their triangles become degenerate.
-        Vec3 c{0, 0, 0};
         size_t n = 0;
         for (size_t i = 0; i < posed_.size(); ++i)
-            if (hideMask_[i]) { c += posed_[i]; ++n; }
+            if (hideMask_[i]) { centre += posed_[i]; ++n; }
         if (n) {
-            c = c * (1.0f / float(n));
-            hiddenCentroid_ = c;
-            if (hideEnabled_)
-                for (size_t i = 0; i < posed_.size(); ++i)
-                    if (hideMask_[i]) posed_[i] = c;
+            centre = centre * (1.0f / float(n));
+            hiddenCentroid_ = centre;
+            collapse = hideEnabled_;
         }
     }
+    const bool full = collapse && keepFull_;
     for (Part& p : parts_) {
         std::vector<Vec3> acc(p.verts.size(), Vec3{0, 0, 0});
         for (size_t v = 0; v < p.verts.size(); ++v) {
@@ -187,8 +187,50 @@ void SkinnedModel::poseBlend(Renderer& r, int a, float ta, int b, float tb, floa
             Vec3 n = normalize(acc[v]);
             p.verts[v].normal[0] = n.x; p.verts[v].normal[1] = n.y; p.verts[v].normal[2] = n.z;
         }
+        if (full) {
+            if (!p.fullMesh) {
+                MeshData md;
+                md.vertices = p.verts;
+                md.indices = p.indices;
+                p.fullMesh = r.uploadMesh(md);
+            } else {
+                r.updateMeshVertices(p.fullMesh, p.verts);
+            }
+        }
+        if (collapse)
+            for (size_t v = 0; v < p.verts.size(); ++v)
+                if (hideMask_[p.posIndex[v]]) { p.verts[v].pos[0] = centre.x; p.verts[v].pos[1] = centre.y; p.verts[v].pos[2] = centre.z; }
         r.updateMeshVertices(p.mesh, p.verts);
     }
+    fullValid_ = full;
+}
+
+void SkinnedModel::boundsAt(int anim, float t, Vec3& mn, Vec3& mx) {
+    mn = {1e30f, 1e30f, 1e30f};
+    mx = {-1e30f, -1e30f, -1e30f};
+    if (anims_.empty()) return;
+    skin(anim, t, posedB_);
+    for (const Vec3& p : posedB_) {
+        mn = {std::min(mn.x, p.x), std::min(mn.y, p.y), std::min(mn.z, p.z)};
+        mx = {std::max(mx.x, p.x), std::max(mx.y, p.y), std::max(mx.z, p.z)};
+    }
+}
+
+void SkinnedModel::renderFull(Renderer& r, const Mat4& world) const {
+    if (!fullValid_) { render(r, world); return; }
+    for (const Part& p : parts_) {
+        DrawParams dp;
+        dp.texture = p.texture;
+        dp.blend = p.blend;
+        dp.unlit = !p.lit;
+        if (p.glass) { dp.blend = BlendMode::AlphaBlend; dp.tint = {1, 1, 1, 0.3f}; }
+        r.draw(p.fullMesh ? p.fullMesh : p.mesh, world, dp);
+    }
+}
+
+void SkinnedModel::renderShadowFull(Renderer& r, const Mat4& world) const {
+    for (const Part& p : parts_)
+        if (!p.glass) r.drawShadow(fullValid_ && p.fullMesh ? p.fullMesh : p.mesh, world);
 }
 
 void SkinnedModel::setHiddenBones(const std::vector<std::string>& names) {

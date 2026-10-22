@@ -53,6 +53,8 @@ public:
     void renderEye(const EyeRenderInfo& eye);
     // Once per frame, before the eyes: the sun's shadow map around the player.
     void renderShadows();
+    // Same, also given this frame's two eyes (their fields of view size the reflection camera).
+    void renderShadows(const EyeRenderInfo& left, const EyeRenderInfo& right);
     void shutdown();
 
     std::vector<HapticRequest>& hapticRequests() { return haptics_; }
@@ -244,6 +246,20 @@ private:
     MeshId sunRaysMesh_ = 0;
     void updateSun(float dt);
     void renderSunRays();
+    // Water reflection: the world mirrored in the sea, once per frame from between the eyes.
+    bool reflOn_ = false;
+    float eyeFov_[2][4] = {};  // last eyes' FOV angles (left, right, up, down)
+    bool haveFov_ = false;
+    void renderReflection();
+    void renderShadowMap();
+    // Timmy rides on Baz's back (Ref_HolsterB, his own sm_mount clip) once Baz has the jetpack:
+    // the Story 1 cutscenes after the hand-over carry him there (story1_jetpack_6/8, get_rpg9/10,
+    // hatch_into_tel) and no later Story 1 mission places him anywhere else.
+    std::unique_ptr<SkinnedModel> timmy_;
+    Mat4 timmyXf_ = Mat4::identity();
+    bool timmyOn_ = false;
+    int timmyType_ = 583;
+    void updateTimmy();
     void updateLoading(float dt, const InputFrame& in);
     void renderLoading();
     ButtonEdge missionEdge_;
@@ -288,6 +304,10 @@ private:
     Vec3 cutEye_;
     float cutYaw_ = 0;
     bool skipArmed_ = false;
+    Quat subRot_;          // head-locked panels: smoothed head yaw/pitch
+    Vec3 subHead_;         // and head position
+    bool subInit_ = false;
+    void followHead(float dt, const InputFrame& in);
     void startCutscene(const std::string& first);
     void updateCutscene(float dt, const InputFrame& in);
     void renderCutscene();

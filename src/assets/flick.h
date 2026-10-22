@@ -27,6 +27,13 @@ struct FlickActor {
     std::string anim;          // op 3: the attached actor's own clip (e.g. "mcjetpacka1")
     bool placed = false;       // op 0x20: a free actor at a world position (game units) and yaw
     float px = 0, py = 0, pz = 0, pyaw = 0;
+    // op 0x19 {actorIdx, nodeOff} + op 0x22 {actorIdx, 6, 5, f32 x0, y0, x1, y1}: read as the
+    // actor following the ground (the node it is held up by, and a footprint rectangle in game
+    // units around it). Inferred: every walking character in the Story 1 shots carries the pair,
+    // props and vehicles don't, and our terrain leaves exactly those actors floating or sunk.
+    bool groundFollow = false;
+    std::string groundNode;
+    float footMin[2] = {0, 0}, footMax[2] = {0, 0};
 };
 
 struct FlickShot {

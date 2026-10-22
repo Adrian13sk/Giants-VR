@@ -61,6 +61,13 @@ public:
     Vec3 restMin() const { return bmin_; }
     Vec3 restMax() const { return bmax_; }
     void posedBounds(Vec3& mn, Vec3& mx) const;
+    // Bounds of animation `anim` at `seconds` without touching the displayed pose (no upload).
+    void boundsAt(int anim, float seconds, Vec3& mn, Vec3& mx);
+    // Keep a second, complete copy of the posed mesh while hiding is on (the first-person body
+    // whose head is hidden still casts a whole shadow and shows whole in reflections).
+    void setKeepFull(bool on) { keepFull_ = on; }
+    void renderFull(Renderer& r, const Mat4& world) const;
+    void renderShadowFull(Renderer& r, const Mat4& world) const;
 
 private:
     struct Binding { int bone = -1; Vec3 local; };  // bone: index into bones_
@@ -72,12 +79,14 @@ private:
     PoseModifier modifier_;
     std::vector<uint8_t> hideMask_;  // per GBS position
     bool hideEnabled_ = false;
+    bool keepFull_ = false, fullValid_ = false;
     Vec3 hiddenCentroid_{0, 0, 0};
     std::vector<Mat4> domWorld_;
     int domClip_ = -1;
     void skin(int anim, float t, std::vector<Vec3>& out);
     struct Part {
         MeshId mesh = 0;
+        MeshId fullMesh = 0;  // keepFull_: the same part with nothing hidden
         TextureId texture = 0;
         BlendMode blend = BlendMode::Opaque;
         bool lit = true;
