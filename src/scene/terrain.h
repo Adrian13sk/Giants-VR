@@ -33,4 +33,6 @@ private:
     uint32_t tris_ = 0;
 };
 
+std::vector<uint8_t> makeTerrainNoise(int size, uint32_t seed);
+
 }  // namespace gvr

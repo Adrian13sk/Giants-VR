@@ -1521,6 +1521,7 @@ void GameApp::updateSun(float dt) {
 }
 
 void GameApp::renderShadows() {
+    renderer_.setTerrainDetail(quality_ < 2);  // the adaptive fallback drops the extra terrain layers too
     buildBatches();
     buildHud();
     renderShadowMap();

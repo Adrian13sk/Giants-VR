@@ -93,7 +93,55 @@ uniform float uReflOn;
 uniform sampler2D uWaterDepth;
 uniform highp vec4 uWaterDepthRect;  // x0, z0, 1/width, 1/depth (world metres)
 uniform float uWaterDepthOn;
+uniform sampler2D uTerrRock;
+uniform sampler2D uTerrSand;
+uniform sampler2D uTerrGrass2;
+uniform sampler2D uTerrRock2;
+uniform sampler2D uTerrNoise;
+uniform float uTerrDetail;
 out vec4 oColor;
+
+// Terrain (material 3): the world's ground texture, varied with a second grass/earth in patches;
+// rock on slopes (projected on the dominant side axis, so cliffs aren't stretched), two rocks
+// mixed in large patches; a sand beach just above the sea and sand under it, wet below the
+// waterline; fine grain up close. Weights come from slope, height above the sea and noise.
+vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d) {
+    highp vec2 xz = wp.xz;
+    vec2 nz = texture(uTerrNoise, xz * 0.006).rg;              // ~170 m: large patches
+    float nzp = texture(uTerrNoise, xz * 0.031 + vec2(0.37, 0.71)).r;  // ~32 m: small patches
+    vec3 grass = texture(uTex, uv).rgb;
+    float slope = 1.0 - n.y;
+    float rockW = smoothstep(0.26, 0.45, slope + (nzp - 0.5) * 0.14);
+    highp float hs = wp.y - uSeaLevel;
+    float sandW = (1.0 - smoothstep(0.8, 2.6 + nzp * 2.0, hs)) * (1.0 - smoothstep(0.32, 0.52, slope));
+    vec3 col = grass;
+    if (uTerrDetail > 0.5) {
+        float gW = smoothstep(0.56, 0.74, nzp * 0.65 + nz.x * 0.55) * 0.85;  // noise sum averages ~0.6: about a third covered
+        if (gW > 0.01) col = mix(col, texture(uTerrGrass2, xz * 0.085).rgb * vec3(1.06, 1.0, 0.86), gW);
+        // Lusher / drier tint over the large patches.
+        col *= mix(vec3(0.84, 1.08, 0.84), vec3(1.14, 1.03, 0.78), smoothstep(0.25, 0.75, nz.y));
+    }
+    if (sandW > 0.01) {
+        vec3 sand = texture(uTerrSand, xz * 0.12).rgb;
+        float l = dot(sand, vec3(0.299, 0.587, 0.114));
+        sand = mix(vec3(l), sand, 0.45) * vec3(1.3, 1.22, 0.92);   // the desert sand paled to beach sand
+        sand *= mix(1.0, 0.68, smoothstep(-0.1, 0.5, -hs));        // wet at and below the waterline
+        col = mix(col, sand, sandW);
+    }
+    if (rockW > 0.01) {
+        vec3 an = abs(n);
+        highp vec2 ruv = an.x > an.z ? wp.zy : wp.xy;
+        if (an.y > max(an.x, an.z)) ruv = xz;
+        vec3 rock = texture(uTerrRock, ruv * 0.11).rgb;
+        if (uTerrDetail > 0.5) rock = mix(rock, texture(uTerrRock2, ruv * 0.07).rgb * 1.1, smoothstep(0.42, 0.62, nz.x) * 0.7);
+        col = mix(col, rock, rockW);
+    }
+    if (uTerrDetail > 0.5 && d < 30.0) {
+        float g = texture(uTerrNoise, xz * 1.7).g;  // grain up close (fades out by 30 m)
+        col *= mix(1.0, 0.82 + 0.36 * g, 1.0 - smoothstep(10.0, 30.0, d));
+    }
+    return col;
+}
 
 float sunShadow(highp vec3 wp, vec3 n) {
     if (uShadowOn < 0.5) return 1.0;
@@ -201,7 +249,8 @@ void main() {
 #endif
         return;
     }
-    vec4 base = texture(uTex, vUv) * vColor * uTint;
+    vec4 base = uMaterial == 3 ? vec4(terrainColor(vWorldPos, normalize(vNormal), vUv, d), 1.0) * vColor * uTint
+                               : texture(uTex, vUv) * vColor * uTint;
     if (base.a < uAlphaRef) discard;
     if (uUnlit > 1.5) {  // emissive: effects and overlays keep their own colour
         oColor = vec4(base.rgb, base.a);
@@ -317,6 +366,11 @@ bool Renderer::init() {
     uWaterDepth_ = glGetUniformLocation(program_, "uWaterDepth");
     uWaterDepthRect_ = glGetUniformLocation(program_, "uWaterDepthRect");
     uWaterDepthOn_ = glGetUniformLocation(program_, "uWaterDepthOn");
+    {
+        const char* tn[5] = {"uTerrRock", "uTerrSand", "uTerrGrass2", "uTerrRock2", "uTerrNoise"};
+        for (int k = 0; k < 5; ++k) uTerr_[k] = glGetUniformLocation(program_, tn[k]);
+        uTerrDetail_ = glGetUniformLocation(program_, "uTerrDetail");
+    }
     {
         // A 1x1 depth texture bound to the shadow sampler while shadows are off (a sampler with
         // no complete texture is undefined).
@@ -515,6 +569,15 @@ void Renderer::beginView(const ViewParams& view, int w, int h, bool clear) {
     glUniform1f(uReflNear_, reflNear_);
     glUniform1f(uWaterDepthOn_, waterDepthTex_ ? 1.0f : 0.0f);
     glUniform4f(uWaterDepthRect_, waterRect_[0], waterRect_[1], waterRect_[2], waterRect_[3]);
+    // Terrain layers: units 5..9.
+    for (int k = 0; k < 5; ++k) {
+        glUniform1i(uTerr_[k], 5 + k);
+        glActiveTexture(GLenum(GL_TEXTURE5 + k));
+        GLuint t = whiteTexture_;
+        if (terrainTex_[k] != 0 && terrainTex_[k] <= textures_.size() && textures_[terrainTex_[k] - 1].live) t = textures_[terrainTex_[k] - 1].tex;
+        glBindTexture(GL_TEXTURE_2D, t);
+    }
+    glUniform1f(uTerrDetail_, terrainDetail_ ? 1.0f : 0.0f);
     glActiveTexture(GL_TEXTURE0);
 }
 

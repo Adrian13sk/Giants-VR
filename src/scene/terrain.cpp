@@ -40,9 +40,24 @@ bool Terrain::build(const GtiTerrain& t, Renderer& r, TextureId ground, TextureI
         return v;
     };
 
+    // Smooth vertex normals from the heightfield (central differences), so the slope-based
+    // texture blend (rock on slopes) is smooth across triangles instead of faceted.
+    auto smoothNormal = [&](uint32_t x, uint32_t y) {
+        auto hp = [&](int xx, int yy) {
+            xx = std::max(0, std::min(int(t.gridW) - 1, xx));
+            yy = std::max(0, std::min(int(t.gridH) - 1, yy));
+            if (!t.valid(uint32_t(xx), uint32_t(yy))) return giantsToRuntime(t.worldX(x), t.worldY(y), t.h(x, y));
+            return giantsToRuntime(t.worldX(uint32_t(xx)), t.worldY(uint32_t(yy)), t.h(uint32_t(xx), uint32_t(yy)));
+        };
+        const Vec3 dx = hp(int(x) + 1, int(y)) - hp(int(x) - 1, int(y));
+        const Vec3 dy = hp(int(x), int(y) + 1) - hp(int(x), int(y) - 1);
+        Vec3 n = normalize(cross(dx, dy));
+        if (n.y < 0) n = n * -1.0f;
+        return n;
+    };
     for (uint32_t cy = 0; cy + 1 < t.gridH; cy += kChunk) {
         for (uint32_t cx = 0; cx + 1 < t.gridW; cx += kChunk) {
-            MeshData meshes[2];  // 0 = ground, 1 = wall
+            MeshData mesh;
             for (uint32_t y = cy; y < std::min(cy + kChunk, t.gridH - 1); ++y) {
                 for (uint32_t x = cx; x < std::min(cx + kChunk, t.gridW - 1); ++x) {
                     if (!t.valid(x, y) || !t.valid(x + 1, y) || !t.valid(x, y + 1) || !t.valid(x + 1, y + 1))
@@ -59,32 +74,26 @@ bool Terrain::build(const GtiTerrain& t, Renderer& r, TextureId ground, TextureI
                         std::copy(&a[0][0][0], &a[0][0][0] + 12, &q[0][0][0]);
                     }
                     for (auto& tri : q) {
-                        Vertex v[3];
-                        for (int k = 0; k < 3; ++k) v[k] = vert(tri[k][0], tri[k][1]);
-                        Vec3 a{v[0].pos[0], v[0].pos[1], v[0].pos[2]};
-                        Vec3 b{v[1].pos[0], v[1].pos[1], v[1].pos[2]};
-                        Vec3 c{v[2].pos[0], v[2].pos[1], v[2].pos[2]};
-                        Vec3 n = normalize(cross(b - a, c - a));
-                        MeshData& m = meshes[n.y < kWallSlopeY ? 1 : 0];
-                        uint32_t base = uint32_t(m.vertices.size());
-                        for (auto& vx : v) {
-                            vx.normal[0] = n.x; vx.normal[1] = n.y; vx.normal[2] = n.z;
-                            m.vertices.push_back(vx);
+                        const uint32_t base = uint32_t(mesh.vertices.size());
+                        for (int k = 0; k < 3; ++k) {
+                            Vertex v = vert(tri[k][0], tri[k][1]);
+                            const Vec3 n = smoothNormal(tri[k][0], tri[k][1]);
+                            v.normal[0] = n.x; v.normal[1] = n.y; v.normal[2] = n.z;
+                            mesh.vertices.push_back(v);
                         }
-                        m.indices.insert(m.indices.end(), {base, base + 1, base + 2});
+                        mesh.indices.insert(mesh.indices.end(), {base, base + 1, base + 2});
                         ++tris_;
                     }
                 }
             }
-            for (int i = 0; i < 2; ++i) {
-                if (meshes[i].indices.empty()) continue;
-                Chunk c;
-                c.mesh = r.uploadMesh(meshes[i]);
-                c.texture = i == 0 ? ground : (wall ? wall : ground);
-                chunks_.push_back(c);
-            }
+            if (mesh.indices.empty()) continue;
+            Chunk c;
+            c.mesh = r.uploadMesh(mesh);
+            c.texture = ground ? ground : wall;
+            chunks_.push_back(c);
         }
     }
+    (void)kWallSlopeY;
     LOGI("Terrain %s: %ux%u cells, %u triangles, %zu chunks", t.name.c_str(), t.tilesX, t.tilesY, tris_,
          chunks_.size());
     return !chunks_.empty();
@@ -95,6 +104,7 @@ void Terrain::render(Renderer& r) const {
         DrawParams dp;
         dp.texture = c.texture;
         dp.unlit = true;  // the per-cell lightmap is the lighting, as in the original
+        dp.material = DrawParams::Material::Terrain;
         r.draw(c.mesh, Mat4::identity(), dp);
     }
 }
@@ -152,6 +162,40 @@ Vec3 Terrain::suggestSpawn() const {
         }
     if (best == 1e30f) return {0, 0, 0};
     return giantsToRuntime(t_.worldX(bx), t_.worldY(by), t_.h(bx, by));
+}
+
+// Tileable noise for the terrain blends (our own): R = fractal value noise (patches), G = finer
+// grain; size x size RGBA.
+std::vector<uint8_t> makeTerrainNoise(int size, uint32_t seed) {
+    auto lattice = [&](int i, int j, int cells, uint32_t sd) {
+        i = ((i % cells) + cells) % cells;
+        j = ((j % cells) + cells) % cells;
+        uint32_t v = uint32_t(i) * 374761393u + uint32_t(j) * 668265263u + sd * 2246822519u;
+        v = (v ^ (v >> 13)) * 1274126177u;
+        return float((v ^ (v >> 16)) & 0xffffu) / 65535.0f;
+    };
+    auto noise = [&](float u, float v, int cells, uint32_t sd) {
+        const float fx = u * float(cells), fy = v * float(cells);
+        const int ix = int(std::floor(fx)), iy = int(std::floor(fy));
+        float tx = fx - float(ix), ty = fy - float(iy);
+        tx = tx * tx * (3 - 2 * tx);
+        ty = ty * ty * (3 - 2 * ty);
+        const float a = lattice(ix, iy, cells, sd), b = lattice(ix + 1, iy, cells, sd);
+        const float c = lattice(ix, iy + 1, cells, sd), d = lattice(ix + 1, iy + 1, cells, sd);
+        return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * ty;
+    };
+    std::vector<uint8_t> out(size_t(size) * size_t(size) * 4, 255);
+    for (int y = 0; y < size; ++y)
+        for (int x = 0; x < size; ++x) {
+            const float u = float(x) / float(size), v = float(y) / float(size);
+            const float r = 0.5f * noise(u, v, 4, seed) + 0.3f * noise(u, v, 8, seed + 1) + 0.2f * noise(u, v, 16, seed + 2);
+            const float g = 0.6f * noise(u, v, 32, seed + 3) + 0.4f * noise(u, v, 64, seed + 4);
+            const size_t o = (size_t(y) * size_t(size) + size_t(x)) * 4;
+            out[o + 0] = uint8_t(std::min(1.0f, std::max(0.0f, r)) * 255.0f);
+            out[o + 1] = uint8_t(std::min(1.0f, std::max(0.0f, g)) * 255.0f);
+            out[o + 2] = 128;
+        }
+    return out;
 }
 
 }  // namespace gvr

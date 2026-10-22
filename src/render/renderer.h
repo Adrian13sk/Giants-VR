@@ -42,7 +42,7 @@ struct DrawParams {
     bool depthTest = true;  // false: drawn over everything (overlays such as subtitles)
     // Material: Standard (lit/unlit textured), Water (animated surface: waves, fresnel sky
     // reflection, sun glints), Sky (drifting clouds, sun disc and glow).
-    enum class Material : uint8_t { Standard, Water, Sky } material = Material::Standard;
+    enum class Material : uint8_t { Standard, Water, Sky, Terrain } material = Material::Standard;
 };
 
 struct ViewParams {
@@ -95,6 +95,14 @@ public:
     void drawShadow(MeshId mesh, const Mat4& model);
     void endShadowPass();
     void setShadowsActive(bool on) { shadowsActive_ = on; }
+    // Terrain layers (Material::Terrain): the world's ground texture is the draw's own; these add
+    // rock (slopes), sand (beach band and sea bed), a second grass/earth, a second rock and a
+    // tileable noise texture (R: patches, G: fine grain) that breaks the blends up. detail=false:
+    // the cheap path (ground + rock by slope + sand band, fewer samples) for the low quality levels.
+    void setTerrainLayers(TextureId rock, TextureId sand, TextureId grass2, TextureId rock2, TextureId noise) {
+        terrainTex_[0] = rock; terrainTex_[1] = sand; terrainTex_[2] = grass2; terrainTex_[3] = rock2; terrainTex_[4] = noise;
+    }
+    void setTerrainDetail(bool on) { terrainDetail_ = on; }
     bool shadowsReady() const { return shadowFbo_ != 0; }
     // Orthographic sun view around `centre` (half-size in metres), snapped to shadow texels.
     Mat4 sunShadowMatrix(const Vec3& centre, float halfSize) const;
@@ -138,6 +146,9 @@ private:
     GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
     GLint uClipY_ = -1, uGrade_ = -1, uReflTex_ = -1, uReflDepth_ = -1, uReflMat_ = -1, uReflEye_ = -1, uReflNear_ = -1,
           uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
+    GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1;
+    TextureId terrainTex_[5] = {};
+    bool terrainDetail_ = true;
     GLuint reflFbo_ = 0, reflColor_ = 0, reflDepth_ = 0, waterDepthTex_ = 0;
     int reflW_ = 0, reflH_ = 0;
     bool reflActive_ = false, inReflection_ = false;

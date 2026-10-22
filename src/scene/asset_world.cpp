@@ -75,6 +75,16 @@ bool AssetWorld::loadWorld(const std::string& name, Renderer& r) {
     TextureId ground = world_.groundTexture.empty() ? 0 : cache_->texture(world_.groundTexture);
     TextureId wall = world_.wallTexture1.empty() ? 0 : cache_->texture(world_.wallTexture1);
     if (!terrain_.build(gti, r, ground, wall)) return false;
+    {
+        // Terrain variety from original textures of other worlds: the desert sand (story3_grnd,
+        // paled in the shader) for beaches and the sea bed, an earthy ground (Rstory1_ground) in
+        // patches, a warm second rock (story3_rock); plus our tileable blend noise.
+        const std::vector<uint8_t> noise = makeTerrainNoise(256, 11u);
+        const TextureId noiseTex = r.uploadTexture(256, 256, noise.data(), true, true);
+        const TextureId sand = cache_->texture("story3_grnd"), grass2 = cache_->texture("Rstory1_ground");
+        const TextureId rock2 = cache_->texture("story3_rock");
+        r.setTerrainLayers(wall ? wall : ground, sand, grass2, rock2, noiseTex);
+    }
 
     // Fog / sky colour from the world definition. ASSUMPTION (unverified): colour bytes are
     // stored B,G,R like a D3D colour word. Needs comparison with the original renderer.
