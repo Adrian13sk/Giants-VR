@@ -120,6 +120,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             // Weapon models: gun (held, so dynamically lit), bolt, muzzle flash, impact flash.
             ModelCache* mc = assetWorld_->models();
             gunModel_ = mc->get("mc_gun_l0.gbs", "", /*dynamicLit=*/true);
+            launcherModel_ = mc->get("mc_launcher_l0.gbs", "", /*dynamicLit=*/true);
+            rocketModel_ = mc->get("mc_rocket.gbs", "mc_rocket.anm", /*dynamicLit=*/true);
             boltModel_ = mc->get("mc_bullet.gbs", "mc_bullet.anm");
             muzzleModel_ = mc->get("muzzle_flash.gbs", "muzzle_flash.anm");
             impactModel_ = mc->get("efx_flash.gbs");
@@ -531,7 +533,9 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "rm_inj02", "rl_atfr1", "rl_atfr2", "rl_attk1", "rl_chitt", "rl_deat1", "rl_deat2", "rl_feet", "rl_frexp1",
         "rl_frexp2", "rl_injr1", "rl_injr2", "ex_bdyl1", "ex_bdyl2",
         // Carrying Smarties (1b): pick up / let go / drop off, splash, piranhas.
-        "me_smton", "me_smtof", "me_smtdp", "se_splsh", "pi_swrm1", "pi_swrm2"};
+        "me_smton", "me_smtof", "me_smtdp", "se_splsh", "pi_swrm1", "pi_swrm2",
+        // Rocket launcher: launch, explosion.
+        "me_msls1", "me_mslex"};
     std::vector<std::string> all(std::begin(names), std::end(names));
     for (int k = 1; k <= 15; ++k)  // Smartie voice pairs gsmNN_1 / gsmNN_2 (no 07 in the data)
         for (int j = 1; j <= 2; ++j) {
@@ -883,6 +887,11 @@ void GameApp::initMission() {
     bool jet = true;
     if (m.setup[0] == 2) jet = std::find(m.items.begin(), m.items.end(), 1u) != m.items.end();
     player_.jetpackAvailable = jet;
+    // Item 3 is read as the rocket launcher ("RPG"): first listed in 1c, after Timmy hands it over
+    // at the end of 1b (provisional, like item 1 = jetpack).
+    if (m.setup[0] == 2 && std::find(m.items.begin(), m.items.end(), 3u) != m.items.end() && launcherModel_) hasLauncher_ = true;
+    if (std::getenv("GVR_LAUNCHER") && launcherModel_) hasLauncher_ = true;  // test hook
+    if (!hasLauncher_) weaponSel_ = 0;
     LOGI("Mission %s: %zu objectives, jetpack %s", assetWorld_->missionName().c_str(), objectives_.size(),
          jet ? "available" : "not yet (story)");
 }
@@ -1222,7 +1231,68 @@ void GameApp::damagePlayer(float amount) {
     }
 }
 
+void GameApp::explode(const Vec3& at, float radius, float damage) {
+    blasts_.push_back({at, 3, 0.0f});
+    sfx("me_mslex", at, 1.0f, 0.95f + 0.1f * frand());
+    for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
+        const Enemy& e = enemies_.enemies[i];
+        if (e.state == EnemyState::Dead) continue;
+        const float d = length(e.pos + Vec3{0, 0.9f, 0} - at);
+        if (d > radius) continue;
+        if (enemies_.damage(int(i), damage * (1.0f - 0.6f * d / radius)) && enemies_.enemies[i].objective >= 0)
+            completeObjective(enemies_.enemies[i].objective);
+    }
+    for (size_t i = 0; i < creatures_.creatures.size(); ++i) {
+        const Creature& c = creatures_.creatures[i];
+        if (c.state == CreatureState::Dead) continue;
+        const float d = length(c.pos + Vec3{0, 0.5f * c.scale, 0} - at);
+        if (d > radius) continue;
+        std::vector<CreatureEvent> ev;
+        Vec3 dir = c.pos - at;
+        dir.y = 0;
+        dir = length(dir) > 1e-3f ? normalize(dir) : Vec3{0, 0, -1};
+        const int slot = c.slot;
+        const float scale = c.scale;
+        if (creatures_.damage(int(i), damage * (1.0f - 0.6f * d / radius), dir, &ev) && slot >= 0 && size_t(slot) < chars_.size() &&
+            chars_[size_t(slot)].objective >= 0)
+            completeObjective(chars_[size_t(slot)].objective);
+        for (const auto& e : ev) {
+            if (e.kind == CreatureEvent::Die && e.burst) spawnGore(e.pos, e.dir, scale);
+            creatureSound(e);
+        }
+    }
+    LOGI("Rocket exploded at (%.1f %.1f %.1f), %zu creatures alive", at.x, at.y, at.z, creatures_.aliveCount());
+    // The player is not immune to their own rockets.
+    const float dp = length(player_.position + Vec3{0, 0.9f, 0} - at);
+    if (playMode_ && dp < radius * 0.6f) damagePlayer(30.0f * (1.0f - dp / (radius * 0.6f)));
+}
+
+void GameApp::updateRockets(float dt) {
+    for (auto& r : rockets_) {
+        r.life += dt;
+        const float step = length(r.vel) * dt;
+        const Vec3 dir = normalize(r.vel);
+        float t;
+        Vec3 n;
+        int target = -1;
+        bool hit = weapon_.raycast && weapon_.raycast(r.pos, dir, step, t, n, target);
+        if (!hit) {
+            // The sea stops rockets too.
+            const Vec3 next = r.pos + r.vel * dt;
+            if (next.y < 0.0f && r.pos.y >= 0.0f) { hit = true; t = step * (r.pos.y / std::max(1e-4f, r.pos.y - next.y)); }
+        }
+        if (hit || r.life > 5.0f) {
+            explode(hit ? r.pos + dir * t : r.pos, 4.0f, 120.0f);
+            r.life = 1e9f;
+            continue;
+        }
+        r.pos += r.vel * dt;
+    }
+    rockets_.erase(std::remove_if(rockets_.begin(), rockets_.end(), [](const Rocket& r) { return r.life >= 1e9f; }), rockets_.end());
+}
+
 void GameApp::updateCombat(float dt) {
+    updateRockets(dt);
     // Piranhas: where the mission briefing warns of them (1b: "Watch out for hungry PIRANHAS in
     // the water!"), wading or swimming in deep water gets the player bitten. Rate and damage ours.
     if (!piranhaKnown_ && gameText_ && assetWorld_) {
@@ -1322,26 +1392,41 @@ void GameApp::updateThirdPersonAim(const InputFrame& in, float dt) {
 
 void GameApp::updateWeapon(float dt, const InputFrame& in) {
     const int gh = rig_.turnHand();
+    // Right stick forward: next weapon (released to neutral before it switches again).
+    const float sy = in.hand[gh].thumbstick.y;
+    if (sy < 0.3f) switchArmed_ = true;
+    if (switchArmed_ && sy > 0.75f && hasLauncher_) {
+        switchArmed_ = false;
+        weaponSel_ = 1 - weaponSel_;
+        haptics_.push_back({gh, 0.5f, 0.06f});
+        LOGI("Weapon: %s", weaponSel_ ? "rocket launcher" : "gun");
+    }
+    const bool launcher = weaponSel_ == 1 && launcherModel_;
+    const RenderModel* held = launcher ? launcherModel_ : gunModel_;
+    // Handle / muzzle in each model's GAME frame (forward -Y, up +Z): the launcher is a
+    // shoulder tube (9.5 units long) held at its pistol grip, a little behind the middle.
+    const Vec3 handleGame = launcher ? Vec3{0.0f, 1.0f, -1.2f} : kGunHandleGame;
+    const Vec3 muzzleGame = launcher ? Vec3{0.0f, -4.7f, 0.1f} : kGunMuzzleGame;
     Mat4 ref;
     Vec3 muzzle, fwd;
     if (firstPerson_) {
         // First person: the gun follows the controller's aim pose exactly (shots go where you
         // point); handle at the grip, sized with the body's hands.
         const ControllerState& c = in.hand[gh];
-        gunValid_ = gunModel_ && c.aimPoseValid && c.gripPoseValid;
+        gunValid_ = held && c.aimPoseValid && c.gripPoseValid;
         if (gunValid_) {
             const Pose aim = rig_.toWorld(c.aimPose);
             const Pose grip = rig_.toWorld(c.gripPose);
             const float bodyScale = eyeModel_.y > 0.1f ? userEye_ / eyeModel_.y : 1.0f;
             const float k = bodyScale * 0.6f;
-            const Vec3 handle = giantsToRuntime(kGunHandleGame.x, kGunHandleGame.y, kGunHandleGame.z);
+            const Vec3 handle = giantsToRuntime(handleGame.x, handleGame.y, handleGame.z);
             gunXf_ = Mat4::translation(grip.position) * Mat4::rotation(aim.orientation) * Mat4::scale({k, k, k}) *
                      Mat4::translation(handle * -1.0f);
         }
     } else {
         // Third person: gun in the hand (skeleton's Ref_Rhand position), pointing at the
         // crosshair while aiming, otherwise forward and slightly down; character-sized.
-        gunValid_ = gunModel_ && playerModel_ && playerModel_->nodeWorld(gh == kRight ? "ref_rhand" : "ref_lhand", ref);
+        gunValid_ = held && playerModel_ && playerModel_->nodeWorld(gh == kRight ? "ref_rhand" : "ref_lhand", ref);
         if (gunValid_) {
             const Vec4 hp = bodyXf_ * Vec4{-ref.m[12] * gGameUnitsToMeters, ref.m[14] * gGameUnitsToMeters,
                                            ref.m[13] * gGameUnitsToMeters, 1.0f};
@@ -1353,12 +1438,12 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             const float pitch = std::asin(std::max(-1.0f, std::min(1.0f, f.y)));
             const Quat look = yawQ * Quat::fromAxisAngle({1, 0, 0}, pitch);
             const float k = 0.75f;  // a bit larger than FP so it reads at chase-camera distance
-            const Vec3 handle = giantsToRuntime(kGunHandleGame.x, kGunHandleGame.y, kGunHandleGame.z);
+            const Vec3 handle = giantsToRuntime(handleGame.x, handleGame.y, handleGame.z);
             gunXf_ = Mat4::translation(hand) * Mat4::rotation(look) * Mat4::scale({k, k, k}) * Mat4::translation(handle * -1.0f);
         }
     }
     if (gunValid_) {
-        const Vec3 mr = giantsToRuntime(kGunMuzzleGame.x, kGunMuzzleGame.y, kGunMuzzleGame.z);
+        const Vec3 mr = giantsToRuntime(muzzleGame.x, muzzleGame.y, muzzleGame.z);
         const Vec4 m4 = gunXf_ * Vec4{mr.x, mr.y, mr.z, 1.0f};
         const Vec3 fr = giantsToRuntime(kGunForwardGame.x, kGunForwardGame.y, kGunForwardGame.z);
         const Vec4 f4 = gunXf_ * Vec4{fr.x, fr.y, fr.z, 0.0f};
@@ -1367,6 +1452,20 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         if (!firstPerson_ && tpAiming_) fwd = normalize(aimTarget_ - muzzle);  // shots go to the crosshair
     }
     const bool trigger = in.hand[gh].trigger > 0.6f;
+    rocketCooldown_ -= dt;
+    if (launcher) {
+        // One rocket per pull, 1 s to reload. The gun's bolts still fly (update with no trigger).
+        weapon_.update(dt, false, muzzle, fwd);
+        if (trigger && gunValid_ && rocketCooldown_ <= 0 && !rocketTriggerHeld_) {
+            rockets_.push_back({muzzle, fwd * 32.0f, 0.0f});
+            rocketCooldown_ = 1.0f;
+            haptics_.push_back({gh, 0.9f, 0.12f});
+            sfx("me_msls1", muzzle, 1.0f, 0.95f + 0.1f * frand());
+        }
+        rocketTriggerHeld_ = trigger;
+        return;
+    }
+    rocketTriggerHeld_ = trigger;
     if (weapon_.update(dt, trigger && gunValid_, muzzle, fwd)) {
         haptics_.push_back({gh, 0.35f, 0.04f});
         sfx((weapon_.shotsFired() & 1) ? "me_peas1" : "me_peas2", muzzle, 0.7f, 0.95f + 0.1f * frand());
@@ -1567,7 +1666,15 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     std::vector<int> cutTypes;
     if (cut) cutTypes = cutscene_->actorTypes();
     if (playMode_ && playerModel_ && !cut) playerModel_->render(renderer_, bodyXf_);
-    if (playMode_ && gunValid_ && !cut) drawModel(gunModel_, gunXf_, false);
+    if (playMode_ && gunValid_ && !cut) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
+    if (rocketModel_)
+        for (const auto& r : rockets_) {
+            // The rocket model points along -Y (game) = -Z (runtime): orient it along its flight.
+            const Vec3 f = normalize(r.vel);
+            const Quat yawQ = Quat::fromAxisAngle({0, 1, 0}, std::atan2(-f.x, -f.z));
+            const Quat look = yawQ * Quat::fromAxisAngle({1, 0, 0}, std::asin(std::max(-1.0f, std::min(1.0f, f.y))));
+            drawModel(rocketModel_, Mat4::translation(r.pos) * Mat4::rotation(look) * Mat4::scale({0.6f, 0.6f, 0.6f}), false);
+        }
     for (const auto& c : chars_) {
         if (!c.visible || length(c.pos - v.eyePosition) > 160.0f) continue;
         if (cut && std::find(cutTypes.begin(), cutTypes.end(), c.type) != cutTypes.end()) continue;

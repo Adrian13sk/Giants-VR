@@ -134,6 +134,19 @@ private:
     ArmPose armTargets_[2];           // model space (game units), per hand
     // Weapon: the original Meccaryn gun in the right hand (attached at the skeleton's Ref_Rhand).
     const RenderModel* gunModel_ = nullptr;
+    // Rocket launcher (the RPG Timmy gives Baz at the end of 1b; mission item 3): mc_launcher_l0
+    // in hand, mc_rocket projectiles with splash damage. Right stick forward switches weapons.
+    const RenderModel* launcherModel_ = nullptr;
+    const RenderModel* rocketModel_ = nullptr;
+    bool hasLauncher_ = false;
+    int weaponSel_ = 0;  // 0 gun, 1 launcher
+    bool switchArmed_ = true;
+    float rocketCooldown_ = 0;
+    bool rocketTriggerHeld_ = false;
+    struct Rocket { Vec3 pos, vel; float life; };
+    std::vector<Rocket> rockets_;
+    void updateRockets(float dt);
+    void explode(const Vec3& at, float radius, float damage);
     const RenderModel* boltModel_ = nullptr;
     const RenderModel* muzzleModel_ = nullptr;
     const RenderModel* impactModel_ = nullptr;

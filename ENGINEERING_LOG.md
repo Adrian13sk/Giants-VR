@@ -512,3 +512,10 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
 - **Piranhas:** where the mission briefing (GText `MO_<mission>`) mentions PIRANHAS (1b), standing or swimming in water
   deeper than 0.5 m gets the player bitten after 0.8 s: 8 damage every 0.5 s with the original `pi_swrm` sounds (rate
   and damage ours). Headless: health 100 → 16 after 4 s in the water at game (-1850, 3400).
+- **Rocket launcher ("RPG", 2026-10-22):** Timmy's present at the end of 1b. Mission item 3 is read as it: it first
+  appears in 1c's item lists (provisional, like item 1 = jetpack).
+  - Original assets: `mc_launcher_l0.gbs` in hand, `mc_rocket.gbs` projectile, `me_msls1` launch, `me_mslex` explosion.
+  - Behaviour (ours): 32 m/s, one rocket per trigger pull, 1 s reload; 4 m splash (120 damage at the centre, 48 at the
+    edge); the sea stops rockets; the player takes splash damage too.
+  - Right stick forward switches weapons.
+  - Headless (`GVR_LAUNCHER=1`, 1a at Timmy's tower): one rocket killed two Rippers (objectives 1/4, 2/4).

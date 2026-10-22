@@ -71,7 +71,8 @@ moves him too.
 | Left grip (hold) | Sprint ×1.5; near a Smartie: pick it up (release = let go) | Speed boost ×5 |
 | Right grip (hold) | Near a Smartie: pick it up (release = let go) | — |
 | Right stick left/right | Snap turn 30° | Snap turn 30° |
-| **Right trigger** | **Fire the Meccaryn gun** (hold for auto-fire, 5 shots/s) | Haptic test pulse |
+| Right stick forward | Switch gun ↔ rocket launcher (once you have it: from 1c on, Timmy's "present" at the end of 1b) | — |
+| **Right trigger** | **Fire**: gun (hold for auto-fire, 5 shots/s) or rocket launcher (one rocket per pull, 1 s reload, splash damage; keep your distance) | Haptic test pulse |
 | **A** (hold) | **Jetpack**: thrust builds up speed gradually (up and forward); fuel lasts ~4 s and refills shortly after you stop (blue bar on the wrist) | — |
 | Right stick click | First ↔ third person (third: camera behind him) | — |
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
