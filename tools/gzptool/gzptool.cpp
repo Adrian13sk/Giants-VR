@@ -17,6 +17,8 @@
 #include "assets/gbs.h"
 #include "assets/gti.h"
 #include "assets/flick.h"
+#include "assets/mission.h"
+#include "assets/object_defs.h"
 #include "assets/skin_anim.h"
 #include "assets/world_bin.h"
 #include <dirent.h>
@@ -238,6 +240,42 @@ static int cmdFlick(const char* dir, int n, char** names) {
     return 0;
 }
 
+// Mission setup stream with model names, classes, triggers and path ids.
+static int cmdMission(const char* dir, const char* name) {
+    AssetFS fs;
+    fs.mountAllArchives(dir);
+    fs.mountDirectory(dir);
+    ObjectRegistry reg;
+    reg.build(dir);
+    std::vector<uint8_t> d;
+    MissionData m;
+    std::string err;
+    const std::string file = std::string("wm_") + name + ".bin";
+    if (!fs.read(file, d) || !parseMission(d.data(), d.size(), m, &err)) { std::printf("%s: %s\n", file.c_str(), err.c_str()); return 1; }
+    std::printf("%s: %zu objects, race %u, start flick '%s', 0x13 '%s', outro '%s', items", file.c_str(), m.objects.size(), m.setup[0],
+                m.startFlick.c_str(), m.flick13.c_str(), m.flick19.c_str());
+    for (uint32_t i : m.items) std::printf(" %u", i);
+    std::printf("\n");
+    std::map<std::string, int> counts;
+    for (size_t i = 0; i < m.objects.size(); ++i) {
+        const auto& o = m.objects[i];
+        const ObjectType* t = reg.type(o.type);
+        const std::string model = reg.modelName(o.type);
+        const bool interesting = o.flags || o.group >= 0 || o.parent >= 0 || !o.flicks.empty() || (t && t->objectClass >= 0);
+        ++counts[model];
+        if (!interesting && !std::getenv("MISSION_ALL")) continue;
+        std::printf("  #%-3zu type %4u %-22s class %3d hp %4d at (%7.0f %7.0f %5.0f) yaw %4.0f", i, o.type, model.c_str(),
+                    t ? t->objectClass : -1, t ? int(t->hitPoints) : 0, o.x, o.y, o.z, o.yaw);
+        if (o.flags) std::printf(" trig %u", o.flags);
+        if (o.group >= 0) std::printf(" id %d", o.group);
+        if (o.parent >= 0) std::printf(" on #%d", o.parent);
+        for (const auto& f : o.flicks) std::printf(" flk %s", f.c_str());
+        std::printf("\n");
+    }
+    for (const auto& c : counts) std::printf("  %4d x %s\n", c.second, c.first.c_str());
+    return 0;
+}
+
 static int cmdAnmInfo(const char* dir, int n, char** anims) {
     AssetFS fs;
     fs.mountAllArchives(dir);
@@ -356,6 +394,7 @@ static int cmdSkinCheck(const char* dir, const char* base, const char* anim) {
 
 int main(int argc, char** argv) {
     if (argc >= 4 && !std::strcmp(argv[1], "anminfo")) return cmdAnmInfo(argv[2], argc - 3, argv + 3);
+    if (argc >= 4 && !std::strcmp(argv[1], "mission")) return cmdMission(argv[2], argv[3]);
     if (argc >= 4 && !std::strcmp(argv[1], "flick")) return cmdFlick(argv[2], argc - 3, argv + 3);
     if (argc >= 5 && !std::strcmp(argv[1], "skincheck")) return cmdSkinCheck(argv[2], argv[3], argv[4]);
     if (argc >= 3 && !std::strcmp(argv[1], "list")) return cmdList(argv[2]);

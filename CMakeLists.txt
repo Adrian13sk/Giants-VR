@@ -40,6 +40,7 @@ add_library(gvr_core STATIC
   src/game/weapon.cpp
   src/game/enemy.cpp
   src/game/creature.cpp
+  src/game/smartie.cpp
   src/audio/mixer.cpp
   src/audio/music.cpp
   src/game/game_app.cpp

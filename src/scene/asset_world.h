@@ -57,6 +57,13 @@ public:
     };
     const std::vector<TriggerObject>& triggerObjects() const { return triggers_; }
     const std::string& missionName() const { return missionName_; }
+    // Missions of this world in story order (scenario kind 2 with a wm_<name>.bin file).
+    const std::vector<std::string>& missions() const { return missions_; }
+    // Rebuilds the level state (objects, characters, triggers, collision, spawn) for a mission.
+    bool selectMission(const std::string& name);
+    std::string nextMission() const;  // empty after the last one
+    // World bounds of the first placed object using <model>.gbs (case-insensitive); false if none.
+    bool objectBounds(const std::string& model, Vec3& mn, Vec3& mx) const;
 
     struct Placed {
         const RenderModel* model;
@@ -71,7 +78,7 @@ public:
 private:
     bool loadWorld(const std::string& name, Renderer& r);
     void placeShowcase(const Vec3& centre);
-    void placeWorldObjects(const std::string& dataDir);
+    void placeWorldObjects(const std::string& missionName);
 
     struct SkinnedPlaced {
         std::unique_ptr<SkinnedModel> model;
@@ -91,6 +98,7 @@ private:
     std::vector<Character> characters_;
     std::vector<TriggerObject> triggers_;
     std::string missionName_;
+    std::vector<std::string> missions_;
     CollisionWorld collision_;
     std::string status_;
     WorldDefinition world_;

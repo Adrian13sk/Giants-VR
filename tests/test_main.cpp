@@ -19,6 +19,7 @@
 #include "game/weapon.h"
 #include "game/enemy.h"
 #include "game/creature.h"
+#include "game/smartie.h"
 #include "audio/mixer.h"
 #include "audio/music.h"
 #include "assets/gtext.h"
@@ -827,6 +828,52 @@ static void testAffineInverse() {
     for (int k = 0; k < 16; ++k) CHECK(std::fabs(p.m[k] - Mat4::identity().m[k]) < 1e-4f);
 }
 
+static void testRescue() {
+    using namespace gvr;
+    RescueDirector r;
+    // Land: y = 1 for x < 10, sea floor (-2) beyond. Pad: x in [4, 6], z in [-1, 1].
+    r.groundHeight = [](float x, float) { return x < 10.0f ? 1.0f : -2.0f; };
+    r.hasPad = true;
+    r.padMin = {4, 0, -1};
+    r.padMax = {6, 2, 1};
+    const int a = r.add({0, 1, 0}, 0, 1.2f);
+    std::vector<SmartieEvent> ev;
+    Vec3 hands[2] = {{0.3f, 2.9f, 0.2f}, {50, 0, 0}};  // right hand above the Smartie's head (reach-down assist)
+    float grip[2] = {1.0f, 0.0f};
+    const float dt = 1.0f / 72.0f;
+    r.update(dt, hands, grip, {0, 1, 3}, ev);
+    CHECK(r.smarties[size_t(a)].state == SmartieState::Carried && r.holding(0));
+    // Carry it over the pad and let go: it falls onto the pad and is saved.
+    for (int f = 0; f < 72; ++f) { hands[0].x = 0.3f + 4.7f * float(f) / 71.0f; r.update(dt, hands, grip, {0, 1, 3}, ev); }
+    grip[0] = 0.0f;
+    hands[0] = {5.0f, 2.9f, 0.2f};  // held still, then let go
+    for (int f = 0; f < 120; ++f) r.update(dt, hands, grip, {0, 1, 3}, ev);
+    CHECK(r.smarties[size_t(a)].state == SmartieState::Saved);
+    CHECK(r.savedCount() == 1);
+    // A second Smartie dropped in the water returns to where it was stranded.
+    const int b = r.add({1, 1, 2}, 0, 1.2f);
+    hands[0] = {1.0f, 2.0f, 2.0f};
+    grip[0] = 1.0f;
+    r.update(dt, hands, grip, {0, 1, 3}, ev);
+    CHECK(r.smarties[size_t(b)].state == SmartieState::Carried);
+    hands[0] = {12.0f, 2.0f, 2.0f};
+    r.update(dt, hands, grip, {0, 1, 3}, ev);
+    grip[0] = 0.0f;
+    for (int f = 0; f < 72 * 5; ++f) { hands[0] = {12.0f, 2.0f, 2.0f}; r.update(dt, hands, grip, {0, 1, 3}, ev); }
+    bool splashed = false, returned = false;
+    for (const auto& e : ev) {
+        splashed |= e.kind == SmartieEvent::Splashed && e.index == b;
+        returned |= e.kind == SmartieEvent::Returned && e.index == b;
+    }
+    CHECK(splashed && returned);
+    CHECK(r.smarties[size_t(b)].state == SmartieState::Idle && length(r.smarties[size_t(b)].pos - Vec3{1, 1, 2}) < 1e-4f);
+    // Out of reach: nothing is grabbed.
+    hands[0] = {3.0f, 2.0f, 2.0f};
+    grip[0] = 1.0f;
+    r.update(dt, hands, grip, {0, 1, 3}, ev);
+    CHECK(!r.holding(0));
+}
+
 static void testGameText() {
     using namespace gvr;
     // n=2, keys "A_1\0b\0", values "Hello\0World\0"
@@ -849,6 +896,7 @@ static void testGameText() {
 
 int main() {
     testGameText();
+    testRescue();
     testAffineInverse();
     testGti();
     testWorldBin();

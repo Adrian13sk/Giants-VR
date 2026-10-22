@@ -1,5 +1,7 @@
 #include "scene/asset_world.h"
 
+#include <cstdlib>
+
 #include <algorithm>
 #include <cmath>
 
@@ -21,7 +23,19 @@ bool AssetWorld::init(const std::string& dataDir, Renderer& r, const std::string
     renderer_ = &r;
 
     hasTerrain_ = loadWorld(worldName, r);
-    if (hasTerrain_) placeWorldObjects(dataDir);
+    if (hasTerrain_) {
+        const size_t nTypes = registry_.build(dataDir);
+        LOGI("Object registry: %zu types, %zu groups, %zu meshes", nTypes, registry_.groupCount(),
+             registry_.meshCount());
+        for (const auto& sc : world_.scenarios)
+            if (sc.kind == 2 && fs_.exists("wm_" + sc.name + ".bin")) missions_.push_back(sc.name);
+        // Test hook / mission select: GVR_MISSION=<name> starts that mission instead of the first.
+        std::string first = missions_.empty() ? std::string() : missions_.front();
+        if (const char* m = std::getenv("GVR_MISSION"))
+            for (const auto& n : missions_)
+                if (toLower(n) == toLower(m)) first = n;
+        placeWorldObjects(first);
+    }
     // Test showcase (Smartie, Kabuto) only when the mission doesn't populate the level itself.
     if (characters_.empty()) placeShowcase(spawn_ + Vec3{0, 0, -6.0f});
     status_ = "Mounted " + std::to_string(n) + " archives; world " + worldName +
@@ -199,20 +213,57 @@ static Mat4 placementMatrix(const Placement& p) {
            Mat4::scale({p.scale, p.scale, p.scale});
 }
 
-void AssetWorld::placeWorldObjects(const std::string& dataDir) {
-    const size_t nTypes = registry_.build(dataDir);
-    LOGI("Object registry: %zu types, %zu groups, %zu meshes", nTypes, registry_.groupCount(),
-         registry_.meshCount());
+bool AssetWorld::selectMission(const std::string& name) {
+    bool known = false;
+    for (const auto& n : missions_) known |= n == name;
+    if (!known || !hasTerrain_) return false;
+    placeWorldObjects(name);
+    return missionName_ == name;
+}
+
+bool AssetWorld::objectBounds(const std::string& model, Vec3& mn, Vec3& mx) const {
+    const std::string want = toLower(model) + ".gbs";
+    for (const auto& o : worldObjects_) {
+        if (!o.model || toLower(o.model->name) != want) continue;
+        mn = {1e30f, 1e30f, 1e30f};
+        mx = {-1e30f, -1e30f, -1e30f};
+        for (int c = 0; c < 8; ++c) {
+            const Vec3 lc{c & 1 ? o.model->boundsMax.x : o.model->boundsMin.x, c & 2 ? o.model->boundsMax.y : o.model->boundsMin.y,
+                          c & 4 ? o.model->boundsMax.z : o.model->boundsMin.z};
+            const Vec4 w = o.transform * Vec4{lc.x, lc.y, lc.z, 1.0f};
+            mn = {std::min(mn.x, w.x), std::min(mn.y, w.y), std::min(mn.z, w.z)};
+            mx = {std::max(mx.x, w.x), std::max(mx.y, w.y), std::max(mx.z, w.z)};
+        }
+        return true;
+    }
+    return false;
+}
+
+std::string AssetWorld::nextMission() const {
+    for (size_t i = 0; i + 1 < missions_.size(); ++i)
+        if (missions_[i] == missionName_) return missions_[i + 1];
+    return {};
+}
+
+void AssetWorld::placeWorldObjects(const std::string& missionName) {
+    // A mission's setup stream places its structures, plants and creatures on top of the world's
+    // own objects; switching missions rebuilds the level state from scratch (as the original
+    // does when it loads a mission).
+    worldObjects_.clear();
+    characters_.clear();
+    triggers_.clear();
+    collision_.clear();
+    mission_ = MissionData{};
+    missionName_.clear();
     auto typeScale = [&](uint32_t t) {
         const ObjectType* ot = registry_.type(t);
         return ot && ot->scale > 0 ? ot->scale : 1.0f;
     };
     std::vector<Placement> all;
     for (const auto& o : world_.objects) all.push_back({o.type, o.x, o.y, o.z, o.angle, 0, 0, typeScale(o.type)});
-    // The opening mission's setup stream places the level's structures, plants and creatures.
     size_t mounted = 0;
     for (const auto& sc : world_.scenarios) {
-        if (sc.kind != 2) continue;
+        if (sc.kind != 2 || sc.name != missionName) continue;
         std::vector<uint8_t> bytes;
         if (!fs_.read("wm_" + sc.name + ".bin", bytes)) {
             LOGW("Mission file wm_%s.bin not found", sc.name.c_str());
@@ -245,7 +296,7 @@ void AssetWorld::placeWorldObjects(const std::string& dataDir) {
         }
         LOGI("Mission %s: %zu objects (%zu mounted), start flick '%s'", sc.name.c_str(), mission_.objects.size(),
              mounted, mission_.startFlick.c_str());
-        break;  // first mission only = level start state
+        break;
     }
     size_t hidden = 0, missing = 0;
     for (const auto& p : all) {

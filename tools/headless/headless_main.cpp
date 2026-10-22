@@ -33,6 +33,8 @@ int main(int argc, char** argv) {
     float moveX = 0, moveY = 0, turnX = 0, headYawDeg = 0;
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
+    int gripFrom = -1, gripTo = -1, handPathFrom = -1, handPathTo = -1;
+    float handDx = 0, handDy = 0, handDz = 0;  // right hand moves by this (tracking metres) over the path frames
     int jetFrom = -1, jetTo = -1;
     bool autoAim = false, viewBody = false;
     std::string audioOut;
@@ -58,6 +60,9 @@ int main(int argc, char** argv) {
         else if (a == "--jet") jet = true;                 // hold A (jetpack)
         else if (a == "--jet-window") { jetFrom = std::atoi(next()); jetTo = std::atoi(next()); }  // hold A for frames [from, to)
         else if (a == "--grip") gripAmount = std::atof(next());  // both grips 0..1
+        else if (a == "--grip-window") { gripFrom = std::atoi(next()); gripTo = std::atoi(next()); }  // right grip for frames [from, to)
+        else if (a == "--hand-path") { handPathFrom = std::atoi(next()); handPathTo = std::atoi(next());
+                                       handDx = std::atof(next()); handDy = std::atof(next()); handDz = std::atof(next()); }
         else if (a == "--trigger") triggerAmount = std::atof(next());  // right trigger (fires in play mode)
         else if (a == "--aim-pitch") aimPitchDeg = std::atof(next());  // controller pitch (deg)
         else if (a == "--aim-yaw") aimYawDeg = std::atof(next());      // controller yaw (deg, + = left)
@@ -120,6 +125,12 @@ int main(int argc, char** argv) {
     in.hand[kRight].trigger = triggerAmount;
     for (int f = 0; f < frames; ++f) {
         if (jetFrom >= 0) in.hand[kRight].primary = f >= jetFrom && f < jetTo;
+        if (gripFrom >= 0) in.hand[kRight].squeeze = f >= gripFrom && f < gripTo ? 1.0f : 0.0f;
+        if (handPathFrom >= 0 && f >= handPathFrom && f < handPathTo) {
+            const float k = 1.0f / float(handPathTo - handPathFrom);
+            in.hand[kRight].gripPose.position = in.hand[kRight].gripPose.position + Vec3{handDx, handDy, handDz} * k;
+            in.hand[kRight].aimPose.position = in.hand[kRight].aimPose.position + Vec3{handDx, handDy, handDz} * k;
+        }
         Vec3 chest;
         if (autoAim && app.nearestEnemy(chest)) {
             // World target -> tracking-space direction from the right controller.

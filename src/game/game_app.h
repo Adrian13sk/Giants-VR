@@ -12,6 +12,7 @@
 #include "game/weapon.h"
 #include "game/enemy.h"
 #include "game/creature.h"
+#include "game/smartie.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
 #include "render/text.h"
@@ -164,6 +165,7 @@ private:
         CreatureSize size = CreatureSize::Medium;
         int objective = -1;  // mission objective completed by this creature's death
         int type = -1;       // object type (hidden while a cutscene shows its own copy)
+        int rescue = -1;     // index in rescue_ (1b's stranded Smarties); clipIndex = SmartieClip
     };
     // Ripper spit balls (orange medium / blue large), blasts and gore from bursting Rippers.
     std::unique_ptr<SkinnedModel> spitBall_[3];
@@ -178,6 +180,11 @@ private:
     void spawnGore(const Vec3& pos, const Vec3& dir, float scale);
     std::vector<CharacterInst> chars_;
     CreatureDirector creatures_;
+    RescueDirector rescue_;
+    std::vector<SmartieEvent> rescueEvents_;
+    int rescueLine_ = 0;
+    bool autoGrip_ = false;  // GVR_AUTO_RESCUE test hook
+    void updateRescue(float dt, const InputFrame& in);
     std::vector<CreatureEvent> creatureEvents_;
     bool missionHostiles_ = false;
     size_t spitsLaunched_ = 0, spitHits_ = 0;
@@ -188,6 +195,8 @@ private:
     std::vector<Objective> objectives_;
     size_t objectivesDone_ = 0;
     bool missionComplete_ = false;
+    float advanceTimer_ = 0;  // after a mission (and its outro) ends: seconds until the next loads
+    void loadMission(const std::string& name);
     std::string dataDir_, worldName_;
     void initMission();
     void updateMission(float dt);

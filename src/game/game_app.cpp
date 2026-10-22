@@ -422,8 +422,92 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     eyeNow_ = playerModel_->hiddenCentroid() + eyeFromHead_;
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     updateWeapon(dt, in);
+    updateRescue(dt, in);
     updateCombat(dt);
     updateAudio(dt);
+}
+
+void GameApp::updateRescue(float dt, const InputFrame& in) {
+    if (rescue_.smarties.empty()) return;
+    Vec3 hands[2];
+    float grip[2];
+    for (int h = 0; h < 2; ++h) {
+        const ControllerState& c = in.hand[h];
+        if (firstPerson_ && c.gripPoseValid) {
+            hands[h] = rig_.toWorld(c.gripPose).position;
+        } else {
+            // Third person: the character's arms carry it, in front of the chest.
+            const Quat r = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
+            hands[h] = player_.position + r.rotate(Vec3{h == kLeft ? -0.25f : 0.25f, 1.3f, -0.7f});
+        }
+        grip[h] = c.squeeze;
+    }
+    // Test hook (headless): GVR_AUTO_RESCUE=1 makes the right hand fetch each Smartie in turn and
+    // set it down over the pad (exercises grabbing, carrying, saving and mission completion).
+    static const bool autoRescue = std::getenv("GVR_AUTO_RESCUE") != nullptr;
+    if (autoRescue && rescue_.hasPad) {
+        static int phase = 0;
+        const Vec3 padTop = (rescue_.padMin + rescue_.padMax) * 0.5f + Vec3{0, 1.0f, 0};
+        if (!rescue_.holding(kRight)) {
+            phase = 0;
+            int pick = -1;
+            for (size_t i = 0; i < rescue_.smarties.size() && pick < 0; ++i)
+                if (rescue_.smarties[i].state == SmartieState::Idle) pick = int(i);
+            if (pick >= 0) {
+                const RescueSmartie& sm = rescue_.smarties[size_t(pick)];
+                hands[kRight] = sm.pos + Vec3{0, sm.height + 0.2f, 0};
+                autoGrip_ = !autoGrip_;  // press on alternate frames (edge)
+                grip[kRight] = autoGrip_ ? 1.0f : 0.0f;
+            }
+        } else {
+            hands[kRight] = padTop;
+            grip[kRight] = phase++ < 2 ? 1.0f : 0.0f;  // carry over, hold still, let go
+        }
+    }
+    // Third person: let the reach test use the character, not the controllers.
+    rescue_.reach = firstPerson_ ? 0.9f : 1.6f;
+    rescueEvents_.clear();
+    rescue_.update(dt, hands, grip, player_.position, rescueEvents_);
+    for (const auto& e : rescueEvents_) {
+        const RescueSmartie& s = rescue_.smarties[size_t(e.index)];
+        switch (e.kind) {
+            // Original sounds: me_smton / me_smtof / me_smtdp (the Meccaryn picking up, letting go
+            // of and dropping off a Smartie), the Smarties' gsmNN_1 / _2 voice pairs (used as a
+            // pick-up line and a thank-you; their exact use is ours), se_splsh, pi_swrm (piranhas).
+            case SmartieEvent::Grabbed: {
+                haptics_.push_back({e.hand, 0.5f, 0.06f});
+                sfx("me_smton", e.pos, 0.8f);
+                LOGI("Smartie %d picked up (%s hand)", e.index, e.hand == kLeft ? "left" : "right");
+                static const int lines[] = {1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15};
+                rescueLine_ = lines[int(frand() * 13.99f)];
+                char n[16];
+                std::snprintf(n, sizeof n, "gsm%02d_1", rescueLine_);
+                sfx(n, e.pos, 1.0f);
+                break;
+            }
+            case SmartieEvent::Released:
+                sfx("me_smtof", e.pos, 0.7f);
+                break;
+            case SmartieEvent::Saved: {
+                sfx("me_smtdp", e.pos, 0.9f);
+                char n[16];
+                std::snprintf(n, sizeof n, "gsm%02d_2", rescueLine_ ? rescueLine_ : 1);
+                sfx(n, e.pos, 1.0f);
+                haptics_.push_back({kLeft, 0.3f, 0.05f});
+                haptics_.push_back({kRight, 0.3f, 0.05f});
+                completeObjective(s.objective);
+                LOGI("Smartie %d saved (%zu/%zu)", e.index, rescue_.savedCount(), rescue_.smarties.size());
+                break;
+            }
+            case SmartieEvent::Splashed:
+                sfx("se_splsh", e.pos, 0.9f);
+                sfx(frand() < 0.5f ? "pi_swrm1" : "pi_swrm2", e.pos, 0.9f);
+                LOGI("Smartie %d fell in the water", e.index);
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 void GameApp::sfx(const char* name, const Vec3& pos, float vol, float pitch) {
@@ -445,9 +529,20 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "rs_attk1", "rs_attk2", "rs_chitt", "rs_deat1", "rs_deat2", "rs_feet", "rs_injr1", "rs_injr2",
         "rm_atfr1", "rm_atfr2", "rm_attk1", "rm_chitt", "rm_deat1", "rm_deat2", "rm_feet", "rm_frexp", "rm_inj01",
         "rm_inj02", "rl_atfr1", "rl_atfr2", "rl_attk1", "rl_chitt", "rl_deat1", "rl_deat2", "rl_feet", "rl_frexp1",
-        "rl_frexp2", "rl_injr1", "rl_injr2", "ex_bdyl1", "ex_bdyl2"};
+        "rl_frexp2", "rl_injr1", "rl_injr2", "ex_bdyl1", "ex_bdyl2",
+        // Carrying Smarties (1b): pick up / let go / drop off, splash, piranhas.
+        "me_smton", "me_smtof", "me_smtdp", "se_splsh", "pi_swrm1", "pi_swrm2"};
+    std::vector<std::string> all(std::begin(names), std::end(names));
+    for (int k = 1; k <= 15; ++k)  // Smartie voice pairs gsmNN_1 / gsmNN_2 (no 07 in the data)
+        for (int j = 1; j <= 2; ++j) {
+            if (k == 7) continue;
+            char n[16];
+            std::snprintf(n, sizeof n, "gsm%02d_%d", k, j);
+            all.push_back(n);
+        }
     size_t ok = 0;
-    for (const char* n : names) {
+    for (const std::string& ns : all) {
+        const char* n = ns.c_str();
         std::vector<uint8_t> bytes;
         WavData w;
         std::string err;
@@ -457,7 +552,7 @@ void GameApp::setAudio(AudioMixer* mixer) {
         else
             LOGW("Sound %s unavailable %s", n, err.c_str());
     }
-    LOGI("Audio: %zu/%zu original sounds loaded", ok, sizeof(names) / sizeof(names[0]));
+    LOGI("Audio: %zu/%zu original sounds loaded", ok, all.size());
     initMusic();
 }
 
@@ -544,7 +639,25 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         ci.pos = ch.position;
         ci.yaw = ch.yaw;
         ci.scale = ch.scale;
-        if (ch.objectClass == 23) {
+        if (ch.trigger == 3 && ch.objectClass == 18) {
+            // A stranded Smartie to carry to the pad (1b): its own clips for each state.
+            static const char* clips[int(SmartieClip::Count)] = {"", "sm_wave.anm", "sm_squirm.anm", "sm_fall.anm",
+                                                                  "sm_celebrate.anm", "sm_drowned.anm"};
+            for (int c = 1; c < int(SmartieClip::Count); ++c) {
+                const int k = m->addAnimation(w->fs(), clips[c]);
+                ci.clipIndex[c] = k >= 0 ? k : 0;
+            }
+            ci.ambient = false;
+            m->pose(renderer_, 0.0f);
+            Vec3 mn, mx;
+            m->posedBounds(mn, mx);
+            ci.rescue = rescue_.add(ch.position, ch.yaw, (mx.y - mn.y) * ch.scale);
+            ci.objective = int(objectives_.size());
+            rescue_.smarties[size_t(ci.rescue)].objective = ci.objective;
+            rescue_.smarties[size_t(ci.rescue)].slot = int(chars_.size());
+            objectives_.push_back({3, ch.position, ch.position});
+            ++ambient;
+        } else if (ch.objectClass == 23) {
             // Ripper animation slots (xx_ripper.bin): 1 idle, 2 walk, 10 attack, 11 attack jump,
             // 44 hit, 49 small hit, 45 suffer (ends lying on the ground: the collapse death), 50 spit.
             static const int slots[int(CreatureClip::Count)] = {1, 2, 10, 11, 44, 49, 45, 50};
@@ -580,6 +693,15 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         ci.time = frand() * 3.0f;
         ci.model = std::move(m);
         chars_.push_back(std::move(ci));
+    }
+    rescue_.groundHeight = enemies_.groundHeight;
+    rescue_.hasPad = !rescue_.smarties.empty() && w->objectBounds("sm_dropoff", rescue_.padMin, rescue_.padMax);
+    if (rescue_.hasPad) {
+        // The pad's footprint plus a little: a Smartie set down on its edge counts.
+        rescue_.padMin = rescue_.padMin - Vec3{0.5f, 0.5f, 0.5f};
+        rescue_.padMax = rescue_.padMax + Vec3{0.5f, 1.5f, 0.5f};
+        LOGI("Smartie pad: (%.1f %.1f %.1f) .. (%.1f %.1f %.1f); %zu Smarties to rescue", rescue_.padMin.x, rescue_.padMin.y,
+             rescue_.padMin.z, rescue_.padMax.x, rescue_.padMax.y, rescue_.padMax.z, rescue_.smarties.size());
     }
     creatures_.groundHeight = enemies_.groundHeight;
     creatures_.collision = enemies_.collision;
@@ -721,6 +843,22 @@ void GameApp::updateCharacters(float dt) {
         }
     }
     gibs_.erase(std::remove_if(gibs_.begin(), gibs_.end(), [](const Gib& g) { return g.life > 8.0f; }), gibs_.end());
+    for (auto& ci : chars_) {
+        if (ci.rescue < 0) continue;
+        const RescueSmartie& r = rescue_.smarties[size_t(ci.rescue)];
+        ci.visible = true;
+        ci.pos = r.pos;
+        ci.yaw = r.yaw;
+        ci.time = r.stateTime;
+        if (length(ci.pos - player_.position) < 120.0f) {
+            const int k = ci.clipIndex[int(r.clip)];
+            const float d = ci.model->animDuration(k);
+            // Falling and drowning play once and hold; the rest loop.
+            const bool once = r.clip == SmartieClip::Fall || r.clip == SmartieClip::Drowned;
+            const float t = once ? std::min(r.stateTime, d * 0.999f) : float(time_);
+            ci.model->poseBlend(renderer_, k, t, k, t, 0.0f);
+        }
+    }
     // Ambient characters loop their default clip (only animated when near).
     for (auto& ci : chars_) {
         if (!ci.ambient) continue;
@@ -742,6 +880,28 @@ void GameApp::initMission() {
     player_.jetpackAvailable = jet;
     LOGI("Mission %s: %zu objectives, jetpack %s", assetWorld_->missionName().c_str(), objectives_.size(),
          jet ? "available" : "not yet (story)");
+}
+
+void GameApp::loadMission(const std::string& name) {
+    AssetWorld* w = assetWorld_.get();
+    if (!w || !w->selectMission(name)) { LOGW("Mission %s unavailable", name.c_str()); return; }
+    chars_.clear();
+    creatures_.creatures.clear();
+    creatures_.spits.clear();
+    enemies_.enemies.clear();
+    rescue_ = RescueDirector{};
+    objectives_.clear();
+    objectivesDone_ = 0;
+    missionComplete_ = false;
+    missionHostiles_ = false;
+    advanceTimer_ = 0;
+    blasts_.clear();
+    gibs_.clear();
+    playerHealth_ = 100.0f;
+    initCharacters(w, w->models());
+    initMission();
+    needSpawn_ = true;  // to the mission's start marker; its opening cutscene follows
+    LOGI("Mission %s loaded", name.c_str());
 }
 
 void GameApp::completeObjective(int index) {
@@ -1297,6 +1457,16 @@ bool GameApp::hasOriginalAssets() const { return assetWorld_ && assetWorld_->loa
 
 void GameApp::update(float dt, const InputFrame& in) {
     time_ += dt;
+    // Story progression: once a mission is complete and its outro has played, the next mission
+    // of the world loads (the original goes through its mission briefing screen here).
+    if (missionComplete_ && playMode_ && !cutsceneActive() && assetWorld_) {
+        advanceTimer_ += dt;
+        if (advanceTimer_ > 4.0f) {
+            const std::string next = assetWorld_->nextMission();
+            advanceTimer_ = -1e9f;  // once
+            if (!next.empty()) loadMission(next);
+        }
+    }
     if (needSpawn_ && in.headValid) {
         rig_.teleportHead(in, assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
         if (playMode_) {
