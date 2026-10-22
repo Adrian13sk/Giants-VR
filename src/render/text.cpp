@@ -83,6 +83,10 @@ MeshId TextRenderer::mesh(const std::string& textIn, float lineHeight, float max
         for (size_t i = 0; i < textIn.size(); ++i) {
             if (textIn[i] == '\\' && i + 1 < textIn.size() && textIn[i + 1] == 'n') { text += '\n'; ++i; }
             else if (textIn[i] == '\t') text += ' ';
+            // Windows-1252 typographic quotes (the text data uses them) -> the font's ASCII ones.
+            else if (static_cast<unsigned char>(textIn[i]) == 0x91 || static_cast<unsigned char>(textIn[i]) == 0x92) text += '\'';
+            else if (static_cast<unsigned char>(textIn[i]) == 0x93 || static_cast<unsigned char>(textIn[i]) == 0x94) text += '"';
+            else if (static_cast<unsigned char>(textIn[i]) == 0x85) text += "...";
             else text += char(std::toupper(static_cast<unsigned char>(textIn[i])));
         }
         const float space = 0.3f * lineHeight, gap = 0.06f * lineHeight;

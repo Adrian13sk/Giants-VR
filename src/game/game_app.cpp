@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <dirent.h>
 
@@ -957,7 +958,15 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
     }
     Vec3 eye;
     float yaw;
+    // Keep the viewpoint above the ground: a few shot cameras sit at or below our terrain
+    // surface (e.g. story1_jetpack_2's low angle), which would put the viewer inside a hill.
+    auto aboveGround = [&](Vec3 p) {
+        float h;
+        if (assetWorld_ && assetWorld_->terrain().heightAt(p.x, p.z, h)) p.y = std::max(p.y, h + 0.7f);
+        return p;
+    };
     if (cutscene_->active() && cutscene_->takeNewShot(eye, yaw)) {
+        eye = aboveGround(eye);
         // Put the viewer's eyes at the shot camera, facing the scene; head look stays free.
         cutEye_ = eye;
         cutYaw_ = yaw;
@@ -968,7 +977,7 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
         rig_.worldFromTracking.position = eye - q.rotate(headT);
     } else if (cutscene_->active()) {
         // Travel with a moving shot camera (translation only; the view never rotates by itself).
-        const Vec3 now = cutscene_->eyeNow();
+        const Vec3 now = aboveGround(cutscene_->eyeNow());
         rig_.worldFromTracking.position = rig_.worldFromTracking.position + (now - cutEye_);
         cutEye_ = now;
     }
@@ -993,7 +1002,7 @@ void GameApp::renderCutscene() {
         }
         if (!lines.empty()) {
             float w = 0, h = 0;
-            const MeshId m = text_.mesh(lines, 0.045f, 1.2f, &w, &h);
+            const MeshId m = text_.mesh(lines, 0.052f, 1.3f, &w, &h);
             const Quat r = Quat::fromAxisAngle({0, 1, 0}, cutYaw_);
             const Vec3 at = cutEye_ + r.rotate(Vec3{0, -0.38f, -1.5f});
             const Mat4 xf = Mat4::translation(at) * Mat4::rotation(r * Quat::fromAxisAngle({1, 0, 0}, 0.25f));
@@ -1295,7 +1304,10 @@ void GameApp::update(float dt, const InputFrame& in) {
             if (!missionHostiles_) spawnWave();  // test waves only where the mission has no enemies
             // The mission's opening cutscene (op 0x15), e.g. Baz's lander drop in 1a.
             const MissionData& m = assetWorld_->mission();
-            if (!m.startFlick.empty()) startCutscene(m.startFlick);
+            // Test hook (headless): GVR_CUTSCENE=<first shot> plays that cutscene instead.
+            const char* forced = std::getenv("GVR_CUTSCENE");
+            if (forced && *forced) startCutscene(forced);
+            else if (!m.startFlick.empty()) startCutscene(m.startFlick);
         }
         needSpawn_ = false;
     }
