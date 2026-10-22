@@ -118,6 +118,8 @@ private:
     void poseFirstPersonBody(const InputFrame& in);
     PlayerController player_;
     std::unique_ptr<SkinnedModel> playerModel_;
+    std::unique_ptr<SkinnedModel> playerSpare_;  // the other variant (with / without the jetpack)
+    bool playerHasJet_ = true;                   // playerModel_ shows the jetpack
     int clip_[int(PlayerAnim::Count)] = {};
     bool playMode_ = false;
     bool firstPerson_ = true;  // primary mode (user request): own body + hands

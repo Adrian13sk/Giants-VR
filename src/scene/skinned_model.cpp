@@ -67,6 +67,7 @@ bool SkinnedModel::load(const AssetFS& fs, ModelCache& textures, Renderer& r, co
         bool alpha = false;
         if (!bp.texture.empty()) p.texture = textures.texture(bp.texture, &alpha);
         if (alpha) p.blend = BlendMode::AlphaTest;
+        p.glass = (bp.subFlags & GbsModel::kSubGlass) != 0;
         p.lit = bp.lit;
         for (const auto& v : bp.mesh.vertices) {
             bmin_ = {std::min(bmin_.x, v.pos[0]), std::min(bmin_.y, v.pos[1]), std::min(bmin_.z, v.pos[2])};
@@ -78,6 +79,8 @@ bool SkinnedModel::load(const AssetFS& fs, ModelCache& textures, Renderer& r, co
         p.mesh = r.uploadMesh(bp.mesh);
         parts_.push_back(std::move(p));
     }
+    // Glass last, so what it covers (the face behind the visor) is drawn first.
+    std::stable_partition(parts_.begin(), parts_.end(), [](const Part& q) { return !q.glass; });
     LOGI("Skinned %s + %s: %u/%zu positions bound, %zu nodes, %.2f s, %u unsupported tracks",
          base.c_str(), anim.c_str(), bound_, bindings_.size(), a0.anim.nodes.size(),
          a0.anim.durationSeconds(), a0.anim.unsupportedTracks);
@@ -228,6 +231,10 @@ void SkinnedModel::render(Renderer& r, const Mat4& world) const {
         dp.texture = p.texture;
         dp.blend = p.blend;
         dp.unlit = !p.lit;
+        if (p.glass) {  // tinted see-through glass
+            dp.blend = BlendMode::AlphaBlend;
+            dp.tint = {1, 1, 1, 0.3f};
+        }
         r.draw(p.mesh, world, dp);
     }
 }

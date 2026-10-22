@@ -157,8 +157,15 @@ static int cmdModel(const char* dir, const char* name) {
                 m.subObjects.size(), m.triangleCount());
     std::printf("bounds (game units, Z-up): x[%.2f %.2f] y[%.2f %.2f] z[%.2f %.2f]\n", mn[0], mx[0], mn[1], mx[1], mn[2], mx[2]);
     for (const auto& s : m.subObjects)
-        std::printf("  sub %-20s maxobj=%u tris=%zu tex=%s flags=0x%08x diffuse=%06x\n", s.name.c_str(),
-                    s.maxObjIndex, s.indices.size() / 3, s.texture.c_str(), s.flags, s.diffuse);
+    {
+        float u0 = 1e9f, u1 = -1e9f, v0 = 1e9f, v1 = -1e9f, z0 = 1e9f, z1 = -1e9f;
+        for (uint32_t di : s.indices) {
+            if (di < m.uvs.size()) { u0 = std::fmin(u0, m.uvs[di][0]); u1 = std::fmax(u1, m.uvs[di][0]); v0 = std::fmin(v0, m.uvs[di][1]); v1 = std::fmax(v1, m.uvs[di][1]); }
+            if (di < m.displayToPosition.size()) { const auto& p = m.positions[m.displayToPosition[di]]; z0 = std::fmin(z0, p[2]); z1 = std::fmax(z1, p[2]); }
+        }
+        std::printf("  sub %-20s maxobj=%u tris=%zu tex=%s flags=0x%08x diffuse=%06x uv[%.2f..%.2f x %.2f..%.2f] z[%.1f..%.1f]\n", s.name.c_str(),
+                    s.maxObjIndex, s.indices.size() / 3, s.texture.c_str(), s.flags, s.diffuse, u0, u1, v0, v1, z0, z1);
+    }
     std::printf("signed volume after conversion: %.3f m^3\n", signedVolume(buildGbsParts(m)));
     return 0;
 }

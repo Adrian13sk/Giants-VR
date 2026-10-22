@@ -29,6 +29,8 @@ struct GbsModel {
     static constexpr uint32_t kMagic = 0xAA0100BEu;
     static constexpr uint32_t kFlagNormals = 0x1, kFlagUVs = 0x2, kFlagRGBs = 0x4;
     static constexpr uint32_t kSubAdditive = 0x10, kSubSubtractive = 0x20;
+    // Sub-object flag bit 0: glass (the lander canopy, the Meccaryn's visor over his face).
+    static constexpr uint32_t kSubGlass = 0x1;
 
     uint32_t flags = 0;
     std::vector<std::array<float, 3>> positions;   // "animation" vertices (Z-up)

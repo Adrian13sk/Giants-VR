@@ -336,6 +336,7 @@ void CutscenePlayer::render() {
                 DrawParams dp;
                 dp.texture = part.texture;
                 dp.blend = part.blend;
+                if (part.glass) { dp.blend = BlendMode::AlphaBlend; dp.tint.w *= 0.3f; }
                 dp.unlit = !part.lit;
                 r_.draw(part.mesh, a.xf, dp);
             }

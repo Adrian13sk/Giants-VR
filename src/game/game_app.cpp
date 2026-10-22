@@ -53,8 +53,13 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
     }
     // Player character: the original Meccaryn with its original clips.
     if (assetWorld_->hasTerrain()) {
+        // Two variants of the same Meccaryn: with the jetpack on his back (mc_l0) and without
+        // (mc_nothrust_l0, same skeleton and clips); the one in use follows whether the player has
+        // the jetpack (1a: Baz lost it, Timmy hands it over).
+        auto makePlayer = [this](const char* base, bool first) -> std::unique_ptr<SkinnedModel> {
         auto m = std::make_unique<SkinnedModel>();
-        if (m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "mc_l0", "mc_stand.anm")) {
+        if (!m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, base, "mc_stand.anm")) return nullptr;
+        {
             const char* clips[] = {"mc_stand.anm", "mc_run.anm", "mc_thrust.anm", "mc_hover.anm", "mc_land_soft.anm", "mc_sidestep.anm",
                                    "mc_skid.anm"};
             for (int i = 1; i < int(PlayerAnim::Count); ++i) clip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
@@ -62,13 +67,15 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             // the chest and arms instead of the inside of the collar armour.
             m->pose(renderer_, 0.0f);
             Vec3 hmn, hmx;
-            if (m->boneVertexBounds("head", hmn, hmx))
+            if (first && m->boneVertexBounds("head", hmn, hmx))
                 eyeModel_ = {0.5f * (hmn.x + hmx.x), hmn.y + 0.55f * (hmx.y - hmn.y), hmn.z - 0.04f};
-            LOGI("Player eye point (model, m): %.2f %.2f %.2f", eyeModel_.x, eyeModel_.y, eyeModel_.z);
+            if (first) LOGI("Player eye point (model, m): %.2f %.2f %.2f", eyeModel_.x, eyeModel_.y, eyeModel_.z);
             m->setHiddenBones({"head", "neck"});
             m->pose(renderer_, 0.0f);
-            eyeFromHead_ = eyeModel_ - m->hiddenCentroid();
-            eyeNow_ = eyeModel_;
+            if (first) {
+                eyeFromHead_ = eyeModel_ - m->hiddenCentroid();
+                eyeNow_ = eyeModel_;
+            }
             // First-person arm IK: the Meccaryn's arms reach for the tracked controllers.
             m->setPoseModifier([this](const AnmAnimation& clip, const std::vector<std::vector<int>>& children,
                                       std::vector<Mat4>& world) {
@@ -114,6 +121,14 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     curlFingers(world, children, c, curl);
                 }
             });
+        }
+        return m;
+        };
+        auto m = makePlayer("mc_l0", true);
+        if (m) {
+            playerSpare_ = makePlayer("mc_nothrust_l0", false);
+            playerHasJet_ = true;
+
             playerModel_ = std::move(m);
             playMode_ = true;
             AssetWorld* w = assetWorld_.get();
@@ -382,6 +397,12 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
             if (!eyeCalibrated_) { userEye_ = hy; eyeCalibrated_ = true; }
             else if (dt > 0) userEye_ += (hy - userEye_) * (1.0f - std::exp(-dt / 2.5f));
         }
+    }
+    // The jetpack on his back only once he has it.
+    if (playerSpare_ && playerHasJet_ != player_.jetpackAvailable) {
+        std::swap(playerModel_, playerSpare_);
+        playerHasJet_ = !playerHasJet_;
+        LOGI("Player model: %s jetpack", playerHasJet_ ? "with" : "without");
     }
     PlayerInput pi;
     pi.move = in.hand[mh].thumbstick;
@@ -1673,6 +1694,7 @@ void GameApp::drawModel(const RenderModel* m, const Mat4& xf, bool additive, flo
             dp.tint = {alpha, alpha, alpha, 1.0f};
         } else {
             dp.blend = part.blend;
+            if (part.glass) { dp.blend = BlendMode::AlphaBlend; dp.tint.w *= 0.3f; }
             dp.unlit = !part.lit;
         }
         renderer_.draw(part.mesh, xf, dp);

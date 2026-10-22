@@ -34,7 +34,7 @@ std::vector<BuiltPart> buildGbsParts(const GbsModel& m, bool ignoreRgb) {
             if (bakedRgb && (looksLikeSkinData(&m.rgbs[b], e - b) || looksLikeEncodedVectors(&m.rgbs[b], e - b)))
                 bakedRgb = false;
         }
-        const uint32_t blendFlags = so.flags & (GbsModel::kSubAdditive | GbsModel::kSubSubtractive);
+        const uint32_t blendFlags = so.flags & (GbsModel::kSubAdditive | GbsModel::kSubSubtractive | GbsModel::kSubGlass);
         auto key = std::make_pair(toLower(so.texture), blendFlags | (bakedRgb ? 0u : 0x80000000u));
         size_t pi;
         auto it = partIndex.find(key);
@@ -254,6 +254,7 @@ const RenderModel* ModelCache::get(const std::string& gbsName, const std::string
         // Sub-object flag 0x10/0x20 is the 3ds Max transparency *type*, not a blend switch
         // (opaque characters carry 0x10), so blending is driven by the texture alpha for now.
         if (alpha) part.blend = BlendMode::AlphaTest;
+        if (bp.subFlags & GbsModel::kSubGlass) part.glass = true;
         if (!alpha)  // alpha-tested parts are foliage/grilles: not solid
             for (uint32_t ix : bp.mesh.indices) {
                 const auto& v = bp.mesh.vertices[ix];
@@ -266,6 +267,7 @@ const RenderModel* ModelCache::get(const std::string& gbsName, const std::string
     LOGI("Model %s%s: %zu parts, %u tris, %u missing textures", gbsName.c_str(),
          skinned ? " (skin rest pose)" : "", rm->parts.size(), rm->triangles, rm->missingTextures);
     const RenderModel* out = rm.get();
+    std::stable_partition(rm->parts.begin(), rm->parts.end(), [](const RenderModel::Part& q) { return !q.glass; });
     models_[key] = std::move(rm);
     return out;
 }

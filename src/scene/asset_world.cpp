@@ -480,6 +480,7 @@ void AssetWorld::render(Renderer& r) {
             DrawParams dp;
             dp.texture = part.texture;
             dp.blend = part.blend;
+            if (part.glass) { dp.blend = BlendMode::AlphaBlend; dp.tint.w *= 0.3f; }
             dp.unlit = !part.lit;
             r.draw(part.mesh, o.transform, dp);
         }
@@ -490,6 +491,7 @@ void AssetWorld::render(Renderer& r) {
             DrawParams dp;
             dp.texture = part.texture;
             dp.blend = part.blend;
+            if (part.glass) { dp.blend = BlendMode::AlphaBlend; dp.tint.w *= 0.3f; }
             // Baked vertex colours are the lighting for static models; characters are lit.
             dp.unlit = !part.lit;
             r.draw(part.mesh, xf, dp);

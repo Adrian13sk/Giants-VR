@@ -28,6 +28,7 @@ struct RenderModel {
         std::string textureName;
         uint32_t triangles = 0;
         bool lit = false;  // true: dynamic lighting (no usable baked vertex colours)
+        bool glass = false;  // sub-object flag 0x1: drawn see-through
     };
     std::string name;
     std::vector<Part> parts;

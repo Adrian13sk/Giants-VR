@@ -80,6 +80,7 @@ private:
         TextureId texture = 0;
         BlendMode blend = BlendMode::Opaque;
         bool lit = true;
+        bool glass = false;
         std::vector<Vertex> verts;
         std::vector<uint32_t> indices;
         std::vector<uint32_t> posIndex;
