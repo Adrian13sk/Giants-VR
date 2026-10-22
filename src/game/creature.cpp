@@ -29,6 +29,15 @@ int CreatureDirector::spawn(const Vec3& pos, float yaw, float scale, CreatureSiz
     return int(creatures.size()) - 1;
 }
 
+int CreatureDirector::spawnHunter(const Vec3& pos, float yaw, float scale, CreatureSize size, float hitPoints) {
+    const int i = spawn(pos, yaw, scale, size, hitPoints, false);  // they charge, they don't stop to spit
+    Creature& c = creatures[size_t(i)];
+    c.hunter = true;
+    c.state = CreatureState::Chase;
+    c.spitWait = 2.0f + rnd() * 2.0f;
+    return i;
+}
+
 size_t CreatureDirector::aliveCount() const {
     size_t n = 0;
     for (const auto& c : creatures) n += c.state != CreatureState::Dead;
@@ -224,7 +233,7 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                 c.speed = 0;
                 if (c.alertIn >= 0) c.alertIn -= dt;
                 const bool called = c.alertIn >= 0 && c.alertIn <= dt && playerAlive;
-                if (sees || called) {
+                if (sees || called || (c.hunter && playerAlive)) {
                     c.state = CreatureState::Chase;
                     c.stateTime = 0;
                     c.alertIn = -1;
@@ -238,7 +247,7 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                 break;
             }
             case CreatureState::Chase: {
-                if (!playerAlive || (fromHome > params.leash && dist > params.sightRange * ss)) {
+                if (!playerAlive || (!c.hunter && fromHome > params.leash && dist > params.sightRange * ss)) {
                     c.state = CreatureState::Return;
                     break;
                 }

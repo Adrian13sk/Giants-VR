@@ -62,6 +62,16 @@ public:
         Vec3 boundsMin, boundsMax;
     };
     const std::vector<TriggerObject>& triggerObjects() const { return triggers_; }
+    // Ripper nests (class 47): placed by the mission, run by the game layer.
+    struct Nest {
+        uint32_t type;
+        const RenderModel* model;
+        Mat4 transform;  // runtime, base on the terrain
+        Vec3 position;
+        float radius;    // bounding radius (m)
+        float hitPoints;
+    };
+    const std::vector<Nest>& nests() const { return nests_; }
     const std::string& missionName() const { return missionName_; }
     // Missions of this world in story order (scenario kind 2 with a wm_<name>.bin file).
     const std::vector<std::string>& missions() const { return missions_; }
@@ -106,6 +116,7 @@ private:
     MissionData mission_;
     std::vector<Character> characters_;
     std::vector<TriggerObject> triggers_;
+    std::vector<Nest> nests_;
     std::string missionName_;
     std::vector<std::string> missions_;
     CollisionWorld collision_;

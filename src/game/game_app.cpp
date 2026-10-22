@@ -191,6 +191,19 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 if (creatures_.raycast(o, d, maxD, tc, nc, ic) && (!he || tc < te)) {
                     he = true; te = tc; ne = nc; ie = kCreatureTarget + ic;
                 }
+                // Ripper nests: a sphere around the mound.
+                for (size_t k = 0; k < nests_.size(); ++k) {
+                    const NestInst& n = nests_[k];
+                    if (!n.alive || n.dying >= 0) continue;
+                    const float r = std::max(0.6f, n.radius * 0.45f * n.shown);
+                    const Vec3 c = n.pos + Vec3{0, r * 0.6f, 0};
+                    const Vec3 oc = o - c;
+                    const float b = dot(oc, d), cc = dot(oc, oc) - r * r, disc = b * b - cc;
+                    if (disc < 0) continue;
+                    const float tn = -b - std::sqrt(disc);
+                    if (tn < 0 || tn > maxD || (he && tn >= te)) continue;
+                    he = true; te = tn; ne = normalize(o + d * tn - c); ie = kNestTarget + int(k);
+                }
                 if (!hw && !he) return false;
                 if (he && (!hw || te < tw)) { t = te; n = ne; target = ie; }
                 else { t = tw; n = nw; target = -1; }
@@ -199,6 +212,11 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             weapon_.onHit = [this](int target, const Vec3& p, const Vec3& shotDir) {
                 if (target < 0) {
                     sfx(frand() < 0.5f ? "bi_dirt1" : (frand() < 0.5f ? "bi_hit1" : "bi_hit2"), p, 0.45f, 0.9f + 0.2f * frand());
+                    return;
+                }
+                if (target >= kNestTarget) {
+                    damageNest(target - kNestTarget, 25.0f);
+                    haptics_.push_back({rig_.turnHand(), 0.5f, 0.05f});
                     return;
                 }
                 if (target >= kCreatureTarget) {
@@ -579,7 +597,9 @@ void GameApp::setAudio(AudioMixer* mixer) {
         // Carrying Smarties (1b): pick up / let go / drop off, splash, piranhas.
         "me_smton", "me_smtof", "me_smtdp", "se_splsh", "pi_swrm1", "pi_swrm2",
         // Rocket launcher: launch, explosion.
-        "me_msls1", "me_mslex"};
+        "me_msls1", "me_mslex",
+        // Ripper nests: a Ripper hatching.
+        "rs_spawn", "rm_spawn", "rl_spawn"};
     std::vector<std::string> all(std::begin(names), std::end(names));
     for (int k = 1; k <= 15; ++k)  // Smartie voice pairs gsmNN_1 / gsmNN_2 (no 07 in the data)
         for (int j = 1; j <= 2; ++j) {
@@ -760,6 +780,46 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         }
         ci.model = std::move(m);
         chars_.push_back(std::move(ci));
+    }
+    // Ripper nests: a pool of Ripper models for the Rippers they breed (reused once a body is gone).
+    nests_.clear();
+    for (const auto& n : w->nests()) nests_.push_back({n.position, n.model, n.transform, n.radius, n.hitPoints, n.hitPoints, 1.0f, 1.0f,
+                                                       2.0f + 3.0f * frand(), true, -1.0f});
+    if (!nests_.empty()) {
+        const uint32_t breed[2] = {229, 73};  // small and medium Rippers (hit points 20 / 40)
+        const int pool = std::min(10, 3 * int(nests_.size()));
+        for (int k = 0; k < pool; ++k) {
+            const uint32_t type = breed[k % 2];
+            const std::string model = reg.modelName(type);
+            auto m = std::make_unique<SkinnedModel>();
+            if (model.empty() || !m->load(w->fs(), *mc, renderer_, model, reg.modelAnim(type))) break;
+            CharacterInst ci;
+            ci.type = int(type);
+            static const int slots[int(CreatureClip::Count)] = {1, 2, 10, 11, 44, 49, 45, 50};
+            for (int c = 1; c < int(CreatureClip::Count); ++c) {
+                const std::string a = reg.anim(type, slots[c]);
+                const int ki = a.empty() ? -1 : m->addAnimation(w->fs(), a);
+                ci.clipIndex[c] = ki >= 0 ? ki : 0;
+            }
+            if (creatures_.creatures.empty() && k == 0)
+                for (int c = 0; c < int(CreatureClip::Count); ++c)
+                    creatures_.clipDuration[c] = std::max(0.1f, m->animDuration(ci.clipIndex[c]));
+            const ObjectType* t = reg.type(type);
+            ci.scale = t && t->scale > 0 ? t->scale : 1.0f;
+            const float hp = t && t->hitPoints > 0 ? t->hitPoints : 40.0f;
+            ci.size = hp <= 25.0f ? CreatureSize::Small : CreatureSize::Medium;
+            ci.ambient = false;
+            ci.visible = false;
+            ci.pooled = true;
+            m->pose(renderer_, 0.0f);
+            Vec3 mn, mx;
+            m->posedBounds(mn, mx);
+            ci.lift = ci.restLift = -mn.y * ci.scale;
+            ci.model = std::move(m);
+            chars_.push_back(std::move(ci));
+        }
+        missionHostiles_ = true;
+        LOGI("Ripper nests: %zu, %d pooled Rippers", nests_.size(), pool);
     }
     rescue_.groundHeight = enemies_.groundHeight;
     rescue_.hasPad = !rescue_.smarties.empty() && w->objectBounds("sm_dropoff", rescue_.padMin, rescue_.padMax);
@@ -1000,6 +1060,9 @@ void GameApp::renderShadows() {
         c.model->renderShadow(renderer_, Mat4::translation(c.pos + Vec3{0, c.lift, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, c.yaw)) *
                                              Mat4::scale({c.scale, c.scale, c.scale}));
     }
+    for (const auto& n : nests_)
+        if (n.alive && n.model && length(n.pos - centre) < half * 1.4f)
+            for (const auto& part : n.model->parts) renderer_.drawShadow(part.mesh, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown));
     for (const auto& e : enemies_.enemies)
         if (e.slot >= 0 && length(e.pos - centre) < half * 1.4f)
             enemyPool_[size_t(e.slot)]->renderShadow(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
@@ -1139,6 +1202,7 @@ void GameApp::loadMission(const std::string& name) {
     creatures_.spits.clear();
     enemies_.enemies.clear();
     rescue_ = RescueDirector{};
+    nests_.clear();
     objectives_.clear();
     objectivesDone_ = 0;
     missionComplete_ = false;
@@ -1520,6 +1584,10 @@ void GameApp::explode(const Vec3& at, float radius, float damage) {
             creatureSound(e);
         }
     }
+    for (size_t k = 0; k < nests_.size(); ++k) {
+        const float dn = length(nests_[k].pos - at);
+        if (dn < radius + nests_[k].radius * 0.4f) damageNest(int(k), damage * (1.0f - 0.5f * std::min(1.0f, dn / radius)));
+    }
     LOGI("Rocket exploded at (%.1f %.1f %.1f), %zu creatures alive", at.x, at.y, at.z, creatures_.aliveCount());
     // The player is not immune to their own rockets.
     const float dp = length(player_.position + Vec3{0, 0.9f, 0} - at);
@@ -1550,8 +1618,67 @@ void GameApp::updateRockets(float dt) {
     rockets_.erase(std::remove_if(rockets_.begin(), rockets_.end(), [](const Rocket& r) { return r.life >= 1e9f; }), rockets_.end());
 }
 
+void GameApp::updateNests(float dt) {
+    if (nests_.empty()) return;
+    // Which pooled Ripper models are in use (a creature refers to them)?
+    std::vector<char> used(chars_.size(), 0);
+    for (const auto& c : creatures_.creatures)
+        if (c.slot >= 0 && size_t(c.slot) < used.size()) used[size_t(c.slot)] = 1;
+    for (size_t i = 0; i < nests_.size(); ++i) {
+        NestInst& n = nests_[i];
+        n.shown += (n.target - n.shown) * std::min(1.0f, dt * 6.0f);  // shrinks smoothly when hit
+        if (!n.alive) continue;
+        if (n.dying >= 0) {
+            n.dying += dt;
+            n.target = 0.0f;
+            if (n.dying > 0.6f) { n.alive = false; LOGI("Ripper nest %zu destroyed", i); }
+            continue;
+        }
+        if (!playMode_ || playerHealth_ <= 0 || length(n.pos - player_.position) > 70.0f) continue;
+        n.timer -= dt;
+        if (n.timer > 0) continue;
+        n.timer = 6.0f + 4.0f * frand();
+        // Up to three of its brood at a time.
+        int brood = 0;
+        for (const auto& c : creatures_.creatures) brood += c.hunter && c.state != CreatureState::Dead && length(c.home - n.pos) < 1.0f;
+        if (brood >= 3) continue;
+        for (size_t k = 0; k < chars_.size(); ++k) {
+            CharacterInst& ci = chars_[k];
+            if (!ci.pooled || used[k]) continue;
+            const Vec3 to = player_.position - n.pos;
+            const float yaw = std::atan2(-to.x, -to.z);
+            const ObjectType* t = assetWorld_->registry().type(uint32_t(ci.type));
+            const float hp = t && t->hitPoints > 0 ? t->hitPoints : 40.0f;
+            const int idx = creatures_.spawnHunter(n.pos, yaw, ci.scale, ci.size, hp);
+            creatures_.creatures[size_t(idx)].slot = int(k);
+            used[k] = 1;
+            ci.objective = -1;
+            sfx(ci.size == CreatureSize::Small ? "rs_spawn" : "rm_spawn", n.pos, 0.9f);
+            LOGI("Ripper nest %zu: a Ripper hatches", i);
+            break;
+        }
+    }
+}
+
+void GameApp::damageNest(int i, float amount) {
+    if (i < 0 || size_t(i) >= nests_.size()) return;
+    NestInst& n = nests_[size_t(i)];
+    if (!n.alive || n.dying >= 0) return;
+    n.hp -= amount;
+    // It shrinks as it is hurt, and goes when it is spent.
+    n.target = 0.35f + 0.65f * std::max(0.0f, n.hp / n.maxHp);
+    sfx("ex_bdys1", n.pos + Vec3{0, 0.6f, 0}, 0.8f, 0.8f + 0.2f * frand());
+    if (n.hp <= 0) {
+        n.dying = 0;
+        blasts_.push_back({n.pos + Vec3{0, 0.6f, 0}, 3, 0.0f});
+        sfx("ex_bdyl1", n.pos, 1.0f);
+        sfx("rl_deat1", n.pos, 0.8f, 0.7f);
+    }
+}
+
 void GameApp::updateCombat(float dt) {
     updateRockets(dt);
+    updateNests(dt);
     // Water: entering it splashes; swimming leaves rings. Piranhas live in all deep water (the 1b
     // briefing warns of them): after a moment there they gather round and bite; leaving deep water
     // (shallows, the shore, the jetpack) sends them away. Rates and damage ours.
@@ -1968,6 +2095,10 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (cut) cutTypes = cutscene_->actorTypes();
     if (assetWorld_) assetWorld_->setHiddenTypes(cutTypes);
     if (assetWorld_ && assetWorld_->loaded()) assetWorld_->render(renderer_);
+    for (const auto& n : nests_) {
+        if (!n.alive || n.shown < 0.02f) continue;
+        drawModel(n.model, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown), false);
+    }
     if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
     if (playMode_ && playerModel_ && !cut) playerModel_->render(renderer_, bodyXf_);
     if (playMode_ && gunValid_ && !cut) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);

@@ -282,6 +282,7 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
     // own objects; switching missions rebuilds the level state from scratch (as the original
     // does when it loads a mission).
     worldObjects_.clear();
+    nests_.clear();
     characters_.clear();
     triggers_.clear();
     collision_.clear();
@@ -423,6 +424,18 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
         const RenderModel* m = cache_->get(name + ".gbs", registry_.modelAnim(p.type));
         if (!m) { ++missing; continue; }
         const Mat4 xf = placementMatrix(p);
+        if (const ObjectType* ot = registry_.type(p.type); ot && ot->objectClass == 47) {
+            // Ripper nests (class 47) are live: the game layer spawns from them, shrinks and
+            // destroys them, so they are not static scenery.
+            Vec3 at = giantsToRuntime(p.x, p.y, p.z);
+            float gy;
+            if (hasTerrain_ && terrain_.heightAt(at.x, at.z, gy)) at.y = gy;
+            const float radius = 0.5f * length(m->boundsMax - m->boundsMin) * p.scale;
+            nests_.push_back({p.type, m, Mat4::translation(at) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, p.yaw * kPi / 180.0f)) *
+                                             Mat4::scale({p.scale, p.scale, p.scale}),
+                              at, radius, ot->hitPoints > 0 ? ot->hitPoints : 100.0f});
+            continue;
+        }
         const Vec3 lc = (m->boundsMin + m->boundsMax) * 0.5f;
         const Vec4 wc = xf * Vec4{lc.x, lc.y, lc.z, 1.0f};
         const float radius = 0.5f * length(m->boundsMax - m->boundsMin) * p.scale;

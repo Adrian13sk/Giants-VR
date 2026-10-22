@@ -50,6 +50,7 @@ struct Creature {
     float sink = 0;
     bool remove = false;
     int slot = -1;          // renderer model (owned by the game app)
+    bool hunter = false;    // spawned by a nest: goes straight for the player, never gives up
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
 
@@ -114,6 +115,8 @@ public:
     std::vector<CreatureSpit> spits;
 
     int spawn(const Vec3& pos, float yaw, float scale, CreatureSize size, float hitPoints, bool canSpit);
+    // A Ripper born from a nest: chases the player at once and never returns home.
+    int spawnHunter(const Vec3& pos, float yaw, float scale, CreatureSize size, float hitPoints);
     // Advances AI and spit balls; appends what happened this frame to `events` (cleared first).
     void update(float dt, const Vec3& playerPos, bool playerAlive, std::vector<CreatureEvent>& events);
     // Applies damage; returns true if this killed the creature. `dir`: direction of the shot.

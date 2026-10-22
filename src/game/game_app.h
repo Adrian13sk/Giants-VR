@@ -183,6 +183,7 @@ private:
         int objective = -1;  // mission objective completed by this creature's death
         int type = -1;       // object type (hidden while a cutscene shows its own copy)
         int rescue = -1;     // index in rescue_ (1b's stranded Smarties); clipIndex = SmartieClip
+        bool pooled = false; // a nest's Ripper model, lent to a hatched Ripper while it lives
     };
     // Ripper spit balls (orange medium / blue large), blasts and gore from bursting Rippers.
     std::unique_ptr<SkinnedModel> spitBall_[3];
@@ -198,6 +199,19 @@ private:
     std::vector<CharacterInst> chars_;
     CreatureDirector creatures_;
     RescueDirector rescue_;
+    // Ripper nests: breed Rippers that charge the player; shooting shrinks a nest until it goes.
+    struct NestInst {
+        Vec3 pos;
+        const RenderModel* model;
+        Mat4 xf;
+        float radius, hp, maxHp, target, shown, timer;
+        bool alive;
+        float dying;  // >= 0: seconds since it was destroyed
+    };
+    std::vector<NestInst> nests_;
+    static constexpr int kNestTarget = 5000;  // weapon target ids for nests
+    void updateNests(float dt);
+    void damageNest(int i, float amount);
     std::vector<SmartieEvent> rescueEvents_;
     int rescueLine_ = 0;
     bool autoGrip_ = false;  // GVR_AUTO_RESCUE test hook
