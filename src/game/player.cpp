@@ -29,6 +29,7 @@ void PlayerController::teleport(const Vec3& p, float facingYaw) {
     fuel_ = params.fuelSeconds;
     overheated_ = false;
     stun_ = impact_ = 0;
+    actionTime_ = 0;
     anim_ = prevAnim_ = PlayerAnim::Idle;
     animTime_ = prevTime_ = 0;
     fade_ = 1e9f;
@@ -65,6 +66,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     stun_ = std::max(0.0f, stun_ - dt);
     float speed = swimming_ ? swimSpeed * mag : params.runSpeed * mag * (in.sprint ? params.sprintFactor : 1.0f);
     if (stun_ > 0) speed = 0;
+    if (actionTime_ > 0 && onGround) speed *= 0.3f;  // injecting: a slow shuffle
     // Jetpack fuel: drains while thrusting (twice as fast on turbo), refills on the ground only.
     // Burnt dry, it overheats and stays off until the tank is partly refilled.
     if (overheated_ && fuel_ >= params.overheatResume * params.fuelSeconds) overheated_ = false;
@@ -251,7 +253,9 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     const float rel = angleDelta(yaw, moveYaw);
     const float hs = std::sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
     const float velRel = angleDelta(yaw, std::atan2(-velocity.x, -velocity.z));
+    actionTime_ = (onGround && !swimming_) ? std::max(0.0f, actionTime_ - dt) : 0.0f;
     if (stun_ > 0 && onGround) want = PlayerAnim::LandHard;
+    else if (actionTime_ > 0) want = action_;
     else if (!onGround && thrusting_ && hs > 2.0f) {
         // Flying: lean into the direction of travel.
         if (std::fabs(velRel) < 0.8f) want = PlayerAnim::FlyFwd;

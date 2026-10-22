@@ -12,7 +12,7 @@
 
 namespace gvr {
 
-enum class PlayerAnim : int { Idle = 0, Run, Thrust, Hover, Land, Strafe, Slide, FlyFwd, FlyLeft, FlyRight, FlyBack, LandHard, Fall, Count };
+enum class PlayerAnim : int { Idle = 0, Run, Thrust, Hover, Land, Strafe, Slide, FlyFwd, FlyLeft, FlyRight, FlyBack, LandHard, Fall, Inject, Count };
 
 struct PlayerInput {
     Vec2 move;            // stick, -1..1, +y = forward (deadzone applied by the controller)
@@ -100,6 +100,10 @@ public:
     bool overheated() const { return overheated_; }
     bool turbo() const { return turbo_; }
     bool stunned() const { return stun_ > 0; }
+    // A one-shot body action (the health injection): plays `a` for `seconds` while standing
+    // (walking slowed); the clip stays on screen until it ends or the player leaves the ground.
+    void startAction(PlayerAnim a, float seconds) { action_ = a; actionTime_ = seconds; }
+    bool inAction() const { return actionTime_ > 0; }
     // Downward speed (m/s) of a landing that happened in the last update, once (0 = none).
     float takeImpact() { const float v = impact_; impact_ = 0; return v; }
     // True once when the jetpack has just burnt dry.
@@ -113,6 +117,8 @@ private:
     float fuel_ = 5.0f, sinceThrust_ = 99.0f;
     bool thrusting_ = false, overheated_ = false, overheatEvent_ = false, turbo_ = false;
     float stun_ = 0, impact_ = 0;
+    PlayerAnim action_ = PlayerAnim::Idle;
+    float actionTime_ = 0;
     bool sliding_ = false;      // on ground too steep to stand on: skidding downhill
     bool slideCarry_ = false;  // still carrying slide momentum on walkable ground
     bool onObject_ = false;  // feet on a structure (bridge, roof), not the terrain

@@ -44,6 +44,8 @@ add_library(gvr_core STATIC
   src/game/smartie.cpp
   src/game/gore.cpp
   src/game/game_app_world.cpp
+  src/game/game_app_hud.cpp
+  src/game/hud_gauge.cpp
   src/game/destruction.cpp
   src/game/particles.cpp
   src/audio/mixer.cpp

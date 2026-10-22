@@ -36,7 +36,9 @@ int main(int argc, char** argv) {
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
     int gripFrom = -1, gripTo = -1, handPathFrom = -1, handPathTo = -1, stickFrom = -1, stickTo = -1, trigFrom = -1, trigTo = -1;
-    float handDx = 0, handDy = 0, handDz = 0;  // right hand moves by this (tracking metres) over the path frames
+    float handDx = 0, handDy = 0, handDz = 0;
+    int xFrom = -1, xTo = -1, lPathFrom = -1, lPathTo = -1, hurtAt = -1;
+    float lDx = 0, lDy = 0, lDz = 0, hurtAmount = 0, hurtYaw = 0;  // right hand moves by this (tracking metres) over the path frames
     int jetFrom = -1, jetTo = -1;
     bool autoAim = false, viewBody = false, viewCorpse = false;
     int viewFrames = 0, killShots = 0, killPlayerAt = -1, killCause = 0;
@@ -74,6 +76,10 @@ int main(int argc, char** argv) {
         else if (a == "--grip-window") { gripFrom = std::atoi(next()); gripTo = std::atoi(next()); }  // right grip for frames [from, to)
         else if (a == "--hand-path") { handPathFrom = std::atoi(next()); handPathTo = std::atoi(next());
                                        handDx = std::atof(next()); handDy = std::atof(next()); handDz = std::atof(next()); }
+        else if (a == "--x-window") { xFrom = std::atoi(next()); xTo = std::atoi(next()); }  // X (left primary) held for frames [from, to)
+        else if (a == "--lhand-path") { lPathFrom = std::atoi(next()); lPathTo = std::atoi(next());
+                                        lDx = std::atof(next()); lDy = std::atof(next()); lDz = std::atof(next()); }
+        else if (a == "--hurt") { hurtAt = std::atoi(next()); hurtAmount = std::atof(next()); hurtYaw = std::atof(next()); }  // frame, damage, from (deg, + right)
         else if (a == "--trigger") triggerAmount = std::atof(next());  // right trigger (fires in play mode)
         else if (a == "--aim-pitch") aimPitchDeg = std::atof(next());  // controller pitch (deg)
         else if (a == "--aim-yaw") aimYawDeg = std::atof(next());      // controller yaw (deg, + = left)
@@ -153,6 +159,13 @@ int main(int argc, char** argv) {
         if (gripFrom >= 0) in.hand[kRight].squeeze = f >= gripFrom && f < gripTo ? 1.0f : 0.0f;
         if (stickFrom >= 0) in.hand[kRight].thumbstick.y = f >= stickFrom && f < stickTo ? 1.0f : 0.0f;
         if (trigFrom >= 0) in.hand[kRight].trigger = f >= trigFrom && f < trigTo ? 1.0f : 0.0f;
+        if (xFrom >= 0) in.hand[kLeft].primary = f >= xFrom && f < xTo;
+        if (lPathFrom >= 0 && f >= lPathFrom && f < lPathTo) {
+            const float k = 1.0f / float(lPathTo - lPathFrom);
+            in.hand[kLeft].gripPose.position = in.hand[kLeft].gripPose.position + Vec3{lDx, lDy, lDz} * k;
+            in.hand[kLeft].aimPose.position = in.hand[kLeft].aimPose.position + Vec3{lDx, lDy, lDz} * k;
+        }
+        if (f == hurtAt) app.debugHurt(hurtAmount, hurtYaw);
         if (handPathFrom >= 0 && f >= handPathFrom && f < handPathTo) {
             const float k = 1.0f / float(handPathTo - handPathFrom);
             in.hand[kRight].gripPose.position = in.hand[kRight].gripPose.position + Vec3{handDx, handDy, handDz} * k;
@@ -223,6 +236,7 @@ int main(int argc, char** argv) {
     if (app.playMode()) {
         const auto& p = app.player();
         LOGI("weapon: %zu shots, %zu hits, last hit at %.1f m", app.weaponShots(), app.weaponHits(), app.weaponLastHitDistance());
+        LOGI("player: health %.0f, injections %d", app.playerHealth(), app.syringeCount());
         Vec3 ne;
         const float nd = app.nearestEnemy(ne) ? length(ne - p.position - Vec3{0, 1.2f, 0}) : -1.0f;
         const Vec3 rel = ne - p.position;

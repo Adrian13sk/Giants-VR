@@ -16,6 +16,8 @@ public:
     bool full() const { return count_ >= capacity_; }
     // Corners in order (counter-clockwise seen from the front); uv (0,0)-(1,1) over the texture.
     void add(const Vec3 corners[4], const uint8_t rgba[4]);
+    // Same with explicit texture coordinates per corner.
+    void add(const Vec3 corners[4], const float uv[4][2], const uint8_t rgba[4]);
     // A camera-facing square (right/up: the viewer's axes), rolled by `angle`.
     void addBillboard(const Vec3& centre, float size, const Vec3& right, const Vec3& up, float angle, const uint8_t rgba[4]);
     // Uploads this frame's quads (once per frame, before drawing).

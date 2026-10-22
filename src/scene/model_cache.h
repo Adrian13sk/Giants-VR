@@ -8,6 +8,7 @@
 
 #include "assets/gbs.h"
 #include "assets/gzp.h"
+#include "assets/image.h"
 #include "render/renderer.h"
 
 namespace gvr {
@@ -48,6 +49,8 @@ public:
     const RenderModel* get(const std::string& gbsName, const std::string& skinAnim = std::string(),
                            bool dynamicLit = false);
     TextureId texture(const std::string& name, bool* hadAlpha = nullptr);
+    // The decoded pixels of a texture (CPU side, e.g. to measure a HUD gauge's shape).
+    bool image(const std::string& name, Image& out) const;
 
 private:
     const AssetFS& fs_;

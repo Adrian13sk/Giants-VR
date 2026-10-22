@@ -23,6 +23,7 @@
 #include "game/gore.h"
 #include "game/destruction.h"
 #include "game/particles.h"
+#include "game/hud_gauge.h"
 #include "audio/mixer.h"
 #include "audio/music.h"
 #include "assets/gtext.h"
@@ -1046,11 +1047,49 @@ static void testDestruction() {
     CHECK(ps.parts.empty());
 }
 
+static void testHudGauge() {
+    // A ring outline (walls between radius 10 and 12) on a 32x32 image.
+    Image img;
+    img.width = img.height = 32;
+    img.rgba.assign(32 * 32 * 4, 0);
+    for (int y = 0; y < 32; ++y)
+        for (int x = 0; x < 32; ++x) {
+            const float r = std::sqrt(float((x - 16) * (x - 16) + (y - 16) * (y - 16)));
+            if (r >= 10.0f && r <= 12.0f) img.rgba[size_t(y * 32 + x) * 4 + 3] = 255;
+        }
+    const auto spans = gaugeInterior(img, 16, 16, 2);
+    CHECK(!spans.empty());
+    float top = 1, bottom = 0;
+    for (const auto& s : spans) {
+        CHECK(s.x0 < s.x1 && s.v0 < s.v1);
+        CHECK(s.x0 >= 5.0f / 32 && s.x1 <= 27.0f / 32);  // inside the ring (plus the 1 px overlap)
+        top = std::min(top, s.v0);
+        bottom = std::max(bottom, s.v1);
+    }
+    CHECK(top >= 5.0f / 32 && bottom <= 27.0f / 32);
+    CHECK(gaugeInterior(img, 2, 2, 2).empty());    // outside: leaks to the border
+    CHECK(gaugeInterior(img, 16, 5, 2).empty());   // on the wall
+    // The player's one-shot action (injection) plays, slows walking, and ends.
+    PlayerController pc;
+    pc.groundHeight = [](float, float) { return 0.0f; };
+    pc.teleport({0, 0, 0}, 0);
+    pc.startAction(PlayerAnim::Inject, 0.5f);
+    PlayerInput in;
+    in.move = {0, 1};
+    pc.update(0.1f, in);
+    CHECK(pc.anim() == PlayerAnim::Inject && pc.inAction());
+    CHECK(pc.horizontalSpeed() < 0.5f * pc.params.runSpeed);
+    for (int i = 0; i < 10; ++i) pc.update(0.1f, in);
+    CHECK(!pc.inAction() && pc.anim() == PlayerAnim::Run);
+    std::printf("hud gauge / player action ok\n");
+}
+
 int main() {
     testGameText();
     testRescue();
     testGore();
     testDestruction();
+    testHudGauge();
     testAffineInverse();
     testGti();
     testWorldBin();

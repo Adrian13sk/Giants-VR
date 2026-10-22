@@ -17,6 +17,7 @@
 #include "game/gore.h"
 #include "game/destruction.h"
 #include "game/particles.h"
+#include "game/hud_gauge.h"
 #include "render/quad_batch.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
@@ -131,6 +132,14 @@ public:
     void debugBlast(float gx, float gy, float height);
     size_t destroyedCount() const { size_t n = 0; for (const auto& d : destruct_.items) n += !d.alive(); return n; }
     void debugKillPlayer(int cause) { damagePlayer(500.0f, DeathCause(cause)); }
+    // Test hook: hurt the player by `amount`, the hit coming from `fromYawDeg` (0 = ahead, 90 = right).
+    void debugHurt(float amount, float fromYawDeg) {
+        const float a = player_.yaw - fromYawDeg * 3.14159265f / 180.0f;
+        hitFrom_ = player_.position + Vec3{-std::sin(a) * 8.0f, 1.2f, -std::cos(a) * 8.0f};
+        hitDirTimer_ = 1.2f;
+        damagePlayer(amount);
+    }
+    int syringeCount() const { return syringes_; }
     bool dying() const { return dying_; }
     void debugDumpBlood() const {
         Vec3 b;
@@ -458,6 +467,54 @@ private:  // the mission placed enemies: no test waves
     void updateCombat(float dt);
     void damagePlayer(float amount, DeathCause cause = DeathCause::Shot);
     void renderHud();
+    // HUD with the original Meccaryn HUD art (game_app_hud.cpp): the heart-shaped health gauge,
+    // the jetpack's fuel gauge, health injections carried, the weapon in hand and objective pips
+    // (FP: over the move-hand wrist; TP: head-locked, lower left); the weapon strip that pops up on
+    // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
+    enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
+                    kHudSyringe, kHudNumbers, kHudMarks, kHudLayers };
+    struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
+    TextureId hudTex_[kHudLayers] = {};
+    QuadBatch hudBatch_[kHudLayers];
+    std::vector<GaugeSpan> heartShape_, jetShape_;
+    bool hudReady_ = false;
+    float weaponHudT_ = 99.0f, pickupFlash_ = 0, healFlash_ = 0;
+    void initHud(ModelCache* mc);
+    void buildHud();
+    void hudRect(int layer, const HudFrame& f, float x, float y, float w, float h, const uint8_t rgba[4], float u0 = 0,
+                 float v0 = 0, float u1 = 1, float v1 = 1);
+    void hudGauge(int fillLayer, int outlineLayer, const std::vector<GaugeSpan>& shape, const HudFrame& f, float x, float y,
+                  float w, float h, float level, const uint8_t fill[4], const uint8_t outline[4]);
+    void hudDigits(const HudFrame& f, float x, float y, float h, int value, const uint8_t rgba[4]);
+    void hudStatus(const HudFrame& f);
+    void hudWeaponStrip();
+    void hudHitMarker();
+    // Health injections (green syringes): picked up on the map (placed mc_pickup_health objects,
+    // and dropped by some of the Reapers killed), carried (max 5), injected by hand: FP - X takes
+    // one into the move hand, push it into your chest; TP - X plays the injection animation.
+    struct HealthPickup { Vec3 pos; float t = 0; };
+    std::vector<HealthPickup> healthPickups_;
+    const RenderModel* pickupModel_ = nullptr;
+    const RenderModel* syringeModel_ = nullptr;
+    float pickupScale_ = 1.0f, syringeScale_ = 1.0f;
+    Vec3 syringeAxis_{0, 0, -1}, syringeCentre_;  // model frame: needle direction, centre
+    int syringes_ = 0;
+    static constexpr int kMaxSyringes = 5;
+    static constexpr float kSyringeHeal = 50.0f;
+    bool syringeOut_ = false;   // FP: one in the move hand
+    float syringeOutT_ = 0;
+    float injectT_ = -1;        // TP: injection animation time, -1 = none
+    bool injectHealed_ = false;
+    float healPending_ = 0;
+    ButtonEdge injectEdge_;
+    Mat4 syringeXf_ = Mat4::identity();
+    bool syringeValid_ = false;
+    std::vector<uint8_t> enemyDead_;
+    void initPickups(ModelCache* mc);
+    void updatePickups(float dt, const InputFrame& in);
+    void renderPickups();
+    void dropHealth(const Vec3& at);
+    void injectHealth();
     // Audio (original WAVs from the user's archives; names decoded by guesswork, see the log).
     AudioMixer* audio_ = nullptr;
     void sfx(const char* name, const Vec3& pos, float vol = 1.0f, float pitch = 1.0f);

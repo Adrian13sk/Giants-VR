@@ -65,7 +65,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         {
             const char* clips[] = {"mc_stand.anm", "mc_run.anm", "mc_thrust.anm", "mc_hover.anm", "mc_land_soft.anm", "mc_sidestep.anm",
                                    "mc_skid.anm", "mc_hover_turbo_back.anm", "mc_fly_left.anm", "mc_fly_right.anm", "mc_hover_back.anm",
-                                   "mc_land_hard.anm", "mc_fly_cycle.anm"};
+                                   "mc_land_hard.anm", "mc_fly_cycle.anm", "mc_health_pup.anm"};
             static_assert(sizeof(clips) / sizeof(clips[0]) == size_t(PlayerAnim::Count), "a clip per PlayerAnim");
             for (int i = 1; i < int(PlayerAnim::Count); ++i) clip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
             // Death clips: falling dead, going under in the water.
@@ -541,10 +541,12 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         sfx2D("me_jpkno", 0.9f);
         LOGI("Jetpack burnt dry: overheated");
     }
+    updatePickups(dt, in);
     placeCamera(dt, false, &in);
     if (!playerModel_) return;
     if (firstPerson_) {
         poseFirstPersonBody(in);
+        if (syringeOut_) armTargets_[rig_.moveHand()].squeeze = 1.0f;  // the hand closes on the syringe
     } else {
         bodyXf_ = Mat4::translation(player_.position) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
         armTargets_[0].valid = armTargets_[1].valid = false;
@@ -713,7 +715,9 @@ void GameApp::setAudio(AudioMixer* mixer) {
         // Rocket launcher: launch, explosion.
         "me_msls1", "me_mslex",
         // Ripper nests: a Ripper hatching.
-        "rs_spawn", "rm_spawn", "rl_spawn"};
+        "rs_spawn", "rm_spawn", "rl_spawn",
+        // HUD weapon select, health pickup, injection.
+        "ph_selct", "pu_hlth", "me_syrng"};
     std::vector<std::string> all(std::begin(names), std::end(names));
     for (int k = 1; k <= 15; ++k)  // Smartie voice pairs gsmNN_1 / gsmNN_2 (no 07 in the data)
         for (int j = 1; j <= 2; ++j) {
@@ -1010,6 +1014,8 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     }
     initGore(w, mc);
     initFx(mc);
+    initHud(mc);
+    initPickups(mc);
     initDestruction(w, mc);
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
 }
@@ -1451,6 +1457,7 @@ void GameApp::updateSun(float dt) {
 
 void GameApp::renderShadows() {
     buildBatches();
+    buildHud();
     renderShadowMap();
     renderReflection();
 }
@@ -2567,9 +2574,13 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     // Right stick forward: next weapon (released to neutral before it switches again).
     const float sy = in.hand[gh].thumbstick.y;
     if (sy < 0.3f) switchArmed_ = true;
-    if (switchArmed_ && sy > 0.75f && hasLauncher_) {
+    if (switchArmed_ && sy > 0.75f) {
+        // The weapon strip drops in either way (showing what is carried); with only the gun
+        // there is nothing to switch to.
         switchArmed_ = false;
-        weaponSel_ = 1 - weaponSel_;
+        if (hasLauncher_) weaponSel_ = 1 - weaponSel_;
+        weaponHudT_ = 0;
+        sfx2D("ph_selct", 0.7f);
         haptics_.push_back({gh, 0.5f, 0.06f});
         LOGI("Weapon: %s", weaponSel_ ? "rocket launcher" : "gun");
     }
@@ -2643,56 +2654,6 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     if (weapon_.update(dt, trigger && gunValid_, muzzle, fwd)) {
         haptics_.push_back({gh, 0.35f, 0.04f});
         sfx((weapon_.shotsFired() & 1) ? "me_peas1" : "me_peas2", muzzle, 0.7f, 0.95f + 0.1f * frand());
-    }
-}
-
-// Wrist health bar (first person, left controller) and the red damage flash.
-void GameApp::renderHud() {
-    if (!impactModel_ || impactModel_->parts.empty() || !whiteTex_) return;
-    const MeshId quad = impactModel_->parts[0].mesh;  // 0.2 m square in the XY plane
-    auto drawQuad = [&](const Mat4& xf, const Vec4& color) {
-        DrawParams dp;
-        dp.texture = whiteTex_;
-        dp.blend = BlendMode::AlphaBlend;
-        dp.unlit = true;
-        dp.noFog = true;
-        dp.depthWrite = false;
-        dp.doubleSided = true;
-        dp.tint = color;
-        renderer_.draw(quad, xf, dp);
-    };
-    const ControllerState& lc = lastInput_.hand[rig_.moveHand()];
-    if (firstPerson_ && lc.gripPoseValid) {
-        const Pose g = rig_.toWorld(lc.gripPose);
-        const Mat4 base = Mat4::translation(g.position + Vec3{0, 0.09f, 0}) * Mat4::rotation(headWorldRot_);
-        const float w = 0.13f, h = 0.016f, f = std::max(0.0f, playerHealth_) / 100.0f;
-        drawQuad(base * Mat4::scale({(w + 0.008f) / 0.2f, (h + 0.008f) / 0.2f, 1}), {0, 0, 0, 0.6f});
-        const Vec4 col{std::min(1.0f, 2.0f * (1.0f - f)), std::min(1.0f, 2.0f * f), 0.1f, 0.9f};
-        drawQuad(base * Mat4::translation({-w * 0.5f * (1.0f - f), 0, 0.002f}) * Mat4::scale({w * f / 0.2f, h / 0.2f, 1}), col);
-        // Jetpack fuel underneath (blue), once the jetpack is in the inventory.
-        if (player_.jetpackAvailable) {
-            const float jf = player_.fuel();
-            const Mat4 fb = base * Mat4::translation({0, -0.024f, 0});
-            drawQuad(fb * Mat4::scale({(w + 0.008f) / 0.2f, (h * 0.7f + 0.008f) / 0.2f, 1}), {0, 0, 0, 0.6f});
-            drawQuad(fb * Mat4::translation({-w * 0.5f * (1.0f - jf), 0, 0.002f}) *
-                         Mat4::scale({w * jf / 0.2f, h * 0.7f / 0.2f, 1}),
-                     {0.2f, 0.6f, 1.0f, 0.9f});
-        }
-        // Mission objectives above the health bar: one pip each, gold when done.
-        const size_t n = objectives_.size();
-        for (size_t i = 0; i < n && n <= 16; ++i) {
-            const float px = (float(i) - 0.5f * float(n - 1)) * 0.018f;
-            const Mat4 pm = base * Mat4::translation({px, 0.022f, 0});
-            drawQuad(pm * Mat4::scale({0.013f / 0.2f, 0.013f / 0.2f, 1}), {0, 0, 0, 0.6f});
-            const Vec4 col = objectives_[i].done ? Vec4{1.0f, 0.8f, 0.1f, 0.95f} : Vec4{0.5f, 0.5f, 0.5f, 0.6f};
-            drawQuad(pm * Mat4::translation({0, 0, 0.002f}) * Mat4::scale({0.009f / 0.2f, 0.009f / 0.2f, 1}), col);
-        }
-    }
-    if (damageFlash_ > 0) {
-        const Vec3 fwd = headWorldRot_.rotate(Vec3{0, 0, -1});
-        const Vec3 eye = renderer_.currentView().eyePosition;
-        drawQuad(Mat4::translation(eye + fwd * 0.12f) * Mat4::rotation(headWorldRot_) * Mat4::scale({4, 4, 1}),
-                 {1.0f, 0.05f, 0.0f, std::min(0.5f, 0.35f * damageFlash_)});
     }
 }
 
@@ -2941,6 +2902,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     renderGore();
     for (const auto& c : collapses_)
         if (c.model) c.model->render(renderer_, c.xf);
+    renderPickups();
     for (const auto& g : gibs_)
         drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) *
                                Mat4::scale({g.scale, g.scale, g.scale}),

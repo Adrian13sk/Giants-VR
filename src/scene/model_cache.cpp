@@ -210,6 +210,16 @@ TextureId ModelCache::texture(const std::string& name, bool* hadAlpha) {
     return e.id;
 }
 
+bool ModelCache::image(const std::string& name, Image& out) const {
+    std::vector<uint8_t> bytes;
+    const char* exts[] = {".tga", ".bmp", ""};
+    for (const char* ext : exts) {
+        if (fs_.read(name + ext, bytes)) break;
+        bytes.clear();
+    }
+    return !bytes.empty() && decodeImage(bytes.data(), bytes.size(), out, nullptr);
+}
+
 const RenderModel* ModelCache::get(const std::string& gbsName, const std::string& skinAnim, bool dynamicLit) {
     std::string key = toLower(gbsName) + "|" + toLower(skinAnim) + (dynamicLit ? "|lit" : "");
     auto it = models_.find(key);
