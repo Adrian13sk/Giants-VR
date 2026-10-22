@@ -29,11 +29,14 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
-1. **Device test 24** (build d07dbb9, host verified only):
-   - Timmy on the back: facing backwards, visible in all flight;
-   - the yells in flight;
-   - the 8 s tank on 1b's gaps;
-   - still open from test 23: the launcher grip, rocket self-damage, Ripper hits, blue spit, landing.
+1. **Device test 24 (d07dbb9): Timmy is better.** Next session, in this order:
+   - **Timmy leans with Baz:** take his rotation from Baz's spine relative to its idle rotation, so he tilts
+     forward in forward flight. (A first try in d07dbb9 laid him sideways; check the spine's axes in the game frame.)
+   - **Timmy voice with subtitles:** play Smartie voice lines (gsmNN_1/2 and other sm voice WAVs) with his waves and
+     yells, shown with the existing subtitle panel; find his text lines in the game's text files.
+   - **Terrain texture variety:** beach sand by height near sea level, sand under water, several grass and rock
+     variants blended by slope, height and noise, plus detail textures. Use original textures where the data has
+     them; all in the terrain shader.
 2. **Remaining Story1 work:** Smartie AI in the villages, Dactyl flight, 1d (sneak past); the world opcode table (B5).
 3. **Visual fidelity:** compare against original screenshots (B6).
 
