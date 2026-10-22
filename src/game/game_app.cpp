@@ -436,6 +436,8 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         playerHasJet_ = !playerHasJet_;
         LOGI("Player model: %s jetpack", playerHasJet_ ? "with" : "without");
     }
+    followHead(dt, in);
+    briefHeld_ = in.hand[mh].thumbstickClick;  // hold the move stick down: the mission briefing
     PlayerInput pi;
     pi.move = in.hand[mh].thumbstick;
     pi.viewYaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : camYaw_;
@@ -557,6 +559,10 @@ void GameApp::updateRescue(float dt, const InputFrame& in) {
                 haptics_.push_back({kRight, 0.3f, 0.05f});
                 completeObjective(s.objective);
                 LOGI("Smartie %d saved (%zu/%zu)", e.index, rescue_.savedCount(), rescue_.smarties.size());
+                // 1b's briefing (MO_1b_1_catchsmarties) asks for four Smarties of the eight on the
+                // pillars, as does the original's walkthrough: four saved completes the rest.
+                if (rescue_.savedCount() >= size_t(kRescueNeeded))
+                    for (const auto& o : rescue_.smarties) completeObjective(o.objective);
                 break;
             }
             case SmartieEvent::Slipping: {
@@ -1228,22 +1234,53 @@ void GameApp::beginLoading(const std::string& mission, const InputFrame& in, boo
     load_.mission = load ? mission : std::string();
     // The briefing faces where the player looks now (head yaw), 2 m away.
     load_.yaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : camYaw_;
-    load_.title = mission;
-    load_.brief.clear();
-    if (gameText_) {
-        const std::string t = gameText_->get(mission);
-        if (!t.empty()) load_.title = t;
-        // Objectives text: '^' = new line, '~N' = colour change (dropped).
-        const std::string mo = gameText_->get("MO_" + mission);
-        for (size_t i = 0; i < mo.size(); ++i) {
-            if (mo[i] == '^') load_.brief += '\n';
-            else if (mo[i] == '~' && i + 1 < mo.size()) ++i;
-            else load_.brief += mo[i];
-        }
-        while (!load_.brief.empty() && (load_.brief.front() == '\n' || load_.brief.front() == ' ')) load_.brief.erase(0, 1);
-        while (!load_.brief.empty() && (load_.brief.back() == '\n' || load_.brief.back() == ' ')) load_.brief.pop_back();
-    }
+    missionText(mission, load_.title, load_.brief);
     LOGI("Loading %s (%s)", mission.c_str(), load_.title.c_str());
+}
+
+void GameApp::missionText(const std::string& mission, std::string& title, std::string& brief) const {
+    title = mission;
+    brief.clear();
+    if (!gameText_) return;
+    const std::string t = gameText_->get(mission);
+    if (!t.empty()) title = t;
+    // Objectives text: '^' = new line, '~N' = colour change (dropped).
+    const std::string mo = gameText_->get("MO_" + mission);
+    for (size_t i = 0; i < mo.size(); ++i) {
+        if (mo[i] == '^') brief += '\n';
+        else if (mo[i] == '~' && i + 1 < mo.size()) ++i;
+        else brief += mo[i];
+    }
+    while (!brief.empty() && (brief.front() == '\n' || brief.front() == ' ')) brief.erase(0, 1);
+    while (!brief.empty() && (brief.back() == '\n' || brief.back() == ' ')) brief.pop_back();
+}
+
+void GameApp::renderBriefOverlay() {
+    if (!text_.ready() || !assetWorld_) return;
+    std::string title, brief;
+    missionText(assetWorld_->missionName(), title, brief);
+    char prog[64];
+    std::snprintf(prog, sizeof prog, "OBJECTIVES %zu / %zu", objectivesDone_, objectives_.size());
+    float tw = 0, th = 0, bw = 0, bh = 0, pw = 0, ph = 0;
+    const MeshId tm = text_.mesh(title, 0.095f, 1.5f, &tw, &th);
+    const MeshId bm = brief.empty() ? 0 : text_.mesh(brief, 0.055f, 1.5f, &bw, &bh);
+    const MeshId pm = text_.mesh(prog, 0.055f, 1.5f, &pw, &ph);
+    // Head-locked, slightly below eye level, the world still visible around and through it.
+    const Quat r = subRot_;
+    const float total = th + 0.05f + bh + 0.05f + ph;
+    const Vec3 c = subHead_ + r.rotate(Vec3{0, -0.08f, -1.6f});
+    const Mat4 base = Mat4::translation(c) * Mat4::rotation(r);
+    text_.drawPanel(base, std::max(std::max(tw, bw), pw) + 0.12f, total + 0.12f, {0, 0, 0, 0.5f});
+    float y = 0.5f * total;
+    auto put = [&](MeshId m, float h, const Vec4& col) {
+        if (!m) return;
+        y -= 0.5f * h;
+        text_.draw(m, base * Mat4::translation({0, y, 0.004f}), col);
+        y -= 0.5f * h + 0.05f;
+    };
+    put(tm, th, {1.0f, 0.85f, 0.4f, 1.0f});
+    put(bm, bh, {0.92f, 0.92f, 0.88f, 1.0f});
+    put(pm, ph, {0.6f, 0.95f, 0.6f, 1.0f});
 }
 
 void GameApp::updateLoading(float dt, const InputFrame& in) {
@@ -2191,8 +2228,10 @@ void GameApp::update(float dt, const InputFrame& in) {
     for (int h = 0; h < 2; ++h)
         if (triggerEdge_[h].pressed(in.hand[h].trigger > 0.6f) && !playMode_)
             haptics_.push_back({h, 0.5f, 0.05f});
-    // Left thumbstick click toggles the engineering test geometry.
-    if (modeEdge_.pressed(in.hand[kLeft].thumbstickClick)) showTestScene_ = !showTestScene_;
+    // Left thumbstick click toggles the engineering test geometry (free camera only; in play the
+    // move stick's click shows the briefing while held).
+    if (modeEdge_.pressed(in.hand[kLeft].thumbstickClick) && !playMode_) showTestScene_ = !showTestScene_;
+    if (!playMode_ || cutsceneActive()) briefHeld_ = false;
     lastInput_ = in;
 }
 
@@ -2357,6 +2396,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     }
     if (cut) renderCutscene();
     else if (playMode_) renderHud();
+    if (briefHeld_ && !cut && playMode_) renderBriefOverlay();
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
     else if (!(playMode_ && firstPerson_ && playerModel_)) testScene_.renderControllers(renderer_, rig_, lastInput_);
     if (load_.phase == LoadPhase::FadeOut) renderLoading();

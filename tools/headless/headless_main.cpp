@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
     std::string dataDir = "", out = "stereo.png", world = "Story1";
     float atX = 0, atY = 0, pitchDeg = -8.6f, headHeight = 1.65f;
     bool useAt = false;
+    bool holdBrief = false;
     int w = 720, h = 792, frames = 1;
     float moveX = 0, moveY = 0, turnX = 0, headYawDeg = 0, lookX = 0, lookY = 0;
     bool useLook = false, wantBrief = false;
@@ -53,6 +54,7 @@ int main(int argc, char** argv) {
         else if (a == "--brief") wantBrief = true;  // show the first mission's briefing (skipped by default)
         else if (a == "--look-at") { lookX = std::atof(next()); lookY = std::atof(next()); useLook = true; }  // game x y (with --at)
         else if (a == "--no-test-scene") testScene = false;
+        else if (a == "--hold-brief") holdBrief = true;  // hold the left stick down (mission briefing overlay)
         else if (a == "--world") world = next();
         else if (a == "--pitch") pitchDeg = std::atof(next());
         else if (a == "--height") headHeight = std::atof(next());
@@ -115,11 +117,7 @@ int main(int argc, char** argv) {
     app.rig().comfort.snapTurn = false;
 
     // Disable the engineering scene if requested (left stick click toggles it).
-    if (!testScene) {
-        InputFrame t = in;
-        t.hand[kLeft].thumbstickClick = true;
-        app.update(0.0f, t);
-    }
+    if (!testScene) app.setShowTestScene(false);
     app.update(0.0f, in);  // consume the automatic spawn
     if (freeCam) app.setPlayMode(false, in);
     app.setFirstPerson(firstPerson);
@@ -131,6 +129,7 @@ int main(int argc, char** argv) {
         app.update(0.0f, in);  // ground following sets the height
     }
     in.hand[kRight].trigger = triggerAmount;
+    in.hand[kLeft].thumbstickClick = holdBrief;
     for (int f = 0; f < frames; ++f) {
         if (jetFrom >= 0) in.hand[kRight].primary = f >= jetFrom && f < jetTo;
         if (gripFrom >= 0) in.hand[kRight].squeeze = f >= gripFrom && f < gripTo ? 1.0f : 0.0f;

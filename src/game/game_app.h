@@ -106,6 +106,7 @@ public:
     VrRig& rig() { return rig_; }
     Renderer& renderer() { return renderer_; }
     bool hasOriginalAssets() const;
+    void setShowTestScene(bool on) { showTestScene_ = on; }
 
 private:
     Renderer renderer_;
@@ -216,6 +217,7 @@ private:
     void damageNest(int i, float amount);
     std::vector<SmartieEvent> rescueEvents_;
     int rescueLine_ = 0;
+    static constexpr int kRescueNeeded = 4;
     bool autoGrip_ = false;  // GVR_AUTO_RESCUE test hook
     void updateRescue(float dt, const InputFrame& in);
     std::vector<CreatureEvent> creatureEvents_;
@@ -239,6 +241,11 @@ private:
         std::string mission, title, brief;
     } load_;
     void beginLoading(const std::string& mission, const InputFrame& in, bool load = true);
+    // A mission's title and objectives text (GText <mission>, MO_<mission>).
+    void missionText(const std::string& mission, std::string& title, std::string& brief) const;
+    // Hold the move hand's thumbstick down: the current mission's briefing over the game world.
+    bool briefHeld_ = false;
+    void renderBriefOverlay();
     bool firstBriefDone_ = false;
     // Sun: crosses the sky slowly (never sets) and casts real-time shadows.
     float sunAzimuth_ = 2.2f;
