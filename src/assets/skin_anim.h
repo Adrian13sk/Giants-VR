@@ -48,6 +48,9 @@ struct AnmNode {
     Quat rot;           // standard rotation (stored xyz already negated back)
     Vec3 scale{1, 1, 1};
     bool mirrored = false;  // flag bit 0x08 at +0x94
+    int table = 0;          // node table (cutscene director images hold one per actor tree)
+    uint8_t keyType[3] = {0, 0, 0};  // pos/rot/scale track key types (diagnostics)
+    std::vector<float> rawKeys;      // diagnostics: first two position keys, 16 floats each
     std::vector<AnmKeyVec3> posKeys;
     std::vector<AnmKeyQuat> rotKeys;
     std::vector<AnmKeyVec3> scaleKeys;
@@ -66,6 +69,10 @@ struct AnmAnimation {
     }
     // Evaluates every node's world matrix (game units) at `seconds` (looped).
     void evaluate(float seconds, std::vector<Mat4>& world) const;
+    // The nodes of one node table as a stand-alone animation (parents outside the table are
+    // dropped; *rootParent receives the first such outside parent, e.g. an actor's mover node).
+    AnmAnimation subset(int table, int* rootParent = nullptr) const;
+    int tableCount() const { int t = 0; for (const auto& n : nodes) t = n.table > t ? n.table : t; return nodes.empty() ? 0 : t + 1; }
 };
 
 bool parseAnm(const uint8_t* data, size_t size, AnmAnimation& out, std::string* error = nullptr);

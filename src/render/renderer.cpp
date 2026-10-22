@@ -319,9 +319,11 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
     }
     if (p.doubleSided) glDisable(GL_CULL_FACE); else glEnable(GL_CULL_FACE);
     if (!p.depthWrite) glDepthMask(GL_FALSE);
+    if (!p.depthTest) glDisable(GL_DEPTH_TEST);
     if (p.noFog) glUniform2f(uFogRange_, 1e9f, 0.0f);
     glBindVertexArray(m.vao);
     glDrawElements(GL_TRIANGLES, m.indexCount, GL_UNSIGNED_INT, nullptr);
+    if (!p.depthTest) glEnable(GL_DEPTH_TEST);
     if (p.noFog) {
         const float fogSpan = env_.fogFar > env_.fogNear ? env_.fogFar - env_.fogNear : 1e9f;
         glUniform2f(uFogRange_, env_.fogNear, 1.0f / fogSpan);

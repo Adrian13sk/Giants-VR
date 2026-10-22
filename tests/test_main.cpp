@@ -21,6 +21,7 @@
 #include "game/creature.h"
 #include "audio/mixer.h"
 #include "audio/music.h"
+#include "assets/gtext.h"
 #include "game/vr_rig.h"
 
 using namespace gvr;
@@ -819,7 +820,28 @@ static void testMusic() {
     CHECK(f.size() == 2 && std::fabs(f[0] - 0.5f) < 1e-6f && std::fabs(f[1] + 0.5f) < 1e-6f);
 }
 
+static void testGameText() {
+    using namespace gvr;
+    // n=2, keys "A_1\0b\0", values "Hello\0World\0"
+    std::vector<uint8_t> d;
+    auto u32 = [&](uint32_t v) { for (int i = 0; i < 4; ++i) d.push_back(uint8_t(v >> (8 * i))); };
+    const std::string keys("A_1\0b\0", 6), vals("Hello\0World\0", 12);
+    u32(2); u32(uint32_t(keys.size())); u32(uint32_t(vals.size()));
+    u32(0); u32(0); u32(4); u32(6);
+    d.insert(d.end(), keys.begin(), keys.end());
+    d.insert(d.end(), vals.begin(), vals.end());
+    GameText gt;
+    CHECK(gt.parse(d.data(), d.size()));
+    CHECK(gt.size() == 2);
+    CHECK(gt.get("a_1") == "Hello" && gt.get("B") == "World" && gt.get("c").empty());
+    d.resize(d.size() - 3);  // truncated value block must be rejected, not read past the end
+    GameText bad;
+    std::string err;
+    CHECK(!bad.parse(d.data(), d.size(), &err));
+}
+
 int main() {
+    testGameText();
     testGti();
     testWorldBin();
     testMission();

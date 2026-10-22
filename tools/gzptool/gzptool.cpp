@@ -16,6 +16,7 @@
 
 #include "assets/gbs.h"
 #include "assets/gti.h"
+#include "assets/flick.h"
 #include "assets/skin_anim.h"
 #include "assets/world_bin.h"
 #include <dirent.h>
@@ -164,6 +165,79 @@ static int cmdModel(const char* dir, const char* name) {
 // default node transforms; bones whose animation pose equals the export pose must match exactly.
 // Prints duration and root-motion of animations: per-node position-key travel for nodes that
 // move, so walk/run speeds can be derived from the stride (no foot sliding).
+static int cmdFlick(const char* dir, int n, char** names) {
+    AssetFS fs;
+    fs.mountAllArchives(dir);
+    fs.mountDirectory(dir);
+    for (int i = 0; i < n; ++i) {
+        std::vector<uint8_t> d;
+        FlickShot f;
+        std::string err;
+        const std::string file = std::string("flk_") + names[i] + ".bin";
+        if (!fs.read(file, d) || !parseFlick(d.data(), d.size(), f, &err)) { std::printf("%s: %s\n", file.c_str(), err.c_str()); continue; }
+        std::printf("%s: next '%s' director %d (%.2f s, %zu nodes) camera '%s' stream '%s' subtitles %zu\n", file.c_str(),
+                    f.next.c_str(), f.hasDirector, f.duration(), f.director.nodes.size(), f.cameraNode.c_str(), f.stream.c_str(),
+                    f.subtitles.size());
+        for (const auto& s : f.subtitles) std::printf("   subtitle %s\n", s.c_str());
+        if (!f.hasDirector) continue;
+        for (int t = 0; t < f.director.tableCount(); ++t) {
+            int rp = -1;
+            AnmAnimation sub = f.director.subset(t, &rp);
+            std::string roots;
+            for (const auto& nd : sub.nodes) if (nd.parent < 0) roots += nd.name + " ";
+            std::printf("   table %d: %zu nodes, roots [%s] outside parent '%s'\n", t, sub.nodes.size(), roots.c_str(),
+                        rp >= 0 ? f.director.nodes[size_t(rp)].name.c_str() : "");
+        }
+        std::vector<Mat4> w;
+        if (std::getenv("FLICK_NODES")) {
+            f.director.evaluate(0.0f, w);
+            for (size_t k = 0; k < f.director.nodes.size(); ++k) {
+                const auto& nd = f.director.nodes[k];
+                if (nd.parent >= 0 && f.director.nodes[size_t(nd.parent)].table == nd.table) continue;  // tree roots only
+                std::printf("   node %-18s table %d parent %-14s pos (%.0f %.0f %.0f) keys %zu\n", nd.name.c_str(), nd.table,
+                            nd.parent >= 0 ? f.director.nodes[size_t(nd.parent)].name.c_str() : "-", w[k].m[12], w[k].m[13],
+                            w[k].m[14], nd.posKeys.size());
+            }
+        }
+        if (const char* kn = std::getenv("FLICK_KEYS")) {
+            auto it = f.director.byName.find(toLower(kn));
+            if (it != f.director.byName.end()) {
+                const auto& nd = f.director.nodes[size_t(it->second)];
+                std::printf("   %s default pos (%.2f %.2f %.2f) rot (%.3f %.3f %.3f %.3f)\n", nd.name.c_str(), nd.pos.x, nd.pos.y,
+                            nd.pos.z, nd.rot.x, nd.rot.y, nd.rot.z, nd.rot.w);
+                std::printf("   key types %d %d %d\n", nd.keyType[0], nd.keyType[1], nd.keyType[2]);
+                for (size_t j = 0; j < nd.rawKeys.size(); ++j)
+                    std::printf("%s%.2f%s", j % 16 == 0 ? "   raw " : "", nd.rawKeys[j], j % 16 == 15 ? "\n" : " ");
+                for (const auto& k : nd.posKeys) std::printf("   pos key t=%d (%.2f %.2f %.2f)\n", k.tick, k.value.x, k.value.y, k.value.z);
+                for (const auto& k : nd.rotKeys) std::printf("   rot key t=%d (%.3f %.3f %.3f %.3f)\n", k.tick, k.value.x, k.value.y, k.value.z, k.value.w);
+            }
+        }
+        for (float frac : {0.0f, 0.5f, 1.0f}) {
+            f.director.evaluate(frac * f.duration() * 0.999f, w);
+            auto show = [&](const std::string& node, const char* what) {
+                auto it = f.director.byName.find(node);
+                if (it == f.director.byName.end()) { std::printf("   t=%.1f %s '%s' not found\n", frac, what, node.c_str()); return; }
+                const Mat4& m = w[size_t(it->second)];
+                std::printf("   t=%.1f %-7s %-14s game (%.0f %.0f %.0f) -z (%.2f %.2f %.2f)\n", frac, what, node.c_str(), m.m[12],
+                            m.m[13], m.m[14], -m.m[8], -m.m[9], -m.m[10]);
+            };
+            if (!f.cameraNode.empty()) { show(f.cameraNode, "camera"); show(f.cameraNode + ".target", "target"); }
+            if (std::getenv("FLICK_NODES"))
+                for (size_t k = 0; k < f.director.nodes.size(); ++k) {
+                    const auto& nd = f.director.nodes[k];
+                    const bool mover = toLower(nd.name).find("mo") != std::string::npos && toLower(nd.name).find("ver") != std::string::npos;
+                    if (!mover && nd.parent >= 0 && f.director.nodes[size_t(nd.parent)].table == nd.table) continue;
+                    const Mat4& m = w[k];
+                    std::printf("   t=%.1f root %-16s pos (%.0f %.0f %.0f) -z (%.2f %.2f %.2f)\n", frac, nd.name.c_str(), m.m[12],
+                                m.m[13], m.m[14], -m.m[8], -m.m[9], -m.m[10]);
+                }
+            for (const auto& a : f.actors)
+                if (!a.node.empty()) show(a.node, ("type" + std::to_string(a.type)).c_str());
+        }
+    }
+    return 0;
+}
+
 static int cmdAnmInfo(const char* dir, int n, char** anims) {
     AssetFS fs;
     fs.mountAllArchives(dir);
@@ -282,6 +356,7 @@ static int cmdSkinCheck(const char* dir, const char* base, const char* anim) {
 
 int main(int argc, char** argv) {
     if (argc >= 4 && !std::strcmp(argv[1], "anminfo")) return cmdAnmInfo(argv[2], argc - 3, argv + 3);
+    if (argc >= 4 && !std::strcmp(argv[1], "flick")) return cmdFlick(argv[2], argc - 3, argv + 3);
     if (argc >= 5 && !std::strcmp(argv[1], "skincheck")) return cmdSkinCheck(argv[2], argv[3], argv[4]);
     if (argc >= 3 && !std::strcmp(argv[1], "list")) return cmdList(argv[2]);
     if (argc >= 5 && !std::strcmp(argv[1], "extract")) return cmdExtract(argv[2], argv[3], argv[4]);

@@ -39,6 +39,7 @@ struct DrawParams {
     bool doubleSided = false;
     bool noFog = false;
     bool depthWrite = true;
+    bool depthTest = true;  // false: drawn over everything (overlays such as subtitles)
 };
 
 struct ViewParams {

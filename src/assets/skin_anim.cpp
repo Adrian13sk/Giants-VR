@@ -1,5 +1,8 @@
 #include "assets/skin_anim.h"
 
+#include <cstdio>
+#include <cstdlib>
+
 #include <algorithm>
 #include <cstring>
 #include <functional>
@@ -130,6 +133,29 @@ bool parseAnm(const uint8_t* data, size_t size, AnmAnimation& a, std::string* er
     // Animation header: referenced by every node at +0x0C.
     const uint32_t hdr = im.u32(nam[0].ptr + 0x0C);
     if (im.u32(hdr + 4) != 0xB) return fail("unsupported ANM version");
+    // Cutscene director images hold several node tables (one per actor tree plus the camera
+    // tree) sharing this header: collect every further type-4 entry whose node points at it.
+    std::vector<int> tableOf(nam.size(), 0);
+    {
+        std::unordered_map<uint32_t, bool> seen;
+        for (const auto& e : nam) seen[e.ptr] = true;
+        int table = 0;
+        size_t lastEnd = 0;
+        for (size_t p = 4; p + 8 <= size; p += 4) {
+            const uint16_t sz = im.u16(p), ty = im.u16(p + 2);
+            if (ty != 4 || sz < 9 || sz > 128 || p + sz > size) continue;
+            const uint32_t ptr = im.u32(p + 4);
+            if (ptr == 0 || ptr + 0x10 > size || seen.count(ptr) || im.u32(ptr + 0x0C) != hdr) continue;
+            const std::string nm = im.str(p + 8, sz - 8);
+            if (nm.empty() || !printable(nm)) continue;
+            if (p != lastEnd) ++table;  // a new, non-contiguous table
+            lastEnd = p + sz;
+            seen[ptr] = true;
+            nam.push_back({nm, ptr});
+            tableOf.push_back(table);
+        }
+        im.ok = true;
+    }
     a.startTick = static_cast<int32_t>(im.u32(hdr + 0x10));
     a.endTick = static_cast<int32_t>(im.u32(hdr + 0x14));
     a.ticksPerFrame = im.u32(hdr + 0x18);
@@ -142,6 +168,7 @@ bool parseAnm(const uint8_t* data, size_t size, AnmAnimation& a, std::string* er
         const uint32_t p = nam[i].ptr;
         AnmNode& n = a.nodes[i];
         n.name = nam[i].name;
+        n.table = tableOf[i];
         const uint32_t parentPtr = im.u32(p + 0x10);
         auto it = byPtr.find(parentPtr);
         n.parent = (parentPtr && it != byPtr.end()) ? it->second : -1;
@@ -158,6 +185,11 @@ bool parseAnm(const uint8_t* data, size_t size, AnmAnimation& a, std::string* er
             const uint8_t keyType = tp < size ? data[tp] : 0;
             const uint32_t count = im.u32(tp + 8);
             if (!im.ok || count > 100000) return fail("bad track");
+            n.keyType[t] = keyType;
+            if (std::getenv("GVR_ANM_KEYSTATS")) { std::fprintf(stderr, "KEYSTAT track %d type %d count %u node %s", t, keyType, count, n.name.c_str()); if (keyType == 5 && count) for (int j = 0; j < 16; ++j) std::fprintf(stderr, " %.2f", im.f32(im.u32(tp + 12) + 4 * j)); std::fprintf(stderr, "\n"); }
+            if (std::getenv("GVR_ANM_RAWKEYS") && t == std::atoi(std::getenv("GVR_ANM_RAWKEYS")))
+                for (uint32_t k = 0; k < std::min<uint32_t>(count, 2); ++k)
+                    for (int j = 0; j < 16; ++j) n.rawKeys.push_back(im.f32(im.u32(tp + 12 + 4 * k) + 4 * j));
             for (uint32_t k = 0; k < count; ++k) {
                 const uint32_t kp = im.u32(tp + 12 + 4 * k);
                 const int32_t tick = static_cast<int32_t>(im.u32(kp));
@@ -171,19 +203,46 @@ bool parseAnm(const uint8_t* data, size_t size, AnmAnimation& a, std::string* er
                     n.rotKeys.push_back({tick, stdQuat(im.f32(kp + vo), im.f32(kp + vo + 4), im.f32(kp + vo + 8),
                                                        im.f32(kp + vo + 12))});
                 } else {
+                    // Type 5 (Bezier position, used by cutscene cameras): {tick, inTan, outTan, pad,
+                    // value, ...} - value at +32, verified (first key == node default) in every
+                    // story1 shot. Type-5 scale tracks don't follow that layout (values ~0 or a
+                    // negative mirror factor) and are ignored. Type 6 is unverified (+4 assumed).
                     size_t vo;
                     if (keyType == 4) vo = 48;
-                    else if (keyType == 5 || keyType == 6) vo = 4;
+                    else if (keyType == 5 && t == 0) vo = 32;
+                    else if (keyType == 6) vo = 4;
                     else { ++a.unsupportedTracks; break; }
                     AnmKeyVec3 key{tick, {im.f32(kp + vo), im.f32(kp + vo + 4), im.f32(kp + vo + 8)}};
                     (t == 0 ? n.posKeys : n.scaleKeys).push_back(key);
                 }
             }
         }
-        a.byName[toLower(n.name)] = int(i);
+        a.byName.emplace(toLower(n.name), int(i));  // first table wins on duplicate names
     }
     if (!im.ok) return fail("truncated");
     return true;
+}
+
+AnmAnimation AnmAnimation::subset(int table, int* rootParent) const {
+    AnmAnimation s;
+    s.startTick = startTick;
+    s.endTick = endTick;
+    s.ticksPerFrame = ticksPerFrame;
+    s.fps = fps;
+    std::vector<int> remap(nodes.size(), -1);
+    for (size_t i = 0; i < nodes.size(); ++i)
+        if (nodes[i].table == table) { remap[i] = int(s.nodes.size()); s.nodes.push_back(nodes[i]); }
+    if (rootParent) *rootParent = -1;
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        if (remap[i] < 0) continue;
+        AnmNode& n = s.nodes[size_t(remap[i])];
+        const int p = nodes[i].parent;
+        n.parent = p >= 0 ? remap[size_t(p)] : -1;
+        if (p >= 0 && remap[size_t(p)] < 0 && rootParent && *rootParent < 0) *rootParent = p;  // e.g. "Timmy_mover"
+        n.table = 0;
+        s.byName.emplace(toLower(n.name), remap[i]);
+    }
+    return s;
 }
 
 namespace {

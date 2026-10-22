@@ -87,11 +87,23 @@ bool SkinnedModel::load(const AssetFS& fs, ModelCache& textures, Renderer& r, co
 int SkinnedModel::addAnimation(const AssetFS& fs, const std::string& name) {
     std::vector<uint8_t> bytes;
     std::string err;
-    Anim a;
-    if (!fs.read(name, bytes) || !parseAnm(bytes.data(), bytes.size(), a.anim, &err)) {
+    AnmAnimation anim;
+    if (!fs.read(name, bytes) || !parseAnm(bytes.data(), bytes.size(), anim, &err)) {
         LOGW("Skinned %s: ANM %s unavailable %s", base_.c_str(), name.c_str(), err.c_str());
         return -1;
     }
+    return addAnimation(std::move(anim), name);
+}
+
+size_t SkinnedModel::boneMatches(const AnmAnimation& anim) const {
+    size_t n = 0;
+    for (const auto& b : bones_) n += anim.byName.count(b);
+    return n;
+}
+
+int SkinnedModel::addAnimation(AnmAnimation&& anim, const std::string& name) {
+    Anim a;
+    a.anim = std::move(anim);
     a.boneToNode.assign(bones_.size(), -1);
     size_t missing = 0;
     for (size_t b = 0; b < bones_.size(); ++b) {

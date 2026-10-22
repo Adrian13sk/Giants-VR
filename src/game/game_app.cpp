@@ -4,6 +4,8 @@
 #include "scene/asset_world.h"
 #include "audio/mixer.h"
 #include "audio/music.h"
+#include "assets/gtext.h"
+#include "game/cutscene.h"
 #include "game/arm_ik.h"
 #include "scene/model_cache.h"
 #include "scene/skinned_model.h"
@@ -261,6 +263,16 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             LOGI("Enemies: %zu Reaper model slots", enemyPool_.size());
             initCharacters(w, mc);
             initMission();
+            cutscene_ = std::make_unique<CutscenePlayer>(w->fs(), *mc, renderer_, w->registry());
+            text_.init(w->fs(), renderer_);
+            {
+                std::vector<uint8_t> tb;
+                auto gt = std::make_unique<GameText>();
+                if (w->fs().read("GTextEnglish.bin", tb) && gt->parse(tb.data(), tb.size())) {
+                    LOGI("Game text: %zu entries", gt->size());
+                    gameText_ = std::move(gt);
+                }
+            }
             player_.collision = &w->collision();
             // Off the terrain heightfield is open sea (surface at 0): wading depth, so walking off
             // a cliff drops you into the water instead of walking on air.
@@ -527,6 +539,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         auto m = std::make_unique<SkinnedModel>();
         if (idle.empty() || !m->load(w->fs(), *mc, renderer_, ch.model, idle)) continue;
         CharacterInst ci;
+        ci.type = int(ch.type);
         ci.pos = ch.position;
         ci.yaw = ch.yaw;
         ci.scale = ch.scale;
@@ -744,7 +757,10 @@ void GameApp::completeObjective(int index) {
     // The outro cutscene (op 0x19) isn't played yet; its soundtrack carries the dialogue. In
     // 1a_1_timmy that is Timmy handing Baz the jetpack.
     const MissionData& m = assetWorld_->mission();
-    if (!m.flick19.empty()) playFlickSoundtrack(m.flick19);
+    if (!m.flick19.empty()) {
+        startCutscene(m.flick19);
+        if (!cutsceneActive()) playFlickSoundtrack(m.flick19);
+    }
     if (!player_.jetpackAvailable) {
         player_.jetpackAvailable = true;
         LOGI("Jetpack received");
@@ -887,6 +903,12 @@ bool GameApp::playFlickSoundtrack(const std::string& flick) {
         }
     }
     if (stream.empty()) return false;
+    return playStream(stream);
+}
+
+bool GameApp::playStream(const std::string& streamIn) {
+    if (!audio_) return false;
+    const std::string stream = toLower(streamIn);
     std::vector<std::pair<std::string, std::string>> files;
     for (const char* rel : {"/../Stream/", "/Stream/"}) indexFiles(dataDir_ + rel + worldName_, ".wav", files);
     for (const auto& f : files) {
@@ -897,7 +919,7 @@ bool GameApp::playFlickSoundtrack(const std::string& flick) {
         if (!readFile(f.second, wav) || !parseWav(wav.data(), wav.size(), w, &err)) break;
         const float seconds = float(w.mono.size()) / float(w.rate);
         audio_->addSound("stream_" + stream, std::move(w));
-        audio_->play2D(("stream_" + stream).c_str(), 1.0f);
+        streamVoice_ = audio_->play2D(("stream_" + stream).c_str(), 1.0f);
         streamLeft_ = seconds;
         audio_->clearMusic();
         LOGI("Cutscene soundtrack %s (%.0f s)", stream.c_str(), seconds);
@@ -905,6 +927,85 @@ bool GameApp::playFlickSoundtrack(const std::string& flick) {
     }
     LOGW("Cutscene soundtrack %s not found (copy the game's Stream folder next to Bin)", stream.c_str());
     return false;
+}
+
+bool GameApp::cutsceneActive() const { return cutscene_ && cutscene_->active(); }
+size_t GameApp::cutsceneShots() const { return cutscene_ ? cutscene_->shotsPlayed() : 0; }
+
+void GameApp::startCutscene(const std::string& first) {
+    if (!cutscene_ || first.empty()) return;
+    if (!cutscene_->start(first)) return;
+    LOGI("Cutscene %s started", first.c_str());
+    skipArmed_ = false;  // a trigger held when the cutscene starts must not skip it
+}
+
+void GameApp::updateCutscene(float dt, const InputFrame& in) {
+    cutscene_->update(dt);
+    const std::string stream = cutscene_->takeStream();
+    if (!stream.empty()) playStream(stream);
+    if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
+    // Skip with either trigger.
+    bool skip = false;
+    if (in.hand[0].trigger < 0.3f && in.hand[1].trigger < 0.3f) skipArmed_ = true;
+    else if (skipArmed_) skip = in.hand[0].trigger > 0.6f || in.hand[1].trigger > 0.6f;
+    if (skip) {
+        cutscene_->stop();
+        if (audio_ && streamVoice_) audio_->stop(streamVoice_);
+        streamVoice_ = 0;
+        streamLeft_ = 0;
+        LOGI("Cutscene skipped");
+    }
+    Vec3 eye;
+    float yaw;
+    if (cutscene_->active() && cutscene_->takeNewShot(eye, yaw)) {
+        // Put the viewer's eyes at the shot camera, facing the scene; head look stays free.
+        cutEye_ = eye;
+        cutYaw_ = yaw;
+        const float headYaw = in.headValid ? yawOf(in.head.orientation) : 0.0f;
+        const Quat q = Quat::fromAxisAngle({0, 1, 0}, yaw - headYaw);
+        const Vec3 headT = in.headValid ? in.head.position * rig_.comfort.worldScale : Vec3{0, 1.6f, 0};
+        rig_.worldFromTracking.orientation = q;
+        rig_.worldFromTracking.position = eye - q.rotate(headT);
+    } else if (cutscene_->active()) {
+        // Travel with a moving shot camera (translation only; the view never rotates by itself).
+        const Vec3 now = cutscene_->eyeNow();
+        rig_.worldFromTracking.position = rig_.worldFromTracking.position + (now - cutEye_);
+        cutEye_ = now;
+    }
+    if (!cutscene_->active()) {
+        // Back to the game where the player stands.
+        if (playMode_) rig_.teleportHead(in, player_.position, player_.yaw);
+        LOGI("Cutscene finished");
+    }
+}
+
+void GameApp::renderCutscene() {
+    cutscene_->render();
+    const Vec3 eye = renderer_.currentView().eyePosition;
+    // Subtitles: a panel below the line of sight, fixed for the shot.
+    if (gameText_ && text_.ready()) {
+        std::string lines;
+        for (const auto& key : cutscene_->subtitles()) {
+            const std::string t = gameText_->get(key);
+            if (t.empty()) continue;
+            if (!lines.empty()) lines += "\n";
+            lines += t;
+        }
+        if (!lines.empty()) {
+            float w = 0, h = 0;
+            const MeshId m = text_.mesh(lines, 0.045f, 1.2f, &w, &h);
+            const Quat r = Quat::fromAxisAngle({0, 1, 0}, cutYaw_);
+            const Vec3 at = cutEye_ + r.rotate(Vec3{0, -0.38f, -1.5f});
+            const Mat4 xf = Mat4::translation(at) * Mat4::rotation(r * Quat::fromAxisAngle({1, 0, 0}, 0.25f));
+            text_.drawPanel(xf, w + 0.08f, h + 0.05f, {0, 0, 0, 0.55f});
+            text_.draw(m, xf * Mat4::translation({0, 0, 0.003f}), {1.0f, 0.92f, 0.7f, 1.0f});
+        }
+    }
+    const float b = cutscene_->blackout();
+    if (b > 0.01f && text_.ready()) {
+        const Vec3 fwd = headWorldRot_.rotate(Vec3{0, 0, -1});
+        text_.drawPanel(Mat4::translation(eye + fwd * 0.1f) * Mat4::rotation(headWorldRot_), 1.0f, 1.0f, {0, 0, 0, b});
+    }
 }
 
 void GameApp::spawnWave() {
@@ -1192,8 +1293,17 @@ void GameApp::update(float dt, const InputFrame& in) {
         if (playMode_) {
             teleportPlayer(assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
             if (!missionHostiles_) spawnWave();  // test waves only where the mission has no enemies
+            // The mission's opening cutscene (op 0x15), e.g. Baz's lander drop in 1a.
+            const MissionData& m = assetWorld_->mission();
+            if (!m.startFlick.empty()) startCutscene(m.startFlick);
         }
         needSpawn_ = false;
+    }
+    if (cutsceneActive()) {
+        updateCutscene(dt, in);
+        if (assetWorld_) assetWorld_->update(dt);
+        lastInput_ = in;
+        return;
     }
     // B (turn hand's secondary) toggles play mode / free camera.
     if (playEdge_.pressed(in.hand[rig_.turnHand()].secondary)) {
@@ -1231,10 +1341,14 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     v.eyePosition = eyeWorld.position;
     renderer_.beginView(v, eye.width, eye.height, true);
     if (assetWorld_ && assetWorld_->loaded()) assetWorld_->render(renderer_);
-    if (playMode_ && playerModel_) playerModel_->render(renderer_, bodyXf_);
-    if (playMode_ && gunValid_) drawModel(gunModel_, gunXf_, false);
+    const bool cut = cutsceneActive();
+    std::vector<int> cutTypes;
+    if (cut) cutTypes = cutscene_->actorTypes();
+    if (playMode_ && playerModel_ && !cut) playerModel_->render(renderer_, bodyXf_);
+    if (playMode_ && gunValid_ && !cut) drawModel(gunModel_, gunXf_, false);
     for (const auto& c : chars_) {
         if (!c.visible || length(c.pos - v.eyePosition) > 160.0f) continue;
+        if (cut && std::find(cutTypes.begin(), cutTypes.end(), c.type) != cutTypes.end()) continue;
         c.model->render(renderer_, Mat4::translation(c.pos + Vec3{0, c.lift, 0}) *
                                        Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, c.yaw)) *
                                        Mat4::scale({c.scale, c.scale, c.scale}));
@@ -1322,7 +1436,8 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
             drawModel(impactModel_, Mat4::translation(e.pos) * Mat4::rotation(headWorldRot_) *
                                         Mat4::scale(Vec3{1, 1, 1} * (3.0f + 4.0f * k)), true, 1.0f - k);
     }
-    if (playMode_) renderHud();
+    if (cut) renderCutscene();
+    else if (playMode_) renderHud();
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
     else if (!(playMode_ && firstPerson_ && playerModel_)) testScene_.renderControllers(renderer_, rig_, lastInput_);
     renderer_.endView();

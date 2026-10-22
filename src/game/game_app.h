@@ -14,6 +14,7 @@
 #include "game/creature.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
+#include "render/text.h"
 #include "scene/test_scene.h"
 
 namespace gvr {
@@ -36,6 +37,8 @@ struct RenderModel;  // scene/model_cache.h
 class ModelCache;   // scene/model_cache.h
 class AudioMixer;   // audio/mixer.h
 class MusicSet;     // audio/music.h
+class CutscenePlayer;  // game/cutscene.h
+class GameText;     // assets/gtext.h
 class MusicDirector;
 
 class GameApp {
@@ -160,6 +163,7 @@ private:
         bool ambient = true, visible = true;
         CreatureSize size = CreatureSize::Medium;
         int objective = -1;  // mission objective completed by this creature's death
+        int type = -1;       // object type (hidden while a cutscene shows its own copy)
     };
     // Ripper spit balls (orange medium / blue large), blasts and gore from bursting Rippers.
     std::unique_ptr<SkinnedModel> spitBall_[3];
@@ -199,8 +203,22 @@ private:
     std::string findMusicFile(const std::string& segment) const;
     // Plays the soundtrack stream of a cutscene (flk_<name>.bin names it, e.g. "f_jetpack").
     bool playFlickSoundtrack(const std::string& flick);
+    bool playStream(const std::string& stream);
+    uint32_t streamVoice_ = 0;
+    // Cutscenes (flk shots): fixed viewpoint per shot, fades, subtitles in the game font.
+    std::unique_ptr<CutscenePlayer> cutscene_;
+    std::unique_ptr<GameText> gameText_;
+    TextRenderer text_;
+    Vec3 cutEye_;
+    float cutYaw_ = 0;
+    bool skipArmed_ = false;
+    void startCutscene(const std::string& first);
+    void updateCutscene(float dt, const InputFrame& in);
+    void renderCutscene();
 public:
     size_t objectiveCount() const { return objectives_.size(); }
+    bool cutsceneActive() const;
+    size_t cutsceneShots() const;
     size_t objectivesDone() const { return objectivesDone_; }
     bool missionComplete() const { return missionComplete_; }
     bool jetpackAvailable() const { return player_.jetpackAvailable; }

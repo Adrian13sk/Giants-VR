@@ -28,6 +28,10 @@ add_library(gvr_core STATIC
   src/assets/skin_anim.cpp
   src/assets/object_defs.cpp
   src/assets/mission.cpp
+  src/assets/flick.cpp
+  src/assets/gtext.cpp
+  src/render/text.cpp
+  src/game/cutscene.cpp
   src/scene/skinned_model.cpp
   src/scene/collision.cpp
   src/game/vr_rig.cpp

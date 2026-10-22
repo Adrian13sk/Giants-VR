@@ -21,6 +21,11 @@ public:
               const std::string& anim);
     // Loads another animation for the same skin; returns its index or -1.
     int addAnimation(const AssetFS& fs, const std::string& anim);
+    // Adds an already decoded animation (e.g. one actor's tree from a cutscene director).
+    int addAnimation(AnmAnimation&& anim, const std::string& name);
+    // How many of the skin's bones `anim` has nodes for (picks an actor's tree in a cutscene).
+    size_t boneMatches(const AnmAnimation& anim) const;
+    size_t boneCount() const { return bones_.size(); }
     // Evaluates animation 0 at `seconds` and re-uploads the skinned vertices.
     void pose(Renderer& r, float seconds) { poseBlend(r, 0, seconds, 0, seconds, 0.0f); }
     // Skins with animation a at time ta and animation b at time tb and blends the resulting
