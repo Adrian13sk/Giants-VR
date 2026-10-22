@@ -133,3 +133,14 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   are **DEVICE VERIFIED**.
 - The user chose the cutscene presentation: a fixed viewpoint per shot (free head look), fades between shots, and
   subtitles from GTextEnglish.
+
+## Host verification — cutscenes (build fad5912, APK sha256 826ac6b1…, delivered to the PC and checked)
+- `gvr_tests` pass. New checks: GText parsing (incl. truncated input rejected), `Mat4::affineInverse`.
+- Harness, contact sheets of every shot:
+  - `story1_start_1…12` at mission start (62 s): lander, Baz and Gordon, flak, flags, subtitles.
+  - `GVR_CUTSCENE=story1_jetpack_1` (39 s): Timmy, Baz, Rippers, props on bones.
+- **Not yet device-tested.** To check on the headset (device test 18):
+  - the opening cutscene starts when Story1 loads; the jetpack cutscene plays when 1a is complete;
+  - comfort of the travelling viewpoint (the view moves with the shot camera, never rotates by itself);
+  - subtitle readability; skipping with either trigger (release it first after the cutscene starts);
+  - the soundtrack (needs `Stream` next to `Bin`) stays in sync with the pictures.
