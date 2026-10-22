@@ -251,7 +251,20 @@ bool AssetFS::mountArchive(const std::string& path, std::string* error) {
     return true;
 }
 
-void AssetFS::mountDirectory(const std::string& dir) { dirs_.push_back(dir); }
+void AssetFS::mountDirectory(const std::string& dir) {
+    dirs_.push_back(dir);
+    std::unordered_map<std::string, std::string> idx;
+    if (DIR* d = opendir(dir.c_str())) {
+        while (dirent* de = readdir(d)) idx[toLower(de->d_name)] = de->d_name;
+        closedir(d);
+    }
+    dirIndex_.push_back(std::move(idx));
+}
+
+std::string AssetFS::resolve(size_t dir, const std::string& name) const {
+    auto it = dirIndex_[dir].find(toLower(name));
+    return dirs_[dir] + "/" + (it != dirIndex_[dir].end() ? it->second : name);
+}
 
 int AssetFS::mountAllArchives(const std::string& dir) {
     DIR* d = opendir(dir.c_str());
@@ -273,8 +286,8 @@ int AssetFS::mountAllArchives(const std::string& dir) {
 }
 
 bool AssetFS::read(const std::string& name, std::vector<uint8_t>& out) const {
-    for (auto it = dirs_.rbegin(); it != dirs_.rend(); ++it)
-        if (readFile(*it + "/" + name, out)) return true;
+    for (size_t i = dirs_.size(); i-- > 0;)
+        if (readFile(resolve(i, name), out)) return true;
     for (auto it = archives_.rbegin(); it != archives_.rend(); ++it) {
         if (const GzpEntry* e = it->find(name)) {
             std::string err;
@@ -289,8 +302,8 @@ bool AssetFS::exists(const std::string& name) const {
     for (const auto& a : archives_)
         if (a.find(name)) return true;
     struct stat st;
-    for (const auto& d : dirs_)
-        if (stat((d + "/" + name).c_str(), &st) == 0) return true;
+    for (size_t i = 0; i < dirs_.size(); ++i)
+        if (stat(resolve(i, name).c_str(), &st) == 0) return true;
     return false;
 }
 

@@ -77,6 +77,10 @@ public:
 private:
     std::vector<GzpArchive> archives_;
     std::vector<std::string> dirs_;
+    // Per mounted directory: lower-case file name -> actual name (the data mixes cases, e.g.
+    // flk_story1_Hatch_dilemma.bin is referenced as story1_hatch_dilemma).
+    std::vector<std::unordered_map<std::string, std::string>> dirIndex_;
+    std::string resolve(size_t dir, const std::string& name) const;
 };
 
 }  // namespace gvr
