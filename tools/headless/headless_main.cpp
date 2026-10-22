@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     bool useAt = false;
     int w = 720, h = 792, frames = 1;
     float moveX = 0, moveY = 0, turnX = 0, headYawDeg = 0, lookX = 0, lookY = 0;
-    bool useLook = false;
+    bool useLook = false, wantBrief = false;
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
     int gripFrom = -1, gripTo = -1, handPathFrom = -1, handPathTo = -1, stickFrom = -1, stickTo = -1, trigFrom = -1, trigTo = -1;
@@ -50,6 +50,7 @@ int main(int argc, char** argv) {
         else if (a == "--move") { moveX = std::atof(next()); moveY = std::atof(next()); }
         else if (a == "--turn") turnX = std::atof(next());
         else if (a == "--head-yaw") headYawDeg = std::atof(next());
+        else if (a == "--brief") wantBrief = true;  // show the first mission's briefing (skipped by default)
         else if (a == "--look-at") { lookX = std::atof(next()); lookY = std::atof(next()); useLook = true; }  // game x y (with --at)
         else if (a == "--no-test-scene") testScene = false;
         else if (a == "--world") world = next();
@@ -92,6 +93,7 @@ int main(int argc, char** argv) {
     in.headValid = true;
     // --look-at: face a game-coordinate point from the --at position (runtime x = -game x).
     if (useLook) headYawDeg = std::atan2(lookX - atX, -(lookY - atY)) * 180.0f / kPi;
+    if (!wantBrief) setenv("GVR_NO_BRIEF", "1", 1);
     in.head.position = {0, headHeight, 0};
     in.head.orientation = Quat::fromAxisAngle({0, 1, 0}, headYawDeg * kPi / 180.0f) *
                           Quat::fromAxisAngle({1, 0, 0}, pitchDeg * kPi / 180.0f);

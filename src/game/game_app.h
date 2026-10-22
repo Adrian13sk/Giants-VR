@@ -208,7 +208,20 @@ private:
     std::vector<Objective> objectives_;
     size_t objectivesDone_ = 0;
     bool missionComplete_ = false;
-    float advanceTimer_ = 0;
+    bool advanceDone_ = false;  // the step to the next mission has started
+    // Loading / briefing screen between missions: fade to black, the mission's title and objectives
+    // (GText <mission>, MO_<mission>), load behind it, continue on its own.
+    enum class LoadPhase { Idle, FadeOut, Show, Brief, FadeIn };
+    struct LoadState {
+        LoadPhase phase = LoadPhase::Idle;
+        float t = 0, yaw = 0;
+        int frames = 0;
+        std::string mission, title, brief;
+    } load_;
+    void beginLoading(const std::string& mission, const InputFrame& in, bool load = true);
+    bool firstBriefDone_ = false;
+    void updateLoading(float dt, const InputFrame& in);
+    void renderLoading();
     ButtonEdge missionEdge_;
     bool piranhaKnown_ = false, piranhas_ = false;
     float waterTime_ = 0, biteTimer_ = 0;  // after a mission (and its outro) ends: seconds until the next loads

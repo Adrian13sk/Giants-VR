@@ -940,6 +940,76 @@ void GameApp::initMission() {
          jet ? "available" : "not yet (story)");
 }
 
+void GameApp::beginLoading(const std::string& mission, const InputFrame& in, bool load) {
+    load_ = LoadState{};
+    load_.phase = load ? LoadPhase::FadeOut : LoadPhase::Brief;
+    load_.mission = load ? mission : std::string();
+    // The briefing faces where the player looks now (head yaw), 2 m away.
+    load_.yaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : camYaw_;
+    load_.title = mission;
+    load_.brief.clear();
+    if (gameText_) {
+        const std::string t = gameText_->get(mission);
+        if (!t.empty()) load_.title = t;
+        // Objectives text: '^' = new line, '~N' = colour change (dropped).
+        const std::string mo = gameText_->get("MO_" + mission);
+        for (size_t i = 0; i < mo.size(); ++i) {
+            if (mo[i] == '^') load_.brief += '\n';
+            else if (mo[i] == '~' && i + 1 < mo.size()) ++i;
+            else load_.brief += mo[i];
+        }
+        while (!load_.brief.empty() && (load_.brief.front() == '\n' || load_.brief.front() == ' ')) load_.brief.erase(0, 1);
+        while (!load_.brief.empty() && (load_.brief.back() == '\n' || load_.brief.back() == ' ')) load_.brief.pop_back();
+    }
+    LOGI("Loading %s (%s)", mission.c_str(), load_.title.c_str());
+}
+
+void GameApp::updateLoading(float dt, const InputFrame& in) {
+    load_.t += dt;
+    if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
+    switch (load_.phase) {
+        case LoadPhase::FadeOut:
+            if (load_.t > 0.5f) { load_.phase = LoadPhase::Show; load_.t = 0; }
+            break;
+        case LoadPhase::Show:
+            // Two frames of the briefing on screen before the (blocking) load, so the headset keeps
+            // showing it while the level is rebuilt.
+            if (++load_.frames >= 3) {
+                if (!load_.mission.empty()) loadMission(load_.mission);
+                load_.phase = LoadPhase::Brief;
+                load_.t = 0;
+            }
+            break;
+        case LoadPhase::Brief:
+            if (load_.t > 6.0f) { load_.phase = LoadPhase::FadeIn; load_.t = 0; }
+            break;
+        case LoadPhase::FadeIn:
+            load_.phase = LoadPhase::Idle;  // the spawn (and its opening cutscene, with its own fade) follows
+            break;
+        case LoadPhase::Idle:
+            break;
+    }
+}
+
+void GameApp::renderLoading() {
+    if (!text_.ready()) return;
+    const Vec3 eye = renderer_.currentView().eyePosition;
+    const float black = load_.phase == LoadPhase::FadeOut ? std::min(1.0f, load_.t / 0.5f) : 1.0f;
+    const Vec3 fwd = headWorldRot_.rotate(Vec3{0, 0, -1});
+    text_.drawPanel(Mat4::translation(eye + fwd * 0.1f) * Mat4::rotation(headWorldRot_), 1.0f, 1.0f, {0, 0, 0, black});
+    if (load_.phase == LoadPhase::FadeOut) return;
+    const Quat r = Quat::fromAxisAngle({0, 1, 0}, load_.yaw);
+    const Vec3 base = eye + r.rotate(Vec3{0, 0, -2.0f});
+    auto place = [&](float up) { return Mat4::translation(base + Vec3{0, up, 0}) * Mat4::rotation(r); };
+    float w = 0, h = 0;
+    if (const MeshId t = text_.mesh(load_.title, 0.14f, 1.8f, &w, &h)) text_.draw(t, place(0.55f), {1.0f, 0.85f, 0.4f, 1.0f});
+    if (!load_.brief.empty())
+        if (const MeshId b = text_.mesh(load_.brief, 0.055f, 2.6f, &w, &h)) text_.draw(b, place(0.1f - 0.5f * h + 0.3f), {0.9f, 0.9f, 0.85f, 1.0f});
+    const float pulse = 0.55f + 0.45f * std::sin(load_.t * 4.0f);
+    const char* label = load_.phase == LoadPhase::Show ? "LOADING..." : "GET READY";
+    if (const MeshId l = text_.mesh(label, 0.07f, 1.5f, &w, &h)) text_.draw(l, place(-0.75f), {1, 1, 1, pulse});
+}
+
 void GameApp::loadMission(const std::string& name) {
     AssetWorld* w = assetWorld_.get();
     if (!w || !w->selectMission(name)) { LOGW("Mission %s unavailable", name.c_str()); return; }
@@ -952,7 +1022,7 @@ void GameApp::loadMission(const std::string& name) {
     objectivesDone_ = 0;
     missionComplete_ = false;
     missionHostiles_ = false;
-    advanceTimer_ = 0;
+    advanceDone_ = false;
     piranhaKnown_ = false;
     blasts_.clear();
     gibs_.clear();
@@ -1653,15 +1723,24 @@ bool GameApp::hasOriginalAssets() const { return assetWorld_ && assetWorld_->loa
 
 void GameApp::update(float dt, const InputFrame& in) {
     time_ += dt;
-    // Story progression: once a mission is complete and its outro has played, the next mission
-    // of the world loads (the original goes through its mission briefing screen here).
-    if (missionComplete_ && playMode_ && !cutsceneActive() && assetWorld_) {
-        advanceTimer_ += dt;
-        if (advanceTimer_ > 4.0f) {
-            const std::string next = assetWorld_->nextMission();
-            advanceTimer_ = -1e9f;  // once
-            if (!next.empty()) loadMission(next);
-        }
+    // Story progression: once a mission is complete and its outro has played, the screen fades to
+    // the loading / briefing screen (as the original goes through its mission briefing), the next
+    // mission loads behind it, and play continues on its own after a few seconds.
+    if (missionComplete_ && playMode_ && !cutsceneActive() && assetWorld_ && load_.phase == LoadPhase::Idle && !advanceDone_) {
+        advanceDone_ = true;
+        const std::string next = assetWorld_->nextMission();
+        if (!next.empty()) beginLoading(next, in);
+    }
+    // The first mission's briefing, before its opening cutscene (the level is already loaded).
+    if (!firstBriefDone_ && std::getenv("GVR_NO_BRIEF")) firstBriefDone_ = true;  // test hook (headless default)
+    if (!firstBriefDone_ && assetWorld_ && !assetWorld_->missionName().empty() && in.headValid && playMode_) {
+        firstBriefDone_ = true;
+        beginLoading(assetWorld_->missionName(), in, false);
+    }
+    if (load_.phase != LoadPhase::Idle) {
+        updateLoading(dt, in);
+        lastInput_ = in;
+        return;
     }
     if (needSpawn_ && in.headValid) {
         rig_.teleportHead(in, assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
@@ -1729,6 +1808,11 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     v.projection = Mat4::projectionFov(eye.fovLeft, eye.fovRight, eye.fovUp, eye.fovDown, 0.05f, 0.0f);
     v.eyePosition = eyeWorld.position;
     renderer_.beginView(v, eye.width, eye.height, true);
+    if (load_.phase != LoadPhase::Idle && load_.phase != LoadPhase::FadeOut) {
+        renderLoading();  // the briefing on black, nothing else
+        renderer_.endView();
+        return;
+    }
     const bool cut = cutsceneActive();
     std::vector<int> cutTypes;
     if (cut) cutTypes = cutscene_->actorTypes();
@@ -1838,6 +1922,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     else if (playMode_) renderHud();
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
     else if (!(playMode_ && firstPerson_ && playerModel_)) testScene_.renderControllers(renderer_, rig_, lastInput_);
+    if (load_.phase == LoadPhase::FadeOut) renderLoading();
     renderer_.endView();
 }
 
