@@ -190,6 +190,7 @@ struct Placement {
     float x, y, z, yaw, pitch, roll, scale;
     bool mission = false;
     int trigger = 0;  // mission trigger kind (op 8 low bits)
+    bool posted = false;  // standing on a structure (mounted): keep its height, don't drop to the terrain
 };
 
 // Creature object classes ("ospec", type op 0x1E) seen in the mission files: 1 Kabuto,
@@ -290,9 +291,26 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
             break;
         }
         for (const auto& o : mission_.objects) {
-            if (o.parent >= 0) { ++mounted; continue; }  // carried items (e.g. a jetpack) not shown yet
-            all.push_back({o.type, o.x, o.y, o.z, o.yaw, o.pitch, o.roll, o.scale > 0 ? o.scale : typeScale(o.type), true,
-                           int(o.flags & 0x0F)});
+            float z = o.z;
+            bool onPost = false;
+            if (o.parent >= 0) {
+                // Mounted (op 0x16). Characters on a structure's default mount point (255) - the
+                // Reaper sentries on guard towers - stand on its top; other mounts (carried items
+                // such as the jetpack, Tel in his crashed plane on hardpoint 0) are not shown yet:
+                // hardpoint positions live in data we haven't decoded.
+                ++mounted;
+                const std::string cm = registry_.modelName(o.type);
+                if (o.mount[0] != 255 || !isCharacter(registry_, o.type, cm) || size_t(o.parent) >= mission_.objects.size()) continue;
+                const MissionObject& par = mission_.objects[size_t(o.parent)];
+                const std::string pm = registry_.modelName(par.type);
+                const RenderModel* m = pm.empty() ? nullptr : cache_->get(pm + ".gbs", registry_.modelAnim(par.type));
+                if (!m) continue;
+                const float ps = par.scale > 0 ? par.scale : typeScale(par.type);
+                z = par.z + m->boundsMax.y * ps / gGameUnitsToMeters;
+                onPost = true;
+            }
+            all.push_back({o.type, o.x, o.y, z, o.yaw, o.pitch, o.roll, o.scale > 0 ? o.scale : typeScale(o.type), true,
+                           int(o.flags & 0x0F), onPost});
         }
         LOGI("Mission %s: %zu objects (%zu mounted), start flick '%s'", sc.name.c_str(), mission_.objects.size(),
              mounted, mission_.startFlick.c_str());
@@ -331,8 +349,11 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
             const ObjectType* t = registry_.type(p.type);
             Vec3 pos = giantsToRuntime(p.x, p.y, p.z);
             float gy;
-            if (hasTerrain_ && terrain_.heightAt(pos.x, pos.z, gy)) pos.y = gy;
-            characters_.push_back({p.type, name, t ? t->objectClass : -1, pos, p.yaw * kPi / 180.0f, p.scale, p.trigger});
+            if (!p.posted && hasTerrain_ && terrain_.heightAt(pos.x, pos.z, gy)) pos.y = gy;
+            // A sentry stands on the highest walkable surface of its structure (the tower's
+            // platform, below the roof tip the bounds give).
+            if (p.posted && collision_.groundAt(pos.x, pos.z, pos.y + 0.05f, gy)) pos.y = gy;
+            characters_.push_back({p.type, name, t ? t->objectClass : -1, pos, p.yaw * kPi / 180.0f, p.scale, p.trigger, p.posted});
             continue;
         }
         const RenderModel* m = cache_->get(name + ".gbs", registry_.modelAnim(p.type));

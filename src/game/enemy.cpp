@@ -103,6 +103,18 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             case EnemyState::Advance: {
                 // Run (no shooting while moving) toward a spot beside the player, then stop and fire.
                 if (!sees) { e.state = EnemyState::Idle; break; }
+                if (e.posted) {  // a sentry fires from its post once the player is in range
+                    turn(faceYaw);
+                    setClip(e, EnemyClip::Idle, true);
+                    if (dist <= params.shootRange * 1.3f) {
+                        e.state = EnemyState::Fire;
+                        e.stateTime = 0;
+                        e.burstLeft = params.burstSize;
+                        e.burstsLeft = params.burstsPerStop;
+                        e.fireCooldown = 0.35f;
+                    }
+                    break;
+                }
                 e.flankTimer -= dt;
                 const Vec3 dirTo = to * (1.0f / std::max(dist, 1e-3f));
                 const Vec3 side{-dirTo.z, 0, dirTo.x};
@@ -189,7 +201,9 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 break;
         }
         // Ground too steep to stand on: slide downhill (as the player does).
-        if (e.state != EnemyState::Dead && groundHeight) {
+        if (e.posted) {
+            e.pos.y = e.postY - e.sink;
+        } else if (e.state != EnemyState::Dead && groundHeight) {
             const float h = 0.5f;
             const float gx = (groundHeight(e.pos.x + h, e.pos.z) - groundHeight(e.pos.x - h, e.pos.z)) / (2 * h);
             const float gz = (groundHeight(e.pos.x, e.pos.z + h) - groundHeight(e.pos.x, e.pos.z - h)) / (2 * h);
@@ -197,8 +211,10 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             if (grade > params.maxSlope) e.pos += Vec3{-gx / grade, 0, -gz / grade} * (params.slideSpeed * dt);
         }
         // Ground and buildings.
-        if (e.state != EnemyState::Dead && collision) collision->pushOut(e.pos, params.radius, params.height, 0.45f);
-        if (groundHeight) e.pos.y = groundHeight(e.pos.x, e.pos.z) - e.sink;
+        if (!e.posted) {
+            if (e.state != EnemyState::Dead && collision) collision->pushOut(e.pos, params.radius, params.height, 0.45f);
+            if (groundHeight) e.pos.y = groundHeight(e.pos.x, e.pos.z) - e.sink;
+        }
         // Animation clocks (one-shot clips hold their last frame).
         e.clipTime += dt;
         if (!e.loopClip) e.clipTime = std::min(e.clipTime, clipDuration[int(e.clip)] * 0.999f);
@@ -209,7 +225,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
     for (size_t a = 0; a < enemies.size(); ++a)
         for (size_t b = a + 1; b < enemies.size(); ++b) {
             Enemy &p = enemies[a], &q = enemies[b];
-            if (p.state == EnemyState::Dead || q.state == EnemyState::Dead) continue;
+            if (p.state == EnemyState::Dead || q.state == EnemyState::Dead || p.posted || q.posted) continue;
             Vec3 d{q.pos.x - p.pos.x, 0, q.pos.z - p.pos.z};
             const float l = std::sqrt(d.x * d.x + d.z * d.z), minD = 2.0f * params.radius + 0.2f;
             if (l < minD && l > 1e-4f) {

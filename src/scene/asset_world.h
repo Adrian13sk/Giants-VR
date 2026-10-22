@@ -47,6 +47,7 @@ public:
         float yaw;
         float scale;
         int trigger;  // mission trigger kind: 1 proximity, 2 death, 3 destination arrival, 4 Vimp meat
+        bool posted = false;  // on a structure's mount point (e.g. a guard tower): position.y is its floor
     };
     const std::vector<Character>& characters() const { return characters_; }
     // Mission objects (not characters) carrying a trigger, with world-space bounds.

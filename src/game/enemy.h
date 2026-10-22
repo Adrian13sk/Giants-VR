@@ -39,6 +39,8 @@ struct Enemy {
     bool remove = false;
     int slot = -1;          // renderer model slot (owned by the game app)
     int objective = -1;     // mission objective this enemy's death completes (game app), -1 none
+    bool posted = false;    // sentry on a platform (guard tower): never moves, fires from there
+    float postY = 0;        // its floor height
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
 

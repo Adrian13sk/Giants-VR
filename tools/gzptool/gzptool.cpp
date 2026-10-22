@@ -268,7 +268,7 @@ static int cmdMission(const char* dir, const char* name) {
                     t ? t->objectClass : -1, t ? int(t->hitPoints) : 0, o.x, o.y, o.z, o.yaw);
         if (o.flags) std::printf(" trig %u", o.flags);
         if (o.group >= 0) std::printf(" id %d", o.group);
-        if (o.parent >= 0) std::printf(" on #%d", o.parent);
+        if (o.parent >= 0) std::printf(" on #%d (mount %u %u)", o.parent, o.mount[0], o.mount[1]);
         for (const auto& f : o.flicks) std::printf(" flk %s", f.c_str());
         std::printf("\n");
     }

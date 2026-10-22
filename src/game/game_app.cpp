@@ -623,6 +623,11 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     for (const auto& ch : w->characters()) {
         if (ch.objectClass == 51) {  // Reaper grunt: the Reaper AI, at its mission position
             const int ei = enemies_.spawn(ch.position, ch.yaw);
+            if (ch.posted) {
+                enemies_.enemies[size_t(ei)].posted = true;
+                enemies_.enemies[size_t(ei)].postY = ch.position.y;
+                enemies_.enemies[size_t(ei)].pos.y = ch.position.y;
+            }
             if (ch.trigger == 2) {
                 enemies_.enemies[size_t(ei)].objective = int(objectives_.size());
                 objectives_.push_back({2, ch.position, ch.position});
