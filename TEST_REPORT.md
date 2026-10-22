@@ -222,3 +222,18 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 
 ## Device test 21 — 2026-10-22, user's Quest 2 (build acb8c9c)
 - **DEVICE VERIFIED** ("Works"): Timmy rides facing forward without flicker; Cleaner swarms.
+
+## Host verification — build 36320d3 (APK sha256 418cdb07…)
+- `gvr_tests`: all pass. New: destruction, jetpack rework, HUD gauge flood fill, player action (injection).
+- Harness renders and logs:
+  - guard tower collapse: shake, bend, dust, ruin swap; "The sentry falls from his tower", fall death on landing;
+  - house cave-in; palm topple;
+  - launcher held at its grip;
+  - jetpack flight pose (mc_hover_turbo_back);
+  - HUD in first person (forearm) and third person (lower left), weapon strip after a switch;
+  - hit marker after `--hurt 10 70 90`;
+  - FP injection with `--x-window` / `--lhand-path`: health 30 → 80, injections 2 → 1;
+  - TP injection (mc_health_pup) heals; 1c pickup collected ("Picked up a health injection (1)").
+- **Not device-tested:** everything above. Need from the next device test: the jetpack feel (thrust 22, air speed 10,
+  fuel 5 s), fall damage levels, HUD size and legibility at the wrist, the push-into-chest threshold, and frame rate
+  during a tower collapse.

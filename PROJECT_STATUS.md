@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-22 (device test 19: reflections, grade, gore, death, patrols)
+Last updated: 2026-10-22 (build 36320d3: destruction, jetpack rework, damage, original HUD, health injections)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -29,11 +29,13 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
-1. **Device test 21 passed** (acb8c9c). Next device check with the next feature build:
-   - frame rate (watch for `perf: ... quality down` in logcat);
-   - reflections and colours; shadows;
-   - gore, Cleaners, death; patrols;
-   - Timmy on the back; held briefing; wading and footsteps.
+1. **Device test 22** (build 36320d3, host verified only):
+   - destructible trees, rocks, houses and towers; the sentry's fall;
+   - rocket and spit trails; launcher grip;
+   - the jetpack (fuel, overheat, air control, turbo), fall damage and stun;
+   - the original-art HUD and the weapon strip; the hit marker;
+   - health injections (pickups in 1c/1d, Reaper drops; FP push into the chest, TP X); low-health smoke;
+   - frame rate during collapses (watch for `perf: ... quality down`).
 2. **Remaining Story1 work:** Smartie AI in the villages, Dactyl flight, 1d (sneak past); the world opcode table (B5).
 3. **Visual fidelity:** compare against original screenshots (B6).
 

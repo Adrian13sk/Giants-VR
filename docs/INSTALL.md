@@ -60,8 +60,22 @@ Story1 plays its missions in order, as in the original:
 Cutscenes: watch from the shot's camera (you travel with it, the view never turns by itself); subtitles follow
 your head, just below the line of sight. **Either trigger skips** (release it first if you were holding it when the cutscene started).
 In the free camera (B), **X skips to the next mission** (handy for testing 1b without replaying 1a).
-Worlds whose mission has no enemies or objectives fall back to waves of Reaper soldiers. Your health bar is on your
-left wrist; red flash = you were hit. When you die you see your body (fallen, gone under in the water, or blown
+Worlds whose mission has no enemies or objectives fall back to waves of Reaper soldiers.
+
+**HUD (original Meccaryn art):** first person: over your left forearm (raise the wrist to read it); third person: lower
+left of the view. Heart = health (fills from the bottom, pulses red when low), arrow = jetpack fuel (flashes red when
+burnt dry), syringe + number = health injections carried, the weapon in hand, and one pip per objective (gold = done).
+Red flash = you were hit; a red wedge around the middle of the view points to where the hit came from. Below 35 health
+you trail smoke. Switching weapons drops the weapon strip in at the top of the view.
+
+**Health injections:** green syringes float over the ground in some missions (1c, 1d...) and some Reapers drop one.
+Walk over one to take it (up to 5). First person: press **X** to take one into your left hand, then **push it into
+your chest**; it heals 50 over a second (green flash). Press X again to put it away. Third person: **X** plays the
+Meccaryn's injection animation and heals.
+
+**Damage:** headshots on Reapers do 2.5× damage; a Ripper's mouth is its weak spot. Your own rockets don't hurt you but
+throw you (rocket jumps). Hard landings hurt and stun you for 2 s. Trees, rocks, houses and guard towers can be
+destroyed (rockets work best); a sentry rides his tower down when it collapses. When you die you see your body (fallen, gone under in the water, or blown
 apart), then the screen fades and you start again at the mission's start.
 
 Deep water floats you (no diving) and the piranhas come after a moment; get out or jetpack away. Bodies stay where
@@ -74,16 +88,16 @@ moves him too.
 | Input | Play mode (Meccaryn) | Free camera |
 |---|---|---|
 | Left stick | Run (5 m/s) relative to where you look; sideways = sidestep, back = backpedal | Move |
-| Left grip (hold) | Sprint ×1.5; near a Smartie: pick it up (release = let go) | Speed boost ×5 |
+| Left grip (hold) | Sprint ×1.5 (in the air with the jetpack: turbo, double fuel use); near a Smartie: pick it up (release = let go) | Speed boost ×5 |
 | Right grip (hold) | Near a Smartie: pick it up (release = let go) | — |
 | Right stick left/right | Snap turn 30° | Snap turn 30° |
-| Right stick forward | Switch gun ↔ rocket launcher (once you have it: from 1c on, Timmy's "present" at the end of 1b) | — |
+| Right stick forward | Switch gun ↔ rocket launcher (once you have it: from 1c on, Timmy's "present" at the end of 1b); shows the weapon strip | — |
 | **Right trigger** | **Fire**: gun (hold for auto-fire, 5 shots/s) or rocket launcher (one rocket per pull, 1 s reload, splash damage; keep your distance) | Haptic test pulse |
-| **A** (hold) | **Jetpack**: thrust builds up speed gradually (up and forward); fuel lasts ~4 s and refills shortly after you stop (blue bar on the wrist) | — |
+| **A** (hold) | **Jetpack**: lifts you; steer with the left stick only while it fires (otherwise you drift and fall). Fuel lasts ~5 s and refills only on the ground; burn it dry and it overheats until partly refilled | — |
 | Right stick click | First ↔ third person (third: camera behind him) | — |
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
 | Y | — | Debug fly/noclip on/off (strong buzz = on) |
-| X | — | Next mission (loads it and returns to play) |
+| X | Health injection (FP: into the left hand, push into the chest; TP: inject) | Next mission (loads it and returns to play) |
 | **Left stick click (hold)** | **Mission briefing** over the world while held (title, objectives, progress) | Toggle the engineering test geometry |
 | Long-press Oculus button | System recentre | same |
 

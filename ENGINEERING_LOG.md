@@ -653,3 +653,65 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
     In first person he is now not drawn in the view at all; he still shows in reflections and the shadow.
 - **Cleaners:** swarms of 5–6 to a Reaper and 3–4 to a Ripper (pool of 18). They trickle in from 7–16 m and spread
   round the body; they share the eating, about 12 s per body.
+
+### Device test 21 request → destruction, jetpack, damage, HUD, injections (2026-10-22, build 36320d3)
+- **Asked for:** destructible trees/buildings/rocks; launcher held right in FP and TP; trails on rockets and Ripper spit;
+  a better damage system; a jetpack like the game's; a weapon-switch HUD animation; the game's HUD icons; health rework
+  with fall damage, smoke at low health and green injections (left hand, push into the body; TP workaround); the tower
+  sentry standing inside his tower, and falling when it is destroyed.
+- **Destruction (f19093b):**
+  - Trees (class 60) topple away from the hit and sink after 25 s.
+  - Small rocks (`rock_*`) shatter into EFX_Stone_debri.
+  - Houses (class 61, data hp: 330) smoke at 66 %, burn at 33 % and cave in with dust and debris.
+  - Guard towers (hp 350/500 from type op 0x31) play guard_tower1.anm — which turned out to be the tower's own
+    collapse — then swap to the ruin model (`<name>d.gbs`) with new collision.
+  - Debris uses the EFX_*_debri models; the EX_TREE/STON/WOOD/METL/DIRT sounds play.
+- **Sentry in the tower:** the world drew the tower's bind pose, which is the *collapsed* pose; the mount point was
+  read at frame 0. Towers are now baked at frame 0 ("anim@0" in ModelCache), so the sentry stands on the platform.
+  - He stays up while the tower takes damage and is knocked off as it bends (t > 0.9 s).
+  - He falls with rpman_hit_fall_cycle and lands with rpman_hit_fall_land; more than 5 m kills him (objective, pool, blood).
+- **Particles:** a ParticleSystem with batched billboards (QuadBatch: one draw per texture), using the original
+  b_smoke, efx_smoke_black/mgrey, b_dust and efx_fire/bfire/gfire_trail textures.
+  - Rockets leave fire and grey smoke; medium spit leaves orange fire, large spit blue.
+  - The player trails black smoke below 35 health.
+  - Blood decals, drops and sprays moved into the same batching.
+- **Weapons in hand:** the Ref_handle / Ref_nozzle01 nodes of mc_gun.anm and mc_launcher.anm are read at load, so each
+  weapon is held at its own grip and fires from its own nozzle (FP and TP).
+- **Damage:**
+  - Reaper headshots (hit more than 1.6 m above the feet) do 2.5×; the Ripper's mouth is a weak spot.
+  - The player's own rockets don't hurt him but throw him (rocket jump); blasts shove Reapers.
+  - A hit-direction marker; death by falling added.
+- **Jetpack (game behaviour from the Speed Demos Archive notes; the numbers are ours):**
+  - Air control only while thrusting; air drag otherwise.
+  - The tank refills only on the ground; burning it dry overheats it (me_jpkno) until 30 % is back.
+  - Turbo = sprint while flying (1.5× speed, 2× fuel).
+  - A landing faster than 12 m/s stuns for 2 s with mc_land_hard and does damage: (v − 12)·6 + 5.
+  - Flight clips by velocity relative to facing: mc_hover_turbo_back for forward (mc_fly_cycle is an arms-up
+    flail, now used only for long drops), mc_fly_left/right, mc_hover_back.
+- **HUD (36320d3)** with the original st_mec_* art:
+  - st_mec_energy heart filled with st_mec_hbar, and the st_mec_jetpack arrow filled with st_mec_fuel. Each gauge's
+    inside is found by flood-filling the outline art from a seed (113 and 126 spans) and filled from the bottom.
+  - st_mec_syringe with st_mec_numbers digits; st_mec_gun / st_mec_launcher; objective pips.
+  - First person: over the move-hand forearm. Third person: head-locked, lower left.
+  - A weapon switch drops the st_mec_wpslot strip in at the top of the view: the chosen slot pops and glows, then
+    the strip fades after about 1.9 s, with the ph_selct sound.
+  - All HUD layers are batched and drawn over the scene (depth test off).
+- **Health injections:**
+  - Placed mc_pickup_health objects (class 37) become live pickups: 1c_1 has 3, 1c_2 4, 1d 2; 1a and 1b have none.
+    Each bobs, spins and glows, with a green shimmer.
+  - Reapers drop one 35 % of the time (our rule).
+  - Walk over one to take it (pu_hlth), up to 5.
+  - FP: X puts mc_syringe into the move hand; pushing the tip into the chest (0–0.55 m below the head, within
+    0.17 m) injects it.
+  - TP: X plays mc_health_pup.anm (0.97 s) through a new player "action" override, and the dose goes in half way.
+  - Each dose heals 50 over 1 s (me_syrng, green flash). The amount is ours.
+- **Tests:** destruction stages/collapse/tree fall; the jetpack (overheat, air drag, stun, ground-only refill);
+  the gauge flood fill (ring image, leak and wall seeds); the player action. All pass.
+- **Harness:**
+  - tower collapse with the sentry falling;
+  - house cave-in; palm toppling;
+  - launcher at its grip in FP;
+  - flight pose; HUD in FP and TP; weapon strip;
+  - FP injection: health 30 → 80, 2 → 1;
+  - TP injection animation sheet; pickup collected in 1c.
+- **Not device-tested.**
