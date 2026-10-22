@@ -178,3 +178,34 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - the briefing screen "Tel's Dilemma";
   - 8 Smarties hung on 9 hang points.
 - **Not yet device-tested.**
+
+## Device test 19 — 2026-10-22, user's Quest 2 (build a899d44)
+- **DEVICE VERIFIED:**
+  - frame rate unchanged with shadows;
+  - cutscene audio;
+  - loading screen;
+  - visor face;
+  - jetpack model swap;
+  - bridges;
+  - floating in water.
+- **Reported (addressed in f5c0f47):**
+  - shadows not sharp enough; colours washed out; water should reflect;
+  - Timmy floating in cutscenes; subtitles should follow the head;
+  - briefing on a button; Timmy on Baz's back;
+  - no piranhas for Smarties in the water; no wading effects or sound; footsteps too quiet;
+  - enemies notice too late; no gore or corpses; no death scene.
+
+## Host verification — build f5c0f47 (APK sha256 8b0d9f76…)
+- `gvr_tests`: all pass. AI tests were updated, and there is a new gore/Cleaner test.
+- Harness renders:
+  - reflections of pillars and hills (debug view of the reflection texture too);
+  - clear shallows;
+  - the shadow term;
+  - Timmy on the back;
+  - the briefing overlay;
+  - a Reaper killed (pool), shot apart (chunks, splats);
+  - Cleaners called, eating, the body eaten;
+  - player death shot (lying in mc_die) and blast (chunks, pool), respawn after 5.5 s.
+- Draw calls (1a start): eyes 350/305 plus the reflection 203, every other frame. On Quest the adaptive
+  fallback logs `perf: ... quality down`.
+- **Not device-tested.**

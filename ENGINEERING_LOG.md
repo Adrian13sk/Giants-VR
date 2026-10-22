@@ -573,3 +573,71 @@ The user's report on build 4b15f54, and what changed:
     enemies, nests, and the player in third person.
   - Sun disc and glow in the sky shader, a fan of sun rays occluded by the scene, and a closed sky dome. Clouds drift.
   - Performance on the Quest is unmeasured: the shadow pass and the heavier shader are new costs.
+
+### Device test 19 feedback → graphics, gore, death, AI, water (2026-10-22, build f5c0f47)
+The user's report on a899d44: frame rate unchanged, cutscenes fine apart from Timmy floating, loading
+screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
+- **Graphics:**
+  - **Colour grade:** in the shader, a gamma-2 space with saturation 1.25, contrast 1.06, warm highlights /
+    cool shadows and exposure 1.08. The sky gets a quarter of the saturation boost (the painted sky turned
+    acid at full).
+  - **Lighting:** hemispheric ambient (sky above, bounce below), a faint rim, and baked surfaces brighten a
+    little where they face the moving sun.
+  - **Sharper shadows:** 2048² map over 48 m (2.3 cm texels, was 5.5), 5-tap PCF, smaller bias.
+  - **Planar water reflections:** the world mirrored in the sea, rendered once per frame from between the
+    eyes into a 1024×768 colour + depth target, with a field of view covering both eyes, and clipped at the
+    surface. The water shader corrects the lookup per eye with the reflection's depth, so reflections have
+    real stereo depth. The player (the whole body, including the head that first person hides) and Timmy
+    show in it.
+  - **Reflection cost:** about +25 % draw calls (203 on 1a, ~120 on 1b). Re-rendered every other frame,
+    skipped when no water is in view.
+  - **Adaptive quality fallback:** if the average falls below 65 fps over 4 s, the reflection drops to every
+    third frame, then off, then the shadows go off. Each step is logged.
+  - **Water depth map:** terrain depth below the sea, 2 m texels. It gives clear turquoise shallows, dark deep
+    water and thin animated foam at the shore. The stylised fresnel is never below 20 %.
+  - Sky band seam fixed (the texture repeats, so v=0 bled into the bottom row).
+- **Cutscenes:**
+  - **Floating actors:** flk op 0x19 {actor, node} + op 0x22 {actor, 6, 5, footprint x0 y0 x1 y1} read as
+    "this actor follows the ground" (inferred: every walking character carries the pair).
+  - Per shot, the lowest the feet come over the whole shot is put on our ground (terrain, or a
+    walkway/rock top), so standing actors don't float or sink while hops keep their arc. Timmy was 0.8–1 m up
+    in save_sm_1, get_rpg3 and hatch_dilemma.
+  - **Subtitles** are head-locked (smoothed yaw/pitch, no roll).
+- **Timmy on Baz's back:** the cutscenes carry Timmy (smtimmy_l0) on baz.ref_holsterb (story1_jetpack_6/8,
+  get_rpg9/10, hatch_into_tel), and no Story 1 mission after 1a places him. So from the jetpack hand-over on
+  he rides there in play, with sm_mount.anm and his 'center' node on Ref_HolsterB. The 1a tower Timmy is
+  hidden then.
+- **Briefing on demand:** hold the left stick down to see the mission title, objectives and progress
+  head-locked over the world.
+- **1b completion:** the briefing (MO_1b_1_catchsmarties) and the walkthrough both say save four, so four saved
+  completes the mission (eight hang).
+- **Water:**
+  - **Piranha schools:** a school hunts each Smartie that falls in. They bite (pi_swrm) with blood clouds and
+    eat it in about 5 s (walkthrough), and a Smartie can be grabbed back out until then.
+  - Wading leaves rings and splashing steps. NPCs in the water leave rings.
+  - Swim stroke loop (me_swmlp).
+- **Footsteps:** louder (0.3 → 0.75), and by surface with the original sets me_fs{gr,sa,wd,wa}.
+- **Enemies:**
+  - Reapers and Rippers patrol near their post (bzka_walk_scan / walk). They notice the player in front with
+    a clear line (terrain and buildings block it) at 60 m and 38 m, or from any side at 14 m and 9 m.
+  - They take a moment (alert scan / chitter) before acting.
+  - Gunfire and a falling comrade alert those nearby; a hit always does.
+- **Gore:** red blood from aablood.gzp. Archive precedence is now "first in name order wins", which is what
+  the aa*/arpfix override packs are named for. aanoeng.gzp (language-neutral signs) is kept last so the
+  English signs stay.
+  - Hits bleed: drops, spray, splats. Kills leave a pool (bloodblob).
+  - Bodies stay. After about 14 s, Cleaners (cleaner_l0 with walk/eat/jump and CL_EATST/LP/EATEN) come and
+    eat them; the body sinks and is gone.
+  - Bodies in deep water are eaten by piranhas.
+  - Shooting a body (box test on its death pose) bursts it or tears it apart, with rpman_chunk_* /
+    rip_gore_* pieces, blood and a pool. Rockets do the same to nearby bodies.
+  - Reapers killed by a blast play rpman_hit_blowup.
+- **Player death:**
+  - Bullets and bites: he falls (mc_die).
+  - In the water: he goes under (mc_drowning_die).
+  - A blast: blown into MC_chunk1..6.
+  - The camera steps back to third person, fades after about 4.5 s, and he respawns at the mission start.
+    Enemies stand down while he is dead.
+- **Tests:** AI tests updated (noticing in front, patrol stays near post, a hit makes aware); new gore test
+  (drops land as splats or water clouds, decals fade and are capped, Cleaners eat and leave). All pass.
+- **Not device-tested yet:** everything above, and the GPU cost of reflections plus 2048 shadows on Quest 2.
