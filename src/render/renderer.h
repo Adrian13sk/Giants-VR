@@ -40,6 +40,9 @@ struct DrawParams {
     bool noFog = false;
     bool depthWrite = true;
     bool depthTest = true;  // false: drawn over everything (overlays such as subtitles)
+    // Material: Standard (lit/unlit textured), Water (animated surface: waves, fresnel sky
+    // reflection, sun glints), Sky (drifting clouds, sun disc and glow).
+    enum class Material : uint8_t { Standard, Water, Sky } material = Material::Standard;
 };
 
 struct ViewParams {
@@ -56,6 +59,10 @@ struct EnvironmentParams {
     float fogNear = 60.0f;      // linear fog start (metres), like the original D3D fog
     float fogFar = 600.0f;      // linear fog end (metres)
     Vec3 clearColor{0.55f, 0.70f, 0.90f};
+    float seaLevel = -1e9f;                      // water surface height; below it surfaces tint toward waterColor
+    Vec3 waterColor{0.020f, 0.095f, 0.110f};     // linear
+    Vec3 skyHorizon{0.55f, 0.70f, 0.90f}, skyZenith{0.25f, 0.40f, 0.70f};  // linear, for water reflections
+    float time = 0;                              // seconds (waves, cloud drift)
 };
 
 class Renderer {
@@ -77,6 +84,15 @@ public:
     void beginView(const ViewParams& view, int viewportWidth, int viewportHeight, bool clear = true);
     void draw(MeshId mesh, const Mat4& model, const DrawParams& params = {});
     void endView();
+    // Sun shadows: one depth map around the player, rendered once per frame before the eyes.
+    bool initShadows(int size);
+    void beginShadowPass(const Mat4& lightViewProj);
+    void drawShadow(MeshId mesh, const Mat4& model);
+    void endShadowPass();
+    void setShadowsActive(bool on) { shadowsActive_ = on; }
+    bool shadowsReady() const { return shadowFbo_ != 0; }
+    // Orthographic sun view around `centre` (half-size in metres), snapped to shadow texels.
+    Mat4 sunShadowMatrix(const Vec3& centre, float halfSize) const;
     const ViewParams& currentView() const { return currentView_; }
     // Bounding-sphere test against the current view frustum (world space).
     bool sphereVisible(const Vec3& centre, float radius) const;
@@ -101,6 +117,13 @@ private:
     GLuint program_ = 0;
     GLint uMVP_ = -1, uModel_ = -1, uTint_ = -1, uSunDir_ = -1, uSunColor_ = -1, uAmbient_ = -1;
     GLint uFogColor_ = -1, uFogRange_ = -1, uEyePos_ = -1, uUnlit_ = -1, uAlphaRef_ = -1, uTex_ = -1;
+    GLint uMaterial_ = -1, uTime_ = -1, uSeaLevel_ = -1, uWaterColor_ = -1, uSkyHorizon_ = -1, uSkyZenith_ = -1;
+    GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
+    GLuint shadowProgram_ = 0, shadowFbo_ = 0, shadowTex_ = 0, dummyShadowTex_ = 0;
+    GLint uShadowMVP_ = -1;
+    int shadowSize_ = 0;
+    bool shadowsActive_ = false;
+    Mat4 shadowMat_ = Mat4::identity();
     GLuint whiteTexture_ = 0;
     std::vector<GpuMesh> meshes_;
     std::vector<GpuTexture> textures_;

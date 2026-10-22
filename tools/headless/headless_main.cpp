@@ -154,8 +154,8 @@ int main(int argc, char** argv) {
         app.update(1.0f / 72.0f, in);
         if (std::getenv("GVR_PLAYER_TRACE") && f % 12 == 0) {
             const auto& p = app.player();
-            LOGI("trace f%d player (%.2f %.2f %.2f) game (%.0f %.0f) ground %d anim %d", f, p.position.x, p.position.y, p.position.z,
-                 -p.position.x / gGameUnitsToMeters, p.position.z / gGameUnitsToMeters, int(p.onGround), int(p.anim()));
+            LOGI("trace f%d player (%.2f %.2f %.2f) game (%.0f %.0f) ground %d swim %d anim %d", f, p.position.x, p.position.y, p.position.z,
+                 -p.position.x / gGameUnitsToMeters, p.position.z / gGameUnitsToMeters, int(p.onGround), int(p.swimming()), int(p.anim()));
         }
         if (!audioOut.empty()) {
             const size_t n = audio.size();
@@ -232,6 +232,7 @@ int main(int argc, char** argv) {
     const float ipd = 0.064f;
     std::vector<uint8_t> sbs(size_t(w) * 2 * h * 4);
     std::vector<uint8_t> eyePx(size_t(w) * h * 4);
+    app.renderShadows();
     for (int eye = 0; eye < 2; ++eye) {
         EyeRenderInfo ei{};
         ei.trackingPose.orientation = in.head.orientation;

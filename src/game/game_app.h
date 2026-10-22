@@ -51,6 +51,8 @@ public:
     bool init(const std::string& dataDir, const std::string& worldName = "Story1");
     void update(float dt, const InputFrame& input);
     void renderEye(const EyeRenderInfo& eye);
+    // Once per frame, before the eyes: the sun's shadow map around the player.
+    void renderShadows();
     void shutdown();
 
     std::vector<HapticRequest>& hapticRequests() { return haptics_; }
@@ -222,10 +224,26 @@ private:
     } load_;
     void beginLoading(const std::string& mission, const InputFrame& in, bool load = true);
     bool firstBriefDone_ = false;
+    // Sun: crosses the sky slowly (never sets) and casts real-time shadows.
+    float sunAzimuth_ = 2.2f;
+    bool shadowsOn_ = false;
+    MeshId sunRaysMesh_ = 0;
+    void updateSun(float dt);
+    void renderSunRays();
     void updateLoading(float dt, const InputFrame& in);
     void renderLoading();
     ButtonEdge missionEdge_;
     bool piranhaKnown_ = false, piranhas_ = false;
+    // Water: splash / ring effects, the piranha school.
+    struct WaterFx { Vec3 pos; float age; int kind; float scale; };  // kind 0 splash, 1 ring
+    std::vector<WaterFx> waterFx_;
+    std::unique_ptr<SkinnedModel> splashFx_, ringFx_, pirSwim_, pirJump_;
+    static constexpr int kPiranhas = 5;
+    struct Piranha { float angle = 0, jump = -1; };
+    Piranha piranha_[kPiranhas];
+    bool wasSwimming_ = false, piranhaAttack_ = false;
+    float ringTimer_ = 0, piranhaVis_ = 0;
+    Vec3 piranhaCentre_;
     float waterTime_ = 0, biteTimer_ = 0;  // after a mission (and its outro) ends: seconds until the next loads
     void loadMission(const std::string& name);
     std::string dataDir_, worldName_;

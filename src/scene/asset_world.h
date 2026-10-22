@@ -25,6 +25,8 @@ public:
     bool init(const std::string& dataDir, Renderer& r, const std::string& worldName);
     void update(float dt);
     void render(Renderer& r);
+    // World objects near `centre` into the current shadow pass.
+    void renderShadowCasters(Renderer& r, const Vec3& centre, float radius) const;
     bool loaded() const { return !placed_.empty() || !skinned_.empty() || hasTerrain_; }
     bool hasTerrain() const { return hasTerrain_; }
     const std::string& status() const { return status_; }

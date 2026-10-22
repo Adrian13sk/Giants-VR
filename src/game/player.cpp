@@ -59,7 +59,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     Vec3 dir = fwd * sy + right * sx;
     const float dl = std::sqrt(dir.x * dir.x + dir.z * dir.z);
     if (dl > 1e-4f) dir = dir * (1.0f / dl);
-    const float speed = params.runSpeed * mag * (in.sprint ? params.sprintFactor : 1.0f);
+    const float speed = swimming_ ? swimSpeed * mag : params.runSpeed * mag * (in.sprint ? params.sprintFactor : 1.0f);
     // Jetpack fuel: drains while thrusting, refills after a short delay.
     thrusting_ = in.jet && fuel_ > 0.0f && jetpackAvailable;
     if (thrusting_) {
@@ -75,7 +75,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     bool steep = false;
     // Standing on a structure (a bridge deck, a roof): the terrain's slope underneath doesn't
     // matter (bridges span steep gullies; sliding off them was a device-test complaint).
-    if (onGround && !thrusting_ && groundHeight && !onObject_) {
+    if (onGround && !thrusting_ && groundHeight && !onObject_ && !swimming_) {
         // One-sided differences, the gentler side per axis: standing on flat ground at the top
         // of a cliff (a bridge's landing) is flat ground, not a 50-degree slope that a centred
         // difference across the edge would report.
@@ -177,14 +177,20 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         else { velocity.x = dx / dt; velocity.z = dz / dt; }
     }
 
-    bool objectGround = false;
+    bool objectGround = false, waterGround = false;
     auto groundAt = [&](float x, float z) {
         float gg = groundHeight ? groundHeight(x, z) : 0.0f;
         float og;  // walls' tops, roofs, tables: highest one we can step onto or are falling onto
-        objectGround = false;
+        objectGround = waterGround = false;
         if (collision && collision->groundAt(x, z, std::max(prevY, position.y) + stepUp, og) && og > gg) {
             gg = og;
             objectGround = true;
+        }
+        // Deep water holds him up: floating, shoulders at the surface.
+        if (seaLevel - floatDepth > gg) {
+            gg = seaLevel - floatDepth;
+            waterGround = true;
+            objectGround = false;
         }
         return gg;
     };
@@ -195,7 +201,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     // Slope test for the terrain only: a structure's edge (a bridge deck's lip, a step) is a step
     // up, limited by maxStepUp, not a 50-degree slope over one frame's travel.
     // Stepping from a structure onto the terrain (off the far end of a bridge) is a step too.
-    const bool tooSteep = !objectGround && !onObject_ && rise > 0.02f && run > 1e-4f && rise / run > params.maxSlope;
+    const bool tooSteep = !objectGround && !onObject_ && !waterGround && rise > 0.02f && run > 1e-4f && rise / run > params.maxSlope;
     if (onGround && !thrusting_ && (rise > params.maxStepUp || tooSteep)) {
         // Cliff face (e.g. climbing out of the sea): blocks like a wall; the jetpack gets you up.
         position.x = before.x;
@@ -205,6 +211,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         g = groundAt(position.x, position.z);
     }
     onObject_ = objectGround && position.y - g < params.stepDown;
+    swimming_ = waterGround && position.y - g < 0.3f;
     if (position.y <= g) {
         if (!onGround && velocity.y < -params.hardLandSpeed) landTimer_ = params.landSeconds;
         position.y = g;
@@ -223,6 +230,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     // Movement relative to the body: forward run, sidestep (right = clip forward), backpedal.
     const float rel = angleDelta(yaw, moveYaw);
     if (!onGround) want = thrusting_ ? PlayerAnim::Thrust : PlayerAnim::Hover;
+    else if (swimming_) want = PlayerAnim::Hover;  // treading water (the Meccaryn has no swim clip)
     else if (sliding_) want = PlayerAnim::Slide;
     else if (speedNow > 0.15f) {
         const float clampRate = params.maxPlayback;

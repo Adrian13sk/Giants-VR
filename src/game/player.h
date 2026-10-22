@@ -64,6 +64,10 @@ public:
     // False until the jetpack is in the inventory (Mecc story 1 starts without it: Baz loses it
     // in the opening cutscene and gets it from Timmy).
     bool jetpackAvailable = true;
+    // Water: deeper than floatDepth the Meccaryn floats with his shoulders at the surface (he
+    // can't dive) and swims at swimSpeed. seaLevel -1e9 = no water.
+    float seaLevel = -1e9f, floatDepth = 1.35f, swimSpeed = 2.4f;
+    bool swimming() const { return swimming_; }
     const CollisionWorld* collision = nullptr;  // level objects (optional)
     float radius = 0.35f, height = 1.8f, stepUp = 0.45f;  // capsule (m)
 
@@ -94,8 +98,9 @@ private:
     float fuel_ = 4.0f, sinceThrust_ = 99.0f;
     bool thrusting_ = false;
     bool sliding_ = false;      // on ground too steep to stand on: skidding downhill
-    bool slideCarry_ = false;
-    bool onObject_ = false;  // feet on a structure (bridge, roof), not the terrain   // still carrying slide momentum on walkable ground
+    bool slideCarry_ = false;  // still carrying slide momentum on walkable ground
+    bool onObject_ = false;  // feet on a structure (bridge, roof), not the terrain
+    bool swimming_ = false;  // floating in deep water
 };
 
 // Shortest signed angle from a to b (radians).

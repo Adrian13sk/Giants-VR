@@ -92,6 +92,11 @@ bool AssetWorld::loadWorld(const std::string& name, Renderer& r) {
     auto toLinear = [](float c) { return std::pow(c, 2.2f); };
     env.fogColor = {toLinear(env.fogColor.x), toLinear(env.fogColor.y), toLinear(env.fogColor.z)};
     env.clearColor = env.fogColor;
+    // Water and sky colours for the water surface's reflections (from the fog = horizon colour).
+    env.seaLevel = 0.0f;
+    env.skyHorizon = env.fogColor;
+    env.skyZenith = Vec3{env.fogColor.x * 0.55f + 0.04f, env.fogColor.y * 0.65f + 0.06f, env.fogColor.z * 0.8f + 0.12f};
+    env.waterColor = Vec3{env.fogColor.x * 0.10f + 0.01f, env.fogColor.y * 0.22f + 0.04f, env.fogColor.z * 0.22f + 0.05f};
 
     // Sea plane at game height 0, covering the terrain with a wide margin.
     const uint8_t white[4] = {255, 255, 255, 255};
@@ -129,6 +134,30 @@ bool AssetWorld::loadWorld(const std::string& name, Renderer& r) {
             uint32_t b = uint32_t(i * 2);
             band.indices.insert(band.indices.end(), {b, b + 2, b + 1, b + 1, b + 2, b + 3});
         }
+        // Dome cap above the band: the band's top row of texels fading into the zenith colour
+        // (vertex alpha), so the sky is closed instead of ending at 43 degrees.
+        const uint32_t capBase = uint32_t(band.vertices.size());
+        const float caps[3] = {hi, 1.15f, 1.5707f};
+        const uint8_t alphas[3] = {255, 90, 0};
+        for (int ring = 0; ring < 3; ++ring)
+            for (int i = 0; i <= slices; ++i) {
+                const float a = 2 * kPi * i / slices, el = caps[ring];
+                Vertex v{};
+                v.pos[0] = std::sin(a) * std::cos(el) * radius;
+                v.pos[1] = std::sin(el) * radius;
+                v.pos[2] = -std::cos(a) * std::cos(el) * radius;
+                v.uv[0] = float(i) / slices;
+                v.uv[1] = 0.01f;
+                v.color[0] = v.color[1] = v.color[2] = 255;
+                v.color[3] = alphas[ring];
+                band.vertices.push_back(v);
+            }
+        const uint32_t row = uint32_t(slices + 1);
+        for (int ring = 0; ring < 2; ++ring)
+            for (int i = 0; i < slices; ++i) {
+                const uint32_t a = capBase + uint32_t(ring) * row + uint32_t(i), b = a + row;
+                band.indices.insert(band.indices.end(), {a, a + 1, b, b, a + 1, b + 1});
+            }
         skyMesh_ = r.uploadMesh(band);
     }
 
@@ -450,6 +479,15 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
     LOGI("Collision: %zu solid objects, %zu triangles", collision_.objectCount(), collision_.triangleCount());
 }
 
+void AssetWorld::renderShadowCasters(Renderer& r, const Vec3& centre, float radius) const {
+    for (const auto& o : worldObjects_) {
+        if (length(o.centre - centre) - o.radius > radius) continue;
+        if (o.radius > 120.0f) continue;  // whole-island rock sets: their own shading is baked
+        for (const auto& part : o.model->parts)
+            if (!part.glass && part.blend != BlendMode::AlphaBlend) r.drawShadow(part.mesh, o.transform);
+    }
+}
+
 void AssetWorld::update(float dt) {
     time_ += dt;
     for (auto& p : placed_) p.yaw += p.spin * dt;
@@ -464,6 +502,7 @@ void AssetWorld::render(Renderer& r) {
         sp.noFog = true;
         sp.doubleSided = true;
         sp.depthWrite = false;  // always behind everything
+        sp.material = DrawParams::Material::Sky;
         r.draw(skyMesh_, Mat4::translation(r.currentView().eyePosition), sp);
     }
     if (hasTerrain_) terrain_.render(r);
@@ -504,8 +543,9 @@ void AssetWorld::render(Renderer& r) {
         sp.texture = seaTexture_;
         sp.unlit = true;
         sp.blend = BlendMode::AlphaBlend;
-        sp.tint = {1, 1, 1, 0.75f};
+        sp.tint = {1, 1, 1, 1.0f};
         sp.doubleSided = true;
+        sp.material = DrawParams::Material::Water;
         r.draw(seaMesh_, Mat4::identity(), sp);
     }
 }

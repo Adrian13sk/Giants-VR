@@ -51,6 +51,7 @@ public:
     // Bounds (posed, model-local runtime metres) of the vertices bound to a bone; false if none.
     bool boneVertexBounds(const std::string& lowerCaseName, Vec3& mn, Vec3& mx) const;
     void render(Renderer& r, const Mat4& world) const;
+    void renderShadow(Renderer& r, const Mat4& world) const;
     // Unlit, self-illuminated draw (effects such as the Rippers' spit balls).
     void renderGlow(Renderer& r, const Mat4& world, float brightness = 1.0f) const;
     const std::string& name() const { return base_; }

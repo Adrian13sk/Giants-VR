@@ -239,6 +239,11 @@ void SkinnedModel::render(Renderer& r, const Mat4& world) const {
     }
 }
 
+void SkinnedModel::renderShadow(Renderer& r, const Mat4& world) const {
+    for (const Part& p : parts_)
+        if (!p.glass) r.drawShadow(p.mesh, world);
+}
+
 void SkinnedModel::renderGlow(Renderer& r, const Mat4& world, float brightness) const {
     for (const Part& p : parts_) {
         DrawParams dp;

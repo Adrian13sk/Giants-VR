@@ -35,6 +35,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
     }
     dataDir_ = dataDir;
     worldName_ = worldName;
+    shadowsOn_ = renderer_.initShadows(1024);
     assetWorld_ = std::make_unique<AssetWorld>();
     if (!assetWorld_->init(dataDir, renderer_, worldName)) {
         LOGW("Original assets unavailable: %s", assetWorld_->status().c_str());
@@ -245,9 +246,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 if (target == -2) damagePlayer(5.0f);
                 else sfx(frand() < 0.5f ? "bi_hit1" : "bi_dirt1", p, 0.35f, 0.9f + 0.2f * frand());
             };
+            // NPCs float in deep water (the sea surface is at 0): they can't walk on the sea floor.
             enemies_.groundHeight = [w](float x, float z) {
                 float y;
-                return w->terrain().heightAt(x, z, y) ? y : -1.2f;
+                return std::max(w->terrain().heightAt(x, z, y) ? y : -20.0f, -1.1f);
             };
             enemies_.collision = &w->collision();
             // Reaper grunt model pool with the original clips (order = EnemyClip).
@@ -296,12 +298,12 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 }
             }
             player_.collision = &w->collision();
-            // Off the terrain heightfield is open sea (surface at 0): wading depth, so walking off
-            // a cliff drops you into the water instead of walking on air.
+            // Off the terrain heightfield is open sea; the sea (surface at 0) holds the player up.
             player_.groundHeight = [w](float x, float z) {
                 float y;
-                return w->terrain().heightAt(x, z, y) ? y : -1.2f;
+                return w->terrain().heightAt(x, z, y) ? y : -20.0f;
             };
+            player_.seaLevel = 0.0f;
         } else {
             LOGW("Player model unavailable; free camera only");
         }
@@ -543,6 +545,7 @@ void GameApp::updateRescue(float dt, const InputFrame& in) {
                 LOGI("Smartie %d is back", e.index);
                 break;
             case SmartieEvent::Splashed:
+                waterFx_.push_back({Vec3{e.pos.x, 0.02f, e.pos.z}, 0.0f, 0, 0.8f});
                 sfx("se_splsh", e.pos, 0.9f);
                 sfx(frand() < 0.5f ? "pi_swrm1" : "pi_swrm2", e.pos, 0.9f);
                 LOGI("Smartie %d fell in the water", e.index);
@@ -767,6 +770,19 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         LOGI("Smartie pad: (%.1f %.1f %.1f) .. (%.1f %.1f %.1f); %zu Smarties to rescue", rescue_.padMin.x, rescue_.padMin.y,
              rescue_.padMin.z, rescue_.padMax.x, rescue_.padMax.y, rescue_.padMax.z, rescue_.smarties.size());
     }
+    // Water effects and the piranha school (original models and clips).
+    if (!splashFx_) {
+        auto load = [&](const char* base, const char* anim) -> std::unique_ptr<SkinnedModel> {
+            auto m = std::make_unique<SkinnedModel>();
+            if (!m->load(w->fs(), *mc, renderer_, base, anim)) return nullptr;
+            return m;
+        };
+        splashFx_ = load("efx_splash", "efx_splash.anm");
+        ringFx_ = load("water_rings", "water_rings.anm");
+        pirSwim_ = load("piranha", "pir_swim.anm");
+        pirJump_ = load("piranha", "pir_swim_jump.anm");
+        LOGI("Water effects: splash %d, rings %d, piranhas %d", splashFx_ != nullptr, ringFx_ != nullptr, pirSwim_ != nullptr);
+    }
     creatures_.groundHeight = enemies_.groundHeight;
     creatures_.collision = enemies_.collision;
     // Spit leaves from the animated mouth node (ref_mouth) when the skeleton has one.
@@ -959,6 +975,90 @@ void GameApp::initMission() {
     if (!hasLauncher_) weaponSel_ = 0;
     LOGI("Mission %s: %zu objectives, jetpack %s", assetWorld_->missionName().c_str(), objectives_.size(),
          jet ? "available" : "not yet (story)");
+}
+
+void GameApp::updateSun(float dt) {
+    // The sun circles the sky once in 20 minutes, between 30 and 62 degrees up: it never sets,
+    // and the shadows swing round with it. (Ours: the original's sun is fixed per level.)
+    EnvironmentParams& env = renderer_.environment();
+    env.time = float(time_);
+    sunAzimuth_ += dt * 2.0f * kPi / 1200.0f;
+    const float el = (46.0f + 16.0f * std::sin(sunAzimuth_ * 2.0f)) * kPi / 180.0f;
+    const Vec3 toSun{std::cos(el) * std::sin(sunAzimuth_), std::sin(el), std::cos(el) * std::cos(sunAzimuth_)};
+    env.sunDirection = toSun * -1.0f;
+}
+
+void GameApp::renderShadows() {
+    if (!shadowsOn_ || !assetWorld_ || !assetWorld_->loaded()) { renderer_.setShadowsActive(false); return; }
+    const Vec3 centre = playMode_ ? player_.position : rig_.worldFromTracking.position;
+    const float half = 28.0f;  // 56 m square around the player, ~5.5 cm texels at 1024
+    renderer_.beginShadowPass(renderer_.sunShadowMatrix(centre, half));
+    assetWorld_->renderShadowCasters(renderer_, centre, half * 1.5f);
+    const bool cut = cutsceneActive();
+    for (const auto& c : chars_) {
+        if (!c.visible || length(c.pos - centre) > half * 1.4f) continue;
+        c.model->renderShadow(renderer_, Mat4::translation(c.pos + Vec3{0, c.lift, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, c.yaw)) *
+                                             Mat4::scale({c.scale, c.scale, c.scale}));
+    }
+    for (const auto& e : enemies_.enemies)
+        if (e.slot >= 0 && length(e.pos - centre) < half * 1.4f)
+            enemyPool_[size_t(e.slot)]->renderShadow(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
+                                                                    Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
+    // The player's own body (third person; in first person his head is hidden, which would show).
+    if (playMode_ && playerModel_ && !cut && !firstPerson_) playerModel_->renderShadow(renderer_, bodyXf_);
+    renderer_.endShadowPass();
+    renderer_.setShadowsActive(true);
+}
+
+void GameApp::renderSunRays() {
+    // Shafts of light around the sun: a slowly turning fan of faint additive rays far out on the
+    // sky in the sun's direction. Terrain and objects in front hide them (depth test), so they read
+    // as rays breaking past ridges and trees. (A cheap stand-in for screen-space god rays.)
+    if (!sunRaysMesh_) {
+        MeshData m;
+        const int n = 14;
+        for (int i = 0; i < n; ++i) {
+            const float a = float(i) * 2.0f * kPi / float(n) + 0.17f * float(i % 3);
+            const float len = 0.55f + 0.25f * float((i * 7) % 5) / 4.0f, w = 0.035f + 0.02f * float(i % 2);
+            const uint32_t b = uint32_t(m.vertices.size());
+            const float ca = std::cos(a), sa = std::sin(a), cb = std::cos(a + kPi * 0.5f), sb = std::sin(a + kPi * 0.5f);
+            const float pts[3][3] = {{cb * w * 0.3f, sb * w * 0.3f, 255}, {-cb * w * 0.3f, -sb * w * 0.3f, 255}, {ca * len, sa * len, 0}};
+            for (const auto& p : pts) {
+                Vertex v{};
+                v.pos[0] = p[0];
+                v.pos[1] = p[1];
+                v.normal[2] = 1;
+                v.color[0] = v.color[1] = v.color[2] = 255;
+                v.color[3] = uint8_t(p[2]);
+                m.vertices.push_back(v);
+            }
+            m.indices.insert(m.indices.end(), {b, b + 1, b + 2});
+            (void)cb;
+        }
+        sunRaysMesh_ = renderer_.uploadMesh(m);
+    }
+    const EnvironmentParams& env = renderer_.environment();
+    const Vec3 toSun = normalize(env.sunDirection * -1.0f);
+    const Vec3 eye = renderer_.currentView().eyePosition;
+    const float dist = 900.0f;
+    // Billboard facing the viewer at the sun's position, rotating slowly.
+    const Vec3 f = toSun * -1.0f;
+    const Vec3 upHint = std::fabs(f.y) > 0.95f ? Vec3{1, 0, 0} : Vec3{0, 1, 0};
+    const Vec3 r = normalize(cross(upHint, f)), u = cross(f, r);
+    Mat4 basis = Mat4::identity();
+    basis.m[0] = r.x; basis.m[1] = r.y; basis.m[2] = r.z;
+    basis.m[4] = u.x; basis.m[5] = u.y; basis.m[6] = u.z;
+    basis.m[8] = -f.x; basis.m[9] = -f.y; basis.m[10] = -f.z;
+    DrawParams dp;
+    dp.blend = BlendMode::Additive;
+    dp.unlit = true;
+    dp.noFog = true;
+    dp.doubleSided = true;
+    dp.depthWrite = false;
+    const float k = 0.10f + 0.03f * std::sin(float(time_) * 0.7f);
+    dp.tint = {env.sunColor.x * k, env.sunColor.y * k, env.sunColor.z * k * 0.85f, 1.0f};
+    renderer_.draw(sunRaysMesh_, Mat4::translation(eye + toSun * dist) * basis * Mat4::rotation(Quat::fromAxisAngle({0, 0, 1}, float(time_) * 0.02f)) *
+                                     Mat4::scale({dist, dist, dist}), dp);
 }
 
 void GameApp::beginLoading(const std::string& mission, const InputFrame& in, bool load) {
@@ -1452,18 +1552,32 @@ void GameApp::updateRockets(float dt) {
 
 void GameApp::updateCombat(float dt) {
     updateRockets(dt);
-    // Piranhas: where the mission briefing warns of them (1b: "Watch out for hungry PIRANHAS in
-    // the water!"), wading or swimming in deep water gets the player bitten. Rate and damage ours.
-    if (!piranhaKnown_ && gameText_ && assetWorld_) {
-        piranhaKnown_ = true;
-        std::string brief = gameText_->get("MO_" + assetWorld_->missionName());
-        for (auto& ch : brief) ch = char(std::toupper(static_cast<unsigned char>(ch)));
-        piranhas_ = brief.find("PIRANHA") != std::string::npos;
-        if (piranhas_) LOGI("Mission %s: piranhas in the water", assetWorld_->missionName().c_str());
+    // Water: entering it splashes; swimming leaves rings. Piranhas live in all deep water (the 1b
+    // briefing warns of them): after a moment there they gather round and bite; leaving deep water
+    // (shallows, the shore, the jetpack) sends them away. Rates and damage ours.
+    const bool swim = playMode_ && player_.swimming();
+    if (swim && !wasSwimming_) {
+        waterFx_.push_back({Vec3{player_.position.x, 0.02f, player_.position.z}, 0.0f, 0, 1.2f});
+        sfx("se_splsh", player_.position, 0.9f);
     }
-    if (piranhas_ && playMode_ && player_.position.y < -0.5f) {
+    wasSwimming_ = swim;
+    if (swim && player_.horizontalSpeed() > 0.4f) {
+        ringTimer_ -= dt;
+        if (ringTimer_ <= 0) {
+            ringTimer_ = 0.5f;
+            waterFx_.push_back({Vec3{player_.position.x, 0.03f, player_.position.z}, 0.0f, 1, 2.5f});
+        }
+    }
+    for (auto& f : waterFx_) f.age += dt;
+    waterFx_.erase(std::remove_if(waterFx_.begin(), waterFx_.end(), [](const WaterFx& f) { return f.age > 2.0f; }), waterFx_.end());
+    if (swim) {
         waterTime_ += dt;
         if (waterTime_ > 0.8f) {
+            if (!piranhaAttack_) {
+                piranhaAttack_ = true;
+                for (int i = 0; i < kPiranhas; ++i) piranha_[i] = Piranha{float(i) * 1.2566f + frand(), -1.0f};
+                LOGI("Piranhas!");
+            }
             biteTimer_ -= dt;
             if (biteTimer_ <= 0) {
                 biteTimer_ = 0.5f;
@@ -1474,6 +1588,19 @@ void GameApp::updateCombat(float dt) {
     } else {
         waterTime_ = 0;
         biteTimer_ = 0;
+        piranhaAttack_ = false;
+    }
+    // The school follows the player while attacking and fades (dives) away otherwise.
+    piranhaVis_ += ((piranhaAttack_ ? 1.0f : 0.0f) - piranhaVis_) * std::min(1.0f, dt * 2.5f);
+    if (piranhaVis_ > 0.01f) {
+        if (piranhaAttack_) piranhaCentre_ = player_.position;
+        for (int i = 0; i < kPiranhas; ++i) {
+            Piranha& f = piranha_[i];
+            f.angle += dt * (1.6f + 0.25f * float(i));
+            if (f.jump >= 0) f.jump += dt;
+            if (f.jump > 2.3f) f.jump = -1;
+            if (f.jump < 0 && piranhaAttack_ && frand() < dt * 0.25f) f.jump = 0;  // leaps at the player now and then
+        }
     }
     // Health regenerates after 4 s without damage.
     sinceDamage_ += dt;
@@ -1745,6 +1872,7 @@ bool GameApp::hasOriginalAssets() const { return assetWorld_ && assetWorld_->loa
 
 void GameApp::update(float dt, const InputFrame& in) {
     time_ += dt;
+    updateSun(dt);
     // Story progression: once a mission is complete and its outro has played, the screen fades to
     // the loading / briefing screen (as the original goes through its mission briefing), the next
     // mission loads behind it, and play continues on its own after a few seconds.
@@ -1840,6 +1968,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (cut) cutTypes = cutscene_->actorTypes();
     if (assetWorld_) assetWorld_->setHiddenTypes(cutTypes);
     if (assetWorld_ && assetWorld_->loaded()) assetWorld_->render(renderer_);
+    if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
     if (playMode_ && playerModel_ && !cut) playerModel_->render(renderer_, bodyXf_);
     if (playMode_ && gunValid_ && !cut) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
     if (rocketModel_)
@@ -1874,6 +2003,32 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         if (k > 0 && spitRing_[k])
             drawModel(spitRing_[k], Mat4::translation(b.pos + Vec3{0, 0.1f, 0}) * Mat4::scale(Vec3{1, 1, 1} * (2.0f + 10.0f * f) * big),
                       true, 1.0f - f);
+    }
+    for (const auto& f : waterFx_) {
+        SkinnedModel* m = f.kind == 0 ? splashFx_.get() : ringFx_.get();
+        if (!m) continue;
+        m->pose(renderer_, std::min(f.age, m->animDuration() * 0.999f));
+        m->render(renderer_, Mat4::translation(f.pos) * Mat4::scale(Vec3{1, 1, 1} * f.scale));
+    }
+    if (piranhaVis_ > 0.01f && pirSwim_) {
+        // Circling just under the surface; one now and then leaps (pir_swim_jump) toward the player.
+        pirSwim_->pose(renderer_, float(time_));
+        for (int i = 0; i < kPiranhas; ++i) {
+            const Piranha& f = piranha_[i];
+            const float r = 1.2f + 0.35f * float(i % 3);
+            const Vec3 at = piranhaCentre_ + Vec3{std::cos(f.angle) * r, 0, std::sin(f.angle) * r};
+            const float yaw = std::atan2(-(-std::sin(f.angle)), -std::cos(f.angle));  // swimming along the circle
+            const float depth = -0.25f - (1.0f - piranhaVis_) * 1.5f;
+            if (f.jump >= 0 && pirJump_) {
+                pirJump_->pose(renderer_, f.jump);
+                const Vec3 to = piranhaCentre_ - at;
+                pirJump_->render(renderer_, Mat4::translation(Vec3{at.x, depth, at.z}) *
+                                                Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, std::atan2(-to.x, -to.z))));
+                pirSwim_->pose(renderer_, float(time_));
+            } else {
+                pirSwim_->render(renderer_, Mat4::translation(Vec3{at.x, depth, at.z}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, yaw)));
+            }
+        }
     }
     for (const auto& g : gibs_)
         drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) *

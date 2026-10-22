@@ -201,6 +201,7 @@ void android_main(android_app* app) {
         bool eyesOk = true;
         if (frame.shouldRender) {
             game.renderer().resetStats();
+            game.renderShadows();
             for (int eye = 0; eye < 2; ++eye) {
                 const auto bind = xr.bindEyeFramebuffer(eye);
                 if (bind != gvr::XrApp::EyeBindResult::Ok) {
