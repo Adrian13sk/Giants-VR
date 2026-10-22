@@ -1267,7 +1267,7 @@ void GameApp::updateCombat(float dt) {
     // Next wave after the last Reaper has fallen.
     updateCharacters(dt);
     updateMission(dt);
-    if (enemies_.aliveCount() == 0 && !missionHostiles_) {
+    if (enemies_.aliveCount() == 0 && !missionHostiles_ && objectives_.empty()) {
         waveTimer_ += dt;
         if (waveTimer_ > 8.0f) { waveTimer_ = 0; spawnWave(); }
     } else {
@@ -1476,7 +1476,7 @@ void GameApp::update(float dt, const InputFrame& in) {
         rig_.teleportHead(in, assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
         if (playMode_) {
             teleportPlayer(assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
-            if (!missionHostiles_) spawnWave();  // test waves only where the mission has no enemies
+            if (!missionHostiles_ && objectives_.empty()) spawnWave();  // test waves only where the mission has no enemies or goals
             // The mission's opening cutscene (op 0x15), e.g. Baz's lander drop in 1a.
             const MissionData& m = assetWorld_->mission();
             // Test hook (headless): GVR_CUTSCENE=<first shot> plays that cutscene instead.
@@ -1506,6 +1506,17 @@ void GameApp::update(float dt, const InputFrame& in) {
             rig_.flyMode = !rig_.flyMode;
             LOGI("Fly/noclip mode %s", rig_.flyMode ? "ON" : "OFF");
             haptics_.push_back({mh, rig_.flyMode ? 0.9f : 0.3f, rig_.flyMode ? 0.15f : 0.05f});
+        }
+        // X (A when left-handed) in the free camera: skip to the next mission of the world (for
+        // testing later missions without replaying the earlier ones); back into play there.
+        if (missionEdge_.pressed(in.hand[mh].primary) && assetWorld_) {
+            std::string next = assetWorld_->nextMission();
+            if (next.empty() && !assetWorld_->missions().empty()) next = assetWorld_->missions().front();
+            if (!next.empty()) {
+                haptics_.push_back({mh, 0.7f, 0.1f});
+                loadMission(next);
+                setPlayMode(true, in);
+            }
         }
         rig_.update(dt, in);
     }

@@ -44,10 +44,22 @@ Please send the log. It shows the OpenXR runtime, extensions, swapchain sizes, t
 and an fps line every 5 seconds.
 
 ## Controls (current build)
-Story1 plays its first mission, "A Boy Called Timmy": you start without the jetpack (as in the
-original), Rippers guard Timmy's tower at the north end of the island. Kill them and reach the
-tower; the wrist shows one pip per objective. Timmy then gives you the jetpack. Worlds whose
-mission has no enemies fall back to waves of Reaper soldiers. Your health bar is on your left wrist; red flash = you were hit.
+Story1 plays its missions in order, as in the original:
+1. **1a "A Boy Called Timmy"** opens with the intro cutscene (Baz's lander drop). You start without the jetpack;
+   Rippers guard Timmy's tower at the north end of the island. Kill them and reach the tower; the wrist shows one pip
+   per objective. The jetpack cutscene follows and Timmy gives you the jetpack.
+2. **1b "The Wax Smarties"**: eight Smarties are stranded on an islet among rock pillars. Fly over, **reach for a
+   Smartie and squeeze the grip** to pick it up (either hand; you don't need to touch the floor, a hand above its head
+   works). Carry it to the Smartie pad and **let go of the grip** over the pad. One dropped in the water swims back to
+   the islet.
+3. **1c** and later: the mission's objectives (reach a place, kill marked enemies) work; story events in between
+   are not implemented yet.
+
+Cutscenes: watch from the shot's camera (you travel with it, the view never turns by itself); subtitles below the
+view. **Either trigger skips** (release it first if you were holding it when the cutscene started).
+In the free camera (B), **X skips to the next mission** (handy for testing 1b without replaying 1a).
+Worlds whose mission has no enemies or objectives fall back to waves of Reaper soldiers. Your health bar is on your
+left wrist; red flash = you were hit.
 
 You start as the **Meccaryn in first person**: his body is under you, his arms follow your
 controllers (grip = make a fist, trigger = curl the leading finger); the original Meccaryn gun is in your right hand. Walking around your room
@@ -56,13 +68,15 @@ moves him too.
 | Input | Play mode (Meccaryn) | Free camera |
 |---|---|---|
 | Left stick | Run (5 m/s) relative to where you look; sideways = sidestep, back = backpedal | Move |
-| Left grip (hold) | Sprint ×1.5 | Speed boost ×5 |
+| Left grip (hold) | Sprint ×1.5; near a Smartie: pick it up (release = let go) | Speed boost ×5 |
+| Right grip (hold) | Near a Smartie: pick it up (release = let go) | — |
 | Right stick left/right | Snap turn 30° | Snap turn 30° |
 | **Right trigger** | **Fire the Meccaryn gun** (hold for auto-fire, 5 shots/s) | Haptic test pulse |
 | **A** (hold) | **Jetpack**: thrust builds up speed gradually (up and forward); fuel lasts ~4 s and refills shortly after you stop (blue bar on the wrist) | — |
 | Right stick click | First ↔ third person (third: camera behind him) | — |
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
 | Y | — | Debug fly/noclip on/off (strong buzz = on) |
+| X | — | Next mission (loads it and returns to play) |
 | Left stick click | Toggle the engineering test geometry | same |
 | Long-press Oculus button | System recentre | same |
 

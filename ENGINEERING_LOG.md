@@ -481,3 +481,31 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - Jetpack (story1_jetpack_1…8, 39 s): Timmy with the jetpack, Baz with gun and flag, Timmy on Baz's back.
 - **Known gaps:** prop alignment for static props (`ref_handle` on the gun) is not applied; actor facial/hand detail
   depends on the shared skeleton; a few close cameras sit inside geometry at VR scale.
+
+### Mission 1b, story progression, sentries (2026-10-22)
+- **Mission data (gzptool `mission`):**
+  - 1b_1_catchsmarties: 8 Smarties (type 11, class 18, scale 1.33) with trigger 3 (destination arrival) on an islet
+    among rock pillars (`w_story1_hang`, about 1 m above the sea); the pad `sm_dropoff` is ~90 m away.
+  - Opening `story1_save_sm_1…15` (Timmy explains the wax Smarties); outro `story1_get_rpg1…9` (the RPG present).
+  - Mission text (GText `MO_1b_1_catchsmarties`): "Save the SMARTIES using your sexy new JETPACK. Drop them off on the
+    conveniently located SMARTIE PAD nearby. Watch out for hungry PIRANHAS in the water!"
+- **Carrying (ours, VR-native; the original's pick-up rules are native code):** reach with either hand and squeeze the
+  grip. The reach test allows a hand up to 1.6 m above the Smartie's head, so nobody has to touch the floor. Release to
+  let go: it falls with the hand's motion (capped at 6 m/s). On the pad it is saved (the objective); in the water it
+  returns to the islet after 3 s.
+  - Original clips: sm_wave, sm_squirm, sm_fall, sm_celebrate, sm_drowned.
+  - Original sounds: me_smton / me_smtof / me_smtdp (Meccaryn pick up / let go / drop off), gsmNN_1/_2 Smartie voice
+    pairs (our use: pick-up line, thank-you), se_splsh, pi_swrm1/2 (piranhas).
+  - `RescueDirector` is unit tested (grab with the reach-down assist, carry, save on the pad, splash and return,
+    out of reach).
+- **Progression:** `AssetWorld` lists the world's missions in scenario order and `selectMission()` rebuilds the level
+  state. After a mission's outro the next mission loads (1a → 1b → 1c_1 → 1c_2 …). In the free camera, X skips to the
+  next mission. `GVR_MISSION=<name>` starts a given mission (headless).
+- **Headless:** `GVR_AUTO_RESCUE=1 GVR_MISSION=1b_1_catchsmarties`: 8/8 saved → "Mission complete" → story1_get_rpg
+  outro → 1c_1_firstmecc loads (181 objects, 24 Rippers, 1 objective). First-person grab via `--grip-window` and
+  `--hand-path`: "Smartie 0 picked up (right hand)".
+- **Mounted sentries:** 1c_2/1d_1 put Reaper grunts on guard towers (op 0x16 mount, point 255). They now stand on the
+  tower's highest walkable surface (the crow's nest, found with the collision floor query below the model's top) and
+  fire from there without moving (`Enemy::posted`). Other mounts (Tel in his crashed plane on hardpoint 0, carried
+  items) are still not shown: hardpoint positions are in undecoded data.
+- No test Reaper waves in missions that have objectives.
