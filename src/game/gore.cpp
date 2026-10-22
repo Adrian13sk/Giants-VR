@@ -118,10 +118,12 @@ void CleanerDirector::call(uint32_t id, const Vec3& at, int count, float fromYaw
         c.target = id;
         c.targetPos = at;
         const float a = fromYaw + (rnd() - 0.5f) * 1.6f;
-        const float r = spawnDistance * (0.8f + 0.4f * rnd());
+        const float r = spawnDistance * (0.8f + 1.0f * rnd());  // a swarm arriving over a few seconds
         c.pos = at + Vec3{-std::sin(a) * r, 0, -std::cos(a) * r};
         if (groundHeight) c.pos.y = groundHeight(c.pos.x, c.pos.z);
-        c.offset = float(i) * 2.4f + rnd();
+        c.offset = float(i) * (6.2832f / float(std::max(1, count))) + 0.5f * rnd();
+        c.ring = 0.45f + 0.4f * rnd();
+        c.share = 1.0f / float(std::max(1, count));
         c.anim = rnd() * 2.0f;
         cleaners.push_back(c);
     }
@@ -143,7 +145,7 @@ void CleanerDirector::update(float dt, const std::function<bool(uint32_t, Vec3&)
         switch (c.state) {
             case CleanerState::Approach: {
                 // To a spot at the body's side (each Cleaner its own), scuttling straight there.
-                const Vec3 spot = c.targetPos + Vec3{std::cos(c.offset) * 0.55f, 0, std::sin(c.offset) * 0.55f};
+                const Vec3 spot = c.targetPos + Vec3{std::cos(c.offset) * c.ring, 0, std::sin(c.offset) * c.ring};
                 Vec3 to{spot.x - c.pos.x, 0, spot.z - c.pos.z};
                 const float d = std::sqrt(to.x * to.x + to.z * to.z);
                 if (d < 0.15f || c.t > 25.0f) {
@@ -164,7 +166,7 @@ void CleanerDirector::update(float dt, const std::function<bool(uint32_t, Vec3&)
             }
             case CleanerState::Eat:
                 c.speed = 0;
-                eaten.push_back({c.target, dt / (2.0f * eatTime)});
+                eaten.push_back({c.target, dt * c.share / eatTime});
                 break;
             case CleanerState::Leave: {
                 c.speed = walkSpeed * 1.2f;

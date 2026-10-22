@@ -1029,7 +1029,7 @@ void GameApp::initGore(AssetWorld* w, ModelCache* mc) {
         const char* rc[4] = {"rpman_chunk_head.gbs", "rpman_chunk_body.gbs", "rpman_chunk_main.gbs", "rpman_chunk_hand.gbs"};
         for (int k = 0; k < 4; ++k) reaperChunk_[k] = mc->get(rc[k], "", /*dynamicLit=*/true);
         for (int k = 0; k < 6; ++k) meccChunk_[k] = mc->get("MC_chunk" + std::to_string(k + 1) + ".gbs", "", true);
-        for (int k = 0; k < 6; ++k) {
+        for (int k = 0; k < 18; ++k) {  // three swarms at a time
             auto m = std::make_unique<SkinnedModel>();
             if (!m->load(w->fs(), *mc, renderer_, "cleaner_l0", "cleaner_walk.anm")) break;
             m->addAnimation(w->fs(), "cleaner_eat.anm");
@@ -1166,10 +1166,10 @@ void GameApp::updateGore(float dt) {
         if (called || age < 14.0f || length(pos - player_.position) > 60.0f || cleanerPool_.empty()) return;
         float h;
         if (pos.y < -0.4f || !assetWorld_->terrain().heightAt(pos.x, pos.z, h)) return;  // in the sea: the piranhas' (below)
-        size_t busy = 0;
-        for (const auto& c : cleaners_.cleaners) busy += 1;
-        const int want = size > 0.8f ? 2 : 1;
-        if (busy + size_t(want) > cleanerPool_.size()) return;
+        // A swarm: five or six to a Reaper, three or four to a small Ripper (device test 20: more).
+        const size_t busy = cleaners_.cleaners.size();
+        const int want = std::min(int(cleanerPool_.size() - std::min(busy, cleanerPool_.size())), (size > 0.8f ? 5 : 3) + int(frand() * 1.99f));
+        if (want < 2) return;
         called = true;
         cleaners_.call(uid, pos, want, frand() * 6.28f);
         LOGI("Cleaners called to body %u", uid);
@@ -1473,7 +1473,13 @@ void GameApp::updateTimmy() {
     Mat4 hb, centre;
     timmy_->pose(renderer_, float(time_));
     if (!playerModel_->nodeWorld("ref_holsterb", hb) || !timmy_->nodeWorld("center", centre)) return;
-    timmyXf_ = bodyXf_ * gameMatrixToRuntime(hb) * gameMatrixToRuntime(centre).affineInverse();
+    // Only the position comes from the bones: his 'center' on Baz's Ref_HolsterB. The orientation is
+    // Baz's own (both models face -Y), so he rides piggyback looking ahead over the shoulder; the
+    // bones' own rotations turned him sideways (device test 20).
+    const Vec3 hbPos = giantsToRuntime(hb.m[12], hb.m[13], hb.m[14]);
+    const Vec3 cPos = giantsToRuntime(centre.m[12], centre.m[13], centre.m[14]);
+    // (sm_mount's posed body faces backwards in its model frame: turned round to face ahead.)
+    timmyXf_ = bodyXf_ * Mat4::translation(hbPos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, kPi)) * Mat4::translation(cPos * -1.0f);
     timmyOn_ = true;
     // The Timmy who stood on his tower in 1a is now on the back.
     for (auto& c : chars_)
@@ -2807,10 +2813,10 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     }
     if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
     if (playMode_ && playerModel_ && !cut && !playerGibbed_) playerModel_->render(renderer_, bodyXf_);
-    // Timmy on the back: in first person only when he isn't right in front of the eyes.
-    if (playMode_ && timmyOn_ && !cut &&
-        (!firstPerson_ || length(Vec3{timmyXf_.m[12], timmyXf_.m[13], timmyXf_.m[14]} - v.eyePosition) > 0.45f))
-        timmy_->render(renderer_, timmyXf_);
+    // Timmy on the back: seen in third person (and in reflections and shadows). In first person he
+    // sits right behind your head and the body turns with it, so he'd only ever flicker at the edge
+    // of view: not drawn there.
+    if (playMode_ && timmyOn_ && !cut && !firstPerson_) timmy_->render(renderer_, timmyXf_);
     if (playMode_ && gunValid_ && !cut && !dying_) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
     if (rocketModel_)
         for (const auto& r : rockets_) {

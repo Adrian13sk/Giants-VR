@@ -69,6 +69,8 @@ struct Cleaner {
     uint32_t target = 0;  // corpse id
     Vec3 targetPos;
     float offset = 0;     // angle around the body where it eats
+    float ring = 0.55f;   // and how far from its middle
+    float share = 0.5f;   // its part of eating the body (1 / how many came)
     float sink = 0;       // leaving: digs away into the ground
     bool remove = false;
     int slot = -1;        // model (owned by the game app)
@@ -84,8 +86,8 @@ class CleanerDirector {
 public:
     std::function<float(float, float)> groundHeight;
     float walkSpeed = 1.6f;        // m/s (scaled by the walk clip's playback)
-    float eatTime = 9.0f;          // s: two Cleaners eat a body in about this long
-    float spawnDistance = 9.0f;    // m from the body
+    float eatTime = 12.0f;         // s: a swarm eats a body in about this long
+    float spawnDistance = 9.0f;    // m from the body (they trickle in from 7 to 16 m)
     std::vector<Cleaner> cleaners;
 
     // Sends `count` Cleaners to body `id` at `at`, approaching from `fromYaw` (radians, any).
