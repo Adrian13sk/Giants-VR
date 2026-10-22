@@ -149,7 +149,7 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         return true;
     };
     for (const auto& a : shot_.actors) {
-        if (a.type < 0 || a.node.empty()) continue;
+        if (a.type < 0 || a.node.empty() || a.parentActor >= 0) continue;
         const std::string model = reg_.modelName(uint32_t(a.type));
         if (model.empty()) { LOGW("Cutscene %s: actor %s (type %d) has no model", name.c_str(), a.node.c_str(), a.type); continue; }
         place(a, model, reg_.modelAnim(uint32_t(a.type)), false);
@@ -162,6 +162,35 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         a.node = tables[size_t(t)].owner.empty() ? "meccaryn" : tables[size_t(t)].owner;
         a.type = -2;
         place(a, "mc_l0", "mc_stand.anm", true);
+    }
+    // Props carried by actors (op 3): the jetpack in Timmy's hand, Baz's gun, Timmy riding on
+    // Baz's back, the lander's engine flames. Placed on the carrier's bone each frame.
+    for (const auto& a : shot_.actors) {
+        if (a.parentActor < 0 || a.type < 0) continue;
+        int carrier = -1;
+        for (size_t k = 0; k < actors_.size(); ++k)
+            if (actors_[k].info.index == a.parentActor && actors_[k].skinned) carrier = int(k);
+        if (carrier < 0) continue;
+        const std::string model = reg_.modelName(uint32_t(a.type));
+        if (model.empty()) continue;
+        Actor act;
+        act.info = a;
+        act.parent = carrier;
+        act.parentNode = lower(a.parentNode);
+        std::string anim = reg_.modelAnim(uint32_t(a.type));
+        // The 4th field names either the prop's own clip (".anm") or its node aligned to the bone.
+        if (!a.anim.empty() && fs_.exists(a.anim + ".anm")) anim = a.anim + ".anm";
+        else act.align = lower(a.anim);
+        if (anim.empty() && fs_.exists(model + ".anm")) anim = model + ".anm";
+        if (fs_.exists(model + ".skn") && !anim.empty()) {
+            auto sm = std::make_unique<SkinnedModel>();
+            if (sm->load(fs_, models_, r_, model, anim)) { act.clip = 0; act.skinned = std::move(sm); }
+        }
+        if (!act.skinned) act.model = models_.get(model + ".gbs", anim, true);
+        if (!act.skinned && !act.model) continue;
+        LOGI("Cutscene %s: prop %s (type %d) on %s.%s", name.c_str(), model.c_str(), a.type,
+             actors_[size_t(carrier)].info.node.c_str(), a.parentNode.c_str());
+        actors_.push_back(std::move(act));
     }
     // Viewpoint: the camera at the start of the shot, facing its target (or view axis).
     dir.evaluate(0.0f, world_);
@@ -225,6 +254,7 @@ void CutscenePlayer::update(float dt) {
         eyeNow_ = giantsToRuntime(m.m[12], m.m[13], m.m[14]);
     }
     for (auto& a : actors_) {
+        if (a.parent >= 0) continue;  // props: second pass, once their carriers are posed
         Mat4 base = Mat4::identity();
         if (a.mover >= 0) base = world_[size_t(a.mover)];
         if (a.skinned) {
@@ -234,11 +264,31 @@ void CutscenePlayer::update(float dt) {
             a.xf = gameMatrixToRuntime(a.node >= 0 ? world_[size_t(a.node)] : base);
         }
     }
+    updateProps(t);
+}
+
+void CutscenePlayer::updateProps(float t) {
+    for (auto& a : actors_) {
+        if (a.parent < 0) continue;
+        const Actor& c = actors_[size_t(a.parent)];
+        Mat4 bone;
+        a.visible = c.skinned && c.skinned->nodeWorld(a.parentNode, bone);
+        if (!a.visible) continue;
+        Mat4 local = gameMatrixToRuntime(bone);
+        if (a.skinned) {
+            const float d = a.skinned->animDuration(0);
+            a.skinned->pose(r_, d > 0 ? std::fmod(t, d) : 0.0f);
+            Mat4 al;
+            if (!a.align.empty() && a.skinned->nodeWorld(a.align, al)) local = local * gameMatrixToRuntime(al).affineInverse();
+        }
+        a.xf = c.xf * local;
+    }
 }
 
 void CutscenePlayer::render() {
     if (!active_) return;
     for (const auto& a : actors_) {
+        if (!a.visible) continue;
         if (a.skinned) {
             a.skinned->render(r_, a.xf);
         } else if (a.model) {

@@ -126,6 +126,23 @@ struct Mat4 {
         r.m[8] = 2 * (xz + wy);     r.m[9] = 2 * (yz - wx);     r.m[10] = 1 - 2 * (xx + yy);
         return r;
     }
+    // Inverse of an affine matrix (3x3 linear part + translation; scale/mirror allowed).
+    Mat4 affineInverse() const {
+        const float a = m[0], b = m[4], c = m[8], d = m[1], e = m[5], f = m[9], g = m[2], h = m[6], i = m[10];
+        const float A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g;
+        const float det = a * A + b * B + c * C;
+        Mat4 r = identity();
+        if (det == 0.0f) return r;
+        const float id = 1.0f / det;
+        r.m[0] = A * id;                 r.m[4] = -(b * i - c * h) * id; r.m[8] = (b * f - c * e) * id;
+        r.m[1] = B * id;                 r.m[5] = (a * i - c * g) * id;  r.m[9] = -(a * f - c * d) * id;
+        r.m[2] = C * id;                 r.m[6] = -(a * h - b * g) * id; r.m[10] = (a * e - b * d) * id;
+        const float tx = m[12], ty = m[13], tz = m[14];
+        r.m[12] = -(r.m[0] * tx + r.m[4] * ty + r.m[8] * tz);
+        r.m[13] = -(r.m[1] * tx + r.m[5] * ty + r.m[9] * tz);
+        r.m[14] = -(r.m[2] * tx + r.m[6] * ty + r.m[10] * tz);
+        return r;
+    }
     static Mat4 fromPose(const Pose& p) { return translation(p.position) * rotation(p.orientation); }
     static Mat4 trs(const Vec3& t, const Quat& q, const Vec3& s) {
         return translation(t) * rotation(q) * scale(s);

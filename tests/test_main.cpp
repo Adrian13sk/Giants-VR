@@ -820,6 +820,13 @@ static void testMusic() {
     CHECK(f.size() == 2 && std::fabs(f[0] - 0.5f) < 1e-6f && std::fabs(f[1] + 0.5f) < 1e-6f);
 }
 
+static void testAffineInverse() {
+    using namespace gvr;
+    const Mat4 m = Mat4::trs({1, 2, 3}, Quat::fromAxisAngle({0.3f, 1, 0.2f}, 0.7f), {2, -1.5f, 0.5f});
+    const Mat4 p = m * m.affineInverse();
+    for (int k = 0; k < 16; ++k) CHECK(std::fabs(p.m[k] - Mat4::identity().m[k]) < 1e-4f);
+}
+
 static void testGameText() {
     using namespace gvr;
     // n=2, keys "A_1\0b\0", values "Hello\0World\0"
@@ -842,6 +849,7 @@ static void testGameText() {
 
 int main() {
     testGameText();
+    testAffineInverse();
     testGti();
     testWorldBin();
     testMission();

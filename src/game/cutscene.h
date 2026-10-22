@@ -59,9 +59,13 @@ private:
         int mover = -1;   // director node carrying the actor's tree (or -1)
         int node = -1;    // director node for a static actor
         int table = -1;   // director node table driving the actor
+        int parent = -1;  // attached (op 3): index into actors_ of the carrier
+        std::string parentNode, align;  // carrier bone; own node aligned to it ("ref_handle")
         Mat4 xf = Mat4::identity();  // runtime transform this frame
+        bool visible = true;
     };
     bool loadShot(const std::string& name);
+    void updateProps(float t);
     const AssetFS& fs_;
     ModelCache& models_;
     Renderer& r_;
