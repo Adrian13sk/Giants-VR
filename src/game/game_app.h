@@ -332,6 +332,14 @@ private:
     bool haveFov_ = false;
     void renderReflection();
     void renderShadowMap();
+    // Adaptive quality: if the headset can't keep its frame rate (average frame time over a few
+    // seconds), effects step down: 0 full, 1 reflection every 3rd frame, 2 no reflection, 3 no shadows.
+    int quality_ = 0;
+    uint32_t frameNo_ = 0;
+    bool reflFresh_ = false;  // the reflection texture holds a usable recent frame
+    float perfTime_ = 0;
+    int perfFrames_ = 0;
+    void updateQuality(float dt);
     // Timmy rides on Baz's back (Ref_HolsterB, his own sm_mount clip) once Baz has the jetpack:
     // the Story 1 cutscenes after the hand-over carry him there (story1_jetpack_6/8, get_rpg9/10,
     // hatch_into_tel) and no later Story 1 mission places him anywhere else.

@@ -637,6 +637,10 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "rpman_hit1", "rpman_hit2", "rpman_hit3", "rpman_hit4", "rpman_die1", "rpman_die2", "rpman_die3",
         "rpman_die4", "rpman_die5", "me_shrt1", "me_shrt2", "me_shrt3", "me_jpkst", "me_jpklp", "me_jpken",
         "me_jpkno", "me_fsgr1", "me_fsgr2", "me_hdfl1", "me_hdfl2", "me_sld1", "me_slden",
+        // Footsteps by surface, the swimming loop.
+        "me_fsgr1", "me_fsgr2", "me_fssa1", "me_fssa2", "me_fsst1", "me_fsst2", "me_fswd1", "me_fswd2", "me_fswa1", "me_fswa2", "me_swmlp",
+        // Cleaners eating a body.
+        "cl_eatst", "cl_eatlp", "cl_eaten",
         // Rippers: rs_ small, rm_ medium, rl_ large (inferred from the names and the three Ripper types).
         "rs_attk1", "rs_attk2", "rs_chitt", "rs_deat1", "rs_deat2", "rs_feet", "rs_injr1", "rs_injr2",
         "rm_atfr1", "rm_atfr2", "rm_attk1", "rm_chitt", "rm_deat1", "rm_deat2", "rm_feet", "rm_frexp", "rm_inj01",
@@ -680,6 +684,7 @@ void GameApp::updateAudio(float dt) {
     if (!playMode_) {
         if (jetLoop_) { audio_->stop(jetLoop_); jetLoop_ = 0; }
         if (slideLoop_) { audio_->stop(slideLoop_); slideLoop_ = 0; }
+        if (swimLoop_) { audio_->stop(swimLoop_); swimLoop_ = 0; }
         return;
     }
     // Jetpack: start, loop while thrusting, end; a sputter when the tank runs dry.
@@ -717,9 +722,26 @@ void GameApp::updateAudio(float dt) {
         const float dur = std::max(0.1f, playerModel_->animDuration(clip_[int(pa)]));
         // Half-cycle counter: a footstep each time the clip enters a new half (either direction).
         const float halfIndex = std::floor(player_.animTime() / dur * 2.0f);
-        if (halfIndex != prevRunPhase_) sfx2D(int(halfIndex) & 1 ? "me_fsgr2" : "me_fsgr1", 0.3f, 0.95f + 0.1f * frand());
+        if (halfIndex != prevRunPhase_) {
+            // The original footstep sets by surface (me_fs + gr grass, sa sand, st stone, wd wood,
+            // wa water): water when wading, wood on structures (bridges, walkways), sand on the
+            // beach just above the sea, grass elsewhere. Louder than before (device test 19).
+            const bool wade = player_.position.y < player_.seaLevel - 0.05f;
+            const char* set = wade ? "wa" : (player_.onObject() ? "wd" : (player_.position.y < player_.seaLevel + 1.5f ? "sa" : "gr"));
+            const std::string n = std::string("me_fs") + set + ((int(halfIndex) & 1) ? "2" : "1");
+            sfx2D(n.c_str(), wade ? 0.9f : 0.75f, 0.95f + 0.1f * frand());
+            if (wade) {  // a splash at the foot
+                const Quat r = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
+                const Vec3 foot = player_.position + r.rotate(Vec3{(int(halfIndex) & 1) ? 0.2f : -0.2f, 0, -0.2f});
+                waterFx_.push_back({Vec3{foot.x, 0.02f, foot.z}, 0.0f, 0, 0.35f});
+            }
+        }
         prevRunPhase_ = halfIndex;
     }
+    // Swimming: the stroke loop while moving in deep water.
+    const bool strokes = player_.swimming() && player_.horizontalSpeed() > 0.3f;
+    if (strokes && !swimLoop_) swimLoop_ = audio_->play2D("me_swmlp", 0.6f, 1.0f, true);
+    if (!strokes && swimLoop_) { audio_->stop(swimLoop_); swimLoop_ = 0; }
     // Reaper footsteps while running.
     if (slotStep_.size() != enemyPool_.size()) slotStep_.assign(enemyPool_.size(), 0.0f);
     for (const auto& e : enemies_.enemies) {
@@ -728,7 +750,7 @@ void GameApp::updateAudio(float dt) {
         t -= dt;
         if (t <= 0) {
             t = 0.3f;
-            if (length(e.pos - player_.position) < 30.0f) sfx("rh_fsld1", e.pos, 0.5f, 0.9f + 0.2f * frand());
+            if (length(e.pos - player_.position) < 30.0f) sfx("rh_fsld1", e.pos, 0.75f, 0.9f + 0.2f * frand());
         }
     }
 }
@@ -870,6 +892,10 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         LOGI("Ripper nests: %zu, %d pooled Rippers", nests_.size(), pool);
     }
     rescue_.groundHeight = enemies_.groundHeight;
+    if (const char* h = std::getenv("GVR_SMARTIE_HOLD")) {  // test hook: how long Smarties hang on (s)
+        rescue_.holdMin = rescue_.holdMax = float(std::atof(h));
+        for (auto& sm : rescue_.smarties) sm.holdFor = rescue_.holdMin;
+    }
     rescue_.hasPad = !rescue_.smarties.empty() && w->objectBounds("sm_dropoff", rescue_.padMin, rescue_.padMax);
     if (rescue_.hasPad) {
         // The pad's footprint plus a little: a Smartie set down on its edge counts.
@@ -1309,7 +1335,7 @@ void GameApp::updateCharacters(float dt) {
             if (ci.stepTimer <= 0) {
                 ci.stepTimer = 0.45f;
                 const char* feet[3] = {"rs_feet", "rm_feet", "rl_feet"};
-                sfx(feet[int(ci.size)], c.pos, 0.35f, 0.9f + 0.2f * frand());
+                sfx(feet[int(ci.size)], c.pos, 0.55f, 0.9f + 0.2f * frand());
             }
         }
     }
@@ -1415,6 +1441,7 @@ void GameApp::renderShadows(const EyeRenderInfo& left, const EyeRenderInfo& righ
 }
 
 void GameApp::renderShadowMap() {
+    if (quality_ >= 3) { renderer_.setShadowsActive(false); return; }
     if (!shadowsOn_ || !assetWorld_ || !assetWorld_->loaded()) { renderer_.setShadowsActive(false); return; }
     const Vec3 centre = playMode_ ? player_.position : rig_.worldFromTracking.position;
     const float half = 24.0f;  // 48 m square around the player, ~2.3 cm texels at 2048
@@ -1453,7 +1480,27 @@ void GameApp::updateTimmy() {
         if (c.ambient && c.type == timmyType_) c.visible = false;
 }
 
+void GameApp::updateQuality(float dt) {
+    if (dt <= 0 || dt > 0.05f || load_.phase != LoadPhase::Idle || cutsceneActive()) return;  // hitches while loading don't count
+    perfTime_ += dt;
+    ++perfFrames_;
+    if (perfTime_ < 4.0f) return;
+    const float avg = perfTime_ / float(perfFrames_);
+    if (avg > 1.0f / 65.0f && quality_ < 3) {
+        ++quality_;
+        LOGW("perf: %.1f fps average, effects quality down to level %d", 1.0f / avg, quality_);
+    }
+    perfTime_ = 0;
+    perfFrames_ = 0;
+}
+
 void GameApp::renderReflection() {
+    ++frameNo_;
+    // Every other frame (every third at quality 1); the last one is reused in between.
+    const uint32_t every = quality_ >= 1 ? 3u : 2u;
+    if (quality_ >= 2) { renderer_.setReflectionActive(false); return; }
+    if (frameNo_ % every != 0 && reflFresh_) return;
+    reflFresh_ = false;
     renderer_.setReflectionActive(false);
     if (!reflOn_ || !haveFov_ || !assetWorld_ || !assetWorld_->loaded() || !lastInput_.headValid) return;
     if (load_.phase != LoadPhase::Idle && load_.phase != LoadPhase::FadeOut) return;
@@ -1506,6 +1553,7 @@ void GameApp::renderReflection() {
     if (cut) cutscene_->render();
     renderer_.endReflectionPass();
     renderer_.setReflectionActive(true);
+    reflFresh_ = true;
     static int logged = 0;
     if (logged < 3) { ++logged; LOGI("Reflection pass: %u draw calls", renderer_.drawCallsThisFrame() - calls0); }
 }
@@ -2647,6 +2695,7 @@ bool GameApp::hasOriginalAssets() const { return assetWorld_ && assetWorld_->loa
 
 void GameApp::update(float dt, const InputFrame& in) {
     time_ += dt;
+    updateQuality(dt);
     updateSun(dt);
     // Story progression: once a mission is complete and its outro has played, the screen fades to
     // the loading / briefing screen (as the original goes through its mission briefing), the next

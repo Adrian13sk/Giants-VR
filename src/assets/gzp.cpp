@@ -276,6 +276,9 @@ int AssetFS::mountAllArchives(const std::string& dir) {
     }
     closedir(d);
     std::sort(names.begin(), names.end());
+    // aanoeng.gzp holds language-neutral versions of signs (the drop-off pads, shop signs): the
+    // English ones stay, so it goes last (lowest priority).
+    std::stable_partition(names.begin(), names.end(), [](const std::string& n) { return toLower(n) != "aanoeng.gzp"; });
     int mounted = 0;
     for (const auto& n : names) {
         std::string err;
@@ -289,7 +292,7 @@ bool AssetFS::read(const std::string& name, std::vector<uint8_t>& out) const {
     for (size_t i = dirs_.size(); i-- > 0;)
         if (readFile(resolve(i, name), out)) return true;
     // Archives in name order, the first holding the file wins: the override packs are named to
-    // sort first (aablood.gzp: red blood over the green in xx_efx.gzp; arpfix.gzp; aanoeng.gzp).
+    // sort first (aablood.gzp: red blood over the green in xx_efx.gzp; arpfix.gzp).
     for (auto it = archives_.begin(); it != archives_.end(); ++it) {
         if (const GzpEntry* e = it->find(name)) {
             std::string err;

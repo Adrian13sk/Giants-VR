@@ -71,12 +71,16 @@ void RescueDirector::update(float dt, const Vec3 hands[2], const float grip[2], 
             for (size_t i = 0; i < smarties.size(); ++i) {
                 const RescueSmartie& s = smarties[i];
                 const bool hanging = s.state == SmartieState::Hanging;
-                if (s.state != SmartieState::Idle && s.state != SmartieState::Falling && !hanging) continue;
+                // Also out of the water while the piranhas are at it (walkthrough: touch them
+                // in the air or in the water, quickly).
+                const bool drowning = s.state == SmartieState::Drowning && s.stateTime < 3.5f;
+                if (s.state != SmartieState::Idle && s.state != SmartieState::Falling && !hanging && !drowning) continue;
                 const float dx = hands[h].x - s.pos.x, dz = hands[h].z - s.pos.z;
                 const float horiz = std::sqrt(dx * dx + dz * dz);
                 const float above = hands[h].y - (s.pos.y + s.height);
                 if (horiz > reach) continue;
-                if (hanging ? (above > 0.4f || hands[h].y < s.pos.y - 0.4f) : (above > reachAbove || hands[h].y < s.pos.y - 0.3f))
+                if (hanging ? (above > 0.4f || hands[h].y < s.pos.y - 0.4f)
+                            : (above > reachAbove || hands[h].y < s.pos.y - (drowning ? 1.0f : 0.3f)))
                     continue;
                 const float d = horiz + std::max(0.0f, above) * 0.5f;
                 if (d < bestD) { bestD = d; best = int(i); }
@@ -184,8 +188,8 @@ void RescueDirector::update(float dt, const Vec3 hands[2], const float grip[2], 
             case SmartieState::Drowning:
                 // The piranhas: it thrashes, then is pulled under.
                 s.clip = SmartieClip::Drowned;
-                if (s.stateTime > 2.0f) s.pos.y -= 0.6f * dt;
-                if (s.stateTime > 4.0f) {
+                if (s.stateTime > 3.5f) s.pos.y -= 0.6f * dt;
+                if (s.stateTime > 5.0f) {  // walkthrough: devoured after about five seconds
                     s.state = SmartieState::Gone;
                     s.stateTime = 0;
                     events.push_back({SmartieEvent::Died, int(i), -1, s.pos});

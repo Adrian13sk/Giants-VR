@@ -171,7 +171,7 @@ void main() {
             highp vec4 cx = uReflMat * vec4(X, 1.0);
             highp vec2 uv = cx.xy / cx.w * 0.5 + 0.5 + g * 0.06;
             vec4 rc = texture(uReflTex, clamp(uv, vec2(0.002), vec2(0.998)));
-            refl = mix(refl, rc.rgb, rc.a);
+            refl = mix(refl, min(rc.rgb, vec3(1.4)), rc.a);  // the sun disc reflected: bright, not a white blot
         }
         float sh = sunShadow(vWorldPos, vec3(0.0, 1.0, 0.0));
         float spec = pow(max(dot(r, -uSunDir), 0.0), 260.0) * sh;

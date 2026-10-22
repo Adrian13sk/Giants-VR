@@ -50,18 +50,22 @@ Story1 plays its missions in order, as in the original:
 1. **1a "A Boy Called Timmy"** opens with the intro cutscene (Baz's lander drop). You start without the jetpack;
    Rippers guard Timmy's tower at the north end of the island. Kill them and reach the tower; the wrist shows one pip
    per objective. The jetpack cutscene follows and Timmy gives you the jetpack.
-2. **1b "The Wax Smarties"**: eight Smarties are stranded on an islet among rock pillars. Fly over, **reach for a
-   Smartie and squeeze the grip** to pick it up (either hand; you don't need to touch the floor, a hand above its head
-   works). Carry it to the Smartie pad and **let go of the grip** over the pad. One dropped in the water swims back to
-   the islet.
+2. **1b "The Wax Smarties"**: Smarties hang from the rock pillars and can only hold on for a while. Fly over,
+   **reach for a Smartie and squeeze the grip** to pick it up (either hand). Carry it to the Smartie pad and
+   **let go of the grip** over the pad. **Four saved** completes the mission (as the briefing says). One that falls
+   in the water is eaten by the piranhas within about five seconds: grab it out quickly. Another hangs there later.
 3. **1c** and later: the mission's objectives (reach a place, kill marked enemies) work; story events in between
    are not implemented yet.
 
-Cutscenes: watch from the shot's camera (you travel with it, the view never turns by itself); subtitles below the
-view. **Either trigger skips** (release it first if you were holding it when the cutscene started).
+Cutscenes: watch from the shot's camera (you travel with it, the view never turns by itself); subtitles follow
+your head, just below the line of sight. **Either trigger skips** (release it first if you were holding it when the cutscene started).
 In the free camera (B), **X skips to the next mission** (handy for testing 1b without replaying 1a).
 Worlds whose mission has no enemies or objectives fall back to waves of Reaper soldiers. Your health bar is on your
-left wrist; red flash = you were hit.
+left wrist; red flash = you were hit. When you die you see your body (fallen, gone under in the water, or blown
+apart), then the screen fades and you start again at the mission's start.
+
+Deep water floats you (no diving) and the piranhas come after a moment; get out or jetpack away. Bodies stay where
+they fall until the Cleaners come to eat them; shoot a body to burst it or tear it apart.
 
 You start as the **Meccaryn in first person**: his body is under you, his arms follow your
 controllers (grip = make a fist, trigger = curl the leading finger); the original Meccaryn gun is in your right hand. Walking around your room
@@ -80,7 +84,7 @@ moves him too.
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
 | Y | — | Debug fly/noclip on/off (strong buzz = on) |
 | X | — | Next mission (loads it and returns to play) |
-| Left stick click | Toggle the engineering test geometry | same |
+| **Left stick click (hold)** | **Mission briefing** over the world while held (title, objectives, progress) | Toggle the engineering test geometry |
 | Long-press Oculus button | System recentre | same |
 
 Comfort defaults: snap turn, 3 m/s movement, no head bob, no camera shake. A smooth-turn and

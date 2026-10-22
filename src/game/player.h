@@ -68,6 +68,7 @@ public:
     // can't dive) and swims at swimSpeed. seaLevel -1e9 = no water.
     float seaLevel = -1e9f, floatDepth = 1.35f, swimSpeed = 2.4f;
     bool swimming() const { return swimming_; }
+    bool onObject() const { return onObject_; }  // standing on a structure (bridge, walkway, roof)
     const CollisionWorld* collision = nullptr;  // level objects (optional)
     float radius = 0.35f, height = 1.8f, stepUp = 0.45f;  // capsule (m)
 
