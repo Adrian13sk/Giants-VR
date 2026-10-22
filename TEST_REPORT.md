@@ -237,3 +237,19 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 - **Not device-tested:** everything above. Need from the next device test: the jetpack feel (thrust 22, air speed 10,
   fuel 5 s), fall damage levels, HUD size and legibility at the wrist, the push-into-chest threshold, and frame rate
   during a tower collapse.
+
+## Device test 22 — 2026-10-22, user's Quest 2 (build 36320d3)
+- **DEVICE VERIFIED:** health injections ("work flawlessly"); no frame drops (destruction, particles, HUD).
+- **Reported:** no gradual burn on damaged trees/buildings; launcher not held by its handle; no rocket self-damage;
+  Ripper hitboxes; blue spit too weak; forward flight pose reversed; landing clip on small drops, glitching;
+  not enough fuel for 1b's broken bridges.
+
+## Host verification — build 845cb14 (APK sha256 16d11cff…)
+- `gvr_tests`: all pass (new: landing thresholds and one-shot clip, Ripper hit box, burn textures).
+- Harness:
+  - a Smartie house after 0/1/2 rocket blasts: char spreading; the palm next to it glowing with embers;
+  - the launcher held at its wooden grip (FP);
+  - forward flight lean;
+  - self-damage at 1/2/5 m: 26/14/0;
+  - a Ripper hit box of 1.3 × 1.46 × 1.9 m logged.
+- **Not device-tested.**

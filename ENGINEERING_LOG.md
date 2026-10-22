@@ -715,3 +715,49 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   - FP injection: health 30 → 80, 2 → 1;
   - TP injection animation sheet; pickup collected in 1c.
 - **Not device-tested.**
+
+### Device test 22 feedback → damage look, launcher grip, self-damage, Rippers, jetpack (2026-10-22, build 845cb14)
+- **Reported (build 36320d3):**
+  - Injections work flawlessly; no frame drops.
+  - Trees fall right, but trees and buildings need a gradual burnt look as they take damage.
+  - The launcher isn't held by its handle.
+  - The player's own rockets should hurt him, less the further away they burst.
+  - Ripper hitboxes are off; big blue-spit Rippers should do more damage.
+  - Flying forward shows the legs-up, flying-backwards pose.
+  - Small drops play the landing animation, and it glitches.
+  - In level 2 (1b) the fuel isn't enough to cross the gaps between hills where the bridges are broken.
+- **Damage look:**
+  - The data has scorched texture variants (`<texture>_d`: sm_canopy_blue/or_d, s_stony_d, ...). They are swapped in once
+    an object is damaged (stage 1); Story1's Smartie houses use none of them (0 found), other worlds may.
+  - On top, our own procedural, tileable char overlays: three coverage levels drawn over the model as an alpha pass
+    (depth-equal). Coverage grows with the hit points lost; the next level fades in over the previous one.
+  - Cut-out parts (palm fronds) can't take an overlay, so they darken and brown instead.
+  - Beyond 45 % damage, an additive ember pass flickers along the char's edges, and cools for 12 s after the fall.
+  - Stone only scorches (half the char, no embers).
+- **Launcher grip:** an offline textured side view of mc_launcher_l0 (`gzptool tris` dump) shows:
+  - its Ref_handle is on top of four knuckles modelled over the neck;
+  - the obvious handle is a wooden pistol grip running down and back to a knob at the rear.
+  - The hand now holds that grip at (0, 3.85, −0.45) game units, in FP and TP.
+- **Self-damage:** own rocket blasts do 40·f^1.5 (f = 1 − distance/4 m). Harness: 1 m → 26, 2 m → 14, 5 m → 0. Rocket
+  jumps still throw him, with the hit marker.
+- **Rippers:**
+  - Shots test an oriented box from the model's idle-pose bounds (scale 1: x ±0.65, y 0–1.46, z −0.85..1.03 m) instead
+    of the upright 0.45 m capsule; unit test added.
+  - Spit damage: medium 10 (was 8), large/blue 28 (was 15), with a 3.2 m splash (was 2.6).
+- **Jetpack:**
+  - Side views of every flight clip (new `GVR_IDLE_CLIP` / `GVR_PLAYER_TURN` test hooks) show mc_hover_turbo_back is the
+    lean-back (legs-forward) pose and mc_thrust the lean-forward one.
+  - Forward flight is now mc_thrust; vertical lift uses mc_hover.
+  - Landing:
+    - the soft-landing clip plays only for drops of 2.3 m or more (8 m/s, was 3 m/s);
+    - the air clips need 0.4 s in the air (bumps and small steps keep the ground clips);
+    - hard landing / stun / fall damage start at 17 m/s (about 10 m, was 12 m/s, about 5 m).
+  - The landing and injection clips play once and hold their last frame; they used to loop, and mc_land_hard (1.47 s)
+    restarted inside the 2 s stun. The stun now lasts as long as the clip.
+- **Fuel:**
+  - 1b's broken bridges (bridge_end pairs) leave gaps of about 61, 97 and 76 m, a few metres lower on the far side.
+  - Fuel is now 10 s (was 5), flight speed 12 m/s (was 10), turbo ×1.6, air drag 0.35 (a longer glide).
+  - About 120 m powered plus the glide.
+- **Tests:** landing (a 1 m drop shows no air/landing clip; a 4 m drop lands once, held), jetpack with the new tank, Ripper
+  box raycast, burn textures/levels. All pass.
+- **Not device-tested.**

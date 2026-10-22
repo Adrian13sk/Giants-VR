@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-22 (build 36320d3: destruction, jetpack rework, damage, original HUD, health injections)
+Last updated: 2026-10-22 (build 845cb14: device test 22 fixes)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -29,13 +29,11 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
-1. **Device test 22** (build 36320d3, host verified only):
-   - destructible trees, rocks, houses and towers; the sentry's fall;
-   - rocket and spit trails; launcher grip;
-   - the jetpack (fuel, overheat, air control, turbo), fall damage and stun;
-   - the original-art HUD and the weapon strip; the hit marker;
-   - health injections (pickups in 1c/1d, Reaper drops; FP push into the chest, TP X); low-health smoke;
-   - frame rate during collapses (watch for `perf: ... quality down`).
+1. **Device test 23** (build 845cb14, host verified only):
+   - burn/char/ember look on damaged trees and houses;
+   - the launcher grip; rocket self-damage; Ripper hits; blue spit damage;
+   - the forward flight pose; landing (no clip on small drops, no glitch);
+   - crossing 1b's broken-bridge gaps with the 10 s tank.
 2. **Remaining Story1 work:** Smartie AI in the villages, Dactyl flight, 1d (sneak past); the world opcode table (B5).
 3. **Visual fidelity:** compare against original screenshots (B6).
 

@@ -73,9 +73,9 @@ Walk over one to take it (up to 5). First person: press **X** to take one into y
 your chest**; it heals 50 over a second (green flash). Press X again to put it away. Third person: **X** plays the
 Meccaryn's injection animation and heals.
 
-**Damage:** headshots on Reapers do 2.5× damage; a Ripper's mouth is its weak spot. Your own rockets don't hurt you but
-throw you (rocket jumps). Hard landings hurt and stun you for 2 s. Trees, rocks, houses and guard towers can be
-destroyed (rockets work best); a sentry rides his tower down when it collapses. When you die you see your body (fallen, gone under in the water, or blown
+**Damage:** headshots on Reapers do 2.5× damage; a Ripper's mouth is its weak spot. Your own rockets throw you (rocket jumps)
+and hurt you the closer they burst (up to 40 at point blank, nothing beyond 4 m). Falls of about 10 m or more hurt and stun you briefly. Trees, rocks, houses and guard towers can be
+destroyed (rockets work best) and char and smoulder as they take damage; a sentry rides his tower down when it collapses. When you die you see your body (fallen, gone under in the water, or blown
 apart), then the screen fades and you start again at the mission's start.
 
 Deep water floats you (no diving) and the piranhas come after a moment; get out or jetpack away. Bodies stay where
@@ -93,7 +93,7 @@ moves him too.
 | Right stick left/right | Snap turn 30° | Snap turn 30° |
 | Right stick forward | Switch gun ↔ rocket launcher (once you have it: from 1c on, Timmy's "present" at the end of 1b); shows the weapon strip | — |
 | **Right trigger** | **Fire**: gun (hold for auto-fire, 5 shots/s) or rocket launcher (one rocket per pull, 1 s reload, splash damage; keep your distance) | Haptic test pulse |
-| **A** (hold) | **Jetpack**: lifts you; steer with the left stick only while it fires (otherwise you drift and fall). Fuel lasts ~5 s and refills only on the ground; burn it dry and it overheats until partly refilled | — |
+| **A** (hold) | **Jetpack**: lifts you; steer with the left stick only while it fires (otherwise you drift and fall). Fuel lasts ~10 s and refills only on the ground; burn it dry and it overheats until partly refilled | — |
 | Right stick click | First ↔ third person (third: camera behind him) | — |
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
 | Y | — | Debug fly/noclip on/off (strong buzz = on) |
