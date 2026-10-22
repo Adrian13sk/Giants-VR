@@ -42,7 +42,7 @@ struct PlayerParams {
     float turboFactor = 1.6f;     // turbo: faster, double fuel use
     float jetAirAccel = 9.0f;     // m/s^2 horizontal speed build-up while flying
     float airDrag = 0.35f;        // 1/s horizontal slow-down in the air without thrust (a long glide)
-    float fuelSeconds = 10.0f;    // full tank = seconds of thrust (1b's broken bridges: gaps up to ~97 m)
+    float fuelSeconds = 8.0f;     // full tank = seconds of thrust (1b's broken bridges: gaps up to ~97 m; 10 s was too much)
     float fuelRefillDelay = 0.3f; // s on the ground without thrust before refilling
     float fuelRefillRate = 0.4f;  // tanks per second (on the ground)
     float overheatResume = 0.3f;  // after burning dry: usable again at this much fuel

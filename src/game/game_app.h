@@ -396,6 +396,15 @@ private:
     std::unique_ptr<SkinnedModel> timmy_;
     Mat4 timmyXf_ = Mat4::identity();
     bool timmyOn_ = false;
+    // Baz's Ref_Smartie (the rider's mount point) relative to his spine: not every clip carries
+    // the reference nodes (mc_hover, mc_fly_left... have neither Ref_Smartie nor Ref_HolsterB), so
+    // the mount follows the spine with this offset (game frame), measured when a clip has it.
+    Mat4 smartieFromSpine_ = Mat4::identity();
+    bool haveSmartieLocal_ = false;
+    Mat4 timmyRestFix_ = Mat4::identity();  // (unused: spine rotation reading kept for reference)
+    Vec3 timmyOffset_;
+    int timmyYell_[3] = {-1, -1, -1}, timmyClip_ = 0, timmyPrevClip_ = 0;
+    float timmyClipT_ = 0, timmyPrevT_ = 0, timmyIdleT_ = 0, timmyFade_ = 1, timmyYellIn_ = 3, timmyLastTime_ = 0;                       // model-frame nudge of the seat (m)
     int timmyType_ = 583;
     void updateTimmy();
     void updateLoading(float dt, const InputFrame& in);

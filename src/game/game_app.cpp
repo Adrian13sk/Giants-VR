@@ -19,6 +19,8 @@
 
 namespace gvr {
 
+static Mat4 affineInverse(const Mat4& m);
+
 // Weapon target ids >= this are creatures (index = id - kCreatureTarget); lower ids are Reapers.
 static constexpr int kCreatureTarget = 1000;
 
@@ -89,6 +91,27 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             if (first && m->boneVertexBounds("head", hmn, hmx))
                 eyeModel_ = {0.5f * (hmn.x + hmx.x), hmn.y + 0.55f * (hmx.y - hmn.y), hmn.z - 0.04f};
             if (first) LOGI("Player eye point (model, m): %.2f %.2f %.2f", eyeModel_.x, eyeModel_.y, eyeModel_.z);
+            if (first) {
+                // Timmy's mount (see updateTimmy): the spine's idle rotation, undone so he sits upright
+                // when Baz stands; and Ref_Smartie relative to the spine.
+                Mat4 sp, rf;
+                if (m->nodeWorld("spine", sp)) {
+                    Mat4 rt = gameMatrixToRuntime(sp);
+                    for (int c = 0; c < 3; ++c) {
+                        const float l = std::sqrt(rt.m[c * 4] * rt.m[c * 4] + rt.m[c * 4 + 1] * rt.m[c * 4 + 1] + rt.m[c * 4 + 2] * rt.m[c * 4 + 2]);
+                        if (l > 1e-6f)
+                            for (int r = 0; r < 3; ++r) rt.m[c * 4 + r] /= l;
+                    }
+                    Mat4 inv = Mat4::identity();
+                    for (int r = 0; r < 3; ++r)
+                        for (int c = 0; c < 3; ++c) inv.m[c * 4 + r] = rt.m[r * 4 + c];
+                    timmyRestFix_ = inv;
+                    if (m->nodeWorld("ref_holsterb", rf)) {
+                        smartieFromSpine_ = affineInverse(sp) * rf;
+                        haveSmartieLocal_ = true;
+                    }
+                }
+            }
             m->setHiddenBones({"head", "neck"});
             m->pose(renderer_, 0.0f);
             if (first) {
@@ -152,7 +175,16 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             if (playerSpare_) playerSpare_->setKeepFull(true);
             {
                 auto t = std::make_unique<SkinnedModel>();
-                if (t->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "smtimmy_l0", "sm_mount.anm")) timmy_ = std::move(t);
+                // Riding on the back: sm_fly_idle (a Smartie sitting on a Meccaryn's back, facing
+                // backwards), with the sm_fly_yell clips now and then in flight.
+                if (t->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "smtimmy_l0",
+                            std::getenv("GVR_TIMMY_CLIP") ? std::getenv("GVR_TIMMY_CLIP") : "sm_fly_idle.anm")) {  // test hook
+                    for (int k = 0; k < 3; ++k) {
+                        const std::string yell = "sm_fly_yell" + std::to_string(k + 1) + ".anm";
+                        timmyYell_[k] = t->addAnimation(assetWorld_->fs(), yell);
+                    }
+                    timmy_ = std::move(t);
+                }
             }
 
             playerModel_ = std::move(m);
@@ -1525,19 +1557,67 @@ void GameApp::renderShadowMap() {
     renderer_.setShadowsActive(true);
 }
 
+// Inverse of an affine matrix (rotation/scale/mirror + translation).
+static Mat4 affineInverse(const Mat4& m) {
+    const float a = m.m[0], b = m.m[4], c = m.m[8], d = m.m[1], e = m.m[5], f = m.m[9], g = m.m[2], h = m.m[6], i = m.m[10];
+    const float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+    Mat4 r = Mat4::identity();
+    if (std::fabs(det) < 1e-12f) return r;
+    const float k = 1.0f / det;
+    r.m[0] = (e * i - f * h) * k;  r.m[4] = (c * h - b * i) * k;  r.m[8] = (b * f - c * e) * k;
+    r.m[1] = (f * g - d * i) * k;  r.m[5] = (a * i - c * g) * k;  r.m[9] = (c * d - a * f) * k;
+    r.m[2] = (d * h - e * g) * k;  r.m[6] = (b * g - a * h) * k;  r.m[10] = (a * e - b * d) * k;
+    r.m[12] = -(r.m[0] * m.m[12] + r.m[4] * m.m[13] + r.m[8] * m.m[14]);
+    r.m[13] = -(r.m[1] * m.m[12] + r.m[5] * m.m[13] + r.m[9] * m.m[14]);
+    r.m[14] = -(r.m[2] * m.m[12] + r.m[6] * m.m[13] + r.m[10] * m.m[14]);
+    return r;
+}
+
 void GameApp::updateTimmy() {
     timmyOn_ = false;
     if (!timmy_ || !playerModel_ || worldName_ != "Story1" || !player_.jetpackAvailable) return;
-    Mat4 hb, centre;
-    timmy_->pose(renderer_, float(time_));
-    if (!playerModel_->nodeWorld("ref_holsterb", hb) || !timmy_->nodeWorld("center", centre)) return;
-    // Only the position comes from the bones: his 'center' on Baz's Ref_HolsterB. The orientation is
-    // Baz's own (both models face -Y), so he rides piggyback looking ahead over the shoulder; the
-    // bones' own rotations turned him sideways (device test 20).
-    const Vec3 hbPos = giantsToRuntime(hb.m[12], hb.m[13], hb.m[14]);
+    Mat4 spine, mount, centre;
+    // Idle loop; in flight a yell now and then (played once, cross-faded in and out).
+    const float dt = std::max(0.0f, float(time_) - timmyLastTime_);
+    timmyLastTime_ = float(time_);
+    timmyIdleT_ += dt;
+    if (timmyClip_ > 0) {
+        timmyClipT_ += dt;
+        if (timmyClipT_ >= timmy_->animDuration(timmyClip_)) { timmyClip_ = 0; timmyClipT_ = 0; timmyFade_ = 0; }
+    } else if (!player_.onGround && player_.thrusting()) {
+        timmyYellIn_ -= dt;
+        if (timmyYellIn_ <= 0) {
+            const int k = timmyYell_[int(frand() * 2.99f)];
+            if (k > 0) { timmyClip_ = k; timmyClipT_ = 0; timmyFade_ = 0; }
+            timmyYellIn_ = 5.0f + 6.0f * frand();
+        }
+    }
+    timmyFade_ = std::min(1.0f, timmyFade_ + dt / 0.25f);
+    if (timmyClip_ > 0) timmy_->poseBlend(renderer_, 0, timmyIdleT_, timmyClip_, timmyClipT_, timmyFade_);
+    else timmy_->poseBlend(renderer_, timmyPrevClip_, std::min(timmyPrevT_, timmy_->animDuration(timmyPrevClip_) - 0.01f), 0, timmyIdleT_, timmyFade_);
+    if (timmyClip_ > 0) { timmyPrevClip_ = timmyClip_; timmyPrevT_ = timmyClipT_; }
+    if (!playerModel_->nodeWorld("spine", spine) || !timmy_->nodeWorld("center", centre)) return;
+    // Mount point: Baz's Ref_HolsterB (where he rode in device tests 20-21) when the clip has it,
+    // remembered relative to the spine; else the spine with that offset. Clips without reference
+    // nodes (mc_hover, mc_fly_left...) used to drop him (device test 23: "keeps disappearing when
+    // flying or changing direction").
+    if (playerModel_->nodeWorld("ref_holsterb", mount)) {
+        smartieFromSpine_ = affineInverse(spine) * mount;
+        haveSmartieLocal_ = true;
+    } else if (haveSmartieLocal_) {
+        mount = spine * smartieFromSpine_;
+    } else {
+        return;
+    }
+    if (std::getenv("GVR_TIMMY_TRACE")) LOGI("timmy: anim %d mount (%.2f %.2f %.2f)", int(player_.anim()), mount.m[12], mount.m[13], mount.m[14]);
+    // Orientation: Baz's. Timmy sits facing backwards, watching what is behind Baz (device test 23;
+    // sm_* bodies face backwards in their own frame, so no turn).
+    const Vec3 mPos = giantsToRuntime(mount.m[12], mount.m[13], mount.m[14]);
     const Vec3 cPos = giantsToRuntime(centre.m[12], centre.m[13], centre.m[14]);
-    // (sm_mount's posed body faces backwards in its model frame: turned round to face ahead.)
-    timmyXf_ = bodyXf_ * Mat4::translation(hbPos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, kPi)) * Mat4::translation(cPos * -1.0f);
+    float turn = 0.0f;
+    if (const char* t = std::getenv("GVR_TIMMY_TURN")) turn = std::atof(t) * kPi / 180.0f;  // test hook
+    timmyXf_ = bodyXf_ * Mat4::translation(mPos + timmyOffset_) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, turn)) *
+               Mat4::translation(cPos * -1.0f);
     timmyOn_ = true;
     // The Timmy who stood on his tower in 1a is now on the back.
     for (auto& c : chars_)
