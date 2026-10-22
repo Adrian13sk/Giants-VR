@@ -134,7 +134,11 @@ bool looksLikeEncodedVectors(const std::array<uint8_t, 3>* rgb, size_t n) {
     return sat / float(n) > 0.4f && float(unit) >= 0.1f * float(n);
 }
 
-bool bakeDefaultSkinPose(const AssetFS& fs, const std::string& base, const std::string& anim, GbsModel& g) {
+bool bakeDefaultSkinPose(const AssetFS& fs, const std::string& base, const std::string& animIn, GbsModel& g) {
+    // "<file>.anm@0": the animation's first frame instead of the nodes' default transforms.
+    std::string anim = animIn;
+    const bool frame0 = anim.size() > 2 && anim.compare(anim.size() - 2, 2, "@0") == 0;
+    if (frame0) anim.resize(anim.size() - 2);
     std::vector<uint8_t> bytes;
     std::string err;
     SknModel skn;
@@ -146,7 +150,8 @@ bool bakeDefaultSkinPose(const AssetFS& fs, const std::string& base, const std::
     }
     // The exported GBS positions of skinned buildings are a distorted copy; the intended shape
     // is the skin evaluated with the nodes' default transforms (keys = build/collapse effects).
-    for (auto& n : an.nodes) { n.posKeys.clear(); n.rotKeys.clear(); n.scaleKeys.clear(); }
+    if (!frame0)
+        for (auto& n : an.nodes) { n.posKeys.clear(); n.rotKeys.clear(); n.scaleKeys.clear(); }
     std::vector<Mat4> world;
     an.evaluate(0.0f, world);
     // The skin must match the mesh exactly (object count and per-object vertex counts).

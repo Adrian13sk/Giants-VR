@@ -391,6 +391,16 @@ bool Renderer::updateMeshVertices(MeshId id, const std::vector<Vertex>& vertices
     return true;
 }
 
+bool Renderer::updateMeshVertexRange(MeshId id, size_t first, const Vertex* vertices, size_t count) {
+    if (id == 0 || id > meshes_.size()) return false;
+    GpuMesh& m = meshes_[id - 1];
+    if (!m.live || first + count > m.vertexCount || count == 0) return false;
+    glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, GLintptr(first * sizeof(Vertex)), GLsizeiptr(count * sizeof(Vertex)), vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    return true;
+}
+
 void Renderer::destroyMesh(MeshId id) {
     if (id == 0 || id > meshes_.size()) return;
     GpuMesh& m = meshes_[id - 1];

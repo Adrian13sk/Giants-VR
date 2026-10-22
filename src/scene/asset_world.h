@@ -92,6 +92,21 @@ public:
     std::vector<Placed>& placed() { return placed_; }
     size_t skinnedCount() const { return skinned_.size(); }
     size_t worldObjectCount() const { return worldObjects_.size(); }
+    // Placed level objects, for the game layer (destruction): what they are and how they're drawn.
+    struct WorldObject {
+        const RenderModel* model;
+        Mat4 transform;
+        Vec3 centre;
+        float radius;
+        uint32_t type = 0;
+        std::string name;     // model name (lower case)
+        Mat4 placement;       // original transform
+        float scale = 1;
+        int collision = -1;   // CollisionWorld index (-1: not solid)
+        bool hidden = false;
+    };
+    std::vector<WorldObject>& worldObjects() { return worldObjects_; }
+    CollisionWorld& collisionMutable() { return collision_; }
 
 private:
     bool loadWorld(const std::string& name, Renderer& r);
@@ -109,7 +124,6 @@ private:
     AssetFS fs_;
     std::unique_ptr<ModelCache> cache_;
     std::vector<Placed> placed_;
-    struct WorldObject { const RenderModel* model; Mat4 transform; Vec3 centre; float radius; uint32_t type = 0; };
     std::vector<int> hiddenTypes_;
     std::vector<WorldObject> worldObjects_;
     ObjectRegistry registry_;

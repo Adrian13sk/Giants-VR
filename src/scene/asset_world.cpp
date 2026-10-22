@@ -437,7 +437,11 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
                                    p.hold});
             continue;
         }
-        const RenderModel* m = cache_->get(name + ".gbs", registry_.modelAnim(p.type));
+        // Guard towers stand as their animation's first frame: the clip is their collapse (upright,
+        // shaking, bending over), and the bind pose is the collapsed one.
+        std::string skinAnim = registry_.modelAnim(p.type);
+        if (toLower(name).find("guard_tower") != std::string::npos && !skinAnim.empty()) skinAnim += "@0";
+        const RenderModel* m = cache_->get(name + ".gbs", skinAnim);
         if (!m) { ++missing; continue; }
         const Mat4 xf = placementMatrix(p);
         if (const ObjectType* ot = registry_.type(p.type); ot && ot->objectClass == 47) {
@@ -455,7 +459,15 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
         const Vec3 lc = (m->boundsMin + m->boundsMax) * 0.5f;
         const Vec4 wc = xf * Vec4{lc.x, lc.y, lc.z, 1.0f};
         const float radius = 0.5f * length(m->boundsMax - m->boundsMin) * p.scale;
-        worldObjects_.push_back({m, xf, Vec3{wc.x, wc.y, wc.z}, radius, p.type});
+        WorldObject wo;
+        wo.model = m;
+        wo.transform = wo.placement = xf;
+        wo.centre = Vec3{wc.x, wc.y, wc.z};
+        wo.radius = radius;
+        wo.type = p.type;
+        wo.name = toLower(name);
+        wo.scale = p.scale;
+        worldObjects_.push_back(wo);
         // Solid unless it is vegetation the original lets you walk through.
         const std::string ln = toLower(name);
         bool soft = false;
@@ -468,7 +480,7 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
                 const Vec4 p4 = xf * Vec4{v.x, v.y, v.z, 1.0f};
                 w.push_back({p4.x, p4.y, p4.z});
             }
-            collision_.addObject(w);
+            worldObjects_.back().collision = collision_.addObject(w, int(worldObjects_.size()) - 1);
         }
     }
     // Hang points: structures whose own .anm carries ref_smartie_NN nodes (w_story1_hang in 1b:
@@ -510,7 +522,7 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
 
 void AssetWorld::renderShadowCasters(Renderer& r, const Vec3& centre, float radius) const {
     for (const auto& o : worldObjects_) {
-        if (length(o.centre - centre) - o.radius > radius) continue;
+        if (o.hidden || length(o.centre - centre) - o.radius > radius) continue;
         if (o.radius > 120.0f) continue;  // whole-island rock sets: their own shading is baked
         for (const auto& part : o.model->parts)
             if (!part.glass && part.blend != BlendMode::AlphaBlend) r.drawShadow(part.mesh, o.transform);
@@ -538,6 +550,7 @@ void AssetWorld::render(Renderer& r, bool reflection) {
     const Vec3 eye = r.currentView().eyePosition;
     const float maxDist = r.environment().fogFar;
     for (const auto& o : worldObjects_) {
+        if (o.hidden) continue;
         if (!hiddenTypes_.empty() && std::find(hiddenTypes_.begin(), hiddenTypes_.end(), int(o.type)) != hiddenTypes_.end()) continue;
         // Cull objects outside the view frustum or fully fogged out. The reflection skips what
         // can't show in it: anything entirely under water, small things far away.

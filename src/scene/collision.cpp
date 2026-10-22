@@ -29,8 +29,9 @@ Vec3 closestPointOnTriangle(const Vec3& p, const Vec3& a, const Vec3& b, const V
     return a + ab * (vb * denom) + ac * (vc * denom);
 }
 
-void CollisionWorld::addObject(const std::vector<Vec3>& tris) {
+int CollisionWorld::addObject(const std::vector<Vec3>& tris, int tag) {
     Object o;
+    o.tag = tag;
     o.mn = {1e30f, 1e30f, 1e30f};
     o.mx = {-1e30f, -1e30f, -1e30f};
     for (size_t i = 0; i + 2 < tris.size(); i += 3) {
@@ -49,7 +50,9 @@ void CollisionWorld::addObject(const std::vector<Vec3>& tris) {
             o.mx = {std::max(o.mx.x, v->x), std::max(o.mx.y, v->y), std::max(o.mx.z, v->z)};
         }
     }
-    if (!o.wall.empty() || !o.floor.empty()) objects_.push_back(std::move(o));
+    if (o.wall.empty() && o.floor.empty()) return -1;
+    objects_.push_back(std::move(o));
+    return int(objects_.size()) - 1;
 }
 
 size_t CollisionWorld::triangleCount() const {
@@ -64,6 +67,7 @@ bool CollisionWorld::pushOut(Vec3& feet, float radius, float height, float stepU
     for (int iter = 0; iter < 3; ++iter) {
         bool any = false;
         for (const auto& o : objects_) {
+            if (!o.enabled) continue;
             if (feet.x + radius < o.mn.x || feet.x - radius > o.mx.x || feet.z + radius < o.mn.z ||
                 feet.z - radius > o.mx.z || y1 < o.mn.y || y0 > o.mx.y)
                 continue;
@@ -115,10 +119,11 @@ static bool rayTri(const Vec3& o, const Vec3& d, const Vec3& a, const Vec3& b, c
     return t >= 0;
 }
 
-bool CollisionWorld::raycast(const Vec3& o, const Vec3& d, float maxDist, float& tHit, Vec3& normal) const {
+bool CollisionWorld::raycast(const Vec3& o, const Vec3& d, float maxDist, float& tHit, Vec3& normal, int* tag) const {
     bool hit = false;
     tHit = maxDist;
     for (const auto& ob : objects_) {
+        if (!ob.enabled) continue;
         // Slab test against the object's AABB.
         float t0 = 0, t1 = tHit;
         const float oo[3] = {o.x, o.y, o.z}, dd[3] = {d.x, d.y, d.z};
@@ -142,6 +147,7 @@ bool CollisionWorld::raycast(const Vec3& o, const Vec3& d, float maxDist, float&
                 const Vec3 &a = (*list)[i], &b = (*list)[i + 1], &c = (*list)[i + 2];
                 if (rayTri(o, d, a, b, c, t) && t < tHit) {
                     tHit = t;
+                    if (tag) *tag = ob.tag;
                     normal = normalize(cross(b - a, c - a));
                     if (dot(normal, d) > 0) normal = normal * -1.0f;
                     hit = true;
@@ -155,6 +161,7 @@ bool CollisionWorld::groundAt(float x, float z, float maxY, float& outY) const {
     bool found = false;
     float best = -1e30f;
     for (const auto& o : objects_) {
+        if (!o.enabled) continue;
         if (x < o.mn.x || x > o.mx.x || z < o.mn.z || z > o.mx.z || o.mn.y > maxY) continue;
         for (size_t i = 0; i + 2 < o.floor.size(); i += 3) {
             const Vec3 &a = o.floor[i], &b = o.floor[i + 1], &c = o.floor[i + 2];

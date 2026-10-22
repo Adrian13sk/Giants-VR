@@ -81,6 +81,26 @@ bool EnemyDirector::lineOfSight(const Vec3& from, const Vec3& to) const {
     return !(collision && collision->raycast(from, d * (1.0f / len), len, t, nn));
 }
 
+void EnemyDirector::knockOff(int i, const Vec3& v) {
+    if (i < 0 || size_t(i) >= enemies.size()) return;
+    Enemy& e = enemies[size_t(i)];
+    if (e.state == EnemyState::Dead || e.state == EnemyState::Falling) return;
+    e.posted = false;
+    e.state = EnemyState::Falling;
+    e.stateTime = 0;
+    e.vel = v;
+    e.fallFrom = e.pos.y;
+    e.aware = true;
+    setClip(e, EnemyClip::FallCycle, true);
+}
+
+void EnemyDirector::push(int i, const Vec3& impulse) {
+    if (i < 0 || size_t(i) >= enemies.size()) return;
+    Enemy& e = enemies[size_t(i)];
+    if (e.state == EnemyState::Dead || e.posted) return;
+    e.vel = e.vel + Vec3{impulse.x, 0, impulse.z};
+}
+
 void EnemyDirector::alertNear(const Vec3& at, float radius) {
     for (auto& e : enemies)
         if (e.state == EnemyState::Idle && !e.aware && length(e.pos - at) < radius) {
@@ -112,6 +132,7 @@ bool EnemyDirector::damage(int i, float amount, bool blast) {
 
 void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::vector<int>& shooters) {
     shooters.clear();
+    landed.clear();
     for (size_t i = 0; i < enemies.size(); ++i) {
         Enemy& e = enemies[i];
         e.stateTime += dt;
@@ -275,6 +296,27 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     e.flankTimer = 1.0f + float(nextRand() % 1500) / 1000.0f;
                 }
                 break;
+            case EnemyState::Falling: {
+                e.vel.y -= 14.0f * dt;
+                e.pos += e.vel * dt;
+                const float g = groundHeight ? groundHeight(e.pos.x, e.pos.z) : 0.0f;
+                if (e.pos.y <= g) {
+                    e.pos.y = g;
+                    const bool lethal = e.fallFrom - g > lethalFall;
+                    e.vel = {0, 0, 0};
+                    e.stateTime = 0;
+                    if (lethal) {
+                        e.health = 0;
+                        e.state = EnemyState::Dead;
+                        setClip(e, EnemyClip::FallLand, false);
+                        landed.push_back(int(i));
+                    } else {
+                        e.state = EnemyState::Hit;
+                        setClip(e, EnemyClip::Hit1, false);
+                    }
+                }
+                break;
+            }
             case EnemyState::Dead:
                 if (params.corpsesPersist) {
                     e.sink = e.eaten * 0.5f;  // sinks as the Cleaners eat it
@@ -284,6 +326,12 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 if (e.stateTime > params.corpseTime) e.sink += dt * 0.35f;
                 if (e.sink > params.height) e.remove = true;
                 break;
+        }
+        // Shoved by a blast: slides, the push dying away quickly.
+        if (e.state != EnemyState::Falling && e.state != EnemyState::Dead && (e.vel.x != 0 || e.vel.z != 0)) {
+            tryMove(e, Vec3{e.vel.x, 0, e.vel.z} * dt);
+            e.vel = e.vel * std::max(0.0f, 1.0f - 5.0f * dt);
+            if (std::fabs(e.vel.x) + std::fabs(e.vel.z) < 0.05f) e.vel = {0, 0, 0};
         }
         // Ground too steep to stand on: slide downhill (as the player does).
         if (e.posted) {
@@ -296,7 +344,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             if (grade > params.maxSlope) e.pos += Vec3{-gx / grade, 0, -gz / grade} * (params.slideSpeed * dt);
         }
         // Ground and buildings.
-        if (!e.posted) {
+        if (!e.posted && e.state != EnemyState::Falling) {
             if (e.state != EnemyState::Dead && collision) collision->pushOut(e.pos, params.radius, params.height, 0.45f);
             if (groundHeight) e.pos.y = groundHeight(e.pos.x, e.pos.z) - e.sink;
         }

@@ -15,6 +15,9 @@
 #include "game/creature.h"
 #include "game/smartie.h"
 #include "game/gore.h"
+#include "game/destruction.h"
+#include "game/particles.h"
+#include "render/quad_batch.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
 #include "render/text.h"
@@ -124,6 +127,9 @@ public:
         const Vec3 p = enemies_.enemies[size_t(i)].pos + Vec3{0, 1.2f, 0};
         for (int k = 0; k < 4; ++k) weapon_.onHit(i, p, shotDir);
     }
+    // Test hook: a rocket blast at game (x, y), `height` metres above the ground.
+    void debugBlast(float gx, float gy, float height);
+    size_t destroyedCount() const { size_t n = 0; for (const auto& d : destruct_.items) n += !d.alive(); return n; }
     void debugKillPlayer(int cause) { damagePlayer(500.0f, DeathCause(cause)); }
     bool dying() const { return dying_; }
     void debugDumpBlood() const {
@@ -286,6 +292,34 @@ private:
     std::vector<NestInst> nests_;
     static constexpr int kNestTarget = 5000;  // weapon target ids for nests
     static constexpr int kCorpseEnemy = 6000, kCorpseCreature = 7000;  // and bodies on the ground
+    static constexpr int kObjectTarget = 9000;  // destructible scenery (index into destruct_)
+    // Destructible scenery: trees, rocks, houses, guard towers (game/destruction.h).
+    DestructionDirector destruct_;
+    std::vector<DestructEvent> destructEvents_;
+    std::vector<int> objectItem_;        // world object -> destruct_ index (-1 none)
+    std::vector<float> downTime_;        // per item: seconds since it came down
+    struct Collapse { int item; std::unique_ptr<SkinnedModel> model; Mat4 xf; bool debris = false; };
+    std::vector<Collapse> collapses_;    // guard towers playing their collapse clip
+    std::vector<const RenderModel*> debrisStone_, debrisWood_, debrisTower_[2];
+    int lastWorldTag_ = -1;              // world object hit by the last worldRay_ (collision tag)
+    void initDestruction(AssetWorld* w, ModelCache* mc);
+    void damageObject(int item, float amount, bool blast, const Vec3& from);
+    void updateDestruction(float dt);
+    bool treeRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& item) const;
+    void throwDebris(const std::vector<const RenderModel*>& pieces, const Vec3& at, int count, float speed, float scale);
+    // Effects: smoke, dust, fire, trails (original textures), drawn in batches.
+    ParticleSystem fx_;
+    TextureId fxTex_[int(FxTex::Count)] = {};
+    QuadBatch fxBatch_[int(FxTex::Count)];
+    QuadBatch bloodBatch_[5];           // splat, splat2, pool blob, drops, sprays
+    bool batchesReady_ = false;
+    float smokeTimer_ = 0, trailTimer_ = 0;
+    void initFx(ModelCache* mc);
+    void smokePuff(FxTex tex, const Vec3& at, const Vec3& vel, float size0, float size1, float life, float alpha, float rise);
+    void dustBurst(const Vec3& at, float radius, int count);
+    void updateFx(float dt);
+    void buildBatches();
+    void renderFx();
     void updateNests(float dt);
     void damageNest(int i, float amount);
     std::vector<SmartieEvent> rescueEvents_;

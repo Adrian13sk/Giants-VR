@@ -77,6 +77,8 @@ public:
     void destroyMesh(MeshId id);
     // Replaces all vertices of a mesh (same count as at upload); used for CPU skinning.
     bool updateMeshVertices(MeshId id, const std::vector<Vertex>& vertices);
+    // Replaces vertices [first, first + count) only.
+    bool updateMeshVertexRange(MeshId id, size_t first, const Vertex* vertices, size_t count);
     // RGBA8 pixels, rows top-to-bottom.
     TextureId uploadTexture(int width, int height, const uint8_t* rgba, bool mipmaps, bool repeat);
     void destroyTexture(TextureId id);

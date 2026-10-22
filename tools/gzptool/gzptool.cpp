@@ -406,9 +406,32 @@ static int cmdSkinCheck(const char* dir, const char* base, const char* anim) {
     return exact > 0 ? 0 : 1;
 }
 
+static int cmdType(const char* dir, int n, char** ids) {
+    gvr::ObjectRegistry reg;
+    reg.build(dir);
+    for (int i = 0; i < n; ++i) {
+        const uint32_t id = uint32_t(std::atoi(ids[i]));
+        const gvr::ObjectType* t = reg.type(id);
+        if (!t) { std::printf("type %u: unknown\n", id); continue; }
+        std::printf("type %u model %s class %d hp %g ops:", id, reg.modelName(id).c_str(), t->objectClass, double(t->hitPoints));
+        for (const auto& o : t->ops) std::printf(" %s", o.c_str());
+        for (const auto& s : t->strings) std::printf(" '%s'", s.c_str());
+        std::printf("\n");
+        if (const gvr::ObjectGroup* g = t->hasGroup ? reg.group(t->group) : nullptr) {
+            std::printf("  group %u lods:", t->group);
+            for (uint32_t m : g->lodMeshes) std::printf(" %u", m);
+            std::printf("\n");
+            for (const auto& a : g->anims) std::printf("  anim slot %d: %s\n", a.first, a.second.c_str());
+            for (const auto& e : g->fxEvents) std::printf("  fx %s\n", e.c_str());
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc >= 4 && !std::strcmp(argv[1], "anminfo")) return cmdAnmInfo(argv[2], argc - 3, argv + 3);
     if (argc >= 4 && !std::strcmp(argv[1], "mission")) return cmdMission(argv[2], argv[3]);
+    if (argc >= 4 && !std::strcmp(argv[1], "type")) return cmdType(argv[2], argc - 3, argv + 3);
     if (argc >= 4 && !std::strcmp(argv[1], "flick")) return cmdFlick(argv[2], argc - 3, argv + 3);
     if (argc >= 5 && !std::strcmp(argv[1], "skincheck")) return cmdSkinCheck(argv[2], argv[3], argv[4]);
     if (argc >= 3 && !std::strcmp(argv[1], "list")) return cmdList(argv[2]);

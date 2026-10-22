@@ -20,6 +20,8 @@ namespace gvr {
 struct ObjectGroup {
     std::vector<uint32_t> lodMeshes;     // 0x51 entries in order (LOD0 first)
     std::map<int, std::string> anims;    // animation slot -> .anm file (0x52 entries)
+    // 0x7F / 0x80: timed effect events {u32 tick, 5 strings, u32} (raw, for inspection).
+    std::vector<std::string> fxEvents;
 };
 
 struct ObjectType {
@@ -28,6 +30,8 @@ struct ObjectType {
     int objectClass = -1;   // type op 0x1E (the engine's "ospec": 23 Ripper, 60 tree, 61 Smartie building...)
     float scale = 1.0f;     // type op 0x17
     float hitPoints = 0;    // type op 0x31 (loader stores it as current and maximum health); 0 = unset
+    std::vector<std::string> ops;  // every op as text "op:value" (inspection; most meanings unknown)
+    std::vector<std::string> strings;  // string operands (ops 0x02, 0x2C, 0x2D)
 };
 
 class ObjectRegistry {

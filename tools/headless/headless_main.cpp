@@ -41,6 +41,8 @@ int main(int argc, char** argv) {
     bool autoAim = false, viewBody = false, viewCorpse = false;
     int viewFrames = 0, killShots = 0, killPlayerAt = -1, killCause = 0;
     bool killDemo = false;
+    float blastX = 0, blastY = 0, blastH = 1;
+    int blastN = 0, blastFrame = -1;
     std::string audioOut;
     float triggerAmount = 0.0f, aimPitchDeg = -17.2f, aimYawDeg = 0.0f;
     for (int i = 1; i < argc; ++i) {
@@ -79,6 +81,7 @@ int main(int argc, char** argv) {
         else if (a == "--view-body") viewBody = true; // test only: after the frames, stand 4 m from an enemy body
         else if (a == "--kill-demo") { killDemo = true; killShots = std::atoi(next()); }  // a Reaper killed 5 m ahead at the start (then N shots at the body)
         else if (a == "--kill-player") { killPlayerAt = std::atoi(next()); killCause = std::atoi(next()); }  // frame, cause (0 shot 1 bitten 2 drowned 3 blast)
+        else if (a == "--blast-at") { blastX = std::atof(next()); blastY = std::atof(next()); blastH = std::atof(next()); blastN = std::atoi(next()); blastFrame = std::atoi(next()); }  // N rocket blasts at game x y, h m up, at frame F
         else if (a == "--view-corpse") { viewCorpse = true; viewFrames = std::atoi(next()); }  // then N more frames 3 m from the nearest body
         else if (a == "--audio-out") audioOut = next();  // write the mixed game audio (48 kHz stereo WAV)
         else if (a == "--hands") { handsFwd = std::atof(next()); handsUp = std::atof(next()); }  // controller offset (m)
@@ -166,6 +169,10 @@ int main(int argc, char** argv) {
             in.hand[kRight].gripPose.orientation = in.hand[kRight].aimPose.orientation = q;
         }
         if (f == killPlayerAt) app.debugKillPlayer(killCause);
+        if (f == blastFrame) {
+            for (int b = 0; b < blastN; ++b) app.debugBlast(blastX, blastY, blastH);
+            LOGI("blast x%d: %zu objects destroyed", blastN, app.destroyedCount());
+        }
         app.update(1.0f / 72.0f, in);
         if (std::getenv("GVR_PLAYER_TRACE") && f % 12 == 0) {
             const auto& p = app.player();

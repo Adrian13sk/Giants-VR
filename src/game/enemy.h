@@ -16,8 +16,8 @@
 
 namespace gvr {
 
-enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, Count };
-enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead };
+enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, FallCycle, FallLand, Count };
+enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead, Falling };
 
 struct Enemy {
     Vec3 pos;
@@ -52,6 +52,9 @@ struct Enemy {
     float alert = 0;        // > 0: has noticed the player, turning to him before it acts
     float lookTimer = 0;
     bool aware = false;
+    Vec3 vel;               // Falling: knocked off its post (the tower collapsed under it)
+    float fallFrom = 0;     // height it fell from
+    int postObject = -1;    // the structure it stands on (game layer's world object index)
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
 
@@ -87,8 +90,9 @@ public:
     EnemyParams params;
     std::function<float(float, float)> groundHeight;
     const CollisionWorld* collision = nullptr;
-    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     std::vector<Enemy> enemies;
+    std::vector<int> landed;  // this frame: enemies killed by a fall (landed hard)
 
     int spawn(const Vec3& pos, float yaw);
     // Advances AI. `shooters` receives the indices of enemies that fire a shot this frame.
@@ -97,6 +101,12 @@ public:
     bool damage(int index, float amount, bool blast = false);  // blast: blown off the feet (rpman_hit_blowup)
     // Alert everyone within `radius` of `at` (gunfire, a comrade's death) to the player.
     void alertNear(const Vec3& at, float radius);
+    // Knocks a sentry off its post: it falls (rpman_hit_fall_cycle) and a long fall kills it on
+    // landing (rpman_hit_fall_land); a short one it gets up from.
+    void knockOff(int index, const Vec3& velocity);
+    // Pushes a standing enemy (blast): slides it a little; it stays on its feet.
+    void push(int index, const Vec3& impulse);
+    float lethalFall = 5.0f;  // m
     // Closest capsule hit along origin + dir * t (t <= maxDist); living and dead bodies.
     bool raycast(const Vec3& origin, const Vec3& dir, float maxDist, float& t, Vec3& normal, int& index) const;
     size_t aliveCount() const;

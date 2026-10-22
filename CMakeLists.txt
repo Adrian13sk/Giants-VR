@@ -31,6 +31,7 @@ add_library(gvr_core STATIC
   src/assets/flick.cpp
   src/assets/gtext.cpp
   src/render/text.cpp
+  src/render/quad_batch.cpp
   src/game/cutscene.cpp
   src/scene/skinned_model.cpp
   src/scene/collision.cpp
@@ -42,6 +43,9 @@ add_library(gvr_core STATIC
   src/game/creature.cpp
   src/game/smartie.cpp
   src/game/gore.cpp
+  src/game/game_app_world.cpp
+  src/game/destruction.cpp
+  src/game/particles.cpp
   src/audio/mixer.cpp
   src/audio/music.cpp
   src/game/game_app.cpp

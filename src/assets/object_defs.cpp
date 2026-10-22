@@ -1,5 +1,7 @@
 #include "assets/object_defs.h"
 
+#include <cstdio>
+
 #include <algorithm>
 #include <cstring>
 #include <dirent.h>
@@ -145,11 +147,15 @@ bool ObjectRegistry::addDefinitionFile(const uint8_t* d, size_t n, std::string* 
                 case 0x55: break;
                 case 0x56: q += 8; break;
                 case 0x57: case 0x58: case 0x5C: q += 12; break;
-                case 0x7F: case 0x80:  // timed fx event: u32 tick, 5 strz, u32
+                case 0x7F: case 0x80: {  // timed fx event: u32 tick, 5 strz, u32
+                    std::string ev = (op == 0x7F ? "7f t=" : "80 t=") + std::to_string(c.u32(q));
                     q += 4;
-                    for (int i = 0; i < 5; ++i) q = c.strz(q);
+                    for (int i = 0; i < 5; ++i) { std::string str; q = c.strz(q, &str); ev += " '" + str + "'"; }
+                    ev += " " + std::to_string(c.u32(q));
                     q += 4;
+                    g.fxEvents.push_back(ev);
                     break;
+                }
                 default:
                     return fail("unknown group op");
             }
@@ -169,9 +175,14 @@ bool ObjectRegistry::addDefinitionFile(const uint8_t* d, size_t n, std::string* 
             else if (op == 0x17) t.scale = c.f32(q + 1);
             else if (op == 0x31) t.hitPoints = c.f32(q + 1);
             const int sz = typeOpSize(op);
+            char buf[64];
+            if (sz == 5) std::snprintf(buf, sizeof buf, "%02x:%u/%g", op, c.u32(q + 1), double(c.f32(q + 1)));
+            else if (sz == 2) std::snprintf(buf, sizeof buf, "%02x:%u", op, c.u8(q + 1));
+            else std::snprintf(buf, sizeof buf, "%02x", op);
+            t.ops.push_back(buf);
             if (sz == 0) break;
-            if (sz == -1) q = c.strz(q + 5);
-            else if (sz == -2) q = c.strz(q + 1);
+            if (sz == -1) { std::string str; q = c.strz(q + 5, &str); t.strings.push_back(str); }
+            else if (sz == -2) { std::string str; q = c.strz(q + 1, &str); t.strings.push_back(str); }
             else q += size_t(sz);
         }
         if (!c.ok) return fail("type runs past section");

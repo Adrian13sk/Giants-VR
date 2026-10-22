@@ -154,10 +154,12 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             muzzleModel_ = mc->get("muzzle_flash.gbs", "muzzle_flash.anm");
             impactModel_ = mc->get("efx_flash.gbs");
             crosshairTex_ = mc->texture("st_xhair_lock");  // original crosshair (red brackets)
-            worldRay_ = [w](const Vec3& o, const Vec3& d, float maxD, float& t, Vec3& n) {
+            worldRay_ = [w, this](const Vec3& o, const Vec3& d, float maxD, float& t, Vec3& n) {
                 float tc = 0;
                 Vec3 nc;
-                const bool hc = w->collision().raycast(o, d, maxD, tc, nc);
+                int tag = -1;
+                const bool hc = w->collision().raycast(o, d, maxD, tc, nc, &tag);
+                lastWorldTag_ = -1;
                 // Terrain: march the segment, then bisect the crossing.
                 bool ht = false;
                 float tt = maxD;
@@ -180,7 +182,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     }
                 }
                 if (!hc && !ht) return false;
-                if (hc && (!ht || tc < tt)) { t = tc; n = nc; return true; }
+                if (hc && (!ht || tc < tt)) { t = tc; n = nc; lastWorldTag_ = tag; return true; }
                 t = tt;
                 const Vec3 p = o + d * tt;
                 float hx0 = p.y, hx1 = p.y, hz0 = p.y, hz1 = p.y;
@@ -195,7 +197,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 float tw = maxD, te = maxD;
                 Vec3 nw, ne;
                 int ie = -1;
-                const bool hw = worldRay_ && worldRay_(o, d, maxD, tw, nw);
+                bool hw = worldRay_ && worldRay_(o, d, maxD, tw, nw);
                 bool he = enemies_.raycast(o, d, maxD, te, ne, ie);
                 float tc = maxD;
                 Vec3 nc;
@@ -220,12 +222,29 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 float tb = maxD;
                 int ib = -1;
                 if (corpseRay(o, d, maxD, tb, ib) && (!he || tb < te)) { he = true; te = tb; ne = d * -1.0f; ie = ib; }
+                // Scenery: a destructible object the world ray hit, or a tree trunk.
+                int worldTarget = -1;
+                if (hw && lastWorldTag_ >= 0 && size_t(lastWorldTag_) < objectItem_.size() && objectItem_[size_t(lastWorldTag_)] >= 0)
+                    worldTarget = kObjectTarget + objectItem_[size_t(lastWorldTag_)];
+                float tt = maxD;
+                int ti = -1;
+                if (treeRay(o, d, std::min(maxD, hw ? tw : maxD), tt, ti) && (!he || tt < te)) {
+                    hw = true; tw = tt; nw = d * -1.0f; worldTarget = kObjectTarget + ti;
+                }
                 if (!hw && !he) return false;
                 if (he && (!hw || te < tw)) { t = te; n = ne; target = ie; }
-                else { t = tw; n = nw; target = -1; }
+                else { t = tw; n = nw; target = worldTarget; }
                 return true;
             };
             weapon_.onHit = [this](int target, const Vec3& p, const Vec3& shotDir) {
+                if (target >= kObjectTarget) {
+                    const int item = target - kObjectTarget;
+                    damageObject(item, 25.0f, false, player_.position);
+                    const DestructKind k = destruct_.items[size_t(item)].kind;
+                    sfx(k == DestructKind::Tree || k == DestructKind::House ? "ex_woods" : "ex_stons", p, 0.45f, 1.1f + 0.2f * frand());
+                    smokePuff(k == DestructKind::Tree ? FxTex::Dust : FxTex::Smoke, p, normalize(shotDir * -1.0f) * 0.8f, 0.2f, 0.9f, 0.8f, 0.6f, 0.2f);
+                    return;
+                }
                 // Gunfire carries: Reapers nearby hear it.
                 enemies_.alertNear(p, 20.0f);
                 if (target >= kCorpseEnemy) {
@@ -304,7 +323,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             const char* eclips[] = {"rpman_stand_scan.anm", "rpman_walk_fire.anm", "rpman_stand_fire.anm",
                                     "rpman_hit_med.anm", "rpman_hit_med2.anm", "rpman_hit_med_die.anm",
                                     "rpman_hit_spin_die.anm", "rpman_hit_gut_die.anm", "rpman_bzka_run.anm",
-                                    "rpman_bzka_walk_scan.anm", "rpman_standing_alert_scan.anm", "rpman_hit_blowup.anm"};
+                                    "rpman_bzka_walk_scan.anm", "rpman_standing_alert_scan.anm", "rpman_hit_blowup.anm",
+                                    "rpman_hit_fall_cycle.anm", "rpman_hit_fall_land.anm"};
             int poolSize = 6;
             {
                 int missionReapers = 0;
@@ -646,6 +666,8 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "rm_atfr1", "rm_atfr2", "rm_attk1", "rm_chitt", "rm_deat1", "rm_deat2", "rm_feet", "rm_frexp", "rm_inj01",
         "rm_inj02", "rl_atfr1", "rl_atfr2", "rl_attk1", "rl_chitt", "rl_deat1", "rl_deat2", "rl_feet", "rl_frexp1",
         "rl_frexp2", "rl_injr1", "rl_injr2", "ex_bdyl1", "ex_bdyl2",
+        // Scenery breaking: trees, stone, wood, metal (large and small).
+        "ex_treel", "ex_trees", "ex_stonl", "ex_stons", "ex_woodl", "ex_woods", "ex_metll", "ex_metls", "ex_dirtl", "ex_dirts",
         // Carrying Smarties (1b): pick up / let go / drop off, splash, piranhas.
         "me_smton", "me_smtof", "me_smtdp", "se_splsh", "pi_swrm1", "pi_swrm2",
         // Rocket launcher: launch, explosion.
@@ -947,6 +969,8 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         goreArm_ = mc->get("rip_gore_arm.gbs", "", /*dynamicLit=*/true);
     }
     initGore(w, mc);
+    initFx(mc);
+    initDestruction(w, mc);
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
 }
 
@@ -1249,53 +1273,8 @@ void GameApp::updateGore(float dt) {
 }
 
 void GameApp::renderGore() {
-    if (!goreQuad_) return;
+    // Blood splats, drops and sprays are drawn in batches (renderFx); the Cleaners here.
     const Vec3 eye = renderer_.currentView().eyePosition;
-    // Splats and pools: flat on the ground (along its slope) or the water surface.
-    for (const auto& d : blood_.decals) {
-        if (length(d.pos - eye) > 70.0f) continue;
-        const float a = d.alpha();
-        if (a <= 0.01f) continue;
-        DrawParams dp;
-        dp.texture = bloodTex_[d.texture];
-        dp.blend = BlendMode::AlphaBlend;
-        dp.unlit = true;
-        dp.depthWrite = false;
-        dp.doubleSided = true;
-        dp.tint = {1.0f, 1.0f, 1.0f, a * (d.water ? 0.55f : 0.95f)};
-        static const bool xray = std::getenv("GVR_DECAL_XRAY") != nullptr;
-        if (xray) dp.depthTest = false;
-        const Quat tilt = rotationBetween({0, 0, 1}, d.normal);
-        const float sc = d.scale();
-        renderer_.draw(goreQuad_, Mat4::translation(d.pos + d.normal * 0.03f) * Mat4::rotation(tilt * Quat::fromAxisAngle({0, 0, 1}, d.angle)) *
-                                       Mat4::scale({sc, sc, sc}),
-                       dp);
-    }
-    // Drops in flight and spray puffs: billboards toward the viewer.
-    const Quat face = headWorldRot_;
-    for (const auto& dr : blood_.drops) {
-        DrawParams dp;
-        dp.texture = dropTex_;
-        dp.blend = BlendMode::AlphaBlend;
-        dp.unlit = true;
-        dp.depthWrite = false;
-        dp.doubleSided = true;
-        renderer_.draw(goreQuad_, Mat4::translation(dr.pos) * Mat4::rotation(face) * Mat4::scale({dr.size, dr.size, dr.size}), dp);
-    }
-    for (const auto& sp : blood_.sprays) {
-        const float f = sp.age / sp.life;
-        DrawParams dp;
-        dp.texture = sprayTex_ ? sprayTex_ : dropTex_;
-        dp.blend = BlendMode::AlphaBlend;
-        dp.unlit = true;
-        dp.depthWrite = false;
-        dp.doubleSided = true;
-        dp.tint = {1, 1, 1, 1.0f - f};
-        const float sc = sp.size * (0.6f + 1.2f * f);
-        renderer_.draw(goreQuad_, Mat4::translation(sp.pos) * Mat4::rotation(face * Quat::fromAxisAngle({0, 0, 1}, sp.age * 2.0f)) *
-                                      Mat4::scale({sc, sc, sc}),
-                       dp);
-    }
     for (size_t k = 0; k < cleaners_.cleaners.size() && k < cleanerPool_.size(); ++k) {
         const Cleaner& c = cleaners_.cleaners[k];
         if (length(c.pos - eye) > 80.0f) continue;
@@ -1427,6 +1406,7 @@ void GameApp::updateSun(float dt) {
 }
 
 void GameApp::renderShadows() {
+    buildBatches();
     renderShadowMap();
     renderReflection();
 }
@@ -2214,6 +2194,14 @@ void GameApp::explode(const Vec3& at, float radius, float damage) {
             creatureSound(e);
         }
     }
+    // Scenery in the blast: distance to the object's upright axis, less its size.
+    for (size_t k = 0; k < destruct_.items.size(); ++k) {
+        const Destructible& it = destruct_.items[k];
+        if (!it.alive()) continue;
+        const float y = std::max(it.base.y, std::min(it.base.y + it.height, at.y));
+        const float dd = std::max(0.0f, length(Vec3{it.base.x, y, it.base.z} - at) - 0.5f * it.radius);
+        if (dd < radius) damageObject(int(k), damage * (1.0f - 0.5f * dd / radius), true, at);
+    }
     for (size_t k = 0; k < nests_.size(); ++k) {
         const float dn = length(nests_[k].pos - at);
         if (dn < radius + nests_[k].radius * 0.4f) damageNest(int(k), damage * (1.0f - 0.5f * std::min(1.0f, dn / radius)));
@@ -2475,6 +2463,16 @@ void GameApp::updateCombat(float dt) {
     // Next wave after the last Reaper has fallen.
     updateCharacters(dt);
     updateGore(dt);
+    updateDestruction(dt);
+    updateFx(dt);
+    // Sentries killed by their fall.
+    for (int i : enemies_.landed) {
+        const Enemy& e = enemies_.enemies[size_t(i)];
+        if (e.objective >= 0) completeObjective(e.objective);
+        blood_.pool(e.pos, 1.4f);
+        bleed(e.pos + Vec3{0, 0.4f, 0}, Vec3{0, 1, 0}, true, 1.0f);
+        sfx("me_hdfl1", e.pos, 1.0f, 0.8f);
+    }
     updateMission(dt);
     if (enemies_.aliveCount() == 0 && !missionHostiles_ && objectives_.empty()) {
         waveTimer_ += dt;
@@ -2880,6 +2878,8 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         }
     }
     renderGore();
+    for (const auto& c : collapses_)
+        if (c.model) c.model->render(renderer_, c.xf);
     for (const auto& g : gibs_)
         drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) *
                                Mat4::scale({g.scale, g.scale, g.scale}),
@@ -2945,6 +2945,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
             drawModel(impactModel_, Mat4::translation(e.pos) * Mat4::rotation(headWorldRot_) *
                                         Mat4::scale(Vec3{1, 1, 1} * (3.0f + 4.0f * k)), true, 1.0f - k);
     }
+    renderFx();
     if (cut) renderCutscene();
     else if (playMode_) renderHud();
     if (briefHeld_ && !cut && playMode_) renderBriefOverlay();
