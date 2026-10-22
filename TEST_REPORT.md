@@ -155,3 +155,26 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - 1b water: piranha bites (health 100 → 16 in 4 s).
 - **Not yet device-tested.** Device test 18 now also covers: 1b carrying (reach, grip, let go over the pad), the pad
   counting on the wrist pips, piranhas, the mission chain 1a → 1b → 1c, and free-camera X (next mission).
+
+## Device test 18 — 2026-10-22, user's Quest 2 (build 4b15f54)
+- **DEVICE VERIFIED:** mission progression.
+- Reported issues, all addressed in a899d44 (see ENGINEERING_LOG):
+  - cutscene voices and effects missing; misplaced bodies; the hatch didn't open; the flag was missing; Tel wasn't
+    hanging;
+  - the game felt stuck after cutscenes;
+  - water and piranhas; Ripper nests; bridges sliding;
+  - 1b Smarties standing instead of hanging;
+  - the Meccaryn's missing face; the jetpack showing on his back in 1a.
+
+## Host verification — build a899d44 (APK sha256 5cf1d305…, delivered and checked)
+- `gvr_tests` pass (rescue test extended: hanging, slipping, letting go, dying, re-hanging, grabbing off the hang).
+- Harness:
+  - hatch opening frames;
+  - visor face close-up;
+  - both bridges crossed;
+  - swimming at −1.35 m with the piranha attack (health 100 → 76);
+  - nests hatch and are destroyed by gunfire;
+  - the shadow term (debug view) and the shadowed render;
+  - the briefing screen "Tel's Dilemma";
+  - 8 Smarties hung on 9 hang points.
+- **Not yet device-tested.**

@@ -526,3 +526,50 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
   - The sentries now stand exactly on `Ref_guard01`, which replaces the collision-floor guess.
   - Tel (1c_1) hangs from `Ref_Lhand` by his left hand, using the original `mc_hang_onehand_yell` clip; his
     `ref_lhand` bone is placed on the point.
+
+### Device test 18 feedback, fixed (2026-10-22, build a899d44)
+The user's report on build 4b15f54, and what changed:
+- **Cutscene audio was missing.** Voice lines are op 0x2C streams in `StreamEnglish/Newstreams` (baz006, tim001,
+  gor002…). Effects such as `f_ms_msfto` are in `Stream/<World>`.
+  - The op 9/10 waits name absolute frames/ticks of the shared Max timeline: story1_start_2 starts at frame 210 and
+    "wait 265" = 1.83 s into the shot. Voices and subtitles are timed from them, one subtitle at a time.
+  - INSTALL now asks for `StreamEnglish` to be copied too.
+- **Staging:**
+  - The hatch now opens: small rigs need only half their bones matched.
+  - Flags pop in: Bezier (type 5) scale keys are read at +32. Props sit at 0.01 scale until they appear, which is what
+    the "missing flag" was.
+  - World copies of cutscene actor types are hidden during cutscenes.
+  - op 0x20 places free actors (the wax-Smartie rig).
+  - Feet sunk up to 0.6 m into our terrain are lifted.
+  - Tel hangs from the crashed plane, in gameplay too (mount hardpoints).
+- **No more waiting after cutscenes:** a loading/briefing screen fades in after a mission, shows the next mission's
+  title and objectives (GText) while it loads, and continues by itself after 6 s. The first mission gets the same
+  briefing before its opening cutscene.
+- **Meccaryn face:** GBS sub-object flag 0x1 is glass (lander canopy, visor). It is now drawn see-through, so the
+  face texture behind the visor shows.
+- **Jetpack model swap:** `mc_nothrust_l0` (no jetpack) until the jetpack is received, then `mc_l0`.
+- **Bridges:**
+  - Stepping onto a structure is limited by step height, not the 50° terrain slope test (the deck lip was a "cliff").
+  - No slope sliding while on a structure.
+  - Slope uses the gentler one-sided difference, so a cliff-top landing counts as flat.
+  - Headless: both 1a bridges crossed end to end.
+- **Water:** deep water (> 1.35 m) floats the player at shoulder depth (no diving, 2.4 m/s swim); NPCs float too.
+  - Entering water splashes (`efx_splash`); swimming leaves rings (`water_rings`).
+  - Piranhas (`piranha` + `pir_swim` / `pir_swim_jump`) gather in all deep water after 0.8 s, circle, leap and bite.
+    They leave when you do.
+  - Water surface shader: waves, fresnel sky reflection, sun glints.
+  - The sea bed tints with depth.
+- **1b Smarties hang on the pillars:** `w_story1_hang.anm` has nine `ref_smartie_NN` nodes, which are the hang points.
+  - Each Smartie hangs (`sm_hang`) for 70–120 s, slips (`sm_hang_onearm`), lets go, falls into the water, is eaten,
+    and hangs again 25 s later.
+  - It can be grabbed off the hang point.
+- **Ripper nests (class 47, five in 1a):**
+  - Each nest hatches a Ripper every 6–10 s (up to three at a time) while the player is within 70 m.
+  - Hatched Rippers charge straight at the player and never give up. They use a pool of models.
+  - Shots shrink a nest (to 35 % at 0 HP) until it is destroyed; rockets damage nests too.
+- **Graphics:**
+  - The sun circles once every 20 minutes and never sets (30–62° elevation).
+  - Real-time shadows from a 1024² sun depth map, 56 m around the player, with 4-tap PCF. Casters: objects, characters,
+    enemies, nests, and the player in third person.
+  - Sun disc and glow in the sky shader, a fan of sun rays occluded by the scene, and a closed sky dome. Clouds drift.
+  - Performance on the Quest is unmeasured: the shadow pass and the heavier shader are new costs.
