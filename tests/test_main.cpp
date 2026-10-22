@@ -21,6 +21,8 @@
 #include "game/creature.h"
 #include "game/smartie.h"
 #include "game/gore.h"
+#include "game/destruction.h"
+#include "game/particles.h"
 #include "audio/mixer.h"
 #include "audio/music.h"
 #include "assets/gtext.h"
@@ -278,7 +280,7 @@ static void testPlayer() {
         if (k == 0) CHECK(slid && sl.position.y < 0.3f && sl.position.z > -0.6f);  // reached the foot of the slope
         else CHECK(!slid && near(sl.position.z, -3.0f, 1e-3f));
     }
-    // Jetpack: horizontal speed builds up gradually; fuel runs out (~4 s) and refills later.
+    // Jetpack: horizontal speed builds up gradually; fuel runs out (5 s), overheats, refills on the ground.
     PlayerController jp;
     jp.groundHeight = [](float, float) { return 0.0f; };
     jp.teleport({0, 0, 0}, 0.0f);
@@ -289,12 +291,19 @@ static void testPlayer() {
     CHECK(jp.horizontalSpeed() < 1.0f);  // not instant
     for (int i = 0; i < 72 * 3; ++i) jp.update(1.0f / 72.0f, j);
     CHECK(jp.horizontalSpeed() > 8.0f && jp.horizontalSpeed() <= jp.params.jetAirSpeed + 1e-3f);
-    CHECK(jp.thrusting() && jp.fuel() < 0.3f);
-    for (int i = 0; i < 72 * 2; ++i) jp.update(1.0f / 72.0f, j);
-    CHECK(!jp.thrusting() && jp.fuel() == 0.0f);  // empty: no more thrust
+    CHECK(jp.thrusting() && jp.fuel() < 0.45f);
+    for (int i = 0; i < 72 * 2 + 10; ++i) jp.update(1.0f / 72.0f, j);
+    CHECK(!jp.thrusting() && jp.fuel() == 0.0f && jp.overheated() && jp.takeOverheat());  // burnt dry: overheated
+    // Falling without thrust: no air control, air friction slows him.
+    const float hs0 = jp.horizontalSpeed();
+    for (int i = 0; i < 36; ++i) jp.update(1.0f / 72.0f, j);
+    CHECK(jp.horizontalSpeed() < hs0 * 0.85f);
     j.jet = false;
-    for (int i = 0; i < 72 * 6; ++i) jp.update(1.0f / 72.0f, j);
-    CHECK(jp.fuel() > 0.99f && jp.onGround);  // landed and refilled
+    float impact = 0;
+    bool stunned = false;
+    for (int i = 0; i < 72 * 7; ++i) { jp.update(1.0f / 72.0f, j); impact = std::max(impact, jp.takeImpact()); stunned |= jp.stunned(); }
+    CHECK(impact > jp.params.stunSpeed && stunned);  // a hard landing from that height
+    CHECK(jp.fuel() > 0.99f && jp.onGround && !jp.overheated());  // refilled on the ground
     // Angle wrap helper.
     CHECK(near(angleDelta(3.0f, -3.0f), 2.0f * kPi - 6.0f, 1e-4f));
 }
@@ -1004,10 +1013,44 @@ static void testGore() {
     CHECK(started && eaten >= 1.0f && gone);
 }
 
+static void testDestruction() {
+    using namespace gvr;
+    DestructionDirector d;
+    std::vector<DestructEvent> ev;
+    const int house = d.add(0, DestructKind::House, {0, 0, 0}, 6, 4, 330);
+    const int tree = d.add(1, DestructKind::Tree, {10, 0, 0}, 8, 2, 60);
+    // Bullets barely scratch a house; blasts take it down through the stages.
+    for (int i = 0; i < 20; ++i) d.damage(house, 25, false, {0, 0, 20}, ev);  // 150 of 330
+    CHECK(d.items[house].stage == 1 && d.items[house].alive());
+    bool collapse = false;
+    for (int i = 0; i < 4 && !collapse; ++i) collapse = d.damage(house, 120, true, {0, 0, 20}, ev);
+    CHECK(collapse && d.items[house].stage == 3);
+    CHECK(std::fabs(d.items[house].fallDir.z + 1.0f) < 1e-3f);  // falls away from the blast
+    // A rocket fells a tree; it lies down after its fall time.
+    ev.clear();
+    CHECK(d.damage(tree, 120, true, {12, 0, 0}, ev));
+    bool fallen = false, down = false;
+    for (int i = 0; i < 300; ++i) {
+        ev.clear();
+        d.update(1.0f / 60, ev);
+        for (const auto& e : ev) { fallen |= e.kind == DestructEvent::Fallen && e.index == tree; down |= e.kind == DestructEvent::Down && e.index == tree; }
+    }
+    CHECK(fallen && down && d.items[tree].stage == 4);
+    CHECK(DestructionDirector::fallAngle(0, 2) == 0.0f && std::fabs(DestructionDirector::fallAngle(2, 2) - 1.5708f) < 1e-3f);
+    // Particles age out.
+    ParticleSystem ps;
+    Particle p;
+    p.life = 0.5f;
+    ps.emit(p);
+    for (int i = 0; i < 40; ++i) ps.update(1.0f / 60);
+    CHECK(ps.parts.empty());
+}
+
 int main() {
     testGameText();
     testRescue();
     testGore();
+    testDestruction();
     testAffineInverse();
     testGti();
     testWorldBin();

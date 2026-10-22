@@ -190,6 +190,9 @@ private:
     // Rocket launcher (the RPG Timmy gives Baz at the end of 1b; mission item 3): mc_launcher_l0
     // in hand, mc_rocket projectiles with splash damage. Right stick forward switches weapons.
     const RenderModel* launcherModel_ = nullptr;
+    // Ref_handle / Ref_nozzle01 of each weapon (game units, model frame; defaults = measured values).
+    Vec3 gunHandle_{-0.01f, 1.23f, -0.71f}, gunMuzzle_{-0.01f, -1.84f, 0.33f};
+    Vec3 launcherHandle_{-0.13f, 2.25f, 1.16f}, launcherMuzzle_{0.0f, -4.58f, 0.03f};
     const RenderModel* rocketModel_ = nullptr;
     bool hasLauncher_ = false;
     int weaponSel_ = 0;  // 0 gun, 1 launcher
@@ -268,13 +271,15 @@ private:
     void shootCorpse(int target, const Vec3& p, const Vec3& dir);
     // Player death: by bullets / bites he falls (mc_die), in the piranhas' water he goes under
     // (mc_drowning_die), a blast blows him apart (MC_chunk1..6). Then a fade and a respawn.
-    enum class DeathCause { Shot, Bitten, Drowned, Blast };
+    enum class DeathCause { Shot, Bitten, Drowned, Blast, Fall };
     DeathCause lastHurt_ = DeathCause::Shot;
+    Vec3 hitFrom_;              // where the last hit came from (HUD: a red mark on that side)
+    float hitDirTimer_ = 0;
     bool dying_ = false, deathWasFp_ = false, playerGibbed_ = false;
     float respawnFade_ = 0;
     float deathTime_ = 0;
     DeathCause deathCause_ = DeathCause::Shot;
-    int deathClip_[2] = {-1, -1};  // mc_die, mc_drowning_die (same order in both player variants)
+    int deathClip_[3] = {-1, -1, -1};  // mc_die, mc_drowning_die, mc_land_dead (same order in both player variants)
     void startDeath();
     void updateDeath(float dt, const InputFrame& in);
     std::vector<CharacterInst> chars_;

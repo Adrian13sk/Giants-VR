@@ -5,6 +5,7 @@
 #include "audio/mixer.h"
 #include "audio/music.h"
 #include "assets/gtext.h"
+#include "assets/skin_anim.h"
 #include "game/cutscene.h"
 #include "game/arm_ik.h"
 #include "scene/model_cache.h"
@@ -63,12 +64,15 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         if (!m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, base, "mc_stand.anm")) return nullptr;
         {
             const char* clips[] = {"mc_stand.anm", "mc_run.anm", "mc_thrust.anm", "mc_hover.anm", "mc_land_soft.anm", "mc_sidestep.anm",
-                                   "mc_skid.anm"};
+                                   "mc_skid.anm", "mc_hover_turbo_back.anm", "mc_fly_left.anm", "mc_fly_right.anm", "mc_hover_back.anm",
+                                   "mc_land_hard.anm", "mc_fly_cycle.anm"};
+            static_assert(sizeof(clips) / sizeof(clips[0]) == size_t(PlayerAnim::Count), "a clip per PlayerAnim");
             for (int i = 1; i < int(PlayerAnim::Count); ++i) clip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
             // Death clips: falling dead, going under in the water.
             const int dieA = m->addAnimation(assetWorld_->fs(), "mc_die.anm");
             const int dieB = m->addAnimation(assetWorld_->fs(), "mc_drowning_die.anm");
-            if (first) { deathClip_[0] = dieA; deathClip_[1] = dieB; }
+            const int dieC = m->addAnimation(assetWorld_->fs(), "mc_land_dead.anm");
+            if (first) { deathClip_[0] = dieA; deathClip_[1] = dieB; deathClip_[2] = dieC; }
             // Eye point from the idle pose: at the front of the face (-Z), so looking down shows
             // the chest and arms instead of the inside of the collar armour.
             m->pose(renderer_, 0.0f);
@@ -148,6 +152,25 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             // Weapon models: gun (held, so dynamically lit), bolt, muzzle flash, impact flash.
             ModelCache* mc = assetWorld_->models();
             gunModel_ = mc->get("mc_gun_l0.gbs", "", /*dynamicLit=*/true);
+            {
+                // Grip and muzzle points from the weapons' reference nodes (game units, model frame).
+                auto ref = [&](const char* anm, const char* node, Vec3& out) {
+                    std::vector<uint8_t> b;
+                    AnmAnimation a;
+                    if (!assetWorld_->fs().read(anm, b) || !parseAnm(b.data(), b.size(), a)) return;
+                    std::vector<Mat4> wm;
+                    a.evaluate(0.0f, wm);
+                    auto it = a.byName.find(node);
+                    if (it != a.byName.end()) out = {wm[size_t(it->second)].m[12], wm[size_t(it->second)].m[13], wm[size_t(it->second)].m[14]};
+                };
+                ref("mc_gun.anm", "ref_handle", gunHandle_);
+                ref("mc_gun.anm", "ref_nozzle01", gunMuzzle_);
+                ref("mc_launcher.anm", "ref_handle", launcherHandle_);
+                ref("mc_launcher.anm", "ref_nozzle01", launcherMuzzle_);
+                LOGI("Weapon refs: gun handle (%.2f %.2f %.2f) muzzle (%.2f %.2f %.2f); launcher handle (%.2f %.2f %.2f) muzzle (%.2f %.2f %.2f)",
+                     gunHandle_.x, gunHandle_.y, gunHandle_.z, gunMuzzle_.x, gunMuzzle_.y, gunMuzzle_.z, launcherHandle_.x, launcherHandle_.y,
+                     launcherHandle_.z, launcherMuzzle_.x, launcherMuzzle_.y, launcherMuzzle_.z);
+            }
             launcherModel_ = mc->get("mc_launcher_l0.gbs", "", /*dynamicLit=*/true);
             rocketModel_ = mc->get("mc_rocket.gbs", "mc_rocket.anm", /*dynamicLit=*/true);
             boltModel_ = mc->get("mc_bullet.gbs", "mc_bullet.anm");
@@ -266,7 +289,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     const int ci = target - kCreatureTarget;
                     const float scale = creatures_.creatures[size_t(ci)].scale;
                     const int slot = creatures_.creatures[size_t(ci)].slot;
-                    const bool died = creatures_.damage(ci, 25.0f, shotDir, &ev);
+                    // A Ripper's head (round its mouth) is its weak spot.
+                    Vec3 mouth;
+                    const bool weak = creatures_.mouth && creatures_.mouth(ci, mouth) && length(mouth - p) < 0.55f * scale;
+                    const bool died = creatures_.damage(ci, weak ? 45.0f : 25.0f, shotDir, &ev);
                     if (died && slot >= 0 && size_t(slot) < chars_.size() && chars_[size_t(slot)].objective >= 0)
                         completeObjective(chars_[size_t(slot)].objective);
                     bleed(p, shotDir, died, scale);
@@ -281,7 +307,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     for (const auto& e : ev) creatureSound(e);
                     return;
                 }
-                const bool killed = enemies_.damage(target, 25.0f);
+                // Headshots (hit above the shoulders) hurt a Reaper two and a half times as much.
+                const bool head = p.y - enemies_.enemies[size_t(target)].pos.y > 1.6f;
+                if (head) sfx("bi_hit2", p, 0.8f, 1.4f);
+                const bool killed = enemies_.damage(target, head ? 62.5f : 25.0f);
                 if (killed && enemies_.enemies[size_t(target)].objective >= 0)
                     completeObjective(enemies_.enemies[size_t(target)].objective);
                 bleed(p, shotDir, killed, 1.0f);
@@ -309,8 +338,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 else { t = tw; n = nw; target = -1; }
                 return true;
             };
-            enemyFire_.onHit = [this](int target, const Vec3& p, const Vec3&) {
-                if (target == -2) damagePlayer(5.0f, DeathCause::Shot);
+            enemyFire_.onHit = [this](int target, const Vec3& p, const Vec3& dir) {
+                if (target == -2) { hitFrom_ = p - dir * 10.0f; hitDirTimer_ = 1.2f; damagePlayer(5.0f, DeathCause::Shot); }
                 else sfx(frand() < 0.5f ? "bi_hit1" : "bi_dirt1", p, 0.35f, 0.9f + 0.2f * frand());
             };
             // NPCs float in deep water (the sea surface is at 0): they can't walk on the sea floor.
@@ -501,6 +530,17 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         tpAiming_ = false;
     }
     player_.update(dt, pi);
+    // Hard landings hurt (the original: damage and a 2 s stun; a rocket under him prevents it).
+    const float impact = player_.takeImpact();
+    if (impact > player_.params.stunSpeed && !player_.swimming()) {
+        damagePlayer((impact - player_.params.stunSpeed) * 6.0f + 5.0f, DeathCause::Fall);
+        sfx2D("me_hdfl1", 1.0f, 0.9f);
+        LOGI("Hard landing at %.1f m/s", impact);
+    }
+    if (player_.takeOverheat()) {
+        sfx2D("me_jpkno", 0.9f);
+        LOGI("Jetpack burnt dry: overheated");
+    }
     placeCamera(dt, false, &in);
     if (!playerModel_) return;
     if (firstPerson_) {
@@ -1289,7 +1329,11 @@ void GameApp::updateCharacters(float dt) {
         if (e.kind == CreatureEvent::SpitLaunch) ++spitsLaunched_;
         if (e.kind == CreatureEvent::SpitBurst && e.damage > 0.5f) ++spitHits_;
         if ((e.kind == CreatureEvent::Strike || e.kind == CreatureEvent::SpitBurst) && e.damage > 0.5f)
+        {
+            hitFrom_ = e.pos;
+            hitDirTimer_ = 1.2f;
             damagePlayer(e.damage, e.kind == CreatureEvent::Strike ? DeathCause::Bitten : DeathCause::Blast);
+        }
         if (e.kind == CreatureEvent::SpitBurst) blasts_.push_back({e.pos, int(e.size), 0.0f});
     }
     // Rippers: the model follows its creature; burst or sunk-away bodies are hidden.
@@ -2128,7 +2172,7 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
     bodyXf_ = Mat4::translation(player_.position - Vec3{0, sink, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
     if (playerModel_ && !playerGibbed_) {
         playerModel_->setHideEnabled(false);
-        const int clip = deathClip_[deathCause_ == DeathCause::Drowned ? 1 : 0];
+        const int clip = deathClip_[deathCause_ == DeathCause::Drowned ? 1 : (deathCause_ == DeathCause::Fall ? 2 : 0)];
         if (clip >= 0) {
             const float d = playerModel_->animDuration(clip);
             const float t = std::min(deathTime_, d * 0.999f);
@@ -2207,9 +2251,26 @@ void GameApp::explode(const Vec3& at, float radius, float damage) {
         if (dn < radius + nests_[k].radius * 0.4f) damageNest(int(k), damage * (1.0f - 0.5f * std::min(1.0f, dn / radius)));
     }
     LOGI("Rocket exploded at (%.1f %.1f %.1f), %zu creatures alive", at.x, at.y, at.z, creatures_.aliveCount());
-    // The player is not immune to their own rockets.
-    const float dp = length(player_.position + Vec3{0, 0.9f, 0} - at);
-    if (playMode_ && dp < radius * 0.6f) damagePlayer(30.0f * (1.0f - dp / (radius * 0.6f)), DeathCause::Blast);
+    // His own rockets don't hurt the Meccaryn, they throw him (rocket jumps and rocket landings,
+    // as in the original: a blast under him kills his fall speed).
+    const Vec3 rel = player_.position + Vec3{0, 0.9f, 0} - at;
+    const float dp = length(rel);
+    if (playMode_ && dp < radius * 1.2f) {
+        const float k = 1.0f - dp / (radius * 1.2f);
+        const Vec3 dir = dp > 1e-3f ? rel * (1.0f / dp) : Vec3{0, 1, 0};
+        player_.velocity.x += dir.x * 9.0f * k;
+        player_.velocity.z += dir.z * 9.0f * k;
+        player_.velocity.y = std::max(player_.velocity.y, 0.0f) + (4.0f + std::max(0.0f, dir.y) * 8.0f) * k;
+        player_.onGround = false;
+        haptics_.push_back({kLeft, 0.8f * k, 0.15f});
+        haptics_.push_back({kRight, 0.8f * k, 0.15f});
+    }
+    // Reapers standing near the blast are shoved.
+    for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
+        const Vec3 r = enemies_.enemies[i].pos - at;
+        const float d = length(r);
+        if (d < radius * 1.5f && d > 1e-3f) enemies_.push(int(i), r * (6.0f * (1.0f - d / (radius * 1.5f)) / d));
+    }
 }
 
 void GameApp::updateRockets(float dt) {
@@ -2484,9 +2545,7 @@ void GameApp::updateCombat(float dt) {
 
 // Gun muzzle, barrel direction and handle in the gun model's GAME frame (forward = -Y like
 // the characters; up = +Z).
-static const Vec3 kGunMuzzleGame{0.0f, -1.8f, 0.25f};
 static const Vec3 kGunForwardGame{0.0f, -1.0f, 0.0f};
-static const Vec3 kGunHandleGame{0.0f, 0.6f, -0.8f};
 
 void GameApp::updateThirdPersonAim(const InputFrame& in, float dt) {
     const ControllerState& c = in.hand[rig_.turnHand()];
@@ -2518,8 +2577,10 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     const RenderModel* held = launcher ? launcherModel_ : gunModel_;
     // Handle / muzzle in each model's GAME frame (forward -Y, up +Z): the launcher is a
     // shoulder tube (9.5 units long) held at its pistol grip, a little behind the middle.
-    const Vec3 handleGame = launcher ? Vec3{0.0f, 1.0f, -1.2f} : kGunHandleGame;
-    const Vec3 muzzleGame = launcher ? Vec3{0.0f, -4.7f, 0.1f} : kGunMuzzleGame;
+    // The hand holds each weapon at its own Ref_handle; shots leave from its Ref_nozzle01 (the
+    // weapons' .anm reference nodes: mc_gun.anm, mc_launcher.anm).
+    const Vec3 handleGame = launcher ? launcherHandle_ : gunHandle_;
+    const Vec3 muzzleGame = launcher ? launcherMuzzle_ : gunMuzzle_;
     Mat4 ref;
     Vec3 muzzle, fwd;
     if (firstPerson_) {

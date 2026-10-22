@@ -12,7 +12,7 @@
 
 namespace gvr {
 
-enum class PlayerAnim : int { Idle = 0, Run, Thrust, Hover, Land, Strafe, Slide, Count };
+enum class PlayerAnim : int { Idle = 0, Run, Thrust, Hover, Land, Strafe, Slide, FlyFwd, FlyLeft, FlyRight, FlyBack, LandHard, Fall, Count };
 
 struct PlayerInput {
     Vec2 move;            // stick, -1..1, +y = forward (deadzone applied by the controller)
@@ -31,16 +31,23 @@ struct PlayerParams {
     float maxPlayback = 2.4f;     // clip playback rate cap
     float turnRate = 10.0f;       // rad/s body turn toward the travel direction
     float gravity = 14.0f;        // m/s^2
-    // Jetpack (user description of the original: speed builds up gradually to a limit; limited
-    // fuel that refills after a while).
-    float thrust = 21.0f;         // m/s^2 upward while the jetpack fires (net +7 against gravity)
-    float maxRise = 5.0f;         // m/s upward speed cap
-    float jetAirSpeed = 9.0f;     // m/s horizontal top speed while thrusting
-    float jetAirAccel = 4.0f;     // m/s^2 horizontal speed build-up while thrusting
-    float airAccel = 3.0f;        // m/s^2 air control without thrust (momentum is kept)
-    float fuelSeconds = 4.0f;     // full tank = seconds of thrust
-    float fuelRefillDelay = 1.2f; // s without thrust before refilling
-    float fuelRefillRate = 0.5f;  // tanks per second
+    // Jetpack, as in the original (Speed Demos Archive notes and the user's description): the
+    // Meccaryn steers in the air only while the jetpack fires; without it air friction slows him
+    // and he falls. The tank refills only on the ground; burning it dry overheats the jetpack, and
+    // it won't fire again until the tank is partly refilled. A hard landing stuns him for 2 s and
+    // hurts. Turbo (sprint while flying) is faster and burns fuel twice as fast. Numbers ours.
+    float thrust = 22.0f;         // m/s^2 upward while the jetpack fires (net +8 against gravity)
+    float maxRise = 6.0f;         // m/s upward speed cap
+    float jetAirSpeed = 10.0f;    // m/s horizontal flight speed
+    float turboFactor = 1.5f;     // turbo: faster, double fuel use
+    float jetAirAccel = 9.0f;     // m/s^2 horizontal speed build-up while flying
+    float airDrag = 0.6f;         // 1/s horizontal slow-down in the air without thrust
+    float fuelSeconds = 5.0f;     // full tank = seconds of thrust
+    float fuelRefillDelay = 0.3f; // s on the ground without thrust before refilling
+    float fuelRefillRate = 0.4f;  // tanks per second (on the ground)
+    float overheatResume = 0.3f;  // after burning dry: usable again at this much fuel
+    float stunSpeed = 12.0f;      // m/s impact: hard landing (stun 2 s, fall damage)
+    float stunSeconds = 2.0f;
     float hardLandSpeed = 3.0f;   // m/s downward speed that triggers the landing clip
     float landSeconds = 0.45f;    // landing clip hold when not moving
     float stepDown = 0.6f;        // m: stay glued to the terrain when walking downhill
@@ -90,14 +97,22 @@ public:
     float fuel() const { return fuel_ / params.fuelSeconds; }  // 0..1
     bool sliding() const { return sliding_; }
     bool thrusting() const { return thrusting_; }
+    bool overheated() const { return overheated_; }
+    bool turbo() const { return turbo_; }
+    bool stunned() const { return stun_ > 0; }
+    // Downward speed (m/s) of a landing that happened in the last update, once (0 = none).
+    float takeImpact() { const float v = impact_; impact_ = 0; return v; }
+    // True once when the jetpack has just burnt dry.
+    bool takeOverheat() { const bool o = overheatEvent_; overheatEvent_ = false; return o; }
 
 private:
     void setAnim(PlayerAnim a);
     PlayerAnim anim_ = PlayerAnim::Idle, prevAnim_ = PlayerAnim::Idle;
     float animTime_ = 0, prevTime_ = 0, fade_ = 1e9f;
     float landTimer_ = 0;
-    float fuel_ = 4.0f, sinceThrust_ = 99.0f;
-    bool thrusting_ = false;
+    float fuel_ = 5.0f, sinceThrust_ = 99.0f;
+    bool thrusting_ = false, overheated_ = false, overheatEvent_ = false, turbo_ = false;
+    float stun_ = 0, impact_ = 0;
     bool sliding_ = false;      // on ground too steep to stand on: skidding downhill
     bool slideCarry_ = false;  // still carrying slide momentum on walkable ground
     bool onObject_ = false;  // feet on a structure (bridge, roof), not the terrain

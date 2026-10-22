@@ -27,6 +27,8 @@ void PlayerController::teleport(const Vec3& p, float facingYaw) {
     velocity = {0, 0, 0};
     onGround = true;
     fuel_ = params.fuelSeconds;
+    overheated_ = false;
+    stun_ = impact_ = 0;
     anim_ = prevAnim_ = PlayerAnim::Idle;
     animTime_ = prevTime_ = 0;
     fade_ = 1e9f;
@@ -59,15 +61,22 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     Vec3 dir = fwd * sy + right * sx;
     const float dl = std::sqrt(dir.x * dir.x + dir.z * dir.z);
     if (dl > 1e-4f) dir = dir * (1.0f / dl);
-    const float speed = swimming_ ? swimSpeed * mag : params.runSpeed * mag * (in.sprint ? params.sprintFactor : 1.0f);
-    // Jetpack fuel: drains while thrusting, refills after a short delay.
-    thrusting_ = in.jet && fuel_ > 0.0f && jetpackAvailable;
+    // Stunned after a hard landing: no control.
+    stun_ = std::max(0.0f, stun_ - dt);
+    float speed = swimming_ ? swimSpeed * mag : params.runSpeed * mag * (in.sprint ? params.sprintFactor : 1.0f);
+    if (stun_ > 0) speed = 0;
+    // Jetpack fuel: drains while thrusting (twice as fast on turbo), refills on the ground only.
+    // Burnt dry, it overheats and stays off until the tank is partly refilled.
+    if (overheated_ && fuel_ >= params.overheatResume * params.fuelSeconds) overheated_ = false;
+    thrusting_ = in.jet && fuel_ > 0.0f && jetpackAvailable && !overheated_ && stun_ <= 0;
+    turbo_ = thrusting_ && in.sprint && mag > 0.3f;
     if (thrusting_) {
-        fuel_ = std::max(0.0f, fuel_ - dt);
+        fuel_ = std::max(0.0f, fuel_ - dt * (turbo_ ? 2.0f : 1.0f));
         sinceThrust_ = 0;
+        if (fuel_ <= 0.0f) { overheated_ = true; overheatEvent_ = true; thrusting_ = false; }
     } else {
         sinceThrust_ += dt;
-        if (sinceThrust_ > params.fuelRefillDelay)
+        if (onGround && sinceThrust_ > params.fuelRefillDelay)
             fuel_ = std::min(params.fuelSeconds, fuel_ + params.fuelRefillRate * params.fuelSeconds * dt);
     }
     // Ground steepness under the feet (terrain gradient over +-0.5 m).
@@ -115,18 +124,21 @@ void PlayerController::update(float dt, const PlayerInput& in) {
             velocity.x = tx;
             velocity.z = tz;
         }
-    } else {
-        // In the air: thrust builds horizontal speed gradually up to the jetpack's limit;
-        // without thrust, momentum carries and the stick steers gently.
-        const float top = thrusting_ ? params.jetAirSpeed * mag : std::max(speed, 0.0f);
-        const float accel = thrusting_ ? params.jetAirAccel : params.airAccel;
+    } else if (thrusting_) {
+        // Flying: the stick steers, speed builds up to the jetpack's limit (more on turbo).
+        const float top = params.jetAirSpeed * mag * (turbo_ ? params.turboFactor : 1.0f);
         const float tx = dir.x * top, tz = dir.z * top;
         float dx = tx - velocity.x, dz = tz - velocity.z;
-        const float step = accel * dt;
+        const float step = params.jetAirAccel * dt;
         const float l2 = std::sqrt(dx * dx + dz * dz);
         if (l2 > step) { dx *= step / l2; dz *= step / l2; }
         velocity.x += dx;
         velocity.z += dz;
+    } else if (!onGround) {
+        // Falling without the jetpack: no air control, air friction slows him.
+        const float k = std::max(0.0f, 1.0f - params.airDrag * dt);
+        velocity.x *= k;
+        velocity.z *= k;
     }
     const float moveYaw = std::atan2(-dir.x, -dir.z);
     auto turnToward = [&](float target, float rate) {
@@ -213,7 +225,15 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     onObject_ = objectGround && position.y - g < params.stepDown;
     swimming_ = waterGround && position.y - g < 0.3f;
     if (position.y <= g) {
-        if (!onGround && velocity.y < -params.hardLandSpeed) landTimer_ = params.landSeconds;
+        if (!onGround) {
+            impact_ = std::max(impact_, -velocity.y);
+            if (-velocity.y > params.stunSpeed && !waterGround) {
+                stun_ = params.stunSeconds;  // hard landing
+                velocity.x = velocity.z = 0;
+            } else if (velocity.y < -params.hardLandSpeed) {
+                landTimer_ = params.landSeconds;
+            }
+        }
         position.y = g;
         velocity.y = 0;
         onGround = true;
@@ -229,7 +249,16 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     float rate = 1.0f;
     // Movement relative to the body: forward run, sidestep (right = clip forward), backpedal.
     const float rel = angleDelta(yaw, moveYaw);
-    if (!onGround) want = thrusting_ ? PlayerAnim::Thrust : PlayerAnim::Hover;
+    const float hs = std::sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+    const float velRel = angleDelta(yaw, std::atan2(-velocity.x, -velocity.z));
+    if (stun_ > 0 && onGround) want = PlayerAnim::LandHard;
+    else if (!onGround && thrusting_ && hs > 2.0f) {
+        // Flying: lean into the direction of travel.
+        if (std::fabs(velRel) < 0.8f) want = PlayerAnim::FlyFwd;
+        else if (std::fabs(velRel) > 2.3f) want = PlayerAnim::FlyBack;
+        else want = velRel > 0 ? PlayerAnim::FlyLeft : PlayerAnim::FlyRight;
+    } else if (!onGround && thrusting_) want = velocity.y > 3.0f ? PlayerAnim::Thrust : PlayerAnim::Hover;
+    else if (!onGround) want = velocity.y < -7.0f ? PlayerAnim::Fall : PlayerAnim::Hover;  // a long drop: arms flailing
     else if (swimming_) want = PlayerAnim::Hover;  // treading water (the Meccaryn has no swim clip)
     else if (sliding_) want = PlayerAnim::Slide;
     else if (speedNow > 0.15f) {
