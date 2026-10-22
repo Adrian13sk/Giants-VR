@@ -144,3 +144,14 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - comfort of the travelling viewpoint (the view moves with the shot camera, never rotates by itself);
   - subtitle readability; skipping with either trigger (release it first after the cutscene starts);
   - the soundtrack (needs `Stream` next to `Bin`) stays in sync with the pictures.
+
+## Host verification — mission 1b, progression, sentries, piranhas (build 4b15f54, APK sha256 6ffa2ae0…, delivered and checked)
+- `gvr_tests` pass. New `testRescue`: grab with the reach-down assist, carry to the pad, saved; dropped in the water →
+  splash → back on the islet; out of reach → nothing grabbed.
+- Harness:
+  - `GVR_AUTO_RESCUE=1 GVR_MISSION=1b_1_catchsmarties`: 8/8 saved → complete → outro → 1c_1 loads.
+  - First-person grab (`--grip-window`, `--hand-path`): picked up with the right hand.
+  - 1c_2: the two Reaper sentries stand in the guard towers' crow's nests.
+  - 1b water: piranha bites (health 100 → 16 in 4 s).
+- **Not yet device-tested.** Device test 18 now also covers: 1b carrying (reach, grip, let go over the pad), the pad
+  counting on the wrist pips, piranhas, the mission chain 1a → 1b → 1c, and free-camera X (next mission).
