@@ -1,5 +1,8 @@
 #include "game/player.h"
 
+#include <cstdio>
+#include <cstdlib>
+
 #include <algorithm>
 #include <cmath>
 
@@ -70,10 +73,17 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     // Ground steepness under the feet (terrain gradient over +-0.5 m).
     Vec3 downhill{0, 0, 0};
     bool steep = false;
-    if (onGround && !thrusting_ && groundHeight) {
+    // Standing on a structure (a bridge deck, a roof): the terrain's slope underneath doesn't
+    // matter (bridges span steep gullies; sliding off them was a device-test complaint).
+    if (onGround && !thrusting_ && groundHeight && !onObject_) {
+        // One-sided differences, the gentler side per axis: standing on flat ground at the top
+        // of a cliff (a bridge's landing) is flat ground, not a 50-degree slope that a centred
+        // difference across the edge would report.
         const float e = 0.5f;
-        const float gx = (groundHeight(position.x + e, position.z) - groundHeight(position.x - e, position.z)) / (2 * e);
-        const float gz = (groundHeight(position.x, position.z + e) - groundHeight(position.x, position.z - e)) / (2 * e);
+        const float h0 = groundHeight(position.x, position.z);
+        auto gentler = [](float a, float b) { return std::fabs(a) < std::fabs(b) ? a : b; };
+        const float gx = gentler((groundHeight(position.x + e, position.z) - h0) / e, (h0 - groundHeight(position.x - e, position.z)) / e);
+        const float gz = gentler((groundHeight(position.x, position.z + e) - h0) / e, (h0 - groundHeight(position.x, position.z - e)) / e);
         const float grade = std::sqrt(gx * gx + gz * gz);
         steep = grade > params.maxSlope;  // steeper than 50 deg
         if (grade > 1e-4f) downhill = Vec3{-gx / grade, 0, -gz / grade};
@@ -167,17 +177,25 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         else { velocity.x = dx / dt; velocity.z = dz / dt; }
     }
 
+    bool objectGround = false;
     auto groundAt = [&](float x, float z) {
         float gg = groundHeight ? groundHeight(x, z) : 0.0f;
         float og;  // walls' tops, roofs, tables: highest one we can step onto or are falling onto
-        if (collision && collision->groundAt(x, z, std::max(prevY, position.y) + stepUp, og)) gg = std::max(gg, og);
+        objectGround = false;
+        if (collision && collision->groundAt(x, z, std::max(prevY, position.y) + stepUp, og) && og > gg) {
+            gg = og;
+            objectGround = true;
+        }
         return gg;
     };
     float g = groundAt(position.x, position.z);
     const float hx = position.x - before.x, hz = position.z - before.z;
     const float run = std::sqrt(hx * hx + hz * hz);
     const float rise = g - prevY;
-    const bool tooSteep = rise > 0.02f && run > 1e-4f && rise / run > params.maxSlope;
+    // Slope test for the terrain only: a structure's edge (a bridge deck's lip, a step) is a step
+    // up, limited by maxStepUp, not a 50-degree slope over one frame's travel.
+    // Stepping from a structure onto the terrain (off the far end of a bridge) is a step too.
+    const bool tooSteep = !objectGround && !onObject_ && rise > 0.02f && run > 1e-4f && rise / run > params.maxSlope;
     if (onGround && !thrusting_ && (rise > params.maxStepUp || tooSteep)) {
         // Cliff face (e.g. climbing out of the sea): blocks like a wall; the jetpack gets you up.
         position.x = before.x;
@@ -186,6 +204,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         speedNow = 0;
         g = groundAt(position.x, position.z);
     }
+    onObject_ = objectGround && position.y - g < params.stepDown;
     if (position.y <= g) {
         if (!onGround && velocity.y < -params.hardLandSpeed) landTimer_ = params.landSeconds;
         position.y = g;

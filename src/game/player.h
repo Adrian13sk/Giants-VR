@@ -94,7 +94,8 @@ private:
     float fuel_ = 4.0f, sinceThrust_ = 99.0f;
     bool thrusting_ = false;
     bool sliding_ = false;      // on ground too steep to stand on: skidding downhill
-    bool slideCarry_ = false;   // still carrying slide momentum on walkable ground
+    bool slideCarry_ = false;
+    bool onObject_ = false;  // feet on a structure (bridge, roof), not the terrain   // still carrying slide momentum on walkable ground
 };
 
 // Shortest signed angle from a to b (radians).

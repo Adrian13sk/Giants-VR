@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
     if (useLook) headYawDeg = std::atan2(lookX - atX, -(lookY - atY)) * 180.0f / kPi;
     if (!wantBrief) setenv("GVR_NO_BRIEF", "1", 1);
     in.head.position = {0, headHeight, 0};
-    in.head.orientation = Quat::fromAxisAngle({0, 1, 0}, headYawDeg * kPi / 180.0f) *
+    in.head.orientation = Quat::fromAxisAngle({0, 1, 0}, (useLook ? 0.0f : headYawDeg) * kPi / 180.0f) *
                           Quat::fromAxisAngle({1, 0, 0}, pitchDeg * kPi / 180.0f);
     for (int hnd = 0; hnd < 2; ++hnd) {
         ControllerState& c = in.hand[hnd];
@@ -152,6 +152,11 @@ int main(int argc, char** argv) {
             in.hand[kRight].gripPose.orientation = in.hand[kRight].aimPose.orientation = q;
         }
         app.update(1.0f / 72.0f, in);
+        if (std::getenv("GVR_PLAYER_TRACE") && f % 12 == 0) {
+            const auto& p = app.player();
+            LOGI("trace f%d player (%.2f %.2f %.2f) game (%.0f %.0f) ground %d anim %d", f, p.position.x, p.position.y, p.position.z,
+                 -p.position.x / gGameUnitsToMeters, p.position.z / gGameUnitsToMeters, int(p.onGround), int(p.anim()));
+        }
         if (!audioOut.empty()) {
             const size_t n = audio.size();
             audio.resize(n + 2 * 667);
