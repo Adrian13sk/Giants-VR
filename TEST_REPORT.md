@@ -209,3 +209,13 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 - Draw calls (1a start): eyes 350/305 plus the reflection 203, every other frame. On Quest the adaptive
   fallback logs `perf: ... quality down`.
 - **Not device-tested.**
+
+## Device test 20 — 2026-10-22, user's Quest 2 (build f5c0f47)
+- **DEVICE VERIFIED:**
+  - no frame drops with reflections and 2048 shadows;
+  - better graphics;
+  - blood particles on bodies; bodies eaten;
+  - player death; held briefing.
+- **Reported:** Timmy sideways and disappearing; too few Cleaners.
+- **Fixed in acb8c9c:** harness views of Timmy from three angles, and a Cleaner swarm around a body. Tests pass. Not
+  device-tested.

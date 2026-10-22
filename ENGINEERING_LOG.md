@@ -641,3 +641,15 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - **Tests:** AI tests updated (noticing in front, patrol stays near post, a hit makes aware); new gore test
   (drops land as splats or water clouds, decals fade and are capped, Cleaners eat and leave). All pass.
 - **Not device-tested yet:** everything above, and the GPU cost of reflections plus 2048 shadows on Quest 2.
+
+### Device test 20 feedback → Timmy, Cleaners (2026-10-22, build acb8c9c)
+- **Reported:** no frame drops with the reflections and 2048 shadows; graphics better; gore, Cleaners, death and briefing
+  work. Two things to fix: Timmy rides sideways and keeps disappearing, and the Cleaners come only two at a time.
+- **Timmy:**
+  - Only the bone *positions* are used now: his 'center' on Ref_HolsterB, with Baz's orientation.
+  - sm_mount's posed body faces backwards in its model frame, so he is turned round. He now rides piggyback, arms
+    on the shoulders, looking ahead over them (harness views from behind, side and front).
+  - The disappearing was the first-person rule: he was hidden within 0.45 m of the eyes, and he sits right there.
+    In first person he is now not drawn in the view at all; he still shows in reflections and the shadow.
+- **Cleaners:** swarms of 5–6 to a Reaper and 3–4 to a Ripper (pool of 18). They trickle in from 7–16 m and spread
+  round the body; they share the eating, about 12 s per body.
