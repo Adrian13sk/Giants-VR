@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-22 (build d07dbb9: fuel, Timmy riding backwards)
+Last updated: 2026-10-23 (build f811216: Timmy lean and voice, terrain variety)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -29,14 +29,9 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
-1. **Device test 24 (d07dbb9): Timmy is better.** Next session, in this order:
-   - **Timmy leans with Baz:** take his rotation from Baz's spine relative to its idle rotation, so he tilts
-     forward in forward flight. (A first try in d07dbb9 laid him sideways; check the spine's axes in the game frame.)
-   - **Timmy voice with subtitles:** play Smartie voice lines (gsmNN_1/2 and other sm voice WAVs) with his waves and
-     yells, shown with the existing subtitle panel; find his text lines in the game's text files.
-   - **Terrain texture variety:** beach sand by height near sea level, sand under water, several grass and rock
-     variants blended by slope, height and noise, plus detail textures. Use original textures where the data has
-     them; all in the terrain shader.
+1. **Device test 25** (build f811216, host verified only): Timmy leaning; Timmy's lines and subtitles; the new terrain
+   (beach, sea bed, earth patches, rock on slopes); **frame rate with the terrain shader** (watch `perf: ... quality down`).
+   The three requests from device test 24 are implemented.
    - **Then, in priority order:**
      1. Finish Story 1: village Smarties going about their day, flying Dactyls, the 1d sneak mission.
      2. Save and checkpoints between missions.

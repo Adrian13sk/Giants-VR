@@ -780,3 +780,41 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Ref_Smartie (0, 2.84, 5.38 game units) is lower on the back; it was tried and not used.
 - **Harness:** flight frames 60/300/600 (thrusting, yelling and waving, falling burnt dry); he stays visible and faces
   the chase camera. **Not device-tested.**
+
+### Device test 24 requests → Timmy lean, Timmy talks, terrain variety (2026-10-23, build f811216)
+- **Reported (d07dbb9):** Timmy on the back is fine but doesn't lean with Baz. Requested: Smartie noise/dialogue with
+  subtitles while he rides (with the waves and yells); more varied terrain (beach, underwater sand, grass and rock
+  variations).
+- **Lean:** Timmy's rotation is now Baz's spine rotation relative to its idle rotation (model frame, columns
+  normalised), applied about the seat.
+  - Harness trace: idle 0°; forward flight 72° forward (up → (0, 0.32, −0.95)); hover 13–17°.
+  - Renders from behind and side show him tilting with the torso.
+  - The earlier "lay him sideways" attempt also used the low Ref_Smartie mount; the relative-rotation maths was
+    right.
+- **Timmy talks:**
+  - The game text (`gzptool text` now dumps GTextEnglish.bin) has the Smarties' riding chat: smchride1–4 ("Uh,
+    where are you taking me?", "You're one cool geezer!", "Do that jetpack thing again!", "I feel sick."),
+    smchpickup2 ("I've hopped on!"), smchbaseattack1/4.
+  - No matching voice files exist (StreamEnglish has only BAZ006, BSCREAM1, GOR002, TIM001 and TEL001), so each
+    line is voiced with a gsm01–04/13/14 Smartie clip pitched ×1.18. That pairing is ours.
+  - Lines and when they play:
+    - "I've hopped on!" 2 s after he's on;
+    - ride1/ride3 with his flight yells;
+    - ride4 after a hard landing;
+    - ride2 (50 %) after a kill;
+    - baseattack1/4 when Baz is hurt below 45 health.
+  - 10–16 s between lines. Shown as "Timmy: …" in the game font, head-locked, right of centre (clear of the
+    third-person HUD), for 3.2 s.
+- **Terrain:** a terrain material in the shader (one mesh per chunk, smooth heightfield normals):
+  - the world's ground texture, with earthy patches (Rstory1_ground, about a third of the area);
+  - a large-scale lush/dry tint;
+  - rock on slopes, projected on the dominant side axis so cliffs don't stretch, two rocks (world rock +
+    story3_rock) in large patches;
+  - beach sand 0.8–4.6 m above the sea and on the sea bed (story3_grnd's desert sand, paled), wet at and below
+    the waterline;
+  - grain up close (within 30 m);
+  - our own tileable noise texture drives the blends.
+  - Cost: up to about 8 texture samples per terrain pixel (branches skip unused layers); the adaptive quality fallback
+    (level ≥ 2) drops to ground + rock + sand. Debug renders of the weights checked the blends. **Frame cost on
+    Quest not measured.**
+- **Not device-tested.**

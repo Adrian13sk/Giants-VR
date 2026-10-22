@@ -259,3 +259,17 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 - **Reported:** too much fuel; Timmy faces the wrong way, disappears in flight, wrong/buggy riding clip.
 - **Fixed in d07dbb9** (APK sha256 639e313b…): fuel 8 s; Timmy facing backwards on sm_fly_idle (+ yells in flight),
   mount kept in clips without reference nodes. Tests pass; harness flight frames show him throughout. Not device-tested.
+
+## Device test 24 — 2026-10-22, user's Quest 2 (build d07dbb9)
+- **DEVICE VERIFIED:** Timmy on the back facing backwards, no longer disappearing ("better", "fine").
+- **Reported:** Timmy doesn't lean with Baz.
+
+## Host verification — build f811216 (APK sha256 80d24f79…)
+- `gvr_tests`: all pass.
+- Harness:
+  - Timmy lean trace (0° idle, 72° in forward flight) and renders;
+  - Timmy lines "I've hopped on!" and "Do that jetpack thing again!" with the subtitle panel;
+  - "Oh no, they are attacking us!" after `--hurt`;
+  - terrain before/after at the 1a and 1b starts and from the air (beach band, earth patches);
+  - debug renders of the rock/sand/patch weights.
+- **Not device-tested;** terrain frame cost unmeasured.
