@@ -286,6 +286,13 @@ static int cmdAnmInfo(const char* dir, int n, char** anims) {
         if (!fs.read(anims[i], d) || !parseAnm(d.data(), d.size(), an, &err)) { std::printf("%s: %s\n", anims[i], err.c_str()); continue; }
         std::printf("%s: %.2f s, %zu nodes, ticks %d..%d tpf %u fps %u\n", anims[i], an.durationSeconds(), an.nodes.size(),
                     an.startTick, an.endTick, an.ticksPerFrame, an.fps);
+        if (std::getenv("ANM_NODES")) {
+            std::vector<Mat4> w;
+            an.evaluate(0.0f, w);
+            for (size_t k = 0; k < an.nodes.size(); ++k)
+                std::printf("   node %-16s parent %2d rest world (%.2f %.2f %.2f)\n", an.nodes[k].name.c_str(), an.nodes[k].parent,
+                            w[k].m[12], w[k].m[13], w[k].m[14]);
+        }
         for (size_t k = 0; k < an.nodes.size(); ++k) {
             const auto& nd = an.nodes[k];
             if (nd.posKeys.size() < 2 || (nd.parent >= 0 && an.nodes[size_t(nd.parent)].parent >= 0)) continue;

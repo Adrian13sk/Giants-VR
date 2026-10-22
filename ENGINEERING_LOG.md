@@ -519,3 +519,10 @@ Also: characters turned to face the spawn point (models face −Z). Brightness r
     edge); the sea stops rockets; the player takes splash damage too.
   - Right stick forward switches weapons.
   - Headless (`GVR_LAUNCHER=1`, 1a at Timmy's tower): one rocket killed two Rippers (objectives 1/4, 2/4).
+- **Mount hardpoints found:** a mounted object's position is a reference node in its parent's own `.anm`. Examples:
+  `guard_tower1.anm` has `Ref_guard01` at (0.4, 11.3, 67.3) in the crow's nest; `mecc_crash1.anm` has `Ref_Lhand` at
+  (−2.7, 66.5, 18.3) on the plane's nose. Mount byte 255 = the first `Ref_` node, k = the k-th (only 255 and 0 occur in
+  Story1).
+  - The sentries now stand exactly on `Ref_guard01`, which replaces the collision-floor guess.
+  - Tel (1c_1) hangs from `Ref_Lhand` by his left hand, using the original `mc_hang_onehand_yell` clip; his
+    `ref_lhand` bone is placed on the point.

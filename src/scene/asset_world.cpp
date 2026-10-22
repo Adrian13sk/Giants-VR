@@ -7,6 +7,7 @@
 
 #include "assets/gti.h"
 #include "assets/mission.h"
+#include "assets/skin_anim.h"
 #include "core/log.h"
 
 namespace gvr {
@@ -191,6 +192,7 @@ struct Placement {
     bool mission = false;
     int trigger = 0;  // mission trigger kind (op 8 low bits)
     bool posted = false;  // standing on a structure (mounted): keep its height, don't drop to the terrain
+    std::string hold;     // hangs from the mount point by this hand bone ("ref_lhand")
 };
 
 // Creature object classes ("ospec", type op 0x1E) seen in the mission files: 1 Kabuto,
@@ -291,26 +293,59 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
             break;
         }
         for (const auto& o : mission_.objects) {
-            float z = o.z;
+            float x = o.x, y = o.y, z = o.z;
             bool onPost = false;
+            std::string hold;
             if (o.parent >= 0) {
-                // Mounted (op 0x16). Characters on a structure's default mount point (255) - the
-                // Reaper sentries on guard towers - stand on its top; other mounts (carried items
-                // such as the jetpack, Tel in his crashed plane on hardpoint 0) are not shown yet:
-                // hardpoint positions live in data we haven't decoded.
+                // Mounted (op 0x16) on another object's hardpoint: the parent model's reference
+                // nodes in its own .anm ("Ref_guard01" in guard_tower1's crow's nest, "Ref_Lhand"
+                // on mecc_crash1 where Tel hangs on). Mount byte 255 = the first, k = the k-th
+                // (provisional: only 255 and 0 occur in Story1). Carried items (the jetpack) are
+                // not shown yet.
                 ++mounted;
                 const std::string cm = registry_.modelName(o.type);
-                if (o.mount[0] != 255 || !isCharacter(registry_, o.type, cm) || size_t(o.parent) >= mission_.objects.size()) continue;
+                const bool mecc = toLower(cm).rfind("mc_", 0) == 0;
+                if ((!isCharacter(registry_, o.type, cm) && !mecc) || size_t(o.parent) >= mission_.objects.size()) continue;
                 const MissionObject& par = mission_.objects[size_t(o.parent)];
                 const std::string pm = registry_.modelName(par.type);
-                const RenderModel* m = pm.empty() ? nullptr : cache_->get(pm + ".gbs", registry_.modelAnim(par.type));
-                if (!m) continue;
                 const float ps = par.scale > 0 ? par.scale : typeScale(par.type);
-                z = par.z + m->boundsMax.y * ps / gGameUnitsToMeters;
+                Placement pp{par.type, par.x, par.y, par.z, par.yaw, par.pitch, par.roll, ps};
+                std::vector<uint8_t> ab;
+                AnmAnimation pa;
+                std::string pan = registry_.modelAnim(par.type);
+                if (pan.empty()) pan = pm + ".anm";
+                bool found = false;
+                if (!pm.empty() && fs_.read(pan, ab) && parseAnm(ab.data(), ab.size(), pa)) {
+                    std::vector<Mat4> w;
+                    pa.evaluate(0.0f, w);
+                    int want = o.mount[0] == 255 ? 0 : int(o.mount[0]), k = 0;
+                    for (size_t n = 0; n < pa.nodes.size() && !found; ++n) {
+                        if (toLower(pa.nodes[n].name).rfind("ref_", 0) != 0) continue;
+                        if (k++ != want) continue;
+                        const Vec3 lr = giantsToRuntime(w[n].m[12], w[n].m[13], w[n].m[14]);
+                        const Vec4 r = placementMatrix(pp) * Vec4{lr.x, lr.y, lr.z, 1.0f};
+                        x = -r.x / gGameUnitsToMeters;
+                        y = r.z / gGameUnitsToMeters;
+                        z = r.y / gGameUnitsToMeters;
+                        hold = toLower(pa.nodes[n].name);
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    // No hardpoints: stand on top of the parent's bounds.
+                    const RenderModel* m = pm.empty() ? nullptr : cache_->get(pm + ".gbs", registry_.modelAnim(par.type));
+                    if (!m) continue;
+                    z = par.z + m->boundsMax.y * ps / gGameUnitsToMeters;
+                }
                 onPost = true;
+                LOGI("Mounted %s on %s at %s (%.0f %.0f %.0f)", cm.c_str(), pm.c_str(), found ? hold.c_str() : "top", x, y, z);
+                // A hand-hold hardpoint: the character hangs from it by that hand (Tel in 1c_1).
+                if (hold != "ref_lhand" && hold != "ref_rhand") hold.clear();
             }
-            all.push_back({o.type, o.x, o.y, z, o.yaw, o.pitch, o.roll, o.scale > 0 ? o.scale : typeScale(o.type), true,
-                           int(o.flags & 0x0F), onPost});
+            Placement pl{o.type, x, y, z, o.yaw, o.pitch, o.roll, o.scale > 0 ? o.scale : typeScale(o.type), true,
+                         int(o.flags & 0x0F), onPost};
+            pl.hold = hold;
+            all.push_back(pl);
         }
         LOGI("Mission %s: %zu objects (%zu mounted), start flick '%s'", sc.name.c_str(), mission_.objects.size(),
              mounted, mission_.startFlick.c_str());
@@ -344,7 +379,7 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
             triggers_.push_back(t);
         }
         if (name.empty() || isInvisibleHelper(name)) { ++hidden; continue; }
-        if (p.mission && isCharacter(registry_, p.type, name) && fs_.exists(name + ".skn")) {
+        if (p.mission && (isCharacter(registry_, p.type, name) || !p.hold.empty()) && fs_.exists(name + ".skn")) {
             // Animated by the game layer (AI or ambient loop), not baked into a static pose.
             const ObjectType* t = registry_.type(p.type);
             Vec3 pos = giantsToRuntime(p.x, p.y, p.z);
@@ -352,8 +387,8 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
             if (!p.posted && hasTerrain_ && terrain_.heightAt(pos.x, pos.z, gy)) pos.y = gy;
             // A sentry stands on the highest walkable surface of its structure (the tower's
             // platform, below the roof tip the bounds give).
-            if (p.posted && collision_.groundAt(pos.x, pos.z, pos.y + 0.05f, gy)) pos.y = gy;
-            characters_.push_back({p.type, name, t ? t->objectClass : -1, pos, p.yaw * kPi / 180.0f, p.scale, p.trigger, p.posted});
+            characters_.push_back({p.type, name, t ? t->objectClass : -1, pos, p.yaw * kPi / 180.0f, p.scale, p.trigger, p.posted,
+                                   p.hold});
             continue;
         }
         const RenderModel* m = cache_->get(name + ".gbs", registry_.modelAnim(p.type));

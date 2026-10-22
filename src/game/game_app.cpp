@@ -640,7 +640,11 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             ++reapers;
             continue;
         }
-        const std::string idle = reg.modelAnim(ch.type);
+        std::string idle = reg.modelAnim(ch.type);
+        // Hanging from a hardpoint by one hand (Tel from his crashed plane in 1c_1): the
+        // Meccaryn's one-handed hang clip, with that hand on the point.
+        const bool hanging = !ch.hold.empty() && toLower(ch.model).rfind("mc_", 0) == 0 && w->fs().exists("mc_hang_onehand_yell.anm");
+        if (hanging) idle = "mc_hang_onehand_yell.anm";
         auto m = std::make_unique<SkinnedModel>();
         if (idle.empty() || !m->load(w->fs(), *mc, renderer_, ch.model, idle)) continue;
         CharacterInst ci;
@@ -700,6 +704,13 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         m->posedBounds(mn, mx);
         ci.lift = -mn.y * ci.scale;
         ci.time = frand() * 3.0f;
+        Mat4 hand;
+        if (hanging && m->nodeWorld(ch.hold, hand)) {
+            const Vec3 local = giantsToRuntime(hand.m[12], hand.m[13], hand.m[14]) * ci.scale;
+            ci.pos = ch.position - Quat::fromAxisAngle({0, 1, 0}, ci.yaw).rotate(local);
+            ci.lift = 0;
+            LOGI("%s hangs by %s at (%.1f %.1f %.1f)", ch.model.c_str(), ch.hold.c_str(), ch.position.x, ch.position.y, ch.position.z);
+        }
         ci.model = std::move(m);
         chars_.push_back(std::move(ci));
     }
