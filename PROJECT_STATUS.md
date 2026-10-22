@@ -29,7 +29,7 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
-1. **Device test 20** (build f5c0f47):
+1. **Device test 21 passed** (acb8c9c). Next device check with the next feature build:
    - frame rate (watch for `perf: ... quality down` in logcat);
    - reflections and colours; shadows;
    - gore, Cleaners, death; patrols;

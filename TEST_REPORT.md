@@ -219,3 +219,6 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 - **Reported:** Timmy sideways and disappearing; too few Cleaners.
 - **Fixed in acb8c9c:** harness views of Timmy from three angles, and a Cleaner swarm around a body. Tests pass. Not
   device-tested.
+
+## Device test 21 — 2026-10-22, user's Quest 2 (build acb8c9c)
+- **DEVICE VERIFIED** ("Works"): Timmy rides facing forward without flicker; Cleaner swarms.
