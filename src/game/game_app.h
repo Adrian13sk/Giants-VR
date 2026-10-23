@@ -247,6 +247,15 @@ private:
         int type = -1;       // object type (hidden while a cutscene shows its own copy)
         int rescue = -1;     // index in rescue_ (1b's stranded Smarties); clipIndex = SmartieClip
         bool pooled = false; // a nest's Ripper model, lent to a hatched Ripper while it lives
+        // Flyers (Dactyls): circle their home in the sky, banking into the turn.
+        bool flyer = false;
+        Vec3 home;
+        float flyR = 30, flyH = 15, flySpeed = 9, flyAngle = 0, flyDir = 1, roll = 0, pitch = 0;
+        Mat4 xf() const {
+            return Mat4::translation(pos + Vec3{0, lift, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, yaw)) *
+                   Mat4::rotation(Quat::fromAxisAngle({1, 0, 0}, pitch)) * Mat4::rotation(Quat::fromAxisAngle({0, 0, 1}, roll)) *
+                   Mat4::scale({scale, scale, scale});
+        }
     };
     // Ripper spit balls (orange medium / blue large), blasts and gore from bursting Rippers.
     std::unique_ptr<SkinnedModel> spitBall_[3];

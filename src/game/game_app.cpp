@@ -900,6 +900,18 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         ci.pos = ch.position;
         ci.yaw = ch.yaw;
         ci.scale = ch.scale;
+        if (ch.objectClass == 45 || toLower(ch.model).rfind("dactyl", 0) == 0) {
+            ci.flyer = true;
+            ci.home = ch.position;
+            ci.flyR = 25.0f + 25.0f * frand();
+            ci.flyH = 14.0f + 12.0f * frand();
+            ci.flySpeed = 8.0f + 3.0f * frand();
+            ci.flyDir = frand() < 0.5f ? 1.0f : -1.0f;
+            ci.flyAngle = frand() * 6.283f;
+            ci.pos = ci.home + Vec3{ci.flyR * std::cos(ci.flyAngle), ci.flyH, ci.flyR * std::sin(ci.flyAngle)};
+            LOGI("Flyer %s circles game (%.0f, %.0f), radius %.0f m, %.0f m up", ch.model.c_str(), -ci.home.x / gGameUnitsToMeters,
+                 ci.home.z / gGameUnitsToMeters, ci.flyR, ci.flyH);
+        }
         if (ch.trigger == 3 && ch.objectClass == 18) {
             // A stranded Smartie to carry to the pad (1b): its own clips for each state.
             static const char* clips[int(SmartieClip::Count)] = {"", "sm_wave.anm", "sm_squirm.anm", "sm_fall.anm",
@@ -1485,7 +1497,25 @@ void GameApp::updateCharacters(float dt) {
     for (auto& ci : chars_) {
         if (!ci.ambient) continue;
         ci.time += dt;
-        if (length(ci.pos - player_.position) < 120.0f) ci.model->pose(renderer_, ci.time);
+        if (ci.flyer) {
+            // A wide, slowly breathing circle round its home, rising and dipping; banked into the
+            // turn (its own wing-beat clip plays on top). Our flight path: the data places it only.
+            const float r = ci.flyR * (1.0f + 0.25f * std::sin(ci.time * 0.13f + ci.home.x));
+            ci.flyAngle += ci.flyDir * ci.flySpeed / std::max(5.0f, r) * dt;
+            const float a = ci.flyAngle;
+            const float h = ci.flyH + 4.0f * std::sin(ci.time * 0.31f + ci.home.z);
+            const Vec3 next = ci.home + Vec3{r * std::cos(a), h, r * std::sin(a)};
+            const Vec3 v = next - ci.pos;
+            if (length(Vec3{v.x, 0, v.z}) > 1e-4f) {
+                ci.yaw = std::atan2(-v.x, -v.z);
+                const float bank = std::atan(ci.flySpeed * ci.flySpeed / (std::max(5.0f, r) * 9.81f));
+                ci.roll = -ci.flyDir * std::min(0.6f, bank);
+                ci.pitch = std::max(-0.3f, std::min(0.3f, std::atan2(v.y, length(Vec3{v.x, 0, v.z}))));
+            }
+            ci.pos = next;
+            ci.lift = 0;
+        }
+        if (length(ci.pos - player_.position) < (ci.flyer ? 200.0f : 120.0f)) ci.model->pose(renderer_, ci.time);
     }
 }
 
@@ -1555,8 +1585,7 @@ void GameApp::renderShadowMap() {
     const bool cut = cutsceneActive();
     for (const auto& c : chars_) {
         if (!c.visible || length(c.pos - centre) > half * 1.4f) continue;
-        c.model->renderShadow(renderer_, Mat4::translation(c.pos + Vec3{0, c.lift, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, c.yaw)) *
-                                             Mat4::scale({c.scale, c.scale, c.scale}));
+        c.model->renderShadow(renderer_, c.xf());
     }
     for (const auto& n : nests_)
         if (n.alive && n.model && length(n.pos - centre) < half * 1.4f)
@@ -1757,10 +1786,9 @@ void GameApp::renderReflection() {
     if (playMode_ && timmyOn_ && !cut) timmy_->render(renderer_, timmyXf_);
     if (playMode_ && gunValid_ && !cut) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
     for (const auto& c : chars_) {
-        if (!c.visible || length(c.pos - eye) > 90.0f) continue;
+        if (!c.visible || length(c.pos - eye) > (c.flyer ? 260.0f : 90.0f)) continue;
         if (cut && std::find(cutTypes.begin(), cutTypes.end(), c.type) != cutTypes.end()) continue;
-        c.model->render(renderer_, Mat4::translation(c.pos + Vec3{0, c.lift, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, c.yaw)) *
-                                       Mat4::scale({c.scale, c.scale, c.scale}));
+        c.model->render(renderer_, c.xf());
     }
     for (const auto& e : enemies_.enemies)
         if (e.slot >= 0 && length(e.pos - eye) < 90.0f)
@@ -3054,9 +3082,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     for (const auto& c : chars_) {
         if (!c.visible || length(c.pos - v.eyePosition) > 160.0f) continue;
         if (cut && std::find(cutTypes.begin(), cutTypes.end(), c.type) != cutTypes.end()) continue;
-        c.model->render(renderer_, Mat4::translation(c.pos + Vec3{0, c.lift, 0}) *
-                                       Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, c.yaw)) *
-                                       Mat4::scale({c.scale, c.scale, c.scale}));
+        c.model->render(renderer_, c.xf());
     }
     for (const auto& sp : creatures_.spits) {
         const int k = int(sp.size);
