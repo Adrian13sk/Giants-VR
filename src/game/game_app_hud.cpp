@@ -129,7 +129,7 @@ void GameApp::hudWeaponStrip() {
     f.o = rig_.toWorld(lastInput_.head).position + subRot_.rotate(Vec3{0, 0.17f + drop, -0.9f});
     f.r = subRot_.rotate(Vec3{1, 0, 0});
     f.u = subRot_.rotate(Vec3{0, 1, 0});
-    const float W = 0.30f, H = W / 4.0f;
+    const float W = 0.30f * settings_.hudScale(), H = W / 4.0f;
     const uint8_t back[4] = {0, 0, 0, uint8_t(120 * a)}, strip[4] = {255, 255, 255, uint8_t(255 * a)};
     hudRect(kHudPlate, f, 0, 0, W + 0.01f, H + 0.01f, back);
     hudRect(kHudWpSlot, f, 0, 0, W, H, strip);
@@ -177,7 +177,7 @@ void GameApp::hudHitMarker() {
 void GameApp::buildHud() {
     if (!hudReady_) return;
     for (auto& b : hudBatch_) b.clear();
-    const bool show = playMode_ && !cutsceneActive() && !dying_ && load_.phase == LoadPhase::Idle;
+    const bool show = playMode_ && !cutsceneActive() && !dying_ && load_.phase == LoadPhase::Idle && !menuOpen_;
     if (show) {
         const ControllerState& lc = lastInput_.hand[rig_.moveHand()];
         if (firstPerson_ && lc.gripPoseValid) {
@@ -186,12 +186,12 @@ void GameApp::buildHud() {
             const Pose g = rig_.toWorld(lc.gripPose);
             HudFrame f;
             f.o = g.position + g.orientation.rotate(Vec3{0, 0.02f, 0.07f}) + Vec3{0, 0.10f, 0};
-            f.r = headWorldRot_.rotate(Vec3{1, 0, 0});
-            f.u = headWorldRot_.rotate(Vec3{0, 1, 0});
+            f.r = headWorldRot_.rotate(Vec3{settings_.hudScale(), 0, 0});
+            f.u = headWorldRot_.rotate(Vec3{0, settings_.hudScale(), 0});
             hudStatus(f);
         } else if (!firstPerson_ && subInit_) {
             // Third person: head-locked at the lower left of the view.
-            const float k = 2.2f;
+            const float k = 2.2f * settings_.hudScale();
             HudFrame f;
             f.o = rig_.toWorld(lastInput_.head).position + subRot_.rotate(Vec3{-0.33f, -0.24f, -0.9f});
             f.r = subRot_.rotate(Vec3{k, 0, 0});

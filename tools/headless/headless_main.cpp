@@ -38,6 +38,7 @@ int main(int argc, char** argv) {
     int gripFrom = -1, gripTo = -1, handPathFrom = -1, handPathTo = -1, stickFrom = -1, stickTo = -1, trigFrom = -1, trigTo = -1;
     float handDx = 0, handDy = 0, handDz = 0;
     std::string savePath;
+    int menuAt = -1;
     int xFrom = -1, xTo = -1, lPathFrom = -1, lPathTo = -1, hurtAt = -1;
     float lDx = 0, lDy = 0, lDz = 0, hurtAmount = 0, hurtYaw = 0;  // right hand moves by this (tracking metres) over the path frames
     int jetFrom = -1, jetTo = -1;
@@ -77,7 +78,8 @@ int main(int argc, char** argv) {
         else if (a == "--grip-window") { gripFrom = std::atoi(next()); gripTo = std::atoi(next()); }  // right grip for frames [from, to)
         else if (a == "--hand-path") { handPathFrom = std::atoi(next()); handPathTo = std::atoi(next());
                                        handDx = std::atof(next()); handDy = std::atof(next()); handDz = std::atof(next()); }
-        else if (a == "--save") savePath = next();  // checkpoint file (continue from it / write it)
+        else if (a == "--save") savePath = next();
+        else if (a == "--menu-at") menuAt = std::atoi(next());  // press the left menu button at this frame  // checkpoint file (continue from it / write it)
         else if (a == "--x-window") { xFrom = std::atoi(next()); xTo = std::atoi(next()); }  // X (left primary) held for frames [from, to)
         else if (a == "--lhand-path") { lPathFrom = std::atoi(next()); lPathTo = std::atoi(next());
                                         lDx = std::atof(next()); lDy = std::atof(next()); lDz = std::atof(next()); }
@@ -163,6 +165,7 @@ int main(int argc, char** argv) {
         if (stickFrom >= 0) in.hand[kRight].thumbstick.y = f >= stickFrom && f < stickTo ? 1.0f : 0.0f;
         if (trigFrom >= 0) in.hand[kRight].trigger = f >= trigFrom && f < trigTo ? 1.0f : 0.0f;
         if (xFrom >= 0) in.hand[kLeft].primary = f >= xFrom && f < xTo;
+        in.hand[kLeft].menu = menuAt >= 0 && f >= menuAt && f < menuAt + 2;
         if (lPathFrom >= 0 && f >= lPathFrom && f < lPathTo) {
             const float k = 1.0f / float(lPathTo - lPathFrom);
             in.hand[kLeft].gripPose.position = in.hand[kLeft].gripPose.position + Vec3{lDx, lDy, lDz} * k;

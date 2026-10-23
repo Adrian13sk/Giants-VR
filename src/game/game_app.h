@@ -20,6 +20,7 @@
 #include "game/hud_gauge.h"
 #include "game/villager.h"
 #include "game/save_game.h"
+#include "game/settings.h"
 #include "render/quad_batch.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
@@ -499,6 +500,19 @@ private:  // the mission placed enemies: no test waves
     void initCharacters(AssetWorld* w, ModelCache* mc);
     void updateCharacters(float dt);
     std::string savePath_;
+    // Options (game_app_menu.cpp): the left menu button opens them; the game pauses meanwhile.
+    UserSettings settings_;
+    std::string settingsPath_;
+    bool menuOpen_ = false, menuActHeld_ = false, menuFirst_ = true;
+    int menuRow_ = 0;
+    float menuRepeat_ = 0, menuNewGame_ = 0, menuYaw_ = 0;
+    Vec3 menuPos_;
+    ButtonEdge menuEdge_;
+    void applySettings();
+    void saveSettings();
+    void openMenu(const InputFrame& in);
+    void updateMenu(float dt, const InputFrame& in);
+    void renderMenu();
     SaveGame pendingRestore_;
     bool haveRestore_ = false;
     float newGameHold_ = 0;

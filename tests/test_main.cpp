@@ -26,6 +26,7 @@
 #include "game/hud_gauge.h"
 #include "game/villager.h"
 #include "game/save_game.h"
+#include "game/settings.h"
 #include "audio/mixer.h"
 #include "audio/music.h"
 #include "assets/gtext.h"
@@ -1190,7 +1191,14 @@ static void testSaveGame() {
     CHECK(!loadSaveGame(path, c));
     std::remove(path.c_str());
     CHECK(!loadSaveGame(path, c));
-    std::printf("save game ok\n");
+    UserSettings us;
+    us.turn = 3; us.leftHanded = true; us.thirdPerson = true; us.hudSize = 2; us.volume = 4; us.music = 0; us.subtitles = false;
+    CHECK(writeSettings(path, us));
+    UserSettings ul;
+    CHECK(loadSettings(path, ul) && ul.turn == 3 && ul.leftHanded && ul.thirdPerson && ul.hudSize == 2 && ul.volume == 4 &&
+          ul.music == 0 && !ul.subtitles && near(ul.hudScale(), 1.3f, 1e-6f));
+    std::remove(path.c_str());
+    std::printf("save game / settings ok\n");
 }
 
 int main() {

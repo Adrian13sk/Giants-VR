@@ -39,6 +39,13 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
     dataDir_ = dataDir;
     worldName_ = worldName;
     // Continue from the saved checkpoint (its world and mission), unless a test picks a mission.
+    if (!savePath_.empty()) {
+        const size_t slash = savePath_.find_last_of("/\\");
+        settingsPath_ = (slash == std::string::npos ? std::string(".") : savePath_.substr(0, slash)) + "/settings.txt";
+        if (loadSettings(settingsPath_, settings_)) LOGI("Settings loaded from %s", settingsPath_.c_str());
+    }
+    firstPerson_ = !settings_.thirdPerson;
+    applySettings();
     std::string startMission;
     if (!savePath_.empty() && !std::getenv("GVR_MISSION") && loadSaveGame(savePath_, pendingRestore_)) {
         haveRestore_ = true;
@@ -757,6 +764,7 @@ void GameApp::sfx2D(const char* name, float vol, float pitch) {
 
 void GameApp::setAudio(AudioMixer* mixer) {
     audio_ = mixer;
+    applySettings();  // volumes
     if (!audio_ || !assetWorld_) return;
     static const char* names[] = {
         "me_peas1", "me_peas2", "bi_dirt1", "bi_hit1", "bi_hit2", "ex_bdys1", "rh_sprsh", "rh_fsld1",
@@ -1737,7 +1745,7 @@ void GameApp::timmySay(const char* key, bool force) {
 
 // Timmy's line as a subtitle: head-locked below the line of sight (as the cutscene subtitles).
 void GameApp::renderTimmyLine() {
-    if (timmyLineT_ <= 0 || timmyLine_.empty() || !text_.ready() || !subInit_ || cutsceneActive()) return;
+    if (timmyLineT_ <= 0 || timmyLine_.empty() || !text_.ready() || !subInit_ || cutsceneActive() || !settings_.subtitles) return;
     float w = 0, h = 0;
     const MeshId m = text_.mesh(timmyLine_, 0.045f, 1.3f, &w, &h);
     if (!m) return;
@@ -2111,7 +2119,7 @@ void GameApp::initMusic() {
     const int race = int(assetWorld_->mission().setup[0]);
     ambientSet_ = race == 1 ? "ka1" : (race == 3 ? "ra1" : "ma1");
     music_->request(ambientSet_);
-    audio_->setMusicVolume(0.8f);
+    audio_->setMusicVolume(0.8f * float(settings_.music) / 8.0f);
 }
 
 std::string GameApp::findMusicFile(const std::string& segment) const {
@@ -2310,7 +2318,7 @@ void GameApp::renderCutscene() {
     cutscene_->render();
     const Vec3 eye = renderer_.currentView().eyePosition;
     // Subtitles: a panel below the line of sight, fixed for the shot.
-    if (gameText_ && text_.ready()) {
+    if (gameText_ && text_.ready() && settings_.subtitles) {
         std::string lines;
         for (const auto& key : cutscene_->subtitles()) {
             const std::string t = gameText_->get(key);
@@ -3031,6 +3039,18 @@ void GameApp::update(float dt, const InputFrame& in) {
         lastInput_ = in;
         return;
     }
+    // The left menu button: options (the game pauses while they're open).
+    if (menuEdge_.pressed(in.hand[kLeft].menu)) {
+        if (menuOpen_) menuOpen_ = false;
+        else openMenu(in);
+    }
+    if (menuOpen_) {
+        updateMenu(dt, in);
+        followHead(dt, in);
+        if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
+        lastInput_ = in;
+        return;
+    }
     // B (turn hand's secondary) toggles play mode / free camera.
     if (playEdge_.pressed(in.hand[rig_.turnHand()].secondary)) {
         setPlayMode(!playMode_, in);
@@ -3269,6 +3289,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     else if (playMode_) renderHud();
     if (playMode_ && !cut) renderTimmyLine();
     if (briefHeld_ && !cut && playMode_) renderBriefOverlay();
+    if (menuOpen_ && !cut) renderMenu();
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
     else if (!(playMode_ && firstPerson_ && playerModel_)) testScene_.renderControllers(renderer_, rig_, lastInput_);
     if (load_.phase == LoadPhase::FadeOut) renderLoading();
