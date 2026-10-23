@@ -1051,3 +1051,43 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   - Story1 start render byte-identical to before.
   - Story2 shows its palms and logs; Story3 its own sea texture.
 - **Not device-tested.**
+
+### 2026-10-23 — Mecc story objectives: Vimps, buildings, bosses (Story 2–5 completable in the harness)
+- **Trigger kinds** (named in the decompiled `mission_trigger_name`, a factual reference only): 1 proximity, 2 death,
+  3 destination arrival, 4 "On Vimp Meat Proximity". Kinds 1 and 2 were done for objects and Reapers/Rippers. Across
+  all 22 Mecc missions, 7 still had no objective.
+- **Vimps** (`vimp.{h,cpp}`, `game_app_vimp.cpp`):
+  - Type 8 (vp_l1, class 21, 20 hp) is placed by no world or mission. The original spawns them in native code (its
+    "-novimps" switch).
+  - Ours: Story2–5 and Kstory worlds get 6 herds of 3–5 on open grass, away from villages, bases and the start, at
+    deterministic spots per world. They graze (vp_graze / vp_idle) and amble (vp_walk). The player within 16 m, or
+    shots and blasts within 45 m, set the whole herd stampeding 60 m away (vp_gallop), uneasy (vp_scared) until calm.
+  - Hit: vp_hit and VI_INJR. Killed: vp_hit2 (ends lying down), VI_DEAT, blood, and 3 pieces of meat
+    (VimpFoodChunk1–3) that fly out, bounce and lie.
+  - Walking over meat picks it up (PU_MEAT1/2). The HUD shows st_vimpmeat and the count, gold at 20. Kabuto eats meat
+    (+5 health, KA_VIMP) and whole Vimps (X). Delphi's sword, Kabuto's blows and every blast hit them.
+- **Kind 4:** bringing 20 pieces (2a's briefing: "Return 20 PIECES OF VIMP MEAT") to the trigger completes it.
+  - The vimp_dropoff marker floats over the trigger.
+  - Arriving short shows "VIMP MEAT: n OF 20 - HUNT SOME MORE VIMPS!".
+  - 2a now completes and leads to 2b.
+- **Buildings as death targets:** trigger 2 on a structure becomes "destroy it", matched to the destructible of that
+  type nearest the trigger.
+  - Newly destructible: classes 98 (Ripper and Reaper barracks) and 101 (bw_prison, story4_door) with their data hit
+    points, plus log_launcher_base (250 hp) and guard_army_barracks (600 hp, ours, as the data has 0).
+  - Missions: 2c_1 (5 barracks), story3_bunker_3, story3_launcher_5, story3_prison_7, 4a, 5c.
+- **Group spawners** (class 97: 1mcsonak_4guards, 1tsonak_4guards, 1tsonak): their guards appear round them as Reapers,
+  and the group dies with them (story3_sonak_1, story3_3sonaks_4). The Sonak itself, a flying mount, is not
+  implemented.
+- **Characters with triggers:**
+  - Trigger 1 = reach them: Borjoyzee in story3_borjoyzee_2.
+  - Trigger 2 without our AI = shootable targets with the data's hit points: Offspring ×2 in 4b (500 hp each), the
+    Charger in 5a (500 hp). They sink away when killed. They don't fight back yet.
+- **Result:** every one of the 22 Mecc missions now has at least one objective.
+- **Harness:**
+  - 2a meat delivery → 2b loads.
+  - Blasting story3_prison_7's prison → Story 4.
+  - Blasting the Charger in 5a → complete.
+  - A Vimp herd blasted: 3 killed, the rest stampede.
+  - Unit test for herds: graze, stampede direction, damage, carcass removal.
+  - Story1 render unchanged.
+- **Not device-tested.**

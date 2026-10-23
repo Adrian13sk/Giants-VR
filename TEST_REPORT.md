@@ -339,3 +339,14 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - Chapter end Story5 → rstory1 (Delphi).
   - Story1 render byte-identical.
 - **Not device-tested.**
+
+## Host verification — Vimps and Mecc objectives
+- `gvr_tests`: all pass (new: Vimp herds).
+- **Harness:**
+  - Objective count printed for all 22 Mecc missions: none at 0.
+  - 2a → 2b by meat delivery.
+  - story3_prison_7 → Story 4 by destroying the prison.
+  - 5a complete by killing the Charger.
+  - Vimp herd render (grazing) and blast (3 dead, lying).
+  - Story1 render byte-identical.
+- **Not device-tested.**

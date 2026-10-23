@@ -154,3 +154,12 @@ The game now starts at the main menu: night over the intro island with the GIANT
 - **OPTIONS**: the usual options. The left menu button opens them too.
 - Loading screens show the original art of the story's race next to the mission briefing.
 - Delphi regains health while swimming in deep water, as her briefing says.
+
+## Story 2 onwards
+- **Vimps** graze in herds from Story 2. They run when you come close or shoot. Kill one and it drops pieces of Vimp
+  meat; walk over them to pick them up (the HUD counts them). In 2a, bring 20 pieces to Timmy's father, at the
+  floating marker.
+- **Destroy missions:** barracks, prisons, doors and launcher bases named by a mission now take damage and collapse
+  (rockets work best).
+- **Sonak groups:** the guards appear round them; kill the guards. The Sonak itself isn't in yet.
+- **Bosses:** the Offspring in 4b and the Charger in 5a can be shot down, but they don't attack yet.
