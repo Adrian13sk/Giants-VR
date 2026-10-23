@@ -35,6 +35,26 @@ void GameApp::initHud(ModelCache* mc) {
     if (mc->image("st_mec_energy", img)) heartShape_ = gaugeInterior(img, img.width / 2, img.height / 2);
     if (mc->image("st_mec_jetpack", img)) jetShape_ = gaugeInterior(img, img.width * 31 / 64, img.height / 2);
     LOGI("HUD: heart gauge %zu spans, jetpack gauge %zu spans", heartShape_.size(), jetShape_.size());
+    // The digit strip is proportional (st_mec_numbers: "0" 14 px wide, "1" 8 px...): the cells are
+    // measured from the empty columns between the glyphs; equal tenths cut glyphs in half.
+    for (int d = 0; d <= 10; ++d) digitU_[d] = float(d) / 10.0f;
+    if (mc->image("st_mec_numbers", img) && img.width > 10) {
+        std::vector<int> starts, ends;
+        bool in = false;
+        for (int x = 0; x < img.width; ++x) {
+            bool any = false;
+            for (int y = 0; y < img.height && !any; ++y) any = img.rgba[(size_t(y) * size_t(img.width) + size_t(x)) * 4 + 3] > 40;
+            if (any && !in) starts.push_back(x);
+            if (!any && in) ends.push_back(x);
+            in = any;
+        }
+        if (in) ends.push_back(img.width);
+        if (starts.size() == 10 && ends.size() == 10) {
+            for (int d = 0; d < 10; ++d) { digitU0_[d] = float(starts[size_t(d)]) / float(img.width); digitU1_[d] = float(ends[size_t(d)]) / float(img.width); }
+            digitsMeasured_ = true;
+        }
+        LOGI("HUD digits: %zu glyphs measured", starts.size());
+    }
     hudReady_ = true;
 }
 
@@ -70,10 +90,14 @@ void GameApp::hudGauge(int fillLayer, int outlineLayer, const std::vector<GaugeS
 void GameApp::hudDigits(const HudFrame& f, float x, float y, float h, int value, const uint8_t rgba[4]) {
     // st_mec_numbers: "0123456789" in ten equal cells across the strip (left-aligned at x).
     const std::string s = std::to_string(std::max(0, value));
-    const float w = h * 0.55f;
+    float cx = x;
     for (size_t i = 0; i < s.size(); ++i) {
         const int d = s[i] - '0';
-        hudRect(kHudNumbers, f, x + w * (float(i) + 0.5f), y, w, h, rgba, float(d) / 10.0f, 0.0f, float(d + 1) / 10.0f, 1.0f);
+        const float u0 = digitsMeasured_ ? digitU0_[d] : float(d) / 10.0f, u1 = digitsMeasured_ ? digitU1_[d] : float(d + 1) / 10.0f;
+        // Glyph width from its share of the 128 x 32 strip (aspect 4:1), a little gap between.
+        const float w = h * (u1 - u0) * 4.0f;
+        hudRect(kHudNumbers, f, cx + 0.5f * w, y, w, h, rgba, u0, 0.0f, u1, 1.0f);
+        cx += w + h * 0.08f;
     }
 }
 

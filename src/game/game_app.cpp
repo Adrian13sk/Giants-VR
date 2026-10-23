@@ -3213,11 +3213,35 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
                                            ref.m[13] * gGameUnitsToMeters, 1.0f};
             const Vec3 hand{hp.x, hp.y, hp.z};
             const Quat body = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
-            const Vec3 f = tpAiming_ ? normalize(aimTarget_ - hand) : normalize(body.rotate(Vec3{0, -0.5f, -1}));
-            // Look rotation: -Z -> f, keeping +Y as close to world up as possible.
+            Vec3 f = tpAiming_ ? normalize(aimTarget_ - hand) : normalize(body.rotate(Vec3{0, -0.5f, -1}));
+            // Not aiming: the gun moves with the hand (runs, flies, lands). Its pose relative to the
+            // hand bone is taken once from the idle pose (forward and a little down), then follows it.
+            const Mat4 hr = gameMatrixToRuntime(ref);
+            auto dirOf = [&](const Vec3& v) { const Vec4 r4 = hr * Vec4{v.x, v.y, v.z, 0.0f}; return Vec3{r4.x, r4.y, r4.z}; };
+            auto toLocal = [&](const Vec3& v) {  // inverse of the hand's rotation (orthonormal columns)
+                const Vec3 cx = dirOf({1, 0, 0}), cy = dirOf({0, 1, 0}), cz = dirOf({0, 0, 1});
+                return Vec3{dot(v, cx) / std::max(1e-6f, dot(cx, cx)), dot(v, cy) / std::max(1e-6f, dot(cy, cy)), dot(v, cz) / std::max(1e-6f, dot(cz, cz))};
+            };
+            if (!tpGunCal_ && player_.anim() == PlayerAnim::Idle) {
+                tpGunFwd_ = toLocal(normalize(Vec3{0, -0.5f, -1}));
+                tpGunUp_ = toLocal(Vec3{0, 1, 0});
+                tpGunCal_ = true;
+            }
+            Vec3 up{0, 1, 0};
+            if (!tpAiming_ && tpGunCal_) {
+                f = normalize(body.rotate(dirOf(tpGunFwd_)));
+                up = normalize(body.rotate(dirOf(tpGunUp_)));
+            }
+            // Look rotation: -Z -> f, +Y toward `up`.
             const Quat yawQ = Quat::fromAxisAngle({0, 1, 0}, std::atan2(-f.x, -f.z));
             const float pitch = std::asin(std::max(-1.0f, std::min(1.0f, f.y)));
-            const Quat look = yawQ * Quat::fromAxisAngle({1, 0, 0}, pitch);
+            Quat look = yawQ * Quat::fromAxisAngle({1, 0, 0}, pitch);
+            if (!tpAiming_ && tpGunCal_) {
+                const Vec3 u0 = look.rotate(Vec3{0, 1, 0});
+                const Vec3 side = look.rotate(Vec3{1, 0, 0});
+                const float roll = std::atan2(dot(up, side), dot(up, u0));
+                look = look * Quat::fromAxisAngle({0, 0, 1}, -roll);
+            }
             const float k = 0.75f;  // a bit larger than FP so it reads at chase-camera distance
             const Vec3 handle = giantsToRuntime(handleGame.x, handleGame.y, handleGame.z);
             gunXf_ = Mat4::translation(hand) * Mat4::rotation(look) * Mat4::scale({k, k, k}) * Mat4::translation(handle * -1.0f);
@@ -3574,7 +3598,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         if (e.slot >= 0)
             enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
                                                               Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
-    // Reaper bolts: the same spark, tinted red.
+    // Reaper bolts: the spark in its own white (as the original's sea Reapermen fire).
     for (const auto& p : enemyFire_.projectiles()) {
         const Quat r = rotationBetween({0, 0, -1}, p.vel);
         for (const auto& part : boltModel_ ? boltModel_->parts : std::vector<RenderModel::Part>{}) {
@@ -3584,7 +3608,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
             dp.unlit = true;
             dp.depthWrite = false;
             dp.doubleSided = true;
-            dp.tint = {3.0f, 0.6f, 0.4f, 1.0f};
+            dp.tint = {2.2f, 2.2f, 2.2f, 1.0f};
             renderer_.draw(part.mesh, Mat4::translation(p.pos) * Mat4::rotation(r) * Mat4::scale({0.6f, 0.6f, 0.6f}), dp);
         }
     }
@@ -3592,16 +3616,25 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         if (e.kind == WeaponEffect::Impact)
             drawModel(impactModel_, Mat4::translation(e.pos) * Mat4::rotation(headWorldRot_) *
                                         Mat4::scale(Vec3{1, 1, 1} * (2.0f + 3.0f * e.progress())), true, 1.0f - e.progress());
-    // Bolts: the original spark quads (lying across the model's -Z axis) face along the flight,
-    // drawn bright with a short fading trail so the shot reads as a blaster bolt.
+    // The Meccaryn's pistol: small pink bolts (the original's), the spark quads facing along the
+    // flight with a short fading trail.
     for (const auto& p : weapon_.projectiles()) {
         const Quat r = rotationBetween({0, 0, -1}, p.vel);
-        const Vec3 back = normalize(p.vel) * -0.35f;
+        const Vec3 back = normalize(p.vel) * -0.22f;
         for (int i = 0; i < 3; ++i) {
-            const float s = 0.55f - 0.12f * float(i);
-            if (p.travelled < 0.35f * float(i)) break;  // no trail behind the muzzle
-            drawModel(boltModel_, Mat4::translation(p.pos + back * float(i)) * Mat4::rotation(r) * Mat4::scale({s, s, s}),
-                      true, 2.5f - 0.7f * float(i));
+            const float s = 0.32f - 0.07f * float(i);
+            if (p.travelled < 0.22f * float(i)) break;  // no trail behind the muzzle
+            const float a = 2.6f - 0.8f * float(i);
+            for (const auto& part : boltModel_ ? boltModel_->parts : std::vector<RenderModel::Part>{}) {
+                DrawParams dp;
+                dp.texture = part.texture;
+                dp.blend = BlendMode::Additive;
+                dp.unlit = true;
+                dp.depthWrite = false;
+                dp.doubleSided = true;
+                dp.tint = {1.0f * a, 0.35f * a, 0.75f * a, 1.0f};
+                renderer_.draw(part.mesh, Mat4::translation(p.pos + back * float(i)) * Mat4::rotation(r) * Mat4::scale({s, s, s}), dp);
+            }
         }
     }
     // Third-person crosshair: original bracket texture at the aim point, constant angular size.

@@ -714,6 +714,10 @@ private:  // the mission placed enemies: no test waves
                     kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudNumbers, kHudMarks, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
+    float digitU_[11] = {}, digitU0_[10] = {}, digitU1_[10] = {};
+    bool tpGunCal_ = false;     // third person: the gun's pose in the hand bone's frame (from the idle pose)
+    Vec3 tpGunFwd_, tpGunUp_;
+    bool digitsMeasured_ = false;
     QuadBatch hudBatch_[kHudLayers];
     std::vector<GaugeSpan> heartShape_, jetShape_;
     bool hudReady_ = false;
