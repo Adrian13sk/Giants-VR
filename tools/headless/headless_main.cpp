@@ -35,6 +35,7 @@ int main(int argc, char** argv) {
     bool useLook = false, wantBrief = false;
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
+    int ltrigFrom = -1, ltrigTo = -1, yFrom = -1, yTo = -1;
     int gripFrom = -1, gripTo = -1, handPathFrom = -1, handPathTo = -1, stickFrom = -1, stickTo = -1, trigFrom = -1, trigTo = -1;
     float handDx = 0, handDy = 0, handDz = 0;
     std::string savePath;
@@ -76,6 +77,8 @@ int main(int argc, char** argv) {
         else if (a == "--grip") gripAmount = std::atof(next());  // both grips 0..1
         else if (a == "--stick-up-window") { stickFrom = std::atoi(next()); stickTo = std::atoi(next()); }  // right stick forward
         else if (a == "--trigger-window") { trigFrom = std::atoi(next()); trigTo = std::atoi(next()); }
+        else if (a == "--ltrigger-window") { ltrigFrom = std::atoi(next()); ltrigTo = std::atoi(next()); }  // left trigger
+        else if (a == "--y-window") { yFrom = std::atoi(next()); yTo = std::atoi(next()); }  // Y (left secondary)
         else if (a == "--grip-window") { gripFrom = std::atoi(next()); gripTo = std::atoi(next()); }  // right grip for frames [from, to)
         else if (a == "--hand-path") { handPathFrom = std::atoi(next()); handPathTo = std::atoi(next());
                                        handDx = std::atof(next()); handDy = std::atof(next()); handDz = std::atof(next()); }
@@ -167,6 +170,8 @@ int main(int argc, char** argv) {
         if (stickFrom >= 0) in.hand[kRight].thumbstick.y = f >= stickFrom && f < stickTo ? 1.0f : 0.0f;
         if (trigFrom >= 0) in.hand[kRight].trigger = f >= trigFrom && f < trigTo ? 1.0f : 0.0f;
         if (xFrom >= 0) in.hand[kLeft].primary = f >= xFrom && f < xTo;
+        if (ltrigFrom >= 0) in.hand[kLeft].trigger = f >= ltrigFrom && f < ltrigTo ? 1.0f : 0.0f;
+        if (yFrom >= 0) in.hand[kLeft].secondary = f >= yFrom && f < yTo;
         in.hand[kLeft].menu = menuAt >= 0 && f >= menuAt && f < menuAt + 2;
         if (sxFrom >= 0) in.hand[kRight].thumbstick.x = f >= sxFrom && f < sxTo ? sxVal : 0.0f;
         if (lPathFrom >= 0 && f >= lPathFrom && f < lPathTo) {

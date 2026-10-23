@@ -399,8 +399,9 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 float tw = maxD, tp = maxD;
                 Vec3 nw;
                 const bool hw = worldRay_ && worldRay_(o, d, maxD, tw, nw);
-                const Vec3 a = player_.position + Vec3{0, 0.35f, 0}, b = player_.position + Vec3{0, 1.65f, 0};
-                const bool hp = playMode_ && rayCapsule(o, d, maxD, a, b, 0.35f, tp);
+                const float hs = heroScale_;
+                const Vec3 a = player_.position + Vec3{0, 0.35f * hs, 0}, b = player_.position + Vec3{0, 1.65f * hs, 0};
+                const bool hp = playMode_ && rayCapsule(o, d, maxD, a, b, player_.radius, tp);
                 if (!hw && !hp) return false;
                 if (hp && (!hw || tp < tw)) { t = tp; n = d * -1.0f; target = -2; }
                 else { t = tw; n = nw; target = -1; }
@@ -505,13 +506,16 @@ void GameApp::setPlayMode(bool on, const InputFrame& in) {
 // terrain bumps and jetpack flights do not bob the view. First person: the floor is at the
 // character's feet. Snap turn changes camYaw_, which orbits the camera around the character.
 void GameApp::placeCamera(float dt, bool snap, const InputFrame* in) {
-    constexpr float kBack = 3.6f, kUp = 1.1f, kSmooth = 0.12f;
+    // Kabuto: the camera distances grow with him (heroScale_), the tracking space with the
+    // giant's eye height (rig_.comfort.worldScale, see updateHeroScale).
+    const float hs = heroScale_, ws = rig_.comfort.worldScale;
+    const float kBack = 3.6f * hs, kUp = 1.1f * hs, kSmooth = 0.12f;
     const Quat q = Quat::fromAxisAngle({0, 1, 0}, camYaw_);
     Vec3 pos = player_.position;
     if (firstPerson_) {
         // The player position IS the head (horizontally): the tracking origin is placed so the
         // tracked head lands on it; the floor is at the character's feet.
-        if (in && in->headValid) pos = pos - q.rotate(Vec3{in->head.position.x, 0, in->head.position.z});
+        if (in && in->headValid) pos = pos - q.rotate(Vec3{in->head.position.x, 0, in->head.position.z} * ws);
         rig_.worldFromTracking = Pose{q, pos};
         camFloor_ = player_.position.y;
         return;
@@ -519,22 +523,22 @@ void GameApp::placeCamera(float dt, bool snap, const InputFrame* in) {
     float floorY = player_.position.y + (firstPerson_ ? 0.0f : kUp);
     if (!firstPerson_) {
         pos += q.rotate(Vec3{0, 0, kBack});
-        if (player_.groundHeight) floorY = std::max(floorY, player_.groundHeight(pos.x, pos.z) + 0.3f);
+        if (player_.groundHeight) floorY = std::max(floorY, player_.groundHeight(pos.x, pos.z) + 0.3f * hs);
     }
     if (snap || dt <= 0) camFloor_ = floorY;
     else camFloor_ += (floorY - camFloor_) * (1.0f - std::exp(-dt / kSmooth));
     pos.y = firstPerson_ ? player_.position.y : camFloor_;
     // Camera collision: if a cliff or building is between the character and the viewer's eyes,
     // pull the camera in front of it so the character stays visible.
-    const float eyeH = (in && in->headValid) ? in->head.position.y : 1.6f;
-    const Vec3 chest = player_.position + Vec3{0, 1.4f, 0};
+    const float eyeH = ((in && in->headValid) ? in->head.position.y : 1.6f) * ws;
+    const Vec3 chest = player_.position + Vec3{0, 1.4f * hs, 0};
     const Vec3 eye = pos + Vec3{0, eyeH, 0};
     const Vec3 toEye = eye - chest;
     const float dist = length(toEye);
     float t;
     Vec3 n;
     if (worldRay_ && dist > 0.5f && worldRay_(chest, toEye * (1.0f / dist), dist, t, n)) {
-        const Vec3 newEye = chest + toEye * (std::max(0.3f, t - 0.4f) / dist);
+        const Vec3 newEye = chest + toEye * (std::max(0.3f * hs, t - 0.4f * hs) / dist);
         pos = newEye - Vec3{0, eyeH, 0};
     }
     rig_.worldFromTracking = Pose{q, pos};
@@ -559,7 +563,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     if (in.headValid) {
         // Physical walking moves the player (first person).
         if (firstPerson_ && haveHeadPrev_)
-            player_.position += qOld.rotate(Vec3{in.head.position.x - headPrev_.x, 0, in.head.position.z - headPrev_.z});
+            player_.position += qOld.rotate(Vec3{in.head.position.x - headPrev_.x, 0, in.head.position.z - headPrev_.z} * rig_.comfort.worldScale);
         headPrev_ = in.head.position;
         haveHeadPrev_ = true;
         // Eye height estimate for the body scale: smoothed, ignoring implausible values, so the
@@ -576,6 +580,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         playerHasJet_ = !playerHasJet_;
         LOGI("Player model: %s jetpack", playerHasJet_ ? "with" : "without");
     }
+    updateHeroScale();
     followHead(dt, in);
     briefHeld_ = in.hand[mh].thumbstickClick;  // hold the move stick down: the mission briefing
     if (dying_) {
@@ -589,7 +594,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.viewYaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : camYaw_;
     pi.jet = in.hand[th].primary;              // A
     pi.sprint = in.hand[mh].squeeze > 0.5f;    // move-hand grip
-    if (!firstPerson_) {
+    if (!firstPerson_ && hero_ != Hero::Kabuto) {
         updateThirdPersonAim(in, dt);
         pi.aiming = tpAiming_;
         const Vec3 d = aimTarget_ - player_.position;
@@ -615,11 +620,11 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updatePickups(dt, in);
     placeCamera(dt, false, &in);
     if (!playerModel_) return;
-    if (firstPerson_) {
+    if (firstPerson_ && hero_ != Hero::Kabuto) {
         poseFirstPersonBody(in);
         if (syringeOut_) armTargets_[rig_.moveHand()].squeeze = 1.0f;  // the hand closes on the syringe
     } else {
-        bodyXf_ = Mat4::translation(player_.position) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
+        bodyXf_ = Mat4::translation(player_.position + Vec3{0, heroLift_, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
         armTargets_[0].valid = armTargets_[1].valid = false;
         // Aiming: the gun arm reaches toward the crosshair (model space, game units).
         Mat4 sh;
@@ -646,6 +651,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     updateTimmy();
     if (hero_ == Hero::Delphi) updateDelphi(dt, in);
+    else if (hero_ == Hero::Kabuto) updateKabuto(dt, in);
     else updateWeapon(dt, in);
     updateFeel(dt, in);
     updateRescue(dt, in);
@@ -793,7 +799,11 @@ void GameApp::setAudio(AudioMixer* mixer) {
         // Ripper nests: a Ripper hatching.
         "rs_spawn", "rm_spawn", "rl_spawn",
         // HUD weapon select, health pickup, injection.
-        "ph_selct", "pu_hlth", "me_syrng"};
+        "ph_selct", "pu_hlth", "me_syrng",
+        // Kabuto: footsteps by surface, punches and hits, stomp, landing, eating, roars, death.
+        "ka_fsgr1", "ka_fsgr2", "ka_fssa1", "ka_fssa2", "ka_fsst1", "ka_fsst2", "ka_fswa1", "ka_fswa2", "ka_pnch1", "ka_pnch2",
+        "ka_ltht1", "ka_mdht1", "ka_hvht1", "ka_stomp", "ka_lndhd", "ka_grab", "ka_eat1", "ka_eat2", "ka_belch", "ka_sniff",
+        "ka_roar1", "ka_roar2", "ka_roar3", "ka_roar4", "ka_deth1", "ka_deth2", "ka_wound", "ka_smrt1", "ka_smrt2"};
     std::vector<std::string> all(std::begin(names), std::end(names));
     for (int k = 1; k <= 15; ++k)  // Smartie voice pairs gsmNN_1 / gsmNN_2 (no 07 in the data)
         for (int j = 1; j <= 2; ++j) {
@@ -860,7 +870,7 @@ void GameApp::updateAudio(float dt) {
     wasOnGround_ = player_.onGround;
     // Footsteps on the run/strafe cycle (two per cycle).
     const PlayerAnim pa = player_.anim();
-    if (player_.onGround && (pa == PlayerAnim::Run || pa == PlayerAnim::Strafe) && playerModel_) {
+    if (player_.onGround && (pa == PlayerAnim::Run || pa == PlayerAnim::Strafe || pa == PlayerAnim::Turbo) && playerModel_) {
         const float dur = std::max(0.1f, playerModel_->animDuration(clip_[int(pa)]));
         // Half-cycle counter: a footstep each time the clip enters a new half (either direction).
         const float halfIndex = std::floor(player_.animTime() / dur * 2.0f);
@@ -869,9 +879,18 @@ void GameApp::updateAudio(float dt) {
             // wa water): water when wading, wood on structures (bridges, walkways), sand on the
             // beach just above the sea, grass elsewhere. Louder than before (device test 19).
             const bool wade = player_.position.y < player_.seaLevel - 0.05f;
-            const char* set = wade ? "wa" : (player_.onObject() ? "wd" : (player_.position.y < player_.seaLevel + 1.5f ? "sa" : "gr"));
-            const std::string n = std::string("me_fs") + set + ((int(halfIndex) & 1) ? "2" : "1");
-            sfx2D(n.c_str(), wade ? 0.9f : 0.75f, 0.95f + 0.1f * frand());
+            const bool giant = hero_ == Hero::Kabuto;
+            const char* set = wade ? "wa" : (player_.onObject() ? (giant ? "st" : "wd") : (player_.position.y < player_.seaLevel + 1.5f ? "sa" : "gr"));
+            const std::string n = std::string(giant ? "ka_fs" : "me_fs") + set + ((int(halfIndex) & 1) ? "2" : "1");
+            sfx2D(n.c_str(), wade ? 0.9f : (giant ? 1.0f : 0.75f), 0.95f + 0.1f * frand());
+            if (giant) {
+                // Every step of the giant: a thud in both hands and dust at the foot.
+                haptics_.push_back({kLeft, 0.35f, 0.08f});
+                haptics_.push_back({kRight, 0.35f, 0.08f});
+                const Quat r = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
+                const Vec3 foot = player_.position + r.rotate(Vec3{((int(halfIndex) & 1) ? 0.12f : -0.12f) * player_.height, 0, 0});
+                if (!wade) dustBurst(foot, 0.08f * player_.height, 4);
+            }
             if (wade) {  // a splash at the foot
                 const Quat r = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
                 const Vec3 foot = player_.position + r.rotate(Vec3{(int(halfIndex) & 1) ? 0.2f : -0.2f, 0, -0.2f});
@@ -1645,7 +1664,9 @@ void GameApp::updateSun(float dt) {
 void GameApp::renderShadows() {
     renderer_.setTerrainDetail(quality_ < 2);  // the adaptive fallback drops the extra terrain layers too
     buildBatches();
+    pushUnscaledRig(lastInput_.head, lastInput_.headValid);  // HUD at human scale (Kabuto)
     buildHud();
+    popUnscaledRig();
     renderShadowMap();
     renderReflection();
 }
@@ -2117,7 +2138,7 @@ void GameApp::updateMission(float dt) {
         const Vec3 c{std::max(o.boundsMin.x, std::min(o.boundsMax.x, p.x)),
                      std::max(o.boundsMin.y, std::min(o.boundsMax.y, p.y)),
                      std::max(o.boundsMin.z, std::min(o.boundsMax.z, p.z))};
-        if (length(c - p) <= 10.0f * gGameUnitsToMeters) completeObjective(int(i));
+        if (length(c - p) <= 10.0f * gGameUnitsToMeters + (player_.radius - 0.35f)) completeObjective(int(i));
     }
 }
 
@@ -2419,6 +2440,7 @@ void GameApp::spawnWave() {
 
 void GameApp::damagePlayer(float amount, DeathCause cause) {
     if (playerHealth_ <= 0 || dying_) return;
+    if (hero_ == Hero::Kabuto) amount *= 0.3f;  // a giant's hide: Reaper bolts and bites sting
     playerHealth_ -= amount;
     lastHurt_ = cause;
     if (playerHealth_ < 45.0f && playerHealth_ > 0 && cause != DeathCause::Fall) timmySay(frand() < 0.5f ? "smchbaseattack4" : "smchbaseattack1");
@@ -2426,7 +2448,7 @@ void GameApp::damagePlayer(float amount, DeathCause cause) {
     damageFlash_ = 1.0f;
     if (hurtCooldown_ <= 0) {
         static const char* hurt[] = {"me_shrt1", "me_shrt2", "me_shrt3"};
-        sfx2D(hurt[int(frand() * 2.99f)], 0.8f);
+        sfx2D(hero_ == Hero::Kabuto ? "ka_wound" : hurt[int(frand() * 2.99f)], 0.8f);
         hurtCooldown_ = 0.6f;
     }
     // A jolt in the hands, stronger for a bigger hit and on the side it came from.
@@ -2458,6 +2480,7 @@ void GameApp::startDeath() {
     armTargets_[0].valid = armTargets_[1].valid = false;
     haptics_.push_back({kLeft, 1.0f, 0.4f});
     haptics_.push_back({kRight, 1.0f, 0.4f});
+    if (deathCause_ == DeathCause::Blast && hero_ != Hero::Mecc) deathCause_ = DeathCause::Fall;  // only the Meccaryn has chunks
     if (deathCause_ == DeathCause::Blast) {
         // Blown apart: the original Meccaryn chunks (MC_chunk1..6), blood everywhere.
         playerGibbed_ = true;
@@ -2481,7 +2504,7 @@ void GameApp::startDeath() {
         sfx(frand() < 0.5f ? "ex_bdyl1" : "ex_bdyl2", at, 1.0f);
     } else {
         playerGibbed_ = false;
-        sfx2D("me_shrt3", 1.0f, 0.85f);
+        sfx2D(hero_ == Hero::Kabuto ? (frand() < 0.5f ? "ka_deth1" : "ka_deth2") : "me_shrt3", 1.0f, 0.85f);
         if (deathCause_ != DeathCause::Drowned) blood_.pool(player_.position, 1.4f);
     }
     LOGI("Player died (%s)", deathCause_ == DeathCause::Blast ? "blown apart" : (deathCause_ == DeathCause::Drowned ? "eaten in the water" : "fell"));
@@ -2498,7 +2521,7 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
         sink = std::max(0.0f, deathTime_ - 1.2f) * 0.5f;  // goes under
         if (frand() < dt * 3.0f) bloodInWater(player_.position, 0.8f);
     }
-    bodyXf_ = Mat4::translation(player_.position - Vec3{0, sink, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
+    bodyXf_ = Mat4::translation(player_.position + Vec3{0, heroLift_ - sink, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
     if (playerModel_ && !playerGibbed_) {
         playerModel_->setHideEnabled(false);
         const int clip = deathClip_[deathCause_ == DeathCause::Drowned ? 1 : (deathCause_ == DeathCause::Fall ? 2 : 0)];
@@ -2523,9 +2546,11 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
     }
 }
 
-void GameApp::explode(const Vec3& at, float radius, float damage) {
-    blasts_.push_back({at, 3, 0.0f});
-    sfx("me_mslex", at, 1.0f, 0.95f + 0.1f * frand());
+void GameApp::explode(const Vec3& at, float radius, float damage, bool fire) {
+    if (fire) {
+        blasts_.push_back({at, 3, 0.0f});
+        sfx("me_mslex", at, 1.0f, 0.95f + 0.1f * frand());
+    }
     for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
         const Enemy& e = enemies_.enemies[i];
         if (e.state == EnemyState::Dead) continue;
@@ -2579,11 +2604,11 @@ void GameApp::explode(const Vec3& at, float radius, float damage) {
         const float dn = length(nests_[k].pos - at);
         if (dn < radius + nests_[k].radius * 0.4f) damageNest(int(k), damage * (1.0f - 0.5f * std::min(1.0f, dn / radius)));
     }
-    LOGI("Rocket exploded at (%.1f %.1f %.1f), %zu creatures alive", at.x, at.y, at.z, creatures_.aliveCount());
+    LOGI("%s at (%.1f %.1f %.1f), %zu creatures alive", fire ? "Rocket exploded" : "Quake", at.x, at.y, at.z, creatures_.aliveCount());
     // His own rockets throw the Meccaryn (rocket jumps; a blast under him kills his fall speed)
     // and hurt him the closer he is: up to 40 at point blank, nothing at the blast's edge.
     const Vec3 rel = player_.position + Vec3{0, 0.9f, 0} - at;
-    const float dp = length(rel);
+    const float dp = fire ? length(rel) : 1e9f;  // a quake (Kabuto's stomp) doesn't throw its maker
     if (playMode_ && dp < radius && !dying_) {
         const float f = 1.0f - dp / radius;
         const float hurt = 40.0f * f * std::sqrt(f);
@@ -2851,7 +2876,7 @@ void GameApp::updateCombat(float dt) {
         Mat4 nz;
         if (e.slot >= 0 && enemyPool_[size_t(e.slot)]->nodeWorld("ref_nozzle", nz))
             muzzle = e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0} + r.rotate(giantsToRuntime(nz.m[12], nz.m[13], nz.m[14]));
-        const Vec3 target = player_.position + Vec3{0, 1.2f, 0};
+        const Vec3 target = player_.position + Vec3{0, (0.5f + 0.4f * frand()) * player_.height, 0};
         Vec3 dir = normalize(target - muzzle);
         // Spread grows with distance: long shots mostly miss, close ones are dangerous.
         const float spread = 0.06f + 0.004f * length(target - muzzle);
@@ -3058,6 +3083,7 @@ void GameApp::update(float dt, const InputFrame& in) {
     if (dt > 1e-4f) fpsSmooth_ += (1.0f / dt - fpsSmooth_) * std::min(1.0f, dt * 2.0f);
     updateQuality(dt);
     updateSun(dt);
+    updateHeroScale();  // Kabuto's giant scale only in play (not loading, cutscenes, free camera)
     // Story progression: once a mission is complete and its outro has played, the screen fades to
     // the loading / briefing screen (as the original goes through its mission briefing), the next
     // mission loads behind it, and play continues on its own after a few seconds.
@@ -3108,10 +3134,12 @@ void GameApp::update(float dt, const InputFrame& in) {
     // The left menu button: options (the game pauses while they're open).
     if (menuEdge_.pressed(in.hand[kLeft].menu)) {
         if (menuOpen_) menuOpen_ = false;
-        else openMenu(in);
+        else { pushUnscaledRig(in.head, in.headValid); openMenu(in); popUnscaledRig(); }
     }
     if (menuOpen_) {
+        pushUnscaledRig(in.head, in.headValid);  // the menu is at human scale (Kabuto)
         updateMenu(dt, in);
+        popUnscaledRig();
         followHead(dt, in);
         if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
         lastInput_ = in;
@@ -3215,7 +3243,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         drawModel(n.model, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown), false);
     }
     if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
-    if (playMode_ && playerModel_ && !cut && !playerGibbed_ && !(firstPerson_ && hero_ == Hero::Delphi)) playerModel_->render(renderer_, bodyXf_);
+    if (playMode_ && playerModel_ && !cut && !playerGibbed_ && !(firstPerson_ && hero_ != Hero::Mecc)) playerModel_->render(renderer_, bodyXf_);
     if (playMode_ && swordValid_ && swordModel_ && !cut && !dying_) drawModel(swordModel_, swordXf_, false);
     // Timmy on the back: seen in third person (and in reflections and shadows). In first person he
     // sits right behind your head and the body turns with it, so he'd only ever flicker at the edge
@@ -3357,6 +3385,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
                                         Mat4::scale(Vec3{1, 1, 1} * (3.0f + 4.0f * k)), true, 1.0f - k);
     }
     renderFx();
+    beginUiFrame(eye);  // the HUD, menu and hands at human scale (Kabuto)
     if (cut) renderCutscene();
     else if (playMode_) renderHud();
     if (playMode_ && !cut) renderTimmyLine();
@@ -3365,6 +3394,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
     else if (!(playMode_ && firstPerson_ && playerModel_ && hero_ == Hero::Mecc)) testScene_.renderControllers(renderer_, rig_, lastInput_);
     if (load_.phase == LoadPhase::FadeOut) renderLoading();
+    endUiFrame();
     // Death: fade to black before the respawn, and back in after it.
     const float black = dying_ ? std::min(1.0f, std::max(0.0f, (deathTime_ - 4.3f) / 1.0f)) : respawnFade_;
     if (black > 0.01f && text_.ready()) {

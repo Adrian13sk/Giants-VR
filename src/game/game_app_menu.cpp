@@ -35,7 +35,7 @@ void GameApp::openMenu(const InputFrame& in) {
     menuOpen_ = true;
     menuRow_ = kRowResume;
     menuNewGame_ = 0;
-    menuCampaign_ = hero_ == Hero::Delphi ? 1 : 0;
+    menuCampaign_ = hero_ == Hero::Delphi ? 1 : (hero_ == Hero::Kabuto ? 2 : 0);
     settings_.thirdPerson = !firstPerson_;
     // World-fixed in front of where the player looks (steady while reading), at eye height.
     const Pose head = rig_.toWorld(in.head);
@@ -75,7 +75,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowSubs: s.subtitles = !s.subtitles; changed = true; break;
             case kRowFps: s.showFps = !s.showFps; changed = true; break;
             case kRowDay: s.dayNight = !s.dayNight; changed = true; break;
-            case kRowNewGame: menuCampaign_ = 1 - menuCampaign_; haptics_.push_back({kRight, 0.3f, 0.03f}); break;
+            case kRowNewGame: menuCampaign_ = (menuCampaign_ + dx + 3) % 3; haptics_.push_back({kRight, 0.3f, 0.03f}); break;
             default: break;
         }
         if (changed) {
@@ -95,7 +95,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             menuNewGame_ = 0;
             haptics_.push_back({kLeft, 1.0f, 0.4f});
             haptics_.push_back({kRight, 1.0f, 0.4f});
-            const std::string world = menuCampaign_ == 1 ? "Rstory1" : "Story1";
+            const std::string world = menuCampaign_ == 1 ? "Rstory1" : (menuCampaign_ == 2 ? "Kstory1" : "Story1");
             LOGI("New game (menu): %s", world.c_str());
             if (!savePath_.empty()) std::remove(savePath_.c_str());
             syringes_ = 0;
@@ -126,7 +126,7 @@ void GameApp::renderMenu() {
     char vol[32], mus[32];
     std::snprintf(vol, sizeof vol, "%d%%", s.volume * 10);
     std::snprintf(mus, sizeof mus, "%d%%", s.music * 10);
-    const std::string story = menuCampaign_ == 1 ? "REAPER STORY (DELPHI)" : "MECC STORY (BAZ)";
+    const std::string story = menuCampaign_ == 1 ? "REAPER STORY (DELPHI)" : (menuCampaign_ == 2 ? "KABUTO STORY" : "MECC STORY (BAZ)");
     const std::string newGame = menuNewGame_ > 0.05f ? "HOLD... " + std::to_string(int(std::ceil(2.0f - menuNewGame_))) : story;
     const std::string rows[kRowCount][2] = {
         {"RESUME", ""},

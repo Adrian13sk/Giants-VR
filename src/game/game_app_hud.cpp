@@ -97,14 +97,16 @@ void GameApp::hudStatus(const HudFrame& f) {
         const uint8_t outline[4] = {255, 255, 255, 255};
         hudGauge(kHudFuelFill, kHudJetGauge, jetShape_, f, -0.002f, 0.0f, 0.030f, 0.084f, player_.fuel(), fuel, outline);
     }
+    const bool giant = hero_ == Hero::Kabuto;  // the giant: no injections or weapons (he heals by eating)
     // Injections carried: the syringe icon and the count (pops when one is picked up).
     const float pop = 1.0f + 0.5f * std::max(0.0f, pickupFlash_);
     const uint8_t on[4] = {255, 255, 255, 255}, dim[4] = {255, 255, 255, 90};
-    hudRect(kHudSyringe, f, 0.032f, 0.018f, 0.030f * pop, 0.030f * pop, syringes_ > 0 ? on : dim);
+    if (!giant) hudRect(kHudSyringe, f, 0.032f, 0.018f, 0.030f * pop, 0.030f * pop, syringes_ > 0 ? on : dim);
     const uint8_t num[4] = {255, 255, 255, uint8_t(syringes_ > 0 ? 255 : 110)};
-    hudDigits(f, 0.046f, 0.012f, 0.018f, syringes_, num);
+    if (!giant) hudDigits(f, 0.046f, 0.012f, 0.018f, syringes_, num);
     // The weapon in hand.
-    if (hero_ == Hero::Delphi) {
+    if (giant) {
+    } else if (hero_ == Hero::Delphi) {
         hudRect(kHudSword, f, 0.040f, -0.024f, 0.036f, 0.036f, on);
         // Her fire bolt where the jetpack gauge would be: lit when ready, dim while it recharges.
         const float ready = boltCooldown_ <= 0 ? 1.0f : 0.0f;
@@ -374,7 +376,7 @@ void GameApp::updatePickups(float dt, const InputFrame& in) {
                          healthPickups_.end());
     // Using one: X (the move hand's lower face button).
     const int mh = rig_.moveHand();
-    const bool press = injectEdge_.pressed(in.hand[mh].primary);
+    const bool press = injectEdge_.pressed(in.hand[mh].primary) && hero_ != Hero::Kabuto;  // his X eats
     syringeValid_ = false;
     if (firstPerson_) {
         injectT_ = -1;

@@ -290,7 +290,8 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         const float clampRate = params.maxPlayback;
         if (std::fabs(rel) < 0.87f) {           // within ~50 deg of facing
             want = params.jumper && in.sprint && !swimming_ ? PlayerAnim::Turbo : PlayerAnim::Run;
-            rate = std::min(clampRate, std::max(0.6f, speedNow / params.strideSpeed));
+            const float stride = want == PlayerAnim::Turbo && params.turboStride > 0 ? params.turboStride : params.strideSpeed;
+            rate = std::min(clampRate, std::max(0.6f, speedNow / stride));
         } else if (std::fabs(rel) > 2.27f) {    // beyond ~130 deg: run the cycle backwards
             want = PlayerAnim::Run;
             rate = -std::min(clampRate, std::max(0.6f, speedNow / params.strideSpeed));

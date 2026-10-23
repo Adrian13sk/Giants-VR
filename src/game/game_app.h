@@ -219,7 +219,7 @@ private:
     struct Rocket { Vec3 pos, vel; float life; int kind = 0; };  // kind 0 rocket, 1 Delphi's fire bolt
     std::vector<Rocket> rockets_;
     void updateRockets(float dt);
-    void explode(const Vec3& at, float radius, float damage);
+    void explode(const Vec3& at, float radius, float damage, bool fire = true);
     const RenderModel* boltModel_ = nullptr;
     const RenderModel* muzzleModel_ = nullptr;
     const RenderModel* impactModel_ = nullptr;
@@ -505,7 +505,7 @@ private:  // the mission placed enemies: no test waves
     // Reaper story (Rstory worlds). Delphi has no jetpack: she jumps, runs on turbo, swims, fights
     // with her sword (first person: swing it; third person: the trigger) and casts fire bolts.
     // (game_app_delphi.cpp)
-    enum class Hero { Mecc, Delphi };
+    enum class Hero { Mecc, Delphi, Kabuto };
     Hero hero_ = Hero::Mecc;
     std::unique_ptr<SkinnedModel> meccMain_, meccSpare_, delphiModel_;
     int meccClip_[int(PlayerAnim::Count)] = {}, delphiClip_[int(PlayerAnim::Count)] = {};
@@ -524,6 +524,41 @@ private:  // the mission placed enemies: no test waves
     void setHero(Hero h);
     bool loadDelphi();
     void updateDelphi(float dt, const InputFrame& in);
+    // Kabuto (the Kabuto story, Kstory worlds; game_app_kabuto.cpp): kb_l0, about 15x a
+    // Meccaryn. The tracking space is scaled (rig_.comfort.worldScale = his eye height / the
+    // user's), so the user IS the giant: head, hands and eyes (IPD) scale together. The HUD,
+    // menu and hands are drawn in an unscaled frame anchored at the head (beginUiFrame), so they
+    // keep their usual size. Turn-hand trigger: punch (first person also by swinging the fist),
+    // move-hand trigger: stomp (shockwave), X: grab and eat (heals), Y: roar (scares).
+    std::unique_ptr<SkinnedModel> kabutoModel_;
+    int kabutoClip_[int(PlayerAnim::Count)] = {};
+    float kabutoOneShot_[int(PlayerAnim::Count)] = {};
+    int heroDeath_[3][3] = {{-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}};  // [hero][die, drown, fall]
+    float heroScale_ = 1.0f;     // body size / the Meccaryn's (capsule, aim points, camera)
+    float kabutoEye_ = 22.0f;    // m: his eye height (Ref_Camera in kb_stand)
+    float kabutoFeet_ = 0.0f;    // m: lift so his feet touch the ground
+    float heroLift_ = 0.0f;      // m: the current hero's model lift
+    struct KabutoState {
+        float punchT = -1, stompT = -1, eatT = -1, roarT = -1, roarCool = 0, stepT = 0;
+        bool punchHit = false, stompHit = false, eatDone = false, punchLeft = false;
+        bool trigWas[2] = {false, false}, xWas = false, yWas = false, wasAir = false;
+        Vec3 fistPrev[2];
+        bool fistValid[2] = {false, false};
+        float fistCool[2] = {0, 0};
+        int eatTarget = -1;
+    } kb_;
+    float uiScaleSaved_ = 1.0f;
+    Pose uiRigSaved_;
+    bool uiFrame_ = false;
+    bool loadKabuto();
+    void updateKabuto(float dt, const InputFrame& in);
+    void kabutoQuake(const Vec3& at, float radius, float damage);
+    void updateHeroScale();
+    // Draw head-anchored UI unscaled: swap the rig to scale 1 about the head and re-begin the view.
+    void beginUiFrame(const EyeRenderInfo& eye);
+    void endUiFrame();
+    void pushUnscaledRig(const Pose& head, bool headValid);
+    void popUnscaledRig();
     // VR feel (game_app_feel.cpp): controller rumble (hits by side, jetpack, landings, a heartbeat
     // when low) and the holstered weapon - gun on the right thigh (Ref_holsterR), launcher across
     // the back (Ref_HolsterB) - which first person can draw by reaching for it and gripping.

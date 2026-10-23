@@ -28,6 +28,7 @@ struct PlayerParams {
     float runSpeed = 5.0f;        // m/s at full stick deflection (raised after device test 4: "kinda slow")
     float sprintFactor = 1.5f;    // sprint multiplier
     float strideSpeed = 2.3f;     // m/s the run clip covers at 1x playback (measured, mc_run)
+    float turboStride = 0.0f;     // m/s the turbo clip covers at 1x (0: strideSpeed)
     float strafeStride = 2.0f;    // m/s the sidestep clip covers at 1x (measured, mc_sidestep)
     float maxPlayback = 2.4f;     // clip playback rate cap
     float turnRate = 10.0f;       // rad/s body turn toward the travel direction

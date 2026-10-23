@@ -16,10 +16,14 @@ namespace gvr {
 
 namespace {
 constexpr int kCreatureTargetD = 1000;  // as game_app.cpp's kCreatureTarget
+constexpr float kMeccHeightD = 1.8f;    // the player capsule's default height
 }
 
 GameApp::Hero GameApp::heroForWorld(const std::string& world) {
-    return toLower(world).rfind("rstory", 0) == 0 ? Hero::Delphi : Hero::Mecc;
+    const std::string w = toLower(world);
+    if (w.rfind("rstory", 0) == 0) return Hero::Delphi;
+    if (w.rfind("kstory", 0) == 0) return Hero::Kabuto;
+    return Hero::Mecc;
 }
 
 bool GameApp::loadDelphi() {
@@ -35,6 +39,13 @@ bool GameApp::loadDelphi() {
         "rp_turbo.anm",     "rp_swipe_1.anm",    "rp_swipe_2.anm",    "rp_swipe_3.anm",         "rp_spell_arm_bolt.anm"};
     for (int i = 1; i < int(PlayerAnim::Count); ++i) delphiClip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
     delphiClip_[0] = 0;
+    {
+        const int die = m->addAnimation(assetWorld_->fs(), "rp_die.anm");
+        const int fall = m->addAnimation(assetWorld_->fs(), "rp_land_dead.anm");
+        heroDeath_[int(Hero::Delphi)][0] = die;
+        heroDeath_[int(Hero::Delphi)][1] = die;
+        heroDeath_[int(Hero::Delphi)][2] = fall >= 0 ? fall : die;
+    }
     for (PlayerAnim a : {PlayerAnim::Land, PlayerAnim::LandHard, PlayerAnim::Inject, PlayerAnim::Attack1, PlayerAnim::Attack2,
                          PlayerAnim::Attack3, PlayerAnim::Cast})
         delphiOneShot_[int(a)] = m->animDuration(delphiClip_[int(a)]);
@@ -50,17 +61,39 @@ void GameApp::setHero(Hero h) {
         meccParams_ = player_.params;
         std::copy(std::begin(clip_), std::end(clip_), std::begin(meccClip_));
         std::copy(std::begin(player_.oneShot), std::end(player_.oneShot), std::begin(meccOneShot_));
+        std::copy(std::begin(deathClip_), std::end(deathClip_), std::begin(heroDeath_[int(Hero::Mecc)]));
         meccParamsSaved_ = true;
     }
     if (h == hero_) return;
-    if (h == Hero::Delphi) {
-        if (!loadDelphi()) { LOGW("Delphi unavailable: staying the Meccaryn"); return; }
-        meccMain_ = std::move(playerModel_);
-        meccSpare_ = std::move(playerSpare_);
+    if (h == Hero::Delphi && !loadDelphi()) { LOGW("Delphi unavailable: hero unchanged"); return; }
+    if (h == Hero::Kabuto && !loadKabuto()) { LOGW("Kabuto unavailable: hero unchanged"); return; }
+    // Park the current hero's model.
+    switch (hero_) {
+        case Hero::Mecc: meccMain_ = std::move(playerModel_); meccSpare_ = std::move(playerSpare_); break;
+        case Hero::Delphi: delphiModel_ = std::move(playerModel_); break;
+        case Hero::Kabuto: kabutoModel_ = std::move(playerModel_); break;
+    }
+    // Defaults (the Meccaryn's), then the new hero's differences.
+    PlayerParams p = meccParams_;
+    player_.swimSpeed = 2.4f;
+    player_.floatDepth = 1.35f;
+    player_.radius = 0.35f;
+    player_.height = kMeccHeightD;
+    player_.stepUp = 0.45f;
+    heroScale_ = 1.0f;
+    heroLift_ = 0.0f;
+    swordValid_ = false;
+    gunValid_ = false;
+    tpAiming_ = false;
+    const int* clips = meccClip_;
+    const float* shots = meccOneShot_;
+    if (h == Hero::Mecc) {
+        playerModel_ = std::move(meccMain_);
+        playerSpare_ = std::move(meccSpare_);
+    } else if (h == Hero::Delphi) {
         playerModel_ = std::move(delphiModel_);
-        std::copy(std::begin(delphiClip_), std::end(delphiClip_), std::begin(clip_));
-        std::copy(std::begin(delphiOneShot_), std::end(delphiOneShot_), std::begin(player_.oneShot));
-        PlayerParams p = meccParams_;
+        clips = delphiClip_;
+        shots = delphiOneShot_;
         p.jumper = true;
         p.runSpeed = 5.5f;
         p.sprintFactor = 1.9f;    // turbo
@@ -68,24 +101,51 @@ void GameApp::setHero(Hero h) {
         p.jumpSpeed = 10.0f;
         p.stunSpeed = 22.0f;      // agile: lands bigger drops
         p.hardLandSpeed = 9.0f;
-        if (delphiOneShot_[int(PlayerAnim::LandHard)] > 0.3f) p.stunSeconds = delphiOneShot_[int(PlayerAnim::LandHard)];
-        if (delphiOneShot_[int(PlayerAnim::Land)] > 0.2f) p.landSeconds = delphiOneShot_[int(PlayerAnim::Land)];
-        player_.params = p;
         player_.swimSpeed = 4.2f;  // a Sea Reaper swims fast
         player_.jetpackAvailable = false;
-        gunValid_ = false;
     } else {
-        delphiModel_ = std::move(playerModel_);
-        playerModel_ = std::move(meccMain_);
-        playerSpare_ = std::move(meccSpare_);
-        std::copy(std::begin(meccClip_), std::end(meccClip_), std::begin(clip_));
-        std::copy(std::begin(meccOneShot_), std::end(meccOneShot_), std::begin(player_.oneShot));
-        player_.params = meccParams_;
-        player_.swimSpeed = 2.4f;
-        swordValid_ = false;
+        // Kabuto: about 15 Meccaryns tall. Walk and run speeds from his clips' foot travel
+        // (kb_walk ~8.7 m/s, kb_run1 ~13 m/s); heavier gravity so his jumps don't float.
+        playerModel_ = std::move(kabutoModel_);
+        clips = kabutoClip_;
+        shots = kabutoOneShot_;
+        const float H = std::max(kMeccHeightD, kabutoEye_ / 0.9f);
+        heroScale_ = H / kMeccHeightD;
+        heroLift_ = kabutoFeet_;
+        p.jumper = true;
+        p.runSpeed = 8.7f;
+        p.strideSpeed = 8.7f;
+        p.turboStride = 13.0f;
+        p.sprintFactor = 1.55f;
+        p.strafeStride = 6.0f;
+        p.maxPlayback = 1.8f;
+        p.turnRate = 3.0f;
+        p.gravity = 30.0f;
+        p.jumpSpeed = 24.0f;      // ~10 m up
+        p.airControl = 10.0f;
+        p.stunSpeed = 1e9f;       // a giant takes no fall damage
+        p.hardLandSpeed = 26.0f;
+        p.stepDown = 0.6f * heroScale_;
+        p.maxStepUp = 0.6f * heroScale_;
+        p.slideMaxSpeed = 18.0f;
+        player_.radius = 0.11f * H;
+        player_.height = H;
+        player_.stepUp = 0.3f * heroScale_;
+        player_.floatDepth = 0.7f * H;  // he wades; deeper water than that and he swims (badly)
+        player_.swimSpeed = 4.0f;
+        player_.jetpackAvailable = false;
     }
+    std::copy(clips, clips + int(PlayerAnim::Count), std::begin(clip_));
+    std::copy(shots, shots + int(PlayerAnim::Count), std::begin(player_.oneShot));
+    if (h != Hero::Mecc) {
+        if (shots[int(PlayerAnim::LandHard)] > 0.3f) p.stunSeconds = shots[int(PlayerAnim::LandHard)];
+        if (shots[int(PlayerAnim::Land)] > 0.2f) p.landSeconds = shots[int(PlayerAnim::Land)];
+    }
+    player_.params = p;
+    std::copy(std::begin(heroDeath_[int(h)]), std::end(heroDeath_[int(h)]), std::begin(deathClip_));
     hero_ = h;
-    LOGI("Hero: %s", h == Hero::Delphi ? "Delphi (Sea Reaper)" : "the Meccaryn");
+    kb_ = KabutoState{};
+    LOGI("Hero: %s (scale %.1f)", h == Hero::Delphi ? "Delphi (Sea Reaper)" : (h == Hero::Kabuto ? "Kabuto" : "the Meccaryn"), heroScale_);
 }
 
 void GameApp::updateDelphi(float dt, const InputFrame& in) {
