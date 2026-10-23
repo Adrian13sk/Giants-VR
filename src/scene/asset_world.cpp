@@ -309,8 +309,28 @@ void AssetWorld::collectMissions(const std::string& worldName) {
     // The world streams of Story2, Story3 and Story5 stop before their scenario list (an
     // undecoded opcode, B5): their missions are found by file name instead, in story order -
     // "<n><letter>_<k>_<name>" (2a_1_getmeat, 2b_1, 2b_2...) and "story<n>_<name>_<k>" (by k).
-    const std::string w = toLower(worldName);
-    if (w.rfind("story", 0) != 0 || w.size() != 6) {
+    std::string w = toLower(worldName);
+    // Kabuto and Reaper chapters: kstoryN -> k<N><letter>_* and kstory<N>_*; rstoryN likewise.
+    const bool kr = (w.rfind("kstory", 0) == 0 || w.rfind("rstory", 0) == 0) && w.size() == 7;
+    const std::string shortPrefix = kr ? std::string(1, w[0]) + w[6] : std::string();
+    if (kr) {
+        std::vector<std::pair<std::string, std::string>> found;
+        for (const std::string& f : fs_.list(".bin")) {
+            const std::string lf = toLower(f);
+            if (lf.rfind("wm_", 0) != 0) continue;
+            const std::string m = lf.substr(3, lf.size() - 7);
+            if (m.rfind(shortPrefix, 0) == 0 && m.size() > shortPrefix.size() &&
+                ((m[shortPrefix.size()] >= 'a' && m[shortPrefix.size()] <= 'z') || m[shortPrefix.size()] == '_'))
+                found.push_back({"0" + m, m});
+            else if (m.rfind(w + "_", 0) == 0)
+                found.push_back({"1" + m, m});
+        }
+        std::sort(found.begin(), found.end());
+        for (auto& f : found) missions_.push_back(f.second);
+        w.clear();
+    }
+    if (w.empty()) {
+    } else if (w.rfind("story", 0) != 0 || w.size() != 6) {
         if (w == "the_end" && fs_.exists("wm_end.bin")) missions_.push_back("end");
     } else {
         const char n = w[5];
@@ -337,10 +357,14 @@ void AssetWorld::collectMissions(const std::string& worldName) {
 }
 
 std::string AssetWorld::nextStoryWorld(const std::string& world) {
-    static const char* order[] = {"story1", "story2", "story3", "story4", "story5", "the_end"};
+    // Meccaryn, Reaper and Kabuto chapters in order (world file names).
+    static const char* chains[3][8] = {{"Story1", "Story2", "Story3", "Story4", "Story5", "the_end", nullptr, nullptr},
+                                       {"Rstory1", "Rstory2", "Rstory3_race_1", "Rstory3_race_2", "Rstory3_race_3", "Rstory4", "Rstory5", nullptr},
+                                       {"Kstory1", "Kstory2", "Kstory3", "Kstory4", "Kstory5", nullptr, nullptr, nullptr}};
     const std::string w = toLower(world);
-    for (size_t i = 0; i + 1 < sizeof(order) / sizeof(order[0]); ++i)
-        if (w == order[i]) return i + 2 < sizeof(order) / sizeof(order[0]) ? "Story" + std::to_string(i + 2) : "the_end";
+    for (const auto& chain : chains)
+        for (int i = 0; i + 1 < 8 && chain[i]; ++i)
+            if (w == toLower(chain[i])) return chain[i + 1] ? chain[i + 1] : std::string();
     return {};
 }
 

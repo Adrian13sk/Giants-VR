@@ -35,6 +35,7 @@ void GameApp::openMenu(const InputFrame& in) {
     menuOpen_ = true;
     menuRow_ = kRowResume;
     menuNewGame_ = 0;
+    menuCampaign_ = hero_ == Hero::Delphi ? 1 : 0;
     settings_.thirdPerson = !firstPerson_;
     // World-fixed in front of where the player looks (steady while reading), at eye height.
     const Pose head = rig_.toWorld(in.head);
@@ -74,6 +75,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowSubs: s.subtitles = !s.subtitles; changed = true; break;
             case kRowFps: s.showFps = !s.showFps; changed = true; break;
             case kRowDay: s.dayNight = !s.dayNight; changed = true; break;
+            case kRowNewGame: menuCampaign_ = 1 - menuCampaign_; haptics_.push_back({kRight, 0.3f, 0.03f}); break;
             default: break;
         }
         if (changed) {
@@ -93,18 +95,19 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             menuNewGame_ = 0;
             haptics_.push_back({kLeft, 1.0f, 0.4f});
             haptics_.push_back({kRight, 1.0f, 0.4f});
-            LOGI("New game (menu): back to Story1");
+            const std::string world = menuCampaign_ == 1 ? "Rstory1" : "Story1";
+            LOGI("New game (menu): %s", world.c_str());
             if (!savePath_.empty()) std::remove(savePath_.c_str());
             syringes_ = 0;
             hasLauncher_ = false;
             weaponSel_ = 0;
             if (!playMode_) setPlayMode(true, in);
-            if (toLower(worldName_) == "story1" && assetWorld_ && !assetWorld_->missions().empty()) {
+            if (toLower(worldName_) == toLower(world) && assetWorld_ && !assetWorld_->missions().empty()) {
                 beginLoading(assetWorld_->missions().front(), in);
             } else {
                 beginLoading(std::string(), in);
-                load_.world = "Story1";
-                load_.title = "Story1";
+                load_.world = world;
+                load_.title = world;
             }
         }
     } else {
@@ -123,7 +126,8 @@ void GameApp::renderMenu() {
     char vol[32], mus[32];
     std::snprintf(vol, sizeof vol, "%d%%", s.volume * 10);
     std::snprintf(mus, sizeof mus, "%d%%", s.music * 10);
-    const std::string newGame = menuNewGame_ > 0.05f ? "HOLD... " + std::to_string(int(std::ceil(2.0f - menuNewGame_))) : "HOLD TRIGGER 2 S";
+    const std::string story = menuCampaign_ == 1 ? "REAPER STORY (DELPHI)" : "MECC STORY (BAZ)";
+    const std::string newGame = menuNewGame_ > 0.05f ? "HOLD... " + std::to_string(int(std::ceil(2.0f - menuNewGame_))) : story;
     const std::string rows[kRowCount][2] = {
         {"RESUME", ""},
         {"TURNING", turns[s.turn]},
@@ -150,12 +154,12 @@ void GameApp::renderMenu() {
         if (const MeshId m = text_.mesh(rows[i][0], 0.05f, 0.7f, &tw, &th))
             text_.draw(m, base * Mat4::translation({-0.5f * w + 0.06f + 0.5f * tw, y, 0.004f}), col);
         if (!rows[i][1].empty()) {
-            const std::string v = sel && i != kRowNewGame ? "< " + rows[i][1] + " >" : rows[i][1];
+            const std::string v = sel && menuNewGame_ <= 0.05f ? "< " + rows[i][1] + " >" : rows[i][1];
             if (const MeshId m = text_.mesh(v, 0.05f, 0.7f, &tw, &th))
                 text_.draw(m, base * Mat4::translation({0.5f * w - 0.06f - 0.5f * tw, y, 0.004f}), col);
         }
     }
-    if (const MeshId m = text_.mesh("STICK: CHOOSE / CHANGE    MENU BUTTON: CLOSE", 0.032f, 1.1f, &tw, &th))
+    if (const MeshId m = text_.mesh("STICK: CHOOSE / CHANGE    NEW GAME: HOLD TRIGGER 2 S    MENU: CLOSE", 0.032f, 1.1f, &tw, &th))
         text_.draw(m, base * Mat4::translation({0, -0.5f * h + 0.045f, 0.004f}), {0.7f, 0.7f, 0.7f, 1});
 }
 

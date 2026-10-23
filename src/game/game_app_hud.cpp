@@ -20,10 +20,10 @@ namespace gvr {
 void GameApp::initHud(ModelCache* mc) {
     if (hudReady_) return;
     // Layer -> texture (drawn in layer order, over everything).
-    const char* names[kHudLayers] = {nullptr,          "st_mec_hbar",   "st_mec_fuel",     "st_mec_energy",
-                                     "st_mec_jetpack", "st_mec_wpslot", "st_mec_gun",      "st_mec_launcher",
-                                     "st_mec_syringe", "st_mec_numbers", nullptr};
-    const size_t caps[kHudLayers] = {8, 160, 160, 4, 4, 8, 8, 8, 8, 16, 48};
+    const char* names[kHudLayers] = {nullptr,          "st_mec_hbar",    "st_mec_fuel",     "st_mec_energy",
+                                     "st_mec_jetpack", "st_mec_wpslot",  "st_mec_gun",      "st_mec_launcher",
+                                     "st_rp_sword",    "st_rp_firewall", "st_mec_syringe",  "st_mec_numbers", nullptr};
+    const size_t caps[kHudLayers] = {8, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 16, 48};
     for (int k = 0; k < kHudLayers; ++k) {
         hudTex_[k] = names[k] ? mc->texture(names[k]) : whiteTex_;
         if (!hudTex_[k]) hudTex_[k] = whiteTex_;
@@ -104,8 +104,16 @@ void GameApp::hudStatus(const HudFrame& f) {
     const uint8_t num[4] = {255, 255, 255, uint8_t(syringes_ > 0 ? 255 : 110)};
     hudDigits(f, 0.046f, 0.012f, 0.018f, syringes_, num);
     // The weapon in hand.
-    const bool launcher = weaponSel_ == 1 && launcherModel_;
-    hudRect(launcher ? kHudLauncher : kHudGun, f, 0.040f, -0.024f, 0.036f, 0.036f, on);
+    if (hero_ == Hero::Delphi) {
+        hudRect(kHudSword, f, 0.040f, -0.024f, 0.036f, 0.036f, on);
+        // Her fire bolt where the jetpack gauge would be: lit when ready, dim while it recharges.
+        const float ready = boltCooldown_ <= 0 ? 1.0f : 0.0f;
+        const uint8_t fire[4] = {255, 255, 255, uint8_t(ready > 0 ? 255 : 90)};
+        hudRect(kHudFire, f, -0.002f, 0.0f, 0.03f, 0.03f, fire);
+    } else {
+        const bool launcher = weaponSel_ == 1 && launcherModel_;
+        hudRect(launcher ? kHudLauncher : kHudGun, f, 0.040f, -0.024f, 0.036f, 0.036f, on);
+    }
     // Mission objectives along the top: one pip each, gold when done.
     const size_t n = objectives_.size();
     for (size_t i = 0; i < n && n <= 16; ++i) {

@@ -12,7 +12,8 @@
 
 namespace gvr {
 
-enum class PlayerAnim : int { Idle = 0, Run, Thrust, Hover, Land, Strafe, Slide, FlyFwd, FlyLeft, FlyRight, FlyBack, LandHard, Fall, Inject, Count };
+enum class PlayerAnim : int { Idle = 0, Run, Thrust, Hover, Land, Strafe, Slide, FlyFwd, FlyLeft, FlyRight, FlyBack, LandHard, Fall, Inject, Swim, Turbo,
+                             Attack1, Attack2, Attack3, Cast, Count };
 
 struct PlayerInput {
     Vec2 move;            // stick, -1..1, +y = forward (deadzone applied by the controller)
@@ -58,6 +59,10 @@ struct PlayerParams {
     float slideMaxSpeed = 10.0f;  // m/s
     float slideSteer = 2.0f;      // m/s^2 sideways steering while sliding
     float slideFriction = 12.0f;  // m/s^2 decay of slide speed once back on walkable ground
+    // Characters without a jetpack (Delphi): the jet button jumps instead; they steer in the air.
+    bool jumper = false;
+    float jumpSpeed = 9.5f;       // m/s take-off
+    float airControl = 7.0f;      // m/s^2 steering in the air (jumper)
     float crossfade = 0.2f;       // s
     float deadzone = 0.2f;
 };
@@ -101,6 +106,7 @@ public:
     bool overheated() const { return overheated_; }
     bool turbo() const { return turbo_; }
     bool stunned() const { return stun_ > 0; }
+    bool takeJump() { const bool j = jumpEvent_; jumpEvent_ = false; return j; }
     // A one-shot body action (the health injection): plays `a` for `seconds` while standing
     // (walking slowed); the clip stays on screen until it ends or the player leaves the ground.
     void startAction(PlayerAnim a, float seconds) { action_ = a; actionTime_ = seconds; }
@@ -121,6 +127,7 @@ private:
     float fuel_ = 5.0f, sinceThrust_ = 99.0f;
     bool thrusting_ = false, overheated_ = false, overheatEvent_ = false, turbo_ = false;
     float stun_ = 0, impact_ = 0;
+    bool jumpHeld_ = false, jumpEvent_ = false;
     PlayerAnim action_ = PlayerAnim::Idle;
     float actionTime_ = 0;
     bool sliding_ = false;      // on ground too steep to stand on: skidding downhill

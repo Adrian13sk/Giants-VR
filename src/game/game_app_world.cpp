@@ -331,6 +331,11 @@ void GameApp::updateFx(float dt) {
     // Rocket trails: a flame at the nozzle and grey smoke left hanging behind.
     for (const auto& r : rockets_) {
         const Vec3 back = normalize(r.vel) * -1.0f;
+        if (r.kind == 1) {  // Delphi's fire bolt: a blazing ball with a blue-white tail
+            smokePuff(FxTex::Fire, r.pos, back * 1.0f, 0.75f, 0.2f, 0.12f, 1.0f, 0.0f);
+            smokePuff(FxTex::FireBlue, r.pos + back * 0.25f, back * 2.0f, 0.45f, 0.1f, 0.35f, 0.9f, 0.0f);
+            continue;
+        }
         smokePuff(FxTex::Fire, r.pos + back * 0.3f, back * 3.0f, 0.55f, 0.15f, 0.18f, 1.0f, 0.0f);
         smokePuff(FxTex::SmokeGrey, r.pos + back * 0.5f, back * 0.5f + Vec3{0, 0.2f, 0}, 0.3f, 1.4f, 1.2f, 0.5f, 0.35f);
     }

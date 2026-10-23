@@ -70,7 +70,16 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     // Jetpack fuel: drains while thrusting (twice as fast on turbo), refills on the ground only.
     // Burnt dry, it overheats and stays off until the tank is partly refilled.
     if (overheated_ && fuel_ >= params.overheatResume * params.fuelSeconds) overheated_ = false;
-    thrusting_ = in.jet && fuel_ > 0.0f && jetpackAvailable && !overheated_ && stun_ <= 0;
+    thrusting_ = in.jet && fuel_ > 0.0f && jetpackAvailable && !overheated_ && stun_ <= 0 && !params.jumper;
+    if (params.jumper) {
+        // A jump on the button's press, from the ground (or the water's surface).
+        if (in.jet && !jumpHeld_ && (onGround || swimming_) && stun_ <= 0) {
+            velocity.y = params.jumpSpeed * (swimming_ ? 0.7f : 1.0f);
+            onGround = false;
+            jumpEvent_ = true;
+        }
+        jumpHeld_ = in.jet;
+    }
     turbo_ = thrusting_ && in.sprint && mag > 0.3f;
     if (thrusting_) {
         fuel_ = std::max(0.0f, fuel_ - dt * (turbo_ ? 2.0f : 1.0f));
@@ -136,6 +145,14 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         if (l2 > step) { dx *= step / l2; dz *= step / l2; }
         velocity.x += dx;
         velocity.z += dz;
+    } else if (!onGround && params.jumper) {
+        // A jumper steers in the air (toward the stick's speed, limited acceleration).
+        const float tx = dir.x * speed, tz = dir.z * speed;
+        float dx = tx - velocity.x, dz = tz - velocity.z;
+        const float step = params.airControl * dt, l2 = std::sqrt(dx * dx + dz * dz);
+        if (l2 > step) { dx *= step / l2; dz *= step / l2; }
+        velocity.x += dx;
+        velocity.z += dz;
     } else if (!onGround) {
         // Falling without the jetpack: no air control, air friction slows him.
         const float k = std::max(0.0f, 1.0f - params.airDrag * dt);
@@ -177,7 +194,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         onGround = false;
     }
     velocity.y -= params.gravity * dt;
-    velocity.y = std::min(velocity.y, params.maxRise);
+    if (thrusting_ || !params.jumper) velocity.y = std::min(velocity.y, params.maxRise);  // a jump isn't capped
     if (onGround && !thrusting_) velocity.y = 0;
     const float prevY = position.y;
     const Vec3 before = position;
@@ -249,7 +266,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     landTimer_ = std::max(0.0f, landTimer_ - dt);
     airborne_ = onGround ? 0.0f : airborne_ + dt;
     // Brief hops (a bump, a small step down) keep the ground clips: no flicker into the air clips.
-    const bool airAnim = !onGround && (thrusting_ || airborne_ > params.airGrace);
+    const bool airAnim = !onGround && (thrusting_ || airborne_ > params.airGrace || (params.jumper && velocity.y > 1.0f));
     PlayerAnim want;
     float rate = 1.0f;
     // Movement relative to the body: forward run, sidestep (right = clip forward), backpedal.
@@ -259,6 +276,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     actionTime_ = (onGround && !swimming_) ? std::max(0.0f, actionTime_ - dt) : 0.0f;
     if (stun_ > 0 && onGround) want = PlayerAnim::LandHard;
     else if (actionTime_ > 0) want = action_;
+    else if (airAnim && params.jumper) want = velocity.y > 0.5f ? (hs > 2.0f ? PlayerAnim::FlyFwd : PlayerAnim::Thrust) : PlayerAnim::Fall;
     else if (airAnim && thrusting_ && hs > 2.0f) {
         // Flying: lean into the direction of travel.
         if (std::fabs(velRel) < 0.8f) want = PlayerAnim::FlyFwd;
@@ -266,12 +284,12 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         else want = velRel > 0 ? PlayerAnim::FlyLeft : PlayerAnim::FlyRight;
     } else if (airAnim && thrusting_) want = velocity.y > 3.0f ? PlayerAnim::Thrust : PlayerAnim::Hover;
     else if (airAnim) want = velocity.y < -7.0f ? PlayerAnim::Fall : PlayerAnim::Hover;  // a long drop: arms flailing
-    else if (swimming_) want = PlayerAnim::Hover;  // treading water (the Meccaryn has no swim clip)
+    else if (swimming_) want = speedNow > 0.3f ? PlayerAnim::Swim : PlayerAnim::Hover;  // swimming / treading water
     else if (sliding_) want = PlayerAnim::Slide;
     else if (speedNow > 0.15f) {
         const float clampRate = params.maxPlayback;
         if (std::fabs(rel) < 0.87f) {           // within ~50 deg of facing
-            want = PlayerAnim::Run;
+            want = params.jumper && in.sprint && !swimming_ ? PlayerAnim::Turbo : PlayerAnim::Run;
             rate = std::min(clampRate, std::max(0.6f, speedNow / params.strideSpeed));
         } else if (std::fabs(rel) > 2.27f) {    // beyond ~130 deg: run the cycle backwards
             want = PlayerAnim::Run;

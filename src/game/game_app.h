@@ -216,7 +216,7 @@ private:
     bool switchArmed_ = true;
     float rocketCooldown_ = 0;
     bool rocketTriggerHeld_ = false;
-    struct Rocket { Vec3 pos, vel; float life; };
+    struct Rocket { Vec3 pos, vel; float life; int kind = 0; };  // kind 0 rocket, 1 Delphi's fire bolt
     std::vector<Rocket> rockets_;
     void updateRockets(float dt);
     void explode(const Vec3& at, float radius, float damage);
@@ -501,6 +501,29 @@ public:
 private:  // the mission placed enemies: no test waves
     void initCharacters(AssetWorld* w, ModelCache* mc);
     void updateCharacters(float dt);
+    // Playable heroes: the Meccaryn (Baz) in the Mecc story, Delphi (the Sea Reaper, rp_l0) in the
+    // Reaper story (Rstory worlds). Delphi has no jetpack: she jumps, runs on turbo, swims, fights
+    // with her sword (first person: swing it; third person: the trigger) and casts fire bolts.
+    // (game_app_delphi.cpp)
+    enum class Hero { Mecc, Delphi };
+    Hero hero_ = Hero::Mecc;
+    std::unique_ptr<SkinnedModel> meccMain_, meccSpare_, delphiModel_;
+    int meccClip_[int(PlayerAnim::Count)] = {}, delphiClip_[int(PlayerAnim::Count)] = {};
+    float meccOneShot_[int(PlayerAnim::Count)] = {}, delphiOneShot_[int(PlayerAnim::Count)] = {};
+    PlayerParams meccParams_;
+    bool meccParamsSaved_ = false;
+    const RenderModel* swordModel_ = nullptr;
+    Mat4 swordXf_ = Mat4::identity();
+    bool swordValid_ = false, swordTipValid_ = false, swipeTrigWas_ = false, boltTrigWas_ = false, swipeHit_ = false;
+    Vec3 swordTipPrev_;
+    std::vector<std::pair<int, float>> swordCool_;  // target -> seconds until it can be hit again
+    int comboStep_ = 0;
+    float comboTimer_ = 0, swipeT_ = -1, boltCooldown_ = 0;
+    float hitMul_ = 1.0f;  // damage multiplier for weapon_.onHit (sword strikes)
+    static Hero heroForWorld(const std::string& world);
+    void setHero(Hero h);
+    bool loadDelphi();
+    void updateDelphi(float dt, const InputFrame& in);
     // VR feel (game_app_feel.cpp): controller rumble (hits by side, jetpack, landings, a heartbeat
     // when low) and the holstered weapon - gun on the right thigh (Ref_holsterR), launcher across
     // the back (Ref_HolsterB) - which first person can draw by reaching for it and gripping.
@@ -517,7 +540,7 @@ private:  // the mission placed enemies: no test waves
     UserSettings settings_;
     std::string settingsPath_;
     bool menuOpen_ = false, menuActHeld_ = false, menuFirst_ = true;
-    int menuRow_ = 0;
+    int menuRow_ = 0, menuCampaign_ = 0;
     float menuRepeat_ = 0, menuNewGame_ = 0, menuYaw_ = 0;
     Vec3 menuPos_;
     ButtonEdge menuEdge_;
@@ -553,7 +576,7 @@ private:  // the mission placed enemies: no test waves
     // (FP: over the move-hand wrist; TP: head-locked, lower left); the weapon strip that pops up on
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
-                    kHudSyringe, kHudNumbers, kHudMarks, kHudLayers };
+                    kHudSword, kHudFire, kHudSyringe, kHudNumbers, kHudMarks, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     QuadBatch hudBatch_[kHudLayers];

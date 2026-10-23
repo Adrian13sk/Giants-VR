@@ -89,7 +89,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         {
             const char* clips[] = {"mc_stand.anm", "mc_run.anm", "mc_hover.anm", "mc_hover.anm", "mc_land_soft.anm", "mc_sidestep.anm",
                                    "mc_skid.anm", "mc_thrust.anm", "mc_fly_left.anm", "mc_fly_right.anm", "mc_hover_back.anm",
-                                   "mc_land_hard.anm", "mc_fly_cycle.anm", "mc_health_pup.anm"};
+                                   "mc_land_hard.anm", "mc_fly_cycle.anm", "mc_health_pup.anm", "mc_hover.anm", "mc_run.anm",
+                                   "mc_stand.anm", "mc_stand.anm", "mc_stand.anm", "mc_stand.anm"};
             static_assert(sizeof(clips) / sizeof(clips[0]) == size_t(PlayerAnim::Count), "a clip per PlayerAnim");
             for (int i = 1; i < int(PlayerAnim::Count); ++i) clip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
             if (first) {
@@ -329,7 +330,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             weapon_.onHit = [this](int target, const Vec3& p, const Vec3& shotDir) {
                 if (target >= kObjectTarget) {
                     const int item = target - kObjectTarget;
-                    damageObject(item, 25.0f, false, player_.position);
+                    damageObject(item, 25.0f * hitMul_, false, player_.position);
                     const DestructKind k = destruct_.items[size_t(item)].kind;
                     sfx(k == DestructKind::Tree || k == DestructKind::House ? "ex_woods" : "ex_stons", p, 0.45f, 1.1f + 0.2f * frand());
                     smokePuff(k == DestructKind::Tree ? FxTex::Dust : FxTex::Smoke, p, normalize(shotDir * -1.0f) * 0.8f, 0.2f, 0.9f, 0.8f, 0.6f, 0.2f);
@@ -347,7 +348,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     return;
                 }
                 if (target >= kNestTarget) {
-                    damageNest(target - kNestTarget, 25.0f);
+                    damageNest(target - kNestTarget, 25.0f * hitMul_);
                     haptics_.push_back({rig_.turnHand(), 0.5f, 0.05f});
                     return;
                 }
@@ -359,7 +360,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     // A Ripper's head (round its mouth) is its weak spot.
                     Vec3 mouth;
                     const bool weak = creatures_.mouth && creatures_.mouth(ci, mouth) && length(mouth - p) < 0.55f * scale;
-                    const bool died = creatures_.damage(ci, weak ? 45.0f : 25.0f, shotDir, &ev);
+                    const bool died = creatures_.damage(ci, (weak ? 45.0f : 25.0f) * hitMul_, shotDir, &ev);
                     if (died && slot >= 0 && size_t(slot) < chars_.size() && chars_[size_t(slot)].objective >= 0)
                         completeObjective(chars_[size_t(slot)].objective);
                     bleed(p, shotDir, died, scale);
@@ -377,7 +378,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 // Headshots (hit above the shoulders) hurt a Reaper two and a half times as much.
                 const bool head = p.y - enemies_.enemies[size_t(target)].pos.y > 1.6f;
                 if (head) sfx("bi_hit2", p, 0.8f, 1.4f);
-                const bool killed = enemies_.damage(target, head ? 62.5f : 25.0f);
+                const bool killed = enemies_.damage(target, (head ? 62.5f : 25.0f) * hitMul_);
                 if (killed && enemies_.enemies[size_t(target)].objective >= 0)
                     completeObjective(enemies_.enemies[size_t(target)].objective);
                 bleed(p, shotDir, killed, 1.0f);
@@ -644,7 +645,8 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     eyeNow_ = playerModel_->hiddenCentroid() + eyeFromHead_;
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     updateTimmy();
-    updateWeapon(dt, in);
+    if (hero_ == Hero::Delphi) updateDelphi(dt, in);
+    else updateWeapon(dt, in);
     updateFeel(dt, in);
     updateRescue(dt, in);
     updateCombat(dt);
@@ -786,6 +788,8 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "me_smton", "me_smtof", "me_smtdp", "se_splsh", "pi_swrm1", "pi_swrm2",
         // Rocket launcher: launch, explosion.
         "me_msls1", "me_mslex",
+        // Delphi (Sea Reaper): sword swish and hits, fire spell (names read as such; provisional).
+        "sr_swsh1", "sr_swsh2", "sr_swht1", "sr_swht2", "sr_swht3", "sr_swht4", "sr_spfsh",
         // Ripper nests: a Ripper hatching.
         "rs_spawn", "rm_spawn", "rl_spawn",
         // HUD weapon select, health pickup, injection.
@@ -1567,6 +1571,9 @@ void GameApp::initMission() {
     // at the end of 1b (provisional, like item 1 = jetpack).
     if (m.setup[0] == 2 && std::find(m.items.begin(), m.items.end(), 3u) != m.items.end() && launcherModel_) hasLauncher_ = true;
     if (std::getenv("GVR_LAUNCHER") && launcherModel_) hasLauncher_ = true;  // test hook
+    // The world decides the hero (Reaper story: Delphi); she has no jetpack.
+    setHero(heroForWorld(worldName_));
+    if (hero_ == Hero::Delphi) player_.jetpackAvailable = false;
     if (haveRestore_) {  // what he carried at the checkpoint
         if (pendingRestore_.launcher && launcherModel_) hasLauncher_ = true;
         syringes_ = std::max(syringes_, std::min(kMaxSyringes, pendingRestore_.syringes));
@@ -2619,7 +2626,8 @@ void GameApp::updateRockets(float dt) {
             if (next.y < 0.0f && r.pos.y >= 0.0f) { hit = true; t = step * (r.pos.y / std::max(1e-4f, r.pos.y - next.y)); }
         }
         if (hit || r.life > 5.0f) {
-            explode(hit ? r.pos + dir * t : r.pos, 4.0f, 120.0f);
+            if (r.kind == 1) explode(hit ? r.pos + dir * t : r.pos, 2.6f, 75.0f);  // fire bolt: smaller blast
+            else explode(hit ? r.pos + dir * t : r.pos, 4.0f, 120.0f);
             r.life = 1e9f;
             continue;
         }
@@ -3207,7 +3215,8 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         drawModel(n.model, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown), false);
     }
     if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
-    if (playMode_ && playerModel_ && !cut && !playerGibbed_) playerModel_->render(renderer_, bodyXf_);
+    if (playMode_ && playerModel_ && !cut && !playerGibbed_ && !(firstPerson_ && hero_ == Hero::Delphi)) playerModel_->render(renderer_, bodyXf_);
+    if (playMode_ && swordValid_ && swordModel_ && !cut && !dying_) drawModel(swordModel_, swordXf_, false);
     // Timmy on the back: seen in third person (and in reflections and shadows). In first person he
     // sits right behind your head and the body turns with it, so he'd only ever flicker at the edge
     // of view: not drawn there.
@@ -3219,6 +3228,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     }
     if (rocketModel_)
         for (const auto& r : rockets_) {
+            if (r.kind == 1) continue;  // Delphi's bolt is all fire (particles)
             // The rocket model points along -Y (game) = -Z (runtime): orient it along its flight.
             const Vec3 f = normalize(r.vel);
             const Quat yawQ = Quat::fromAxisAngle({0, 1, 0}, std::atan2(-f.x, -f.z));
@@ -3353,7 +3363,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (briefHeld_ && !cut && playMode_) renderBriefOverlay();
     if (menuOpen_ && !cut) renderMenu();
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
-    else if (!(playMode_ && firstPerson_ && playerModel_)) testScene_.renderControllers(renderer_, rig_, lastInput_);
+    else if (!(playMode_ && firstPerson_ && playerModel_ && hero_ == Hero::Mecc)) testScene_.renderControllers(renderer_, rig_, lastInput_);
     if (load_.phase == LoadPhase::FadeOut) renderLoading();
     // Death: fade to black before the respawn, and back in after it.
     const float black = dying_ ? std::min(1.0f, std::max(0.0f, (deathTime_ - 4.3f) / 1.0f)) : respawnFade_;

@@ -51,6 +51,7 @@ add_library(gvr_core STATIC
   src/game/settings.cpp
   src/game/game_app_menu.cpp
   src/game/game_app_feel.cpp
+  src/game/game_app_delphi.cpp
   src/game/hud_gauge.cpp
   src/game/destruction.cpp
   src/game/particles.cpp
