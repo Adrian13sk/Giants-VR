@@ -350,3 +350,13 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - Vimp herd render (grazing) and blast (3 dead, lying).
   - Story1 render byte-identical.
 - **Not device-tested.**
+
+## Host verification — Reaper/Kabuto targets and the Reaperski (builds 77eef3a, 049ffc4)
+- `gvr_tests`: all pass (new: race and jetski handling).
+- **Harness:**
+  - All four Reaperski races won by the autopilot with no gate missed; race 1 chains on to race 2.
+  - kstory5_4: the player starts at his own Kabuto, the rival appears at marker 3 and approaches.
+  - kstory5_5: Meccaryn vs Kabuto (2500 hp).
+  - rstory2_jetski_2 / _3: moored ski placed.
+  - Story1 render byte-identical.
+- **Not device-tested.**

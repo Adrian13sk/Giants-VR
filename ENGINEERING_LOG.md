@@ -1091,3 +1091,51 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   - Unit test for herds: graze, stampede direction, damage, carcass removal.
   - Story1 render unchanged.
 - **Not device-tested.**
+
+### 2026-10-23 — Reaper and Kabuto story targets (build 77eef3a)
+- **Buildings:** every building a death trigger names now takes damage and collapses, with hit points ours where the
+  data has none: Kabuto's giant walls and gates 800, the Reaper queen Sappho 1500, the ships in r4a.
+- **Hero choice:** the mission's race (setup op 0x0B: 1 Kabuto, 2 Mecc, 3 Reaper) picks the hero. kstory5_5 is played
+  as the Meccaryn against Kabuto.
+- **The other Kabuto** (class 1 placed by a mission, or ours for kstory5_4, "Kabuto, meet Kabuto", which places only
+  the player's Kabuto as id 1 and a marker as id 3):
+  - Full size, 2500 hp.
+  - Walks up, punches (28), stomps (22 in a quake), roars, and falls with kb_die.
+  - Shot by the Meccaryn, the belly takes triple damage and the rest a quarter, after kstory5_5's hint "Fire at the
+    WEAK SPOT on Kabuto's stomach".
+  - kstory5_4 starts at the player's own placed Kabuto.
+- **Not device-tested.**
+
+### 2026-10-23 — The Reaperski (build 049ffc4)
+- **Course data** (per race mission):
+  - buoy_spline objects = the gates;
+  - r3_start_finish = the start/finish arch;
+  - marker_spline grouped by id = the rivals' raw racing points;
+  - rpman_l0 with id 11 = rival riders, id 12 = the starter;
+  - p_jetski_turbo / _missile / _homing = pickups;
+  - rp_jetski = a moored ski (rstory2_jetski_*).
+- **Gate order:** most gates are listed in order, but some were appended out of place (rstory3_race_2: 15 of 19). The
+  driving order is a closed tour from the start (nearest neighbour + 2-opt, land crossings costed ×7), run in the
+  direction that agrees with the data's own order.
+- **Riding** (`stepJetski`, ours):
+  - Speeds: 21 m/s, 31 on turbo; turning needs way on.
+  - Sandbars and ramps are climbed at speed; it leaves the ground off a ramp (gravity 16).
+  - Steep faces knock it back.
+  - Gate buoys and the arch are ridden through.
+  - Ice walls (150 hp, rstory2_jetski_3's hint) break to rockets or a turbo ram.
+  - Delphi rides with rp_Jetski_ride / rp_jetski_L_turn / R_turn.
+  - Engine loops and the other sounds: JS_* (js_ridl1 idle, js_rmve1 moving, js_buoy gate, js_mbuoy missed, js_win /
+    js_lose…).
+- **Rivals:** RPm_jetski with rpman_l0 on rpm_jetski_ride, each on a water-routed line through its own side of every
+  gate (A* over the heightfield, simplified to corners). Pace 15.5–19 m/s with a light rubber band. Rockets spin them
+  out.
+- **Rules:**
+  - A 3 s countdown.
+  - "If you miss 3 GATES, you lose the race."
+  - First over the line wins the mission; any other place restarts it after 5 s.
+  - HUD: position, gate, misses, turbo seconds and missiles.
+- **Harness** (`GVR_SKI_AUTOPILOT`, full throttle along the middle line, no turbo): won rstory3_race_1 (182 s),
+  race_2 (213 s), race_3 (233 s) and rstory5_race_1 (283 s) with no gate missed. Before the rival pace was lowered,
+  the autopilot came 2nd and 3rd in two of them. Unit test: a square course (win), three misses (lost), handling (top
+  speed, bump on land, stick right turns right).
+- **Not device-tested.** Comfort is the main question: the view turns with the ski, smoothed.

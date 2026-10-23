@@ -163,3 +163,17 @@ The game now starts at the main menu: night over the intro island with the GIANT
   (rockets work best).
 - **Sonak groups:** the guards appear round them; kill the guards. The Sonak itself isn't in yet.
 - **Bosses:** the Offspring in 4b and the Charger in 5a can be shot down, but they don't attack yet.
+
+## Reaperski (Delphi)
+- **Getting on:** walk into a moored Reaperski. In races you start on one.
+- **Riding:** **left stick** forward to go, back to brake or reverse, left/right to steer.
+- **Turbo:** hold the **left grip** (from turbo pickups).
+- **Missiles:** **right trigger** (from missile pickups). A hit spins a rival out.
+- **Y**: get off, outside races.
+- **Races:** pass close to every buoy in order. Missing three loses the race; only first place wins, otherwise the
+  race restarts.
+- **Ice walls:** break them with missiles, or ram them on turbo.
+
+## Kabuto vs Kabuto
+In Kabuto's last chapter another giant comes for you. As the Meccaryn (the very last mission), shoot Kabuto's belly:
+it is his weak spot.
