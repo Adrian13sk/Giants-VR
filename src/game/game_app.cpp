@@ -1073,7 +1073,24 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             objectives_.push_back({1, ch.position - Vec3{2, 0, 2}, ch.position + Vec3{2, 3, 2}});
             LOGI("Objective: reach %s", ch.model.c_str());
         }
-        if (ch.trigger == 2 && ci.ambient && ch.objectClass != 18) {
+        if (ch.objectClass == 1 && ci.ambient) {
+            // Kabuto placed by a mission (the end of his story): the other giant, a fight.
+            static const char* kc[6] = {"kb_stand.anm", "kb_walk.anm", "kb_punch.anm", "kb_stomp.anm", "kb_roar.anm", "kb_die.anm"};
+            for (int k = 0; k < 6; ++k) ci.bossClip[k] = std::max(0, k == 0 ? 0 : m->addAnimation(w->fs(), kc[k]));
+            ci.bossKb = true;
+            ci.boss = true;
+            // Full size, as the player's Kabuto (kb_l0's type scale, 0.25, would make him 4 m tall).
+            ci.scale = 1.0f;
+            ci.lift = ci.restLift = -mn.y;
+            const ObjectType* t = reg.type(ch.type);
+            ci.hp = ci.bossMaxHp = t && t->hitPoints > 0 ? t->hitPoints : 2500.0f;
+            ci.bossR = std::max(1.5f, 0.12f * (mx.y - mn.y) * ci.scale);
+            ci.bossH = std::max(2.0f, (mx.y - mn.y) * ci.scale);
+            ci.objective = int(objectives_.size());
+            objectives_.push_back({2, ch.position, ch.position});
+            missionHostiles_ = true;
+            LOGI("Objective: defeat Kabuto (%.0f hp, %.1f m tall)", ci.hp, ci.bossH);
+        } else if (ch.trigger == 2 && ci.ambient && ch.objectClass != 18) {
             const ObjectType* t = reg.type(ch.type);
             ci.boss = true;
             ci.hp = t && t->hitPoints > 0 ? t->hitPoints : 300.0f;
@@ -1602,7 +1619,7 @@ void GameApp::updateCharacters(float dt) {
     }
     // Ambient characters loop their default clip (only animated when near).
     for (auto& ci : chars_) {
-        if (!ci.ambient) continue;
+        if (!ci.ambient || ci.bossKb) continue;  // the other Kabuto: updateBosses
         ci.time += dt;
         if (ci.flyer) {
             // A wide, slowly breathing circle round its home, rising and dipping; banked into the
@@ -1633,6 +1650,15 @@ void GameApp::initMission() {
             objectives_.push_back({4, t.boundsMin, t.boundsMax});
             LOGI("Objective: bring %d pieces of Vimp meat to type %d", kVimpMeatNeeded, int(t.type));
         }
+    if (assetWorld_->startObject_ >= 0)
+        for (const auto& o : assetWorld_->mission().objects)
+            if (o.group == 3 && o.parent < 0 && toLower(assetWorld_->registry().modelName(o.type)) == "marker") {
+                Vec3 p = giantsToRuntime(o.x, o.y, o.z);
+                float gy;
+                if (assetWorld_->terrain().heightAt(p.x, p.z, gy)) p.y = gy;
+                spawnRivalKabuto(p, o.yaw * kPi / 180.0f);
+                break;
+            }
     // Death triggers on buildings: destroy it. The trigger is matched to the destructible of the
     // same type nearest its centre.
     for (const auto& t : assetWorld_->triggerObjects()) {
@@ -1695,7 +1721,10 @@ void GameApp::initMission() {
     if (m.setup[0] == 2 && std::find(m.items.begin(), m.items.end(), 3u) != m.items.end() && launcherModel_) hasLauncher_ = true;
     if (std::getenv("GVR_LAUNCHER") && launcherModel_) hasLauncher_ = true;  // test hook
     // The world decides the hero (Reaper story: Delphi); she has no jetpack.
-    setHero(heroForWorld(worldName_));
+    // The mission's race (setup op 0x0B: 1 Kabuto, 2 Mecc, 3 Reaper) picks the hero - kstory5_5 is
+    // played as the Meccaryn; the world name decides where the data gives none.
+    const uint32_t race = m.setup[0];
+    setHero(race == 1 ? Hero::Kabuto : (race == 2 ? Hero::Mecc : (race == 3 ? Hero::Delphi : heroForWorld(worldName_))));
     if (hero_ != Hero::Mecc) player_.jetpackAvailable = false;
     if (title_) return;  // the main menu's scene: no checkpoint
     if (haveRestore_) {  // what he carried at the checkpoint

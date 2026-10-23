@@ -448,7 +448,28 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
             LOGI("Spawn from mission start marker: %.1f %.1f %.1f yaw %.0f deg", p.x, p.y, p.z, o.yaw);
             break;
         }
-        for (const auto& o : mission_.objects) {
+        // No start marker but the player's own giant placed with id 1 (kstory5_4: kb_l0): that is
+        // where Kabuto starts, not a second Kabuto.
+        startObject_ = -1;
+        bool haveMarker = false;
+        for (const auto& o : mission_.objects) haveMarker |= o.group == 1 && o.parent < 0 && toLower(registry_.modelName(o.type)) == "marker";
+        if (!haveMarker && mission_.setup[0] == 1)
+            for (size_t k = 0; k < mission_.objects.size(); ++k) {
+                const auto& o = mission_.objects[k];
+                const ObjectType* t = registry_.type(o.type);
+                if (o.group != 1 || o.parent >= 0 || !t || t->objectClass != 1) continue;
+                Vec3 p = giantsToRuntime(o.x, o.y, o.z);
+                float gy;
+                if (terrain_.heightAt(p.x, p.z, gy)) p.y = gy;
+                spawn_ = p;
+                spawnYaw_ = o.yaw * kPi / 180.0f;
+                startObject_ = int(k);
+                LOGI("Spawn at the player's own Kabuto (id 1): %.1f %.1f %.1f", p.x, p.y, p.z);
+                break;
+            }
+        for (size_t oi = 0; oi < mission_.objects.size(); ++oi) {
+            const auto& o = mission_.objects[oi];
+            if (int(oi) == startObject_) continue;  // the player himself
             float x = o.x, y = o.y, z = o.z;
             bool onPost = false;
             std::string hold;

@@ -63,6 +63,7 @@ public:
         Vec3 boundsMin, boundsMax;
     };
     const std::vector<TriggerObject>& triggerObjects() const { return triggers_; }
+    int startObject_ = -1;  // mission object that is the player's start (skipped as a character)
     // Ripper nests (class 47): placed by the mission, run by the game layer.
     struct Nest {
         uint32_t type;

@@ -24,6 +24,13 @@ void GameApp::initDestruction(AssetWorld* w, ModelCache* mc) {
     objectItem_.assign(objs.size(), -1);
     const ObjectRegistry& reg = w->registry();
     size_t counts[4] = {};
+    // Types a mission's death trigger names (not group spawners): those come down too (giant walls
+    // and gates in Kabuto's story, the Reaper queen Sappho, ships).
+    std::vector<uint32_t> deathTypes;
+    for (const auto& t : w->triggerObjects()) {
+        const ObjectType* tt = reg.type(t.type);
+        if (t.kind == 2 && !(tt && tt->objectClass == 97)) deathTypes.push_back(t.type);
+    }
     for (size_t i = 0; i < objs.size(); ++i) {
         const auto& o = objs[i];
         const ObjectType* t = reg.type(o.type);
@@ -42,6 +49,10 @@ void GameApp::initDestruction(AssetWorld* w, ModelCache* mc) {
         else if (o.name == "log_launcher_base" || o.name == "guard_army_barracks" || o.name == "barracks_story2") {
             kind = DestructKind::House;
             hp = dataHp > 0 ? dataHp : 600.0f;
+        } else if (std::find(deathTypes.begin(), deathTypes.end(), o.type) != deathTypes.end()) {
+            // Hit points ours where the data has none: walls for a giant's fists, the queen a boss.
+            kind = DestructKind::House;
+            hp = dataHp > 0 ? dataHp : (o.name.find("queen") != std::string::npos ? 1500.0f : 800.0f);
         } else continue;
         Vec3 base{o.placement.m[12], o.placement.m[13], o.placement.m[14]};
         float gy;

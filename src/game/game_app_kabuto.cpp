@@ -119,6 +119,12 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
             const Vimp& v = vimps_.vimps[i];
             if (v.state != VimpState::Dead && length(v.pos + Vec3{0, 2.0f, 0} - at) < r + 1.5f) { hitVimp(int(i), 25.0f * mul, at, dir); any = true; }
         }
+        for (size_t i = 0; i < chars_.size(); ++i) {  // mission targets: the other Kabuto, Offspring...
+            const CharacterInst& c = chars_[i];
+            if (!c.boss || c.hp <= 0) continue;
+            const float y = std::max(c.pos.y, std::min(c.pos.y + c.bossH, at.y));
+            if (length(Vec3{c.pos.x, y, c.pos.z} - at) < r + c.bossR) { hitBoss(int(i), 30.0f * mul, at, dir); any = true; }
+        }
         // Smarties (village folk): squashed.
         auto& vs = villagers_.villagers;
         for (size_t i = 0; i < vs.size();) {

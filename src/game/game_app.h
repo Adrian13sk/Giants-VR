@@ -265,6 +265,12 @@ private:
         // Charger in 5a): shootable with the data's hit points; it doesn't fight back yet (ours).
         bool boss = false;
         float hp = 0, bossR = 1, bossH = 2, dieT = -1;
+        // The other Kabuto (kstory5_4 / 5_5): walks at the player, punches and stomps (ours).
+        bool bossKb = false;
+        int bossClip[6] = {};  // stand, walk, punch, stomp, roar, die
+        int bossState = 0;
+        float bossT = 0, bossClipT = 0, bossCool = 2, bossMaxHp = 1;
+        bool bossHit = false;
         // Flyers (Dactyls): circle their home in the sky, banking into the turn.
         bool flyer = false;
         Vec3 home;
@@ -658,6 +664,7 @@ private:  // the mission placed enemies: no test waves
     bool bossRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
     void hitBoss(int i, float amount, const Vec3& at, const Vec3& dir);
     void updateBosses(float dt);
+    bool spawnRivalKabuto(const Vec3& pos, float yaw);
     void creatureSound(const CreatureEvent& e);
     void updateCombat(float dt);
     void damagePlayer(float amount, DeathCause cause = DeathCause::Shot);
