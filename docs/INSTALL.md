@@ -114,6 +114,8 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   trigger 2 s), or in the free camera hold X for 3 s.
 - **Options** are kept in `settings.txt` next to `save.txt`. FRAME RATE: SHOWN puts a frame-rate counter at the top
   left of the view (green at 70+; please note it for the performance pass).
+- **Day and night:** a 20-minute cycle (about 12 minutes of day, warm dusk and dawn, a short moonlit night with stars).
+  Options → DAY AND NIGHT → ALWAYS DAY turns it off.
 - **Rumble:** hits (stronger on the side they come from), the jetpack (a kick at take-off, a hum while it fires,
   harder on turbo), landings, and a heartbeat below 30 health.
 - **Story:** finishing 1d now continues into Story 2 (2a). Story 2's objectives aren't implemented yet (2a can't be

@@ -890,3 +890,21 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - **Frame-rate counter** (options → FRAME RATE): smoothed fps, head-locked top left (green ≥ 70, yellow ≥ 60, red
   below), so the user can report frame rates without adb for the performance pass (list item 7, which needs the device).
 - **Not device-tested.**
+
+### List item 6: visual upgrades (2026-10-23, build 2d57afb)
+- **Day and night (ours; the original's light is fixed per level):**
+  - A 20-minute cycle: sun height = sin(2π·phase)·0.78 + 0.22, so about 12 min of day, dusk and dawn, ~5 min of
+    night; it starts mid-morning.
+  - Daylight scales and tints, from each world's own captured colours:
+    - sun light: warm when low; at night the moon on the other side of the sky lights and shadows the scene;
+    - ambient, fog/clear/horizon, zenith and water colour;
+    - the painted sky (new `skyTint`);
+    - baked lighting (new `bakedLight`, multiplied into the lightmap path, which otherwise ignores the sun).
+  - Stars: a hashed cell grid on the view direction in the sky shader, faded in with night, twinkling.
+  - Options → DAY AND NIGHT: CYCLE / ALWAYS DAY (the previous always-up circling sun). `GVR_DAY_PHASE` test hook.
+  - Harness renders at phases 0.25 (day), 0.53 (dusk), 0.75 (night), 0.97 (dawn).
+- **Sharper textures:** anisotropic filtering (4×, GL_EXT_texture_filter_anisotropic when present) on every mipmapped
+  texture: ground and walls stay sharp at grazing angles. On Quest it costs some texture bandwidth; unmeasured.
+- Not done from the item's wish list: light shafts (would need a post-process pass on Quest; skipped); water foam
+  already existed.
+- **Not device-tested.**

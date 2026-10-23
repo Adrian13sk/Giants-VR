@@ -295,3 +295,7 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 - `gvr_tests`: all pass.
 - Harness: holstered gun and launcher (TP front and back views); the frame-rate counter and large HUD from
   settings.txt. Rumble is not observable on the host. **Not device-tested.**
+
+## Host verification — build 2d57afb (APK sha256 7feac221…)
+- `gvr_tests`: all pass.
+- Harness: day, dusk, night (stars, moonlight) and dawn renders of 1a's start. **Not device-tested.**
