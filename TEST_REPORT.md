@@ -273,3 +273,12 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - terrain before/after at the 1a and 1b starts and from the air (beach band, earth patches);
   - debug renders of the rock/sand/patch weights.
 - **Not device-tested;** terrain frame cost unmeasured.
+
+## Host verification — build 5b56bea (APK sha256 d6a9cb99…)
+- `gvr_tests`: all pass (new: villagers).
+- Harness:
+  - 1d completed at the hatch → outro → Story2 loaded, 2a at its start marker;
+  - Story2/3/5 missions found by file name;
+  - 1a's Dactyls circling and banking;
+  - 1a village Smarties (8) and the hatch village (6).
+- **Not device-tested.**

@@ -818,3 +818,37 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
     (level ≥ 2) drops to ground + rock + sand. Debug renders of the weights checked the blends. **Frame cost on
     Quest not measured.**
 - **Not device-tested.**
+
+### List item 4: finishing Story 1 (2026-10-23, build 5b56bea)
+- **Story 1 → Story 2:**
+  - 1d already completes: reaching the hatch at game (3976, −2106) finishes it, and story1_hatch_into_mine plays.
+  - The story stopped there: Story1's last mission has no next mission.
+  - Now, after a world's last mission, `AssetWorld::switchWorld` loads the next Meccaryn world (Story1 → Story2 →
+    Story3 → Story4 → Story5 → the_end). It frees the old terrain, sky and sea, and keeps the archives, model cache
+    and registry; GameApp starts its first mission through the usual briefing/loading screen.
+  - Story2, Story3 and Story5's world streams stop before the scenario list (B5: ops 110/35/0). Their missions are
+    found by file name instead, in story order:
+    - Story2: 2a_1_getmeat … 2c_2_borjoyzee (5 missions);
+    - Story3: story3_sonak_1 … story3_prison_7 (7);
+    - Story5: 5a, 5c;
+    - Story4 parses fully.
+  - The jetpack stays after Story 1 (2a's item list has no item 1).
+  - Harness: 1d → its outro → "Chapter complete: next world Story2" → 2a_1_getmeat at its start marker (Story2
+    terrain, objects, Rippers, Reapers).
+  - **Still missing in Story 2:** its objectives (2a is "take Vimp meat to Timmy's Dad": Vimp-meat and destination
+    triggers aren't implemented, B9), so 2a can't be completed yet; the world's own static objects (stream stops
+    early, B5).
+- **Dactyls:** 1a's two Dactyls (class 45) were looping their wing-beat clip in place.
+  - Now each flies a wide circle round its placement: radius 25–50 m that slowly breathes, 14–26 m up and rising
+    and dipping, 8–11 m/s.
+  - They bank into the turn (`CharacterInst::xf()` gained roll and pitch) and are drawn out to 260 m. The path is ours.
+- **Smartie villagers (ours):** the Story 1 missions place no Smarties in the villages.
+  - Clusters of smw_house objects become villages: 1a's 18 houses get 8 Smarties; the 4-house village by the 1c_2/1d
+    hatch gets 6. sm_L0 with the original clips: sm_stand, sm_hwalk, sm_scan, sm_talk1, sm_listen1, sm_laugh1,
+    sm_stand_sing, sm_tai_chi, sm_sit, sm_celebrate, sm_wave, sm_Run_terror, sm_cower.
+  - `VillagerDirector`: acts for 4–18 s or strolls to a point near home (not through a house: collision ray). They
+    wave at the Meccaryn within 5 m (20 s cooldown).
+  - Reapers/Rippers within 22 m, a blast within 30 m, or the player's gunfire make them run away and cower until
+    6 s after it's quiet. Posed only within 70 m.
+  - Unit test (stroll near home, flee away, cower, calm, wave). Harness render of a Smartie in 1a's village.
+- **Not device-tested.**
