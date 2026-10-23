@@ -360,3 +360,11 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - rstory2_jetski_2 / _3: moored ski placed.
   - Story1 render byte-identical.
 - **Not device-tested.**
+
+## Host verification — bosses, Sonaks, SAMs (build 6e3a8cb)
+- `gvr_tests`: all pass.
+- **Harness:**
+  - Offspring, Charger, rival Kabuto and Sonak attack a standing player.
+  - A SAM missile hits a hovering player.
+  - Story1 render byte-identical.
+- **Not device-tested.**

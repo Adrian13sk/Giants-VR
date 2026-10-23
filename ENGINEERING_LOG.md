@@ -1139,3 +1139,32 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   the autopilot came 2nd and 3rd in two of them. Unit test: a square course (win), three misses (lost), handling (top
   speed, bump on land, stick right turns right).
 - **Not device-tested.** Comfort is the main question: the view turns with the ski, smoothed.
+
+### 2026-10-23 — Bosses fight back, Sonaks, SAM turrets (builds 0ead8b1, 99306c2, 6e3a8cb)
+- **One boss AI** (`updateBosses`, ours) with a table per kind: clips (stand, move, attack 1, attack 2, roar, die), speed,
+  reach, damage and sounds.
+  - Approach, then two kinds of blow when in reach, and a roar when far off.
+  - Kabuto: punch 28, stomp quake 22.
+  - Offspring (4b): claw 14, bite 20; OF_ sounds.
+  - Charger (5a): gore 18; it also lowers its head and charges at 17 m/s from 14–80 m, 30 damage and throws the player
+    aside. CA_ sounds (CA_ROAR, CA_SNORT…).
+  - Sonak: roar attack 16, stomp 24; SO_ sounds.
+  - Dead beasts sink away after 5 s; Kabuto lies.
+- **Sonaks:** sonak_l0 (class 39, 350 hp) is a walking war beast, not a flyer: walk, roar_attack, stomp, die. Each class-97
+  Sonak group spawner now gets a Sonak and its Reaper guards. story3_sonak_1 has 5 objectives, story3_3sonaks_4 has 15.
+- **SAM turrets:** guard_sam (class 44, 200 hp) is now destructible. Ours: a homing missile (Rocket kind 2) at a flying
+  player (3 m above the ground or more) within 160 m, every 4.5 s, at most 3 in the air.
+  - The missile climbs out of the tube and steers with a rate that tightens as it closes (an earlier version circled
+    the target).
+  - It bursts within 3 m, on the ground, or after 9 s.
+  - Launch sound PR_WSMIL.
+  - From 2b's briefing: "detect airborne targets and hammer them with homing missiles". Flares (from the Shop) and the
+    bush disguise are not implemented.
+- **Harness:**
+  - 4b: the Offspring kill a standing player in 5 blows.
+  - 5a: the Charger closes and gores.
+  - kstory5_4: the rival Kabuto punches.
+  - story3_sonak_1: the Sonak and guards attack.
+  - 2b: a hovering Meccaryn is hit by a SAM missile 2 s after launch.
+  - Story1 render byte-identical.
+- **Not device-tested.**

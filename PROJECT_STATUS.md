@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-23 (build 049ffc4: Reaperski races; every Mecc, Reaper and Kabuto mission has objectives)
+Last updated: 2026-10-23 (build 6e3a8cb: bosses fight back, Sonaks, SAM turrets)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.

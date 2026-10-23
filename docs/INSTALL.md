@@ -177,3 +177,9 @@ The game now starts at the main menu: night over the intro island with the GIANT
 ## Kabuto vs Kabuto
 In Kabuto's last chapter another giant comes for you. As the Meccaryn (the very last mission), shoot Kabuto's belly:
 it is his weak spot.
+
+## Bosses, Sonaks, SAMs
+- The Offspring, the Charger, Sonaks and the rival Kabuto now attack you. The Charger charges from a distance:
+  sidestep it.
+- Sonaks are huge horned beasts that come with their Reaper guards. Kill all of them.
+- SAM turrets fire homing missiles at you while you fly. Stay low near them, or blow them up (200 hp).
