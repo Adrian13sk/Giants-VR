@@ -19,7 +19,6 @@
 
 namespace gvr {
 
-static Mat4 affineInverse(const Mat4& m);
 
 // Weapon target ids >= this are creatures (index = id - kCreatureTarget); lower ids are Reapers.
 static constexpr int kCreatureTarget = 1000;
@@ -646,6 +645,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     updateTimmy();
     updateWeapon(dt, in);
+    updateFeel(dt, in);
     updateRescue(dt, in);
     updateCombat(dt);
     updateAudio(dt);
@@ -1634,7 +1634,7 @@ void GameApp::renderShadowMap() {
 }
 
 // Inverse of an affine matrix (rotation/scale/mirror + translation).
-static Mat4 affineInverse(const Mat4& m) {
+Mat4 affineInverse(const Mat4& m) {
     const float a = m.m[0], b = m.m[4], c = m.m[8], d = m.m[1], e = m.m[5], f = m.m[9], g = m.m[2], h = m.m[6], i = m.m[10];
     const float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
     Mat4 r = Mat4::identity();
@@ -2376,8 +2376,19 @@ void GameApp::damagePlayer(float amount, DeathCause cause) {
         sfx2D(hurt[int(frand() * 2.99f)], 0.8f);
         hurtCooldown_ = 0.6f;
     }
-    haptics_.push_back({kLeft, 0.7f, 0.1f});
-    haptics_.push_back({kRight, 0.7f, 0.1f});
+    // A jolt in the hands, stronger for a bigger hit and on the side it came from.
+    {
+        const float a = std::min(1.0f, 0.35f + amount / 40.0f);
+        float side = 0.0f;  // -1 left .. +1 right
+        if (hitDirTimer_ > 1.1f && lastInput_.headValid) {
+            const Pose head = rig_.toWorld(lastInput_.head);
+            Vec3 d = hitFrom_ - head.position;
+            d.y = 0;
+            if (length(d) > 1e-3f) side = dot(normalize(d), head.orientation.rotate(Vec3{1, 0, 0}));
+        }
+        haptics_.push_back({kLeft, a * (1.0f - 0.45f * std::max(0.0f, side)), 0.12f});
+        haptics_.push_back({kRight, a * (1.0f + 0.45f * std::min(0.0f, side)), 0.12f});
+    }
     // The player bleeds too (bites and bullets).
     if (cause != DeathCause::Drowned) bleed(player_.position + Vec3{0, 1.2f, 0}, Vec3{frand() - 0.5f, 0.3f, frand() - 0.5f}, false, 1.0f);
     if (playerHealth_ <= 0) startDeath();
@@ -2990,6 +3001,7 @@ bool GameApp::hasOriginalAssets() const { return assetWorld_ && assetWorld_->loa
 
 void GameApp::update(float dt, const InputFrame& in) {
     time_ += dt;
+    if (dt > 1e-4f) fpsSmooth_ += (1.0f / dt - fpsSmooth_) * std::min(1.0f, dt * 2.0f);
     updateQuality(dt);
     updateSun(dt);
     // Story progression: once a mission is complete and its outro has played, the screen fades to
@@ -3155,6 +3167,10 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     // of view: not drawn there.
     if (playMode_ && timmyOn_ && !cut && !firstPerson_) timmy_->render(renderer_, timmyXf_);
     if (playMode_ && gunValid_ && !cut && !dying_) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
+    if (playMode_ && !cut && !dying_ && !playerGibbed_) {  // the other weapon, holstered on the body
+        if (holsterGun_) drawModel(gunModel_, holsterGunXf_, false);
+        if (holsterLauncher_ && !firstPerson_) drawModel(launcherModel_, holsterLauncherXf_, false);
+    }
     if (rocketModel_)
         for (const auto& r : rockets_) {
             // The rocket model points along -Y (game) = -Z (runtime): orient it along its flight.

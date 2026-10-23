@@ -201,6 +201,18 @@ void GameApp::buildHud() {
         hudWeaponStrip();
         hudHitMarker();
     }
+    if (settings_.showFps && subInit_ && lastInput_.headValid) {
+        // Frame rate (smoothed), small, at the top left of the view.
+        HudFrame f;
+        f.o = rig_.toWorld(lastInput_.head).position + subRot_.rotate(Vec3{-0.3f, 0.26f, -0.9f});
+        f.r = subRot_.rotate(Vec3{1, 0, 0});
+        f.u = subRot_.rotate(Vec3{0, 1, 0});
+        const int fps = int(fpsSmooth_ + 0.5f);
+        const uint8_t col[4] = {uint8_t(fps >= 70 ? 120 : 255), uint8_t(fps >= 70 ? 255 : (fps >= 60 ? 220 : 80)), 120, 230};
+        const uint8_t back[4] = {0, 0, 0, 150};
+        hudRect(kHudPlate, f, 0.035f, 0, 0.085f, 0.06f, back);
+        hudDigits(f, 0, 0, 0.05f, fps, col);
+    }
     for (auto& b : hudBatch_) b.upload(renderer_);
 }
 

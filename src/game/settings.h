@@ -13,6 +13,7 @@ struct UserSettings {
     int volume = 9;          // 0..10
     int music = 8;           // 0..10
     bool subtitles = true;
+    bool showFps = false;    // frame-rate counter at the top of the view
     float hudScale() const { return hudSize == 0 ? 0.8f : (hudSize == 2 ? 1.3f : 1.0f); }
 };
 

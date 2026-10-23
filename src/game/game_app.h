@@ -35,6 +35,8 @@ struct EyeRenderInfo {
     int width, height;
 };
 
+Mat4 affineInverse(const Mat4& m);  // rotation/scale/mirror + translation
+
 struct HapticRequest {
     int hand;
     float amplitude;
@@ -499,6 +501,17 @@ public:
 private:  // the mission placed enemies: no test waves
     void initCharacters(AssetWorld* w, ModelCache* mc);
     void updateCharacters(float dt);
+    // VR feel (game_app_feel.cpp): controller rumble (hits by side, jetpack, landings, a heartbeat
+    // when low) and the holstered weapon - gun on the right thigh (Ref_holsterR), launcher across
+    // the back (Ref_HolsterB) - which first person can draw by reaching for it and gripping.
+    struct RefCache { Mat4 local = Mat4::identity(); bool have = false; };
+    RefCache holsterRCache_, holsterBCache_;
+    bool bodyRef(const char* ref, const char* parent, RefCache& c, Mat4& outGame);
+    bool holsterGun_ = false, holsterLauncher_ = false, feelThrust_ = false, feelWasGround_ = true, holsterGripHeld_ = false;
+    Mat4 holsterGunXf_ = Mat4::identity(), holsterLauncherXf_ = Mat4::identity();
+    Vec3 holsterGunPos_, holsterBackPos_;
+    float feelRumble_ = 0, feelFall_ = 0, feelBeat_ = 0, feelBeat2_ = -1;
+    void updateFeel(float dt, const InputFrame& in);
     std::string savePath_;
     // Options (game_app_menu.cpp): the left menu button opens them; the game pauses meanwhile.
     UserSettings settings_;
@@ -513,6 +526,7 @@ private:  // the mission placed enemies: no test waves
     void openMenu(const InputFrame& in);
     void updateMenu(float dt, const InputFrame& in);
     void renderMenu();
+    float fpsSmooth_ = 72.0f;
     SaveGame pendingRestore_;
     bool haveRestore_ = false;
     float newGameHold_ = 0;
