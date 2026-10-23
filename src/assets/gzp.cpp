@@ -321,6 +321,10 @@ std::vector<std::string> AssetFS::list(const std::string& suffix) const {
             if (ls.empty() || (l.size() >= ls.size() && l.compare(l.size() - ls.size(), ls.size(), ls) == 0))
                 out.insert(e.name);
         }
+    for (const auto& idx : dirIndex_)  // loose files in mounted directories
+        for (const auto& kv : idx)
+            if (ls.empty() || (kv.first.size() >= ls.size() && kv.first.compare(kv.first.size() - ls.size(), ls.size(), ls) == 0))
+                out.insert(kv.second);
     return {out.begin(), out.end()};
 }
 

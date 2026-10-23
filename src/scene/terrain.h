@@ -13,6 +13,7 @@ class Terrain {
 public:
     bool build(const GtiTerrain& t, Renderer& r, TextureId ground, TextureId wall);
     void render(Renderer& r) const;
+    void release(Renderer& r);  // frees the GPU meshes (switching worlds)
     // Ground height in runtime metres at runtime (x, z); returns false outside the terrain.
     bool heightAt(float rx, float rz, float& outY) const;
     // Runtime-space bounds of the valid terrain.

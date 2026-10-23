@@ -78,6 +78,12 @@ public:
     // Rebuilds the level state (objects, characters, triggers, collision, spawn) for a mission.
     bool selectMission(const std::string& name);
     std::string nextMission() const;  // empty after the last one
+    // Replaces the loaded world (terrain, sky, sea, objects) with another one and selects its
+    // first mission; archives, the model cache and the object registry are kept.
+    bool switchWorld(const std::string& name);
+    const std::string& worldName() const { return worldName_; }
+    // The world that follows `world` in the Meccaryn story (Story1 -> Story2 ... -> the_end), or empty.
+    static std::string nextStoryWorld(const std::string& world);
     // World bounds of the first placed object using <model>.gbs (case-insensitive); false if none.
     bool objectBounds(const std::string& model, Vec3& mn, Vec3& mx) const;
     // Object types not drawn (a cutscene shows its own animated copy, e.g. the hatch).
@@ -120,6 +126,9 @@ public:
 private:
     TextureId burnTex_[3] = {}, emberTex_ = 0;
     bool loadWorld(const std::string& name, Renderer& r);
+    void collectMissions(const std::string& worldName);
+    std::string worldName_;
+    TextureId terrainNoise_ = 0;
     void placeShowcase(const Vec3& centre);
     void placeWorldObjects(const std::string& missionName);
 

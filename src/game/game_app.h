@@ -362,6 +362,7 @@ private:
         float t = 0, yaw = 0;
         int frames = 0;
         std::string mission, title, brief;
+        std::string world;  // non-empty: switch to this world first (end of a story chapter)
     } load_;
     void beginLoading(const std::string& mission, const InputFrame& in, bool load = true);
     // A mission's title and objectives text (GText <mission>, MO_<mission>).

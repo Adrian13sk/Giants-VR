@@ -109,6 +109,13 @@ void Terrain::render(Renderer& r) const {
     }
 }
 
+void Terrain::release(Renderer& r) {
+    for (const Chunk& c : chunks_) r.destroyMesh(c.mesh);
+    chunks_.clear();
+    t_ = GtiTerrain{};
+    tris_ = 0;
+}
+
 bool Terrain::heightAt(float rx, float rz, float& outY) const {
     if (t_.gridW == 0) return false;
     const float gx = -rx / gGameUnitsToMeters;

@@ -23,13 +23,13 @@ bool AssetWorld::init(const std::string& dataDir, Renderer& r, const std::string
     cache_ = std::make_unique<ModelCache>(fs_, r);
     renderer_ = &r;
 
+    worldName_ = worldName;
     hasTerrain_ = loadWorld(worldName, r);
     if (hasTerrain_) {
         const size_t nTypes = registry_.build(dataDir);
         LOGI("Object registry: %zu types, %zu groups, %zu meshes", nTypes, registry_.groupCount(),
              registry_.meshCount());
-        for (const auto& sc : world_.scenarios)
-            if (sc.kind == 2 && fs_.exists("wm_" + sc.name + ".bin")) missions_.push_back(sc.name);
+        collectMissions(worldName);
         // Test hook / mission select: GVR_MISSION=<name> starts that mission instead of the first.
         std::string first = missions_.empty() ? std::string() : missions_.front();
         if (const char* m = std::getenv("GVR_MISSION"))
@@ -80,7 +80,9 @@ bool AssetWorld::loadWorld(const std::string& name, Renderer& r) {
         // paled in the shader) for beaches and the sea bed, an earthy ground (Rstory1_ground) in
         // patches, a warm second rock (story3_rock); plus our tileable blend noise.
         const std::vector<uint8_t> noise = makeTerrainNoise(256, 11u);
+        if (terrainNoise_) r.destroyTexture(terrainNoise_);
         const TextureId noiseTex = r.uploadTexture(256, 256, noise.data(), true, true);
+        terrainNoise_ = noiseTex;
         const TextureId sand = cache_->texture("story3_grnd"), grass2 = cache_->texture("Rstory1_ground");
         const TextureId rock2 = cache_->texture("story3_rock");
         r.setTerrainLayers(wall ? wall : ground, sand, grass2, rock2, noiseTex);
@@ -295,6 +297,72 @@ bool AssetWorld::objectBounds(const std::string& model, Vec3& mn, Vec3& mx) cons
         return true;
     }
     return false;
+}
+
+void AssetWorld::collectMissions(const std::string& worldName) {
+    missions_.clear();
+    for (const auto& sc : world_.scenarios)
+        if (sc.kind == 2 && fs_.exists("wm_" + sc.name + ".bin")) missions_.push_back(sc.name);
+    if (!missions_.empty()) return;
+    // The world streams of Story2, Story3 and Story5 stop before their scenario list (an
+    // undecoded opcode, B5): their missions are found by file name instead, in story order -
+    // "<n><letter>_<k>_<name>" (2a_1_getmeat, 2b_1, 2b_2...) and "story<n>_<name>_<k>" (by k).
+    const std::string w = toLower(worldName);
+    if (w.rfind("story", 0) != 0 || w.size() != 6) {
+        if (w == "the_end" && fs_.exists("wm_end.bin")) missions_.push_back("end");
+    } else {
+        const char n = w[5];
+        std::vector<std::pair<std::string, std::string>> found;  // sort key, mission name
+        for (const std::string& f : fs_.list(".bin")) {
+            const std::string lf = toLower(f);
+            if (lf.rfind("wm_", 0) != 0) continue;
+            const std::string m = lf.substr(3, lf.size() - 7);
+            if (m.size() > 2 && m[0] == n && m[1] >= 'a' && m[1] <= 'z' && m[2] == '_') {
+                found.push_back({m, m});
+            } else if (m.rfind(w + "_", 0) == 0) {
+                const size_t us = m.find_last_of('_');
+                const int k = us == std::string::npos ? 0 : std::atoi(m.c_str() + us + 1);
+                char key[16];
+                std::snprintf(key, sizeof key, "%04d", k);
+                found.push_back({key, m});
+            }
+        }
+        std::sort(found.begin(), found.end());
+        for (auto& f : found) missions_.push_back(f.second);
+    }
+    for (const auto& m : missions_) world_.scenarios.push_back({2, m});  // so placeWorldObjects finds them
+    if (!missions_.empty()) LOGI("World %s: %zu missions found by file name (scenario list not decoded)", worldName.c_str(), missions_.size());
+}
+
+std::string AssetWorld::nextStoryWorld(const std::string& world) {
+    static const char* order[] = {"story1", "story2", "story3", "story4", "story5", "the_end"};
+    const std::string w = toLower(world);
+    for (size_t i = 0; i + 1 < sizeof(order) / sizeof(order[0]); ++i)
+        if (w == order[i]) return i + 2 < sizeof(order) / sizeof(order[0]) ? "Story" + std::to_string(i + 2) : "the_end";
+    return {};
+}
+
+bool AssetWorld::switchWorld(const std::string& name) {
+    if (!renderer_) return false;
+    Renderer& r = *renderer_;
+    terrain_.release(r);
+    if (skyMesh_) { r.destroyMesh(skyMesh_); skyMesh_ = 0; }
+    if (seaMesh_) { r.destroyMesh(seaMesh_); seaMesh_ = 0; }
+    world_ = WorldDefinition{};
+    skinned_.clear();
+    placed_.clear();
+    hiddenTypes_.clear();
+    worldName_ = name;
+    hasTerrain_ = loadWorld(name, r);
+    if (!hasTerrain_) {
+        LOGW("World %s failed to load", name.c_str());
+        return false;
+    }
+    collectMissions(name);
+    placeWorldObjects(missions_.empty() ? std::string() : missions_.front());
+    LOGI("Switched to world %s (%zu missions, first %s)", name.c_str(), missions_.size(),
+         missions_.empty() ? "-" : missions_.front().c_str());
+    return true;
 }
 
 std::string AssetWorld::nextMission() const {

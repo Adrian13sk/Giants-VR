@@ -1492,13 +1492,21 @@ void GameApp::updateCharacters(float dt) {
 void GameApp::initMission() {
     // Proximity triggers on placed objects (death triggers were added with their characters).
     for (const auto& t : assetWorld_->triggerObjects())
-        if (t.kind == 1) objectives_.push_back({1, t.boundsMin, t.boundsMax});
+        if (t.kind == 1) {
+            objectives_.push_back({1, t.boundsMin, t.boundsMax});
+            const Vec3 c = (t.boundsMin + t.boundsMax) * 0.5f;
+            LOGI("Objective: reach type %d at game (%.0f, %.0f), %.1f m wide", int(t.type), -c.x / gGameUnitsToMeters,
+                 c.z / gGameUnitsToMeters, t.boundsMax.x - t.boundsMin.x);
+        }
     // Starting inventory: a Mecc mission lists the items the player must hold (op 0x0E). Item 1
     // is read as the jetpack: absent only in 1a_1_timmy, where Baz loses it in the opening
     // cutscene and Timmy hands it over (provisional reading, see the engineering log).
     const MissionData& m = assetWorld_->mission();
     bool jet = true;
     if (m.setup[0] == 2) jet = std::find(m.items.begin(), m.items.end(), 1u) != m.items.end();
+    // Only Story 1 starts without it (Baz loses it in 1a); later chapters' item lists read
+    // differently, and he keeps it from then on (2a lists no item 1 either).
+    if (!jet && toLower(worldName_) != "story1") jet = true;
     player_.jetpackAvailable = jet;
     // Item 3 is read as the rocket launcher ("RPG"): first listed in 1c, after Timmy hands it over
     // at the end of 1b (provisional, like item 1 = jetpack).
@@ -1883,6 +1891,13 @@ void GameApp::updateLoading(float dt, const InputFrame& in) {
             // Two frames of the briefing on screen before the (blocking) load, so the headset keeps
             // showing it while the level is rebuilt.
             if (++load_.frames >= 3) {
+                if (!load_.world.empty() && assetWorld_ && assetWorld_->switchWorld(load_.world)) {
+                    worldName_ = load_.world;
+                    streamsIndexed_ = false;
+                    streamFiles_.clear();
+                    load_.mission = assetWorld_->missions().empty() ? std::string() : assetWorld_->missions().front();
+                    missionText(load_.mission, load_.title, load_.brief);
+                }
                 if (!load_.mission.empty()) loadMission(load_.mission);
                 load_.phase = LoadPhase::Brief;
                 load_.t = 0;
@@ -2911,7 +2926,15 @@ void GameApp::update(float dt, const InputFrame& in) {
     if (missionComplete_ && playMode_ && !cutsceneActive() && assetWorld_ && load_.phase == LoadPhase::Idle && !advanceDone_) {
         advanceDone_ = true;
         const std::string next = assetWorld_->nextMission();
-        if (!next.empty()) beginLoading(next, in);
+        if (!next.empty()) {
+            beginLoading(next, in);
+        } else if (const std::string world = AssetWorld::nextStoryWorld(worldName_); !world.empty()) {
+            // The chapter's last mission is done: on to the next world of the story (Story1 -> Story2).
+            beginLoading(std::string(), in);
+            load_.world = world;
+            load_.title = world;
+            LOGI("Chapter complete: next world %s", world.c_str());
+        }
     }
     // The first mission's briefing, before its opening cutscene (the level is already loaded).
     if (!firstBriefDone_ && std::getenv("GVR_NO_BRIEF")) firstBriefDone_ = true;  // test hook (headless default)
