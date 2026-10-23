@@ -103,6 +103,8 @@ uniform float uTerrDetail;
 uniform vec3 uSkyTint;
 uniform float uNight;
 uniform vec3 uBakedLight;
+uniform vec4 uPointPos;    // xyz position, w = 1 / radius^2
+uniform vec3 uPointColor;  // 0: no point light
 out vec4 oColor;
 
 // Terrain (material 3): the world's ground texture, varied with a second grass/earth in patches;
@@ -283,6 +285,13 @@ void main() {
         float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.25;
         rgb = base.rgb * (amb + uSunColor * ndl * sh) + uSkyHorizon * rim * base.rgb;
     }
+    if (uPointColor.r + uPointColor.g + uPointColor.b > 0.0) {
+        // The game's point light: smooth falloff to its radius, half-wrapped so it reaches round.
+        highp vec3 lv = uPointPos.xyz - vWorldPos;
+        float att = max(1.0 - dot(lv, lv) * uPointPos.w, 0.0);
+        float wrap = max(dot(n, normalize(lv)) * 0.6 + 0.4, 0.0);
+        rgb += (base.rgb + 0.12) * uPointColor * (att * att * wrap);  // (+0.12: shows on dark surfaces too)
+    }
     if (vWorldPos.y < uSeaLevel) {
         // Under water: the bed fades into the water colour with depth.
         float dep = uSeaLevel - vWorldPos.y;
@@ -384,6 +393,8 @@ bool Renderer::init() {
         uSkyTint_ = glGetUniformLocation(program_, "uSkyTint");
         uNight_ = glGetUniformLocation(program_, "uNight");
         uBakedLight_ = glGetUniformLocation(program_, "uBakedLight");
+        uPointPos_ = glGetUniformLocation(program_, "uPointPos");
+        uPointColor_ = glGetUniformLocation(program_, "uPointColor");
         // Anisotropic filtering where the GPU has it: ground and walls stay sharp at grazing angles.
         const char* ext = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
         if (ext && std::strstr(ext, "GL_EXT_texture_filter_anisotropic")) {
@@ -578,6 +589,9 @@ void Renderer::beginView(const ViewParams& view, int w, int h, bool clear) {
     glUniform3f(uSkyTint_, env_.skyTint.x, env_.skyTint.y, env_.skyTint.z);
     glUniform1f(uNight_, env_.night);
     glUniform3f(uBakedLight_, env_.bakedLight.x, env_.bakedLight.y, env_.bakedLight.z);
+    glUniform4f(uPointPos_, env_.pointLightPos.x, env_.pointLightPos.y, env_.pointLightPos.z,
+                1.0f / std::max(0.01f, env_.pointLightRadius * env_.pointLightRadius));
+    glUniform3f(uPointColor_, env_.pointLightColor.x, env_.pointLightColor.y, env_.pointLightColor.z);
     // Reflection (never sampled while rendering it) and water depth: units 2, 3, 4.
     const bool refl = reflActive_ && reflFbo_ && !inReflection_;
     glUniform1i(uReflTex_, 2);

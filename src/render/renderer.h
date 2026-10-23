@@ -71,6 +71,9 @@ struct EnvironmentParams {
     Vec3 skyTint{1, 1, 1};
     float night = 0;
     Vec3 bakedLight{1, 1, 1};
+    // One point light from the game (the jetpack's plasma): colour 0 = off.
+    Vec3 pointLightPos{0, 0, 0}, pointLightColor{0, 0, 0};
+    float pointLightRadius = 6.0f;
 };
 
 class Renderer {
@@ -151,7 +154,7 @@ private:
     GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
     GLint uClipY_ = -1, uGrade_ = -1, uReflTex_ = -1, uReflDepth_ = -1, uReflMat_ = -1, uReflEye_ = -1, uReflNear_ = -1,
           uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
-    GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1;
+    GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1;
     float anisotropy_ = 0;
     TextureId terrainTex_[5] = {};
     bool terrainDetail_ = true;

@@ -48,6 +48,11 @@ struct PlayerParams {
     float fuelRefillDelay = 0.3f; // s on the ground without thrust before refilling
     float fuelRefillRate = 0.4f;  // tanks per second (on the ground)
     float overheatResume = 0.3f;  // after burning dry: usable again at this much fuel
+    // Dry in the air, the jetpack still sputters while the button is held (user's description of
+    // the original): no lift, but it brakes the fall to sputterFall and the forward speed, so the
+    // landing doesn't hurt. Numbers ours.
+    float sputterFall = 4.0f;     // m/s: falling speed held to this
+    float sputterDrag = 0.9f;     // 1/s horizontal slow-down
     float stunSpeed = 17.0f;      // m/s impact: hard landing (stun, fall damage): a ~10 m fall
     float stunSeconds = 1.5f;     // set to mc_land_hard's length by the game
     float hardLandSpeed = 8.0f;   // m/s downward speed that triggers the soft landing clip (a ~2.3 m drop)
@@ -104,6 +109,7 @@ public:
     float fuel() const { return fuel_ / params.fuelSeconds; }  // 0..1
     bool sliding() const { return sliding_; }
     bool thrusting() const { return thrusting_; }
+    bool sputtering() const { return sputtering_; }  // dry, held in the air: braking the fall
     bool overheated() const { return overheated_; }
     bool turbo() const { return turbo_; }
     bool stunned() const { return stun_ > 0; }
@@ -126,7 +132,7 @@ private:
     float animTime_ = 0, prevTime_ = 0, fade_ = 1e9f;
     float landTimer_ = 0, airborne_ = 0;
     float fuel_ = 5.0f, sinceThrust_ = 99.0f;
-    bool thrusting_ = false, overheated_ = false, overheatEvent_ = false, turbo_ = false;
+    bool thrusting_ = false, overheated_ = false, overheatEvent_ = false, turbo_ = false, sputtering_ = false;
     float stun_ = 0, impact_ = 0;
     bool jumpHeld_ = false, jumpEvent_ = false;
     PlayerAnim action_ = PlayerAnim::Idle;

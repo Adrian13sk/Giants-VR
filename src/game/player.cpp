@@ -85,7 +85,10 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         fuel_ = std::max(0.0f, fuel_ - dt * (turbo_ ? 2.0f : 1.0f));
         sinceThrust_ = 0;
         if (fuel_ <= 0.0f) { overheated_ = true; overheatEvent_ = true; thrusting_ = false; }
-    } else {
+    }
+    sputtering_ = in.jet && !thrusting_ && (overheated_ || fuel_ <= 0.0f) && jetpackAvailable && !onGround && !swimming_ && stun_ <= 0 &&
+                  !params.jumper;
+    if (!thrusting_) {
         sinceThrust_ += dt;
         if (onGround && sinceThrust_ > params.fuelRefillDelay)
             fuel_ = std::min(params.fuelSeconds, fuel_ + params.fuelRefillRate * params.fuelSeconds * dt);
@@ -154,8 +157,9 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         velocity.x += dx;
         velocity.z += dz;
     } else if (!onGround) {
-        // Falling without the jetpack: no air control, air friction slows him.
-        const float k = std::max(0.0f, 1.0f - params.airDrag * dt);
+        // Falling without the jetpack: no air control, air friction slows him (more with the
+        // dry jetpack sputtering).
+        const float k = std::max(0.0f, 1.0f - (sputtering_ ? params.sputterDrag : params.airDrag) * dt);
         velocity.x *= k;
         velocity.z *= k;
     }
@@ -194,6 +198,8 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         onGround = false;
     }
     velocity.y -= params.gravity * dt;
+    if (sputtering_ && velocity.y < -params.sputterFall)
+        velocity.y += (-params.sputterFall - velocity.y) * std::min(1.0f, dt * 4.0f);
     if (thrusting_ || !params.jumper) velocity.y = std::min(velocity.y, params.maxRise);  // a jump isn't capped
     if (onGround && !thrusting_) velocity.y = 0;
     const float prevY = position.y;

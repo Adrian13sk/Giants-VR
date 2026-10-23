@@ -248,6 +248,26 @@ static void testPlayer() {
     CHECK(pc.anim() == PlayerAnim::Land);
     for (int i = 0; i < 72; ++i) pc.update(1.0f / 72.0f, in);
     CHECK(pc.anim() == PlayerAnim::Idle);
+    // Dry jetpack held in the air: sputters, braking the fall (no hard landing) and forward speed.
+    for (int held = 1; held >= 0; --held) {
+        PlayerController jp;
+        jp.groundHeight = [](float, float) { return 0.0f; };
+        jp.teleport({0, 0, 0}, 0.0f);
+        PlayerInput ji;
+        ji.jet = true;
+        ji.move = {0, 1};
+        float maxImpact = 0;
+        bool sputtered = false;
+        for (int i = 0; i < 72 * 30 && !(i > 72 && jp.onGround); ++i) {
+            if (jp.fuel() < 0.02f && !held) ji.jet = false;  // let go just before it runs dry
+            jp.update(1.0f / 72.0f, ji);
+            sputtered = sputtered || jp.sputtering();
+            maxImpact = std::max(maxImpact, jp.takeImpact());
+        }
+        CHECK(jp.onGround);
+        if (held) CHECK(jp.overheated() && sputtered && maxImpact > 0 && maxImpact < jp.params.hardLandSpeed);
+        else CHECK(!sputtered && maxImpact > jp.params.stunSpeed);
+    }
     // First person: the body follows the view smoothly (never jumps in one frame), lets the
     // head look ~30 deg off freely, and re-centres over time.
     PlayerController fp;

@@ -468,6 +468,17 @@ void GameApp::buildBatches() {
     for (auto& b : fxBatch_) b.upload(renderer_);
     for (auto& b : bloodBatch_) b.upload(renderer_);
     holeBatch_.upload(renderer_);
+    jetGlowBatch_.clear();
+    if (jetGlow_ > 0.01f) {
+        // The jetpack's light on the ground under the player (additive: colour is brightness).
+        const float r = 1.2f + 1.6f * jetGlow_;
+        const Vec3 c0 = jetGlowAt_ + Vec3{0, 0.06f, 0};
+        const Vec3 q[4] = {c0 + Vec3{-r, 0, r}, c0 + Vec3{r, 0, r}, c0 + Vec3{r, 0, -r}, c0 + Vec3{-r, 0, -r}};
+        const uint8_t v = uint8_t(std::min(1.0f, jetGlow_) * 255.0f);
+        const uint8_t col[4] = {v, v, v, 255};
+        jetGlowBatch_.add(q, col);
+    }
+    jetGlowBatch_.upload(renderer_);
 }
 
 void GameApp::renderFx() {
@@ -480,6 +491,13 @@ void GameApp::renderFx() {
     if (holeTex_ && holeBatch_.count()) {
         dp.texture = holeTex_;
         holeBatch_.draw(renderer_, dp);
+    }
+    if (jetGlowTex_ && jetGlowBatch_.count()) {
+        DrawParams gp = dp;
+        gp.texture = jetGlowTex_;
+        gp.blend = BlendMode::Additive;
+        gp.noFog = true;
+        jetGlowBatch_.draw(renderer_, gp);
     }
     const TextureId bt[5] = {bloodTex_[0], bloodTex_[1], bloodTex_[2], dropTex_, sprayTex_ ? sprayTex_ : dropTex_};
     for (int k = 0; k < 5; ++k) {

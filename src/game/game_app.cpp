@@ -232,6 +232,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             // Weapon models: gun (held, so dynamically lit), bolt, muzzle flash, impact flash.
             ModelCache* mc = assetWorld_->models();
             gunModel_ = mc->get("mc_gun_l0.gbs", "", /*dynamicLit=*/true);
+            initJetFx();
             {
                 // Grip and muzzle points from the weapons' reference nodes (game units, model frame).
                 auto ref = [&](const char* anm, const char* node, Vec3& out) {
@@ -623,6 +624,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateHeroScale();
     followHead(dt, in);
     briefHeld_ = in.hand[mh].thumbstickClick;  // hold the move stick down: the mission briefing
+    renderer_.environment().pointLightColor = Vec3{0, 0, 0};  // the jetpack's light (updateJetFx) is off unless lit
     if (dying_) {
         updateDeath(dt, in);
         updateCombat(dt);
@@ -699,6 +701,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     eyeNow_ = playerModel_->hiddenCentroid() + eyeFromHead_;
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     updateTimmy();
+    updateJetFx(dt);
     if (hero_ == Hero::Delphi) updateDelphi(dt, in);
     else if (hero_ == Hero::Kabuto) updateKabuto(dt, in);
     else updateWeapon(dt, in);
@@ -3551,6 +3554,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     }
     if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
     if (playMode_ && playerModel_ && !cut && !playerGibbed_ && !(firstPerson_ && hero_ != Hero::Mecc)) playerModel_->render(renderer_, bodyXf_);
+    if (playMode_ && !cut && !dying_) renderJetFx(firstPerson_);
     if (playMode_ && swordValid_ && swordModel_ && !cut && !dying_) drawModel(swordModel_, swordXf_, false);
     // Timmy on the back: seen in third person (and in reflections and shadows). In first person he
     // sits right behind your head and the body turns with it, so he'd only ever flicker at the edge

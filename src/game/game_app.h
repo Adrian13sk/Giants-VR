@@ -310,6 +310,17 @@ private:
     struct SpitDrop { Vec3 pos; int big; float age; };
     std::vector<SpitDrop> spitDrops_;
     float burrowTick_ = 0;
+    // Jetpack effects (game_app_jet.cpp).
+    std::unique_ptr<SkinnedModel> thrustFlame_, thrustNitro_, thrustStar_;
+    TextureId jetGlowTex_ = 0;
+    QuadBatch jetGlowBatch_;
+    Mat4 nozzleXf_;
+    Vec3 jetGlowAt_;
+    float jetGlow_ = 0, jetFlick_ = 0, jetPuffT_ = 0, jetDustT_ = 0;
+    bool jetFlickOn_ = true, jetFxOn_ = false, jetNitro_ = false;
+    void initJetFx();
+    void updateJetFx(float dt);
+    void renderJetFx(bool firstPersonView);
     void initBurrows(AssetWorld* w, ModelCache* mc);
     void burrowEvent(const CreatureEvent& e);
     void updateBurrows(float dt);
