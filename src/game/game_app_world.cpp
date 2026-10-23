@@ -49,6 +49,10 @@ void GameApp::initDestruction(AssetWorld* w, ModelCache* mc) {
         else if (o.name == "log_launcher_base" || o.name == "guard_army_barracks" || o.name == "barracks_story2") {
             kind = DestructKind::House;
             hp = dataHp > 0 ? dataHp : 600.0f;
+        } else if (o.name == "ice_wall") {
+            // rstory2_jetski_3: "Use ROCKET PICKUPS to break ICE WALLS, or ram them on TURBO" (hp ours).
+            kind = DestructKind::House;
+            hp = 150.0f;
         } else if (std::find(deathTypes.begin(), deathTypes.end(), o.type) != deathTypes.end()) {
             // Hit points ours where the data has none: walls for a giant's fists, the queen a boss.
             kind = DestructKind::House;

@@ -54,6 +54,7 @@ public:
         std::string hold;     // hanging from the mount point (position) by this hand bone, e.g. "ref_lhand"
         Vec3 hang;            // hanging point (hands), when hasHang: 1b's Smarties on the rock pillars
         bool hasHang = false;
+        int group = -1;       // mission op 5 id (race missions: 11 = a rival rider, 12 = the starter)
     };
     const std::vector<Character>& characters() const { return characters_; }
     // Mission objects (not characters) carrying a trigger, with world-space bounds.

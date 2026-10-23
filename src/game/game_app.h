@@ -20,6 +20,7 @@
 #include "game/hud_gauge.h"
 #include "game/villager.h"
 #include "game/vimp.h"
+#include "game/jetski.h"
 #include "game/save_game.h"
 #include "game/settings.h"
 #include "render/quad_batch.h"
@@ -665,6 +666,33 @@ private:  // the mission placed enemies: no test waves
     void hitBoss(int i, float amount, const Vec3& at, const Vec3& dir);
     void updateBosses(float dt);
     bool spawnRivalKabuto(const Vec3& pos, float yaw);
+    // Reaperski (game_app_jetski.cpp, see jetski.h): Delphi rides a jetski - a parked one she
+    // walks into (rstory2_jetski_*), or from the start in the races; the races run on the data's
+    // gates and racing lines against rivals.
+    bool riding_ = false, raceMode_ = false, skiParked_ = false;
+    JetskiState ski_;
+    JetskiParams skiParams_;
+    RaceDirector race_;
+    std::unique_ptr<SkinnedModel> skiModel_;
+    std::vector<std::unique_ptr<SkinnedModel>> rivalSki_, rivalRider_;
+    int rideClip_[3] = {-1, -1, -1};  // Delphi: rp_Jetski_ride, rp_jetski_L_turn, rp_jetski_R_turn
+    int rivalRideClip_ = 0;
+    struct SkiPickup { Vec3 pos; int kind; float gone = 0; };  // kind 0 turbo, 1 missile, 2 homing
+    std::vector<SkiPickup> skiPickups_;
+    const RenderModel* skiPickupModel_[3] = {};
+    int skiMissiles_ = 0, raceObjective_ = -1, raceShownPlace_ = 0;
+    float skiTurbo_ = 0, raceEndT_ = -1, skiSplashT_ = 0, skiFireCool_ = 0;
+    bool skiYWas_ = false, skiTrigWas_ = false, raceWon_ = false;
+    uint32_t skiLoop_ = 0;
+    int skiLoopKind_ = -1;
+    std::string raceMsg_;
+    float raceMsgT_ = 0;
+    void initJetski();
+    void mountJetski(const Vec3& pos, float yaw);
+    void updateRiding(float dt, const InputFrame& in);
+    void updateJetskiWorld(float dt, const InputFrame& in);
+    void renderJetski(bool shadow, const Vec3& eye);
+    void renderRaceHud();
     void creatureSound(const CreatureEvent& e);
     void updateCombat(float dt);
     void damagePlayer(float amount, DeathCause cause = DeathCause::Shot);

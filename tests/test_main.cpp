@@ -26,6 +26,7 @@
 #include "game/hud_gauge.h"
 #include "game/villager.h"
 #include "game/vimp.h"
+#include "game/jetski.h"
 #include "game/save_game.h"
 #include "game/settings.h"
 #include "audio/mixer.h"
@@ -1145,6 +1146,59 @@ static void testHudGauge() {
     std::printf("hud gauge / player action / hit box / burn ok\n");
 }
 
+static void testRace() {
+    // A square course: start at the origin, gates at the corners, back to the start.
+    RaceDirector r;
+    const std::vector<Vec3> gates{{0, 0, -100}, {100, 0, -100}, {100, 0, 0}};
+    const Vec3 finish{0, 0, 0};
+    std::vector<std::vector<Vec3>> lines{{finish, gates[0], gates[1], gates[2], finish}};
+    r.setup(gates, lines, 1, &finish);
+    CHECK(!r.started() && r.racers.size() == 1 && near(r.racers[0].length, 400.0f));
+    // Countdown, then drive the course at 25 m/s (the rival cruises slower).
+    std::vector<Vec3> route{finish, gates[0], gates[1], gates[2], finish};
+    Vec3 p = finish;
+    size_t leg = 0;
+    float t = 0;
+    while (t < 60.0f && !r.playerFinished) {
+        const float dt = 1.0f / 72.0f;
+        t += dt;
+        if (r.started() && leg + 1 < route.size()) {
+            Vec3 d = route[leg + 1] - p;
+            const float l = length(d);
+            if (l < 25.0f * dt) { p = route[leg + 1]; ++leg; }
+            else p = p + d * (25.0f * dt / l);
+        }
+        r.update(dt, p);
+    }
+    CHECK(r.playerFinished && r.playerPlace == 1 && r.missed == 0 && r.nextGate == 3);
+    // Skipping gates: three misses lose it.
+    RaceDirector r2;
+    const std::vector<Vec3> g2{{0, 0, -50}, {0, 0, -100}, {0, 0, -150}, {0, 0, -200}, {0, 0, -250}};
+    r2.setup(g2, {}, 0, nullptr);
+    for (int f = 0; f < 72 * 4; ++f) r2.update(1.0f / 72.0f, Vec3{0, 0, 0});
+    r2.update(1.0f / 72.0f, Vec3{0, 0, -150});  // jumped to gate 3: gates 1 and 2 missed
+    CHECK(r2.missed == 2 && !r2.lost && r2.nextGate == 3);
+    r2.update(1.0f / 72.0f, Vec3{40, 0, -250});  // past gate 4 but wide of it - not counted
+    r2.update(1.0f / 72.0f, Vec3{0, 0, -250});   // gate 5 taken, gate 4 missed: the third
+    CHECK(r2.lost);
+    // Jetski handling: full throttle reaches top speed; land ahead stops it.
+    JetskiState s;
+    JetskiParams jp;
+    auto sea = [](float, float) { return -5.0f; };
+    for (int f = 0; f < 72 * 5; ++f) stepJetski(s, jp, 1.0f, 0.0f, false, 1.0f / 72.0f, sea, 0.0f);
+    CHECK(near(s.speed, jp.maxSpeed) && s.pos.z < -60.0f && near(s.pos.y, 0.0f));
+    auto wall = [](float, float z) { return z < -10.0f ? 30.0f : -5.0f; };
+    JetskiState s2;
+    bool bumped = false;
+    for (int f = 0; f < 72 * 3; ++f) bumped |= stepJetski(s2, jp, 1.0f, 0.0f, false, 1.0f / 72.0f, wall, 0.0f);
+    CHECK(bumped && s2.pos.z > -10.5f);
+    // Stick right turns right (toward +X when facing -Z).
+    JetskiState s3;
+    s3.speed = 15.0f;
+    for (int f = 0; f < 72; ++f) stepJetski(s3, jp, 1.0f, 1.0f, false, 1.0f / 72.0f, sea, 0.0f);
+    CHECK(s3.pos.x > 3.0f);
+}
+
 static void testVimps() {
     VimpDirector d;
     d.groundHeight = [](float, float) { return 0.0f; };
@@ -1239,6 +1293,7 @@ int main() {
     testHudGauge();
     testVillagers();
     testVimps();
+    testRace();
     testSaveGame();
     testAffineInverse();
     testGti();

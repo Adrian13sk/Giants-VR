@@ -252,6 +252,7 @@ struct Placement {
     int trigger = 0;  // mission trigger kind (op 8 low bits)
     bool posted = false;  // standing on a structure (mounted): keep its height, don't drop to the terrain
     std::string hold;     // hangs from the mount point by this hand bone ("ref_lhand")
+    int group = -1;       // mission op 5 id
 };
 
 // Creature object classes ("ospec", type op 0x1E) seen in the mission files: 1 Kabuto,
@@ -522,6 +523,7 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
             Placement pl{o.type, x, y, z, o.yaw, o.pitch, o.roll, o.scale > 0 ? o.scale : typeScale(o.type), true,
                          int(o.flags & 0x0F), onPost};
             pl.hold = hold;
+            pl.group = o.group;
             all.push_back(pl);
         }
         LOGI("Mission %s: %zu objects (%zu mounted), start flick '%s'", sc.name.c_str(), mission_.objects.size(),
@@ -566,6 +568,7 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
             // platform, below the roof tip the bounds give).
             characters_.push_back({p.type, name, t ? t->objectClass : -1, pos, p.yaw * kPi / 180.0f, p.scale, p.trigger, p.posted,
                                    p.hold});
+            characters_.back().group = p.group;
             continue;
         }
         // Guard towers stand as their animation's first frame: the clip is their collapse (upright,

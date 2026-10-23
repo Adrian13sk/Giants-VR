@@ -628,6 +628,15 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         updateAudio(dt);
         return;
     }
+    updateJetskiWorld(dt, in);
+    if (riding_) {  // on the Reaperski: its own handling (game_app_jetski.cpp)
+        swordValid_ = gunValid_ = false;
+        updateRiding(dt, in);
+        updateFeel(dt, in);
+        updateCombat(dt);
+        updateAudio(dt);
+        return;
+    }
     PlayerInput pi;
     pi.move = in.hand[mh].thumbstick;
     pi.viewYaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : camYaw_;
@@ -844,7 +853,10 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "ka_ltht1", "ka_mdht1", "ka_hvht1", "ka_stomp", "ka_lndhd", "ka_grab", "ka_eat1", "ka_eat2", "ka_belch", "ka_sniff",
         "ka_roar1", "ka_roar2", "ka_roar3", "ka_roar4", "ka_deth1", "ka_deth2", "ka_wound", "ka_smrt1", "ka_smrt2",
         // Vimps and their meat.
-        "vi_deat1", "vi_deat2", "vi_injr1", "vi_injr2", "vi_moo1", "vi_moo2", "vi_squi1", "pu_meat1", "pu_meat2", "ka_vimp1", "ka_vimp2"};
+        "vi_deat1", "vi_deat2", "vi_injr1", "vi_injr2", "vi_moo1", "vi_moo2", "vi_squi1", "pu_meat1", "pu_meat2", "ka_vimp1", "ka_vimp2",
+        // The Reaperski: engine, rider on/off, gates, bumps, turbo, start / win / lose.
+        "js_ron", "js_roff", "js_ridl1", "js_rmve1", "js_rrvu1", "js_rrvd1", "js_buoy", "js_mbuoy", "js_bump1", "js_bump2", "js_tbact",
+        "js_start", "js_finis", "js_win", "js_lose"};
     std::vector<std::string> all(std::begin(names), std::end(names));
     for (int k = 1; k <= 15; ++k)  // Smartie voice pairs gsmNN_1 / gsmNN_2 (no 07 in the data)
         for (int j = 1; j <= 2; ++j) {
@@ -960,7 +972,10 @@ void GameApp::updateAudio(float dt) {
 void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     const ObjectRegistry& reg = w->registry();
     size_t reapers = 0, rippers = 0, ambient = 0;
+    bool raceMission = false;
+    for (const auto& o : w->mission().objects) raceMission |= toLower(reg.modelName(o.type)) == "buoy_spline";
     for (const auto& ch : w->characters()) {
+        if (ch.objectClass == 51 && raceMission && (ch.group == 11 || ch.group == 12)) continue;  // race riders / starter (game_app_jetski.cpp)
         if (ch.objectClass == 51) {  // Reaper grunt: the Reaper AI, at its mission position
             const int ei = enemies_.spawn(ch.position, ch.yaw);
             if (ch.posted) {
@@ -1706,6 +1721,7 @@ void GameApp::initMission() {
             LOGI("Objective: reach type %d at game (%.0f, %.0f), %.1f m wide", int(t.type), -c.x / gGameUnitsToMeters,
                  c.z / gGameUnitsToMeters, t.boundsMax.x - t.boundsMin.x);
         }
+    // (Reaperski riding and races are set up at the end, once the hero is known.)
     // Starting inventory: a Mecc mission lists the items the player must hold (op 0x0E). Item 1
     // is read as the jetpack: absent only in 1a_1_timmy, where Baz loses it in the opening
     // cutscene and Timmy hands it over (provisional reading, see the engineering log).
@@ -1735,6 +1751,7 @@ void GameApp::initMission() {
     writeCheckpoint();
     // The mission's ambient music (the world's race and chapter).
     ambientSet_ = ambientFor(worldName_);
+    initJetski();
     if (!hasLauncher_) weaponSel_ = 0;
     LOGI("Mission %s: %zu objectives, jetpack %s", assetWorld_->missionName().c_str(), objectives_.size(),
          jet ? "available" : "not yet (story)");
@@ -1830,6 +1847,7 @@ void GameApp::renderShadowMap() {
     }
     renderVillagers(true, centre, half * 1.4f);
     renderVimps(true, centre, half * 1.4f);
+    renderJetski(true, centre);
     for (const auto& n : nests_)
         if (n.alive && n.model && length(n.pos - centre) < half * 1.4f)
             for (const auto& part : n.model->parts) renderer_.drawShadow(part.mesh, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown));
@@ -2754,6 +2772,8 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire) {
             creatureSound(e);
         }
     }
+    for (auto& rv : race_.racers)  // Reaperski rivals in the blast spin out
+        if (!rv.finished && length(rv.pos - at) < radius + 3.0f) rv.spin = 3.0f;
     for (size_t i = 0; i < chars_.size(); ++i) {
         const CharacterInst& ci = chars_[i];
         if (!ci.boss || ci.hp <= 0) continue;
@@ -3504,6 +3524,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     renderPickups();
     renderVillagers(false, renderer_.currentView().eyePosition, 90.0f);
     renderVimps(false, renderer_.currentView().eyePosition, 150.0f);
+    renderJetski(false, renderer_.currentView().eyePosition);
     for (const auto& g : gibs_)
         drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) *
                                Mat4::scale({g.scale, g.scale, g.scale}),
@@ -3575,6 +3596,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (cut) renderCutscene();
     else if (playMode_) renderHud();
     if (playMode_ && !cut) renderTimmyLine();
+    if (playMode_ && !cut) renderRaceHud();
     if (briefHeld_ && !cut && playMode_) renderBriefOverlay();
     if (menuOpen_ && !cut) renderMenu();
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
