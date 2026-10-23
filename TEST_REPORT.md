@@ -290,3 +290,8 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - resumed from hand-written 1c_2 and Story2/2b_1 checkpoints (injections and launcher restored);
   - options menu opened with `--menu-at` and navigated with the stick.
 - **Not device-tested.**
+
+## Host verification — build 8626e3c (APK sha256 7a584013…)
+- `gvr_tests`: all pass.
+- Harness: holstered gun and launcher (TP front and back views); the frame-rate counter and large HUD from
+  settings.txt. Rumble is not observable on the host. **Not device-tested.**

@@ -89,7 +89,7 @@ moves him too.
 |---|---|---|
 | Left stick | Run (5 m/s) relative to where you look; sideways = sidestep, back = backpedal | Move |
 | Left grip (hold) | Sprint ×1.5 (in the air with the jetpack: turbo, double fuel use); near a Smartie: pick it up (release = let go) | Speed boost ×5 |
-| Right grip (hold) | Near a Smartie: pick it up (release = let go) | — |
+| Right grip (hold) | Near a Smartie: pick it up (release = let go). First person: **reach to your right thigh (gun) or over your shoulder (launcher) and grip to draw the holstered weapon** | — |
 | Right stick left/right | Snap turn 30° | Snap turn 30° |
 | Right stick forward | Switch gun ↔ rocket launcher (once you have it: from 1c on, Timmy's "present" at the end of 1b); shows the weapon strip | — |
 | **Right trigger** | **Fire**: gun (hold for auto-fire, 5 shots/s) or rocket launcher (one rocket per pull, 1 s reload, splash damage; keep your distance) | Haptic test pulse |
@@ -112,6 +112,9 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
 - **Checkpoints:** progress is saved when each mission starts (`save.txt` next to your `Bin` folder: world, mission,
   injections carried, rocket launcher). Starting the app continues from there. New game: Options → NEW GAME (hold the
   trigger 2 s), or in the free camera hold X for 3 s.
-- **Options** are kept in `settings.txt` next to `save.txt`.
+- **Options** are kept in `settings.txt` next to `save.txt`. FRAME RATE: SHOWN puts a frame-rate counter at the top
+  left of the view (green at 70+; please note it for the performance pass).
+- **Rumble:** hits (stronger on the side they come from), the jetpack (a kick at take-off, a hum while it fires,
+  harder on turbo), landings, and a heartbeat below 30 health.
 - **Story:** finishing 1d now continues into Story 2 (2a). Story 2's objectives aren't implemented yet (2a can't be
   completed).

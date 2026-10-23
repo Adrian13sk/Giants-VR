@@ -872,3 +872,21 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   - Settings go to `settings.txt` beside the save and are applied at launch. The HUD hides while the menu is open.
   - Harness render of the menu; unit test for the settings file.
 - **Not device-tested.**
+
+### List item 8: VR feel; item 7 prep (2026-10-23, build 8626e3c)
+- **Rumble:**
+  - Hits: 0.35 + damage/40, stronger on the side the hit came from (from the hit-direction state).
+  - Jetpack: a 0.55 kick when it fires; a 0.13 hum (0.3 on turbo) refreshed every 0.1 s.
+  - Landings above 4 m/s, scaled by speed.
+  - A double-thump heartbeat below 30 health, faster as it drops.
+- **Holsters:**
+  - The weapon not in hand rides on the body: the gun barrel-down on the right thigh (Ref_holsterR), the launcher
+    slung across the back below Timmy (Ref_HolsterB).
+  - Both are remembered relative to a bone every clip has (leg R / spine), since the flight clips lack reference
+    nodes (`GameApp::bodyRef`). The back launcher is drawn in third person only.
+  - First person: reach the weapon hand to the thigh (0.3 m) or over the shoulder, and grip, to draw it (strip
+    animation and sound); stick-forward switching still works.
+  - Harness: front view with the gun on the thigh, back view with the launcher slung.
+- **Frame-rate counter** (options → FRAME RATE): smoothed fps, head-locked top left (green ≥ 70, yellow ≥ 60, red
+  below), so the user can report frame rates without adb for the performance pass (list item 7, which needs the device).
+- **Not device-tested.**

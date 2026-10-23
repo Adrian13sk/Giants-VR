@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-23 (build 0a8b1c0: checkpoints, options menu)
+Last updated: 2026-10-23 (build 8626e3c: rumble, holsters, fps counter)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -38,7 +38,8 @@ original Giants data and renders the original worlds in stereo.
      2. ~~Save and checkpoints~~ (e3d512c, host verified).
      3. ~~In-headset settings menu~~ (0a8b1c0, host verified).
      4. Performance pass on the headset: per-effect cost in the busiest scenes, keep 72 fps with headroom, maybe 90 Hz.
-     5. VR feel: controller vibration for hits and jetpack take-off, weapon holster points on the body.
+        **Needs device numbers:** turn on options → FRAME RATE and report it in 1a's village, at a tower collapse, in flight.
+     5. ~~VR feel~~ (8626e3c, host verified).
      6. Visual upgrades: sharper sky, water foam, light shafts, a short day/night cycle.
      7. Next characters: Delphi, then Kabuto with his own camera scale.
      8. Polish: main menu, loading screen with art, the original music per mission.
