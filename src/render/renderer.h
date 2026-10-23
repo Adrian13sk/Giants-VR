@@ -66,6 +66,11 @@ struct EnvironmentParams {
     // Colour grade: saturation, contrast, warm/cool split, exposure (1 = neutral). Livelier than
     // the raw textures (user feedback after device test 19: "washed out, boring").
     Vec4 grade{1.25f, 1.06f, 0.08f, 1.08f};
+    // Time of day (game layer): the painted sky's tint, how dark it is (stars), and the light on
+    // baked surfaces (lightmaps and vertex colours carry daylight; this scales them at dusk/night).
+    Vec3 skyTint{1, 1, 1};
+    float night = 0;
+    Vec3 bakedLight{1, 1, 1};
 };
 
 class Renderer {
@@ -146,7 +151,8 @@ private:
     GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
     GLint uClipY_ = -1, uGrade_ = -1, uReflTex_ = -1, uReflDepth_ = -1, uReflMat_ = -1, uReflEye_ = -1, uReflNear_ = -1,
           uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
-    GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1;
+    GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1;
+    float anisotropy_ = 0;
     TextureId terrainTex_[5] = {};
     bool terrainDetail_ = true;
     GLuint reflFbo_ = 0, reflColor_ = 0, reflDepth_ = 0, waterDepthTex_ = 0;

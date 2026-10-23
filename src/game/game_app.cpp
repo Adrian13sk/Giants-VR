@@ -1579,14 +1579,60 @@ void GameApp::initMission() {
 }
 
 void GameApp::updateSun(float dt) {
-    // The sun circles the sky once in 20 minutes, between 30 and 62 degrees up: it never sets,
-    // and the shadows swing round with it. (Ours: the original's sun is fixed per level.)
     EnvironmentParams& env = renderer_.environment();
     env.time = float(time_);
+    // The world's own (daylight) colours, captured once per loaded world.
+    if (envBaseWorld_ != worldName_ + "#" + std::to_string(reinterpret_cast<uintptr_t>(assetWorld_.get())) ||
+        envBaseSea_ != env.seaLevel) {
+        envBaseWorld_ = worldName_ + "#" + std::to_string(reinterpret_cast<uintptr_t>(assetWorld_.get()));
+        envBaseSea_ = env.seaLevel;
+        envBase_ = env;
+    }
     sunAzimuth_ += dt * 2.0f * kPi / 1200.0f;
-    const float el = (46.0f + 16.0f * std::sin(sunAzimuth_ * 2.0f)) * kPi / 180.0f;
-    const Vec3 toSun{std::cos(el) * std::sin(sunAzimuth_), std::sin(el), std::cos(el) * std::cos(sunAzimuth_)};
-    env.sunDirection = toSun * -1.0f;
+    if (!settings_.dayNight) {
+        // Always day: the sun circles once in 20 minutes between 30 and 62 degrees up.
+        const float el = (46.0f + 16.0f * std::sin(sunAzimuth_ * 2.0f)) * kPi / 180.0f;
+        env.sunDirection = Vec3{std::cos(el) * std::sin(sunAzimuth_), std::sin(el), std::cos(el) * std::cos(sunAzimuth_)} * -1.0f;
+        env.sunColor = envBase_.sunColor; env.ambientColor = envBase_.ambientColor; env.fogColor = envBase_.fogColor;
+        env.clearColor = envBase_.clearColor; env.skyHorizon = envBase_.skyHorizon; env.skyZenith = envBase_.skyZenith;
+        env.waterColor = envBase_.waterColor;
+        env.skyTint = {1, 1, 1}; env.night = 0; env.bakedLight = {1, 1, 1};
+        return;
+    }
+    // Day and night (ours; the original's light is fixed per level): one cycle in 20 minutes,
+    // about 12 of daylight, a warm dusk and dawn, ~5 minutes of moonlit night with stars.
+    if (const char* p = std::getenv("GVR_DAY_PHASE")) { dayPhase_ = float(std::atof(p)); dt = 0; }  // test hook
+    dayPhase_ += dt / 1200.0f;
+    if (dayPhase_ >= 1.0f) dayPhase_ -= 1.0f;
+    const float sinEl = std::sin(2.0f * kPi * dayPhase_) * 0.78f + 0.22f;  // sun height (sine of elevation)
+    const float el = std::asin(std::max(-1.0f, std::min(1.0f, sinEl))) ;
+    const float az = sunAzimuth_;
+    const float d = std::max(0.0f, std::min(1.0f, (sinEl + 0.1f) / 0.3f));            // daylight 0..1
+    const float day = d * d * (3.0f - 2.0f * d);
+    const float dusk = std::max(0.0f, 1.0f - std::fabs(sinEl - 0.03f) / 0.28f);      // low sun: warm light
+    auto mix3 = [](const Vec3& a, const Vec3& b, float t) { return a + (b - a) * t; };
+    auto mul = [](const Vec3& a, const Vec3& b) { return Vec3{a.x * b.x, a.y * b.y, a.z * b.z}; };
+    const Vec3 warm{1.0f, 0.62f, 0.42f}, nightBlue{0.13f, 0.17f, 0.3f};
+    Vec3 toLight;
+    if (sinEl > -0.08f) {
+        const float e = std::max(el, 0.03f);
+        toLight = {std::cos(e) * std::sin(az), std::sin(e), std::cos(e) * std::cos(az)};
+    } else {  // the moon, high on the other side
+        const float e = 0.75f;
+        toLight = {std::cos(e) * std::sin(az + kPi), std::sin(e), std::cos(e) * std::cos(az + kPi)};
+    }
+    env.sunDirection = toLight * -1.0f;
+    env.sunColor = mix3(Vec3{0.22f, 0.27f, 0.42f}, mix3(envBase_.sunColor, mul(envBase_.sunColor, warm), dusk), day);
+    env.ambientColor = mix3(mul(envBase_.ambientColor, Vec3{0.32f, 0.38f, 0.55f}), envBase_.ambientColor, day);
+    const Vec3 skyT = mix3(Vec3{0.09f, 0.11f, 0.22f}, mix3(Vec3{1, 1, 1}, Vec3{1.15f, 0.72f, 0.55f}, dusk * 0.8f), day);
+    env.skyTint = skyT;
+    env.night = 1.0f - day;
+    env.fogColor = mul(envBase_.fogColor, mix3(nightBlue, mix3(Vec3{1, 1, 1}, Vec3{1.2f, 0.78f, 0.6f}, dusk * 0.7f), day));
+    env.clearColor = env.fogColor;
+    env.skyHorizon = env.fogColor;
+    env.skyZenith = mul(envBase_.skyZenith, mix3(Vec3{0.12f, 0.14f, 0.24f}, Vec3{1, 1, 1}, day));
+    env.waterColor = envBase_.waterColor * (0.35f + 0.65f * day);
+    env.bakedLight = mix3(Vec3{0.34f, 0.4f, 0.58f}, mix3(Vec3{1, 1, 1}, Vec3{1.08f, 0.86f, 0.72f}, dusk * 0.6f), day);
 }
 
 void GameApp::renderShadows() {

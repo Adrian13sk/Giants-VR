@@ -527,6 +527,9 @@ private:  // the mission placed enemies: no test waves
     void updateMenu(float dt, const InputFrame& in);
     void renderMenu();
     float fpsSmooth_ = 72.0f;
+    EnvironmentParams envBase_;
+    std::string envBaseWorld_;
+    float envBaseSea_ = -1e30f, dayPhase_ = 0.08f;
     SaveGame pendingRestore_;
     bool haveRestore_ = false;
     float newGameHold_ = 0;

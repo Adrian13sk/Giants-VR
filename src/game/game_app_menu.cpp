@@ -12,7 +12,7 @@
 namespace gvr {
 
 namespace {
-enum MenuRow { kRowResume, kRowTurn, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowTurn, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowDay, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -73,6 +73,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowMusic: s.music = std::max(0, std::min(10, s.music + dx)); changed = true; break;
             case kRowSubs: s.subtitles = !s.subtitles; changed = true; break;
             case kRowFps: s.showFps = !s.showFps; changed = true; break;
+            case kRowDay: s.dayNight = !s.dayNight; changed = true; break;
             default: break;
         }
         if (changed) {
@@ -133,6 +134,7 @@ void GameApp::renderMenu() {
         {"MUSIC", mus},
         {"SUBTITLES", s.subtitles ? "ON" : "OFF"},
         {"FRAME RATE", s.showFps ? "SHOWN" : "HIDDEN"},
+        {"DAY AND NIGHT", s.dayNight ? "CYCLE" : "ALWAYS DAY"},
         {"NEW GAME", newGame},
     };
     const float rowH = 0.085f, w = 1.15f, h = rowH * float(kRowCount + 2) + 0.1f;

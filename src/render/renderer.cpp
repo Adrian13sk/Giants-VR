@@ -1,6 +1,7 @@
 #include "render/renderer.h"
 
 #include <cmath>
+#include <cstring>
 #include <cstddef>
 #include <cstdlib>
 #include <string>
@@ -99,6 +100,9 @@ uniform sampler2D uTerrGrass2;
 uniform sampler2D uTerrRock2;
 uniform sampler2D uTerrNoise;
 uniform float uTerrDetail;
+uniform vec3 uSkyTint;
+uniform float uNight;
+uniform vec3 uBakedLight;
 out vec4 oColor;
 
 // Terrain (material 3): the world's ground texture, varied with a second grass/earth in patches;
@@ -180,8 +184,15 @@ void main() {
         // Sky band: clouds drift slowly; the sun's disc and glow sit where the light comes from.
         // Above the painted band the dome fades to the zenith colour (vertex alpha = band weight).
         vec4 b = texture(uTex, vUv + vec2(uTime * 0.0015, 0.0)) * uTint;
-        b.rgb = mix(uSkyZenith, b.rgb, vColor.a);
+        b.rgb = mix(uSkyZenith, b.rgb * uSkyTint, vColor.a);
         highp vec3 vd = normalize(vWorldPos - uEyePos);
+        if (uNight > 0.01) {
+            // Stars: a hashed cell grid on the view direction, twinkling a little; above the horizon.
+            highp vec3 cell = floor(vd * 420.0);
+            highp float h = fract(sin(dot(cell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+            float star = step(0.9975, h) * smoothstep(0.02, 0.2, vd.y) * (0.6 + 0.4 * sin(uTime * 3.0 + h * 400.0));
+            b.rgb += vec3(star * uNight * 1.4);
+        }
         highp float sd = max(dot(vd, -normalize(uSunDir)), 0.0);  // highp: the disc edge is 1e-4 wide
         vec3 rgb = b.rgb + uSunColor * (smoothstep(0.9993, 0.9997, sd) * 6.0 + pow(sd, 48.0) * 0.45 + pow(sd, 6.0) * 0.12);
         oColor = vec4(grade(rgb, 0.25), 1.0);  // the painted sky is already vivid
@@ -264,7 +275,7 @@ void main() {
     if (uUnlit > 0.5) {
         // Baked lighting (lightmaps, vertex colours) still darkens under a moving shadow, and the
         // moving sun brightens what faces it a little.
-        rgb = base.rgb * mix(0.36, 1.0, sh) * (0.86 + 0.32 * ndl * sh);
+        rgb = base.rgb * mix(0.36, 1.0, sh) * (0.86 + 0.32 * ndl * sh) * uBakedLight;
     } else {
         // Sky light from above, darker bounce from below; warm sun; a faint rim of sky light.
         vec3 amb = uAmbient * mix(vec3(0.62, 0.58, 0.52), vec3(1.08, 1.1, 1.18), n.y * 0.5 + 0.5);
@@ -370,6 +381,17 @@ bool Renderer::init() {
         const char* tn[5] = {"uTerrRock", "uTerrSand", "uTerrGrass2", "uTerrRock2", "uTerrNoise"};
         for (int k = 0; k < 5; ++k) uTerr_[k] = glGetUniformLocation(program_, tn[k]);
         uTerrDetail_ = glGetUniformLocation(program_, "uTerrDetail");
+        uSkyTint_ = glGetUniformLocation(program_, "uSkyTint");
+        uNight_ = glGetUniformLocation(program_, "uNight");
+        uBakedLight_ = glGetUniformLocation(program_, "uBakedLight");
+        // Anisotropic filtering where the GPU has it: ground and walls stay sharp at grazing angles.
+        const char* ext = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+        if (ext && std::strstr(ext, "GL_EXT_texture_filter_anisotropic")) {
+            GLfloat mx = 0;
+            glGetFloatv(0x84FF /* GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT */, &mx);
+            anisotropy_ = std::min(4.0f, mx);
+            LOGI("Anisotropic filtering: %.0fx", anisotropy_);
+        }
     }
     {
         // A 1x1 depth texture bound to the shadow sampler while shadows are off (a sampler with
@@ -482,6 +504,7 @@ TextureId Renderer::uploadTexture(int width, int height, const uint8_t* rgba, bo
     if (mipmaps) {
         glGenerateMipmap(GL_TEXTURE_2D);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        if (anisotropy_ > 1.0f) glTexParameterf(GL_TEXTURE_2D, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, anisotropy_);
     } else {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     }
@@ -552,6 +575,9 @@ void Renderer::beginView(const ViewParams& view, int w, int h, bool clear) {
     glUniform1f(uShadowTexel_, shadowSize_ > 0 ? 1.0f / float(shadowSize_) : 0.0f);
     glUniform1f(uClipY_, -1e9f);
     glUniform4f(uGrade_, env_.grade.x, env_.grade.y, env_.grade.z, env_.grade.w);
+    glUniform3f(uSkyTint_, env_.skyTint.x, env_.skyTint.y, env_.skyTint.z);
+    glUniform1f(uNight_, env_.night);
+    glUniform3f(uBakedLight_, env_.bakedLight.x, env_.bakedLight.y, env_.bakedLight.z);
     // Reflection (never sampled while rendering it) and water depth: units 2, 3, 4.
     const bool refl = reflActive_ && reflFbo_ && !inReflection_;
     glUniform1i(uReflTex_, 2);

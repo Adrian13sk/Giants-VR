@@ -14,6 +14,7 @@ struct UserSettings {
     int music = 8;           // 0..10
     bool subtitles = true;
     bool showFps = false;    // frame-rate counter at the top of the view
+    bool dayNight = true;    // false: always day
     float hudScale() const { return hudSize == 0 ? 0.8f : (hudSize == 2 ? 1.3f : 1.0f); }
 };
 
