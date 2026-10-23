@@ -19,6 +19,7 @@
 #include "game/particles.h"
 #include "game/hud_gauge.h"
 #include "game/villager.h"
+#include "game/save_game.h"
 #include "render/quad_batch.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
@@ -56,6 +57,9 @@ public:
     // GL context must be current. dataDir: directory holding the user's original game files
     // (the contents of the game's "Bin" folder). Missing data is not fatal.
     bool init(const std::string& dataDir, const std::string& worldName = "Story1");
+    // Where progress is saved (a checkpoint at each mission start); set before init() to continue
+    // from the saved mission. Empty = no saving.
+    void setSavePath(const std::string& path) { savePath_ = path; }
     void update(float dt, const InputFrame& input);
     void renderEye(const EyeRenderInfo& eye);
     // Once per frame, before the eyes: the sun's shadow map around the player.
@@ -494,6 +498,12 @@ public:
 private:  // the mission placed enemies: no test waves
     void initCharacters(AssetWorld* w, ModelCache* mc);
     void updateCharacters(float dt);
+    std::string savePath_;
+    SaveGame pendingRestore_;
+    bool haveRestore_ = false;
+    float newGameHold_ = 0;
+    bool xHeld_ = false;
+    void writeCheckpoint();
     // Smartie villagers in the villages (game_app_village.cpp): ours, see villager.h.
     VillagerDirector villagers_;
     std::vector<std::unique_ptr<SkinnedModel>> villagerModels_;

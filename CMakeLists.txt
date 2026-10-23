@@ -47,6 +47,7 @@ add_library(gvr_core STATIC
   src/game/game_app_hud.cpp
   src/game/game_app_village.cpp
   src/game/villager.cpp
+  src/game/save_game.cpp
   src/game/hud_gauge.cpp
   src/game/destruction.cpp
   src/game/particles.cpp

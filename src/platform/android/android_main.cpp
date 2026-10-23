@@ -126,6 +126,8 @@ void android_main(android_app* app) {
     ok = ok && xr.createSession(egl.display, egl.config, egl.context);
     const std::string dataDir = dataDirectory(app);
     LOGI("Original data directory: %s", dataDir.c_str());
+    // Progress checkpoint next to the Bin folder (app storage, no permission needed).
+    if (app->activity->externalDataPath) game.setSavePath(std::string(app->activity->externalDataPath) + "/save.txt");
     ok = ok && game.init(dataDir);
     if (!ok) LOGE("Initialisation failed; see log above. Exiting.");
 

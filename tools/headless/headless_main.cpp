@@ -37,6 +37,7 @@ int main(int argc, char** argv) {
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
     int gripFrom = -1, gripTo = -1, handPathFrom = -1, handPathTo = -1, stickFrom = -1, stickTo = -1, trigFrom = -1, trigTo = -1;
     float handDx = 0, handDy = 0, handDz = 0;
+    std::string savePath;
     int xFrom = -1, xTo = -1, lPathFrom = -1, lPathTo = -1, hurtAt = -1;
     float lDx = 0, lDy = 0, lDz = 0, hurtAmount = 0, hurtYaw = 0;  // right hand moves by this (tracking metres) over the path frames
     int jetFrom = -1, jetTo = -1;
@@ -76,6 +77,7 @@ int main(int argc, char** argv) {
         else if (a == "--grip-window") { gripFrom = std::atoi(next()); gripTo = std::atoi(next()); }  // right grip for frames [from, to)
         else if (a == "--hand-path") { handPathFrom = std::atoi(next()); handPathTo = std::atoi(next());
                                        handDx = std::atof(next()); handDy = std::atof(next()); handDz = std::atof(next()); }
+        else if (a == "--save") savePath = next();  // checkpoint file (continue from it / write it)
         else if (a == "--x-window") { xFrom = std::atoi(next()); xTo = std::atoi(next()); }  // X (left primary) held for frames [from, to)
         else if (a == "--lhand-path") { lPathFrom = std::atoi(next()); lPathTo = std::atoi(next());
                                         lDx = std::atof(next()); lDy = std::atof(next()); lDz = std::atof(next()); }
@@ -95,6 +97,7 @@ int main(int argc, char** argv) {
     if (!initEgl()) return 2;
 
     GameApp app;
+    if (!savePath.empty()) app.setSavePath(savePath);
     if (!app.init(dataDir, world)) return 3;
     // Test only: force the Ripper death type (GVR_BURST_CHANCE=1 -> always burst into gore).
     if (const char* bc = std::getenv("GVR_BURST_CHANCE"))

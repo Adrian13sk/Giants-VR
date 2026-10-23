@@ -22,7 +22,8 @@ namespace gvr {
 
 class AssetWorld {
 public:
-    bool init(const std::string& dataDir, Renderer& r, const std::string& worldName);
+    // startMission: the mission to begin with (a saved checkpoint); empty = the world's first.
+    bool init(const std::string& dataDir, Renderer& r, const std::string& worldName, const std::string& startMission = std::string());
     void update(float dt);
     void render(Renderer& r, bool reflection = false);  // reflection: the mirrored pass (no water, less detail)
     // World objects near `centre` into the current shadow pass.

@@ -25,6 +25,7 @@
 #include "game/particles.h"
 #include "game/hud_gauge.h"
 #include "game/villager.h"
+#include "game/save_game.h"
 #include "audio/mixer.h"
 #include "audio/music.h"
 #include "assets/gtext.h"
@@ -1170,6 +1171,28 @@ static void testVillagers() {
     std::printf("villagers ok\n");
 }
 
+static void testSaveGame() {
+    const std::string path = "gvr_test_save.txt";
+    SaveGame a;
+    a.world = "Story2";
+    a.mission = "2b_1_savewife";
+    a.syringes = 4;
+    a.launcher = true;
+    CHECK(writeSaveGame(path, a));
+    SaveGame b;
+    CHECK(loadSaveGame(path, b) && b.world == a.world && b.mission == a.mission && b.syringes == 4 && b.launcher);
+    {  // a damaged / foreign file is not a save
+        FILE* f = std::fopen(path.c_str(), "w");
+        std::fputs("world=Story1\n", f);
+        std::fclose(f);
+    }
+    SaveGame c;
+    CHECK(!loadSaveGame(path, c));
+    std::remove(path.c_str());
+    CHECK(!loadSaveGame(path, c));
+    std::printf("save game ok\n");
+}
+
 int main() {
     testGameText();
     testRescue();
@@ -1177,6 +1200,7 @@ int main() {
     testDestruction();
     testHudGauge();
     testVillagers();
+    testSaveGame();
     testAffineInverse();
     testGti();
     testWorldBin();

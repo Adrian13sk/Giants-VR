@@ -38,10 +38,26 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
     }
     dataDir_ = dataDir;
     worldName_ = worldName;
+    // Continue from the saved checkpoint (its world and mission), unless a test picks a mission.
+    std::string startMission;
+    if (!savePath_.empty() && !std::getenv("GVR_MISSION") && loadSaveGame(savePath_, pendingRestore_)) {
+        haveRestore_ = true;
+        worldName_ = pendingRestore_.world;
+        startMission = pendingRestore_.mission;
+        LOGI("Continuing from the checkpoint: %s / %s", worldName_.c_str(), startMission.c_str());
+    }
     shadowsOn_ = renderer_.initShadows(2048);  // sharper (user feedback after device test 19)
     reflOn_ = renderer_.initReflection(1024, 768);
     assetWorld_ = std::make_unique<AssetWorld>();
-    if (!assetWorld_->init(dataDir, renderer_, worldName)) {
+    if (!assetWorld_->init(dataDir, renderer_, worldName_, startMission) && haveRestore_) {
+        // A save naming a world that won't load: start over in the default world.
+        LOGW("Saved world %s unavailable; starting %s", worldName_.c_str(), worldName.c_str());
+        haveRestore_ = false;
+        worldName_ = worldName;
+        assetWorld_ = std::make_unique<AssetWorld>();
+        assetWorld_->init(dataDir, renderer_, worldName_);
+    }
+    if (!assetWorld_->loaded()) {
         LOGW("Original assets unavailable: %s", assetWorld_->status().c_str());
     }
     if (assetWorld_->hasTerrain()) {
@@ -1543,6 +1559,12 @@ void GameApp::initMission() {
     // at the end of 1b (provisional, like item 1 = jetpack).
     if (m.setup[0] == 2 && std::find(m.items.begin(), m.items.end(), 3u) != m.items.end() && launcherModel_) hasLauncher_ = true;
     if (std::getenv("GVR_LAUNCHER") && launcherModel_) hasLauncher_ = true;  // test hook
+    if (haveRestore_) {  // what he carried at the checkpoint
+        if (pendingRestore_.launcher && launcherModel_) hasLauncher_ = true;
+        syringes_ = std::max(syringes_, std::min(kMaxSyringes, pendingRestore_.syringes));
+        haveRestore_ = false;
+    }
+    writeCheckpoint();
     if (!hasLauncher_) weaponSel_ = 0;
     LOGI("Mission %s: %zu objectives, jetpack %s", assetWorld_->missionName().c_str(), objectives_.size(),
          jet ? "available" : "not yet (story)");
@@ -1725,6 +1747,17 @@ void GameApp::renderTimmyLine() {
     const Mat4 xf = Mat4::translation(at) * Mat4::rotation(r * Quat::fromAxisAngle({1, 0, 0}, 0.22f));
     text_.drawPanel(xf, w + 0.08f, h + 0.05f, {0, 0, 0, 0.5f * a});
     text_.draw(m, xf * Mat4::translation({0, 0, 0.003f}), {0.75f, 1.0f, 0.75f, a});
+}
+
+void GameApp::writeCheckpoint() {
+    if (savePath_.empty() || !assetWorld_ || assetWorld_->missionName().empty()) return;
+    SaveGame g;
+    g.world = worldName_;
+    g.mission = assetWorld_->missionName();
+    g.syringes = syringes_;
+    g.launcher = hasLauncher_;
+    if (writeSaveGame(savePath_, g)) LOGI("Checkpoint saved: %s / %s", g.world.c_str(), g.mission.c_str());
+    else LOGW("Checkpoint could not be written to %s", savePath_.c_str());
 }
 
 void GameApp::updateQuality(float dt) {
@@ -3015,13 +3048,41 @@ void GameApp::update(float dt, const InputFrame& in) {
         }
         // X (A when left-handed) in the free camera: skip to the next mission of the world (for
         // testing later missions without replaying the earlier ones); back into play there.
-        if (missionEdge_.pressed(in.hand[mh].primary) && assetWorld_) {
-            std::string next = assetWorld_->nextMission();
-            if (next.empty() && !assetWorld_->missions().empty()) next = assetWorld_->missions().front();
-            if (!next.empty()) {
-                haptics_.push_back({mh, 0.7f, 0.1f});
-                loadMission(next);
-                setPlayMode(true, in);
+        // X tapped: the next mission. Held 3 s: a new game (forget the checkpoint, back to Story 1's
+        // first mission); a buzz at 1 s says the hold registered.
+        const bool x = in.hand[mh].primary;
+        if (x) {
+            const float before = newGameHold_;
+            newGameHold_ += dt;
+            if (before < 1.0f && newGameHold_ >= 1.0f) haptics_.push_back({mh, 0.3f, 0.05f});
+        } else {
+            if (xHeld_ && newGameHold_ > 0.0f && newGameHold_ < 1.0f && assetWorld_) {
+                std::string next = assetWorld_->nextMission();
+                if (next.empty() && !assetWorld_->missions().empty()) next = assetWorld_->missions().front();
+                if (!next.empty()) {
+                    haptics_.push_back({mh, 0.7f, 0.1f});
+                    loadMission(next);
+                    setPlayMode(true, in);
+                }
+            }
+            newGameHold_ = 0;
+        }
+        xHeld_ = x;
+        if (newGameHold_ > 3.0f && assetWorld_) {
+            newGameHold_ = -1e9f;  // once per hold
+            haptics_.push_back({mh, 1.0f, 0.4f});
+            LOGI("New game: back to Story1");
+            if (!savePath_.empty()) std::remove(savePath_.c_str());
+            syringes_ = 0;
+            hasLauncher_ = false;
+            weaponSel_ = 0;
+            setPlayMode(true, in);
+            if (toLower(worldName_) == "story1" && !assetWorld_->missions().empty()) {
+                beginLoading(assetWorld_->missions().front(), in);
+            } else {
+                beginLoading(std::string(), in);
+                load_.world = "Story1";
+                load_.title = "Story1";
             }
         }
         rig_.update(dt, in);

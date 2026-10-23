@@ -12,7 +12,7 @@
 
 namespace gvr {
 
-bool AssetWorld::init(const std::string& dataDir, Renderer& r, const std::string& worldName) {
+bool AssetWorld::init(const std::string& dataDir, Renderer& r, const std::string& worldName, const std::string& startMission) {
     int n = fs_.mountAllArchives(dataDir);
     if (n == 0) {
         status_ = "No original game archives (*.gzp) found in " + dataDir;
@@ -32,6 +32,8 @@ bool AssetWorld::init(const std::string& dataDir, Renderer& r, const std::string
         collectMissions(worldName);
         // Test hook / mission select: GVR_MISSION=<name> starts that mission instead of the first.
         std::string first = missions_.empty() ? std::string() : missions_.front();
+        for (const auto& n : missions_)
+            if (!startMission.empty() && toLower(n) == toLower(startMission)) first = n;
         if (const char* m = std::getenv("GVR_MISSION"))
             for (const auto& n : missions_)
                 if (toLower(n) == toLower(m)) first = n;
