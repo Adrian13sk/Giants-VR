@@ -35,6 +35,9 @@ int main(int argc, char** argv) {
     bool useLook = false, wantBrief = false;
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
+    bool mainMenu = false;
+    int syFrom = -1, syTo = -1;
+    float syVal = 0;
     int ltrigFrom = -1, ltrigTo = -1, yFrom = -1, yTo = -1;
     int gripFrom = -1, gripTo = -1, handPathFrom = -1, handPathTo = -1, stickFrom = -1, stickTo = -1, trigFrom = -1, trigTo = -1;
     float handDx = 0, handDy = 0, handDz = 0;
@@ -69,7 +72,9 @@ int main(int argc, char** argv) {
         else if (a == "--pitch") pitchDeg = std::atof(next());
         else if (a == "--height") headHeight = std::atof(next());
         else if (a == "--at") { atX = std::atof(next()); atY = std::atof(next()); useAt = true; }
-        else if (a == "--free") freeCam = true;            // free camera instead of the Meccaryn
+        else if (a == "--free") freeCam = true;
+        else if (a == "--main-menu") mainMenu = true;     // start at the main menu
+        else if (a == "--stick-y-window") { syFrom = std::atoi(next()); syTo = std::atoi(next()); syVal = std::atof(next()); }  // right stick y            // free camera instead of the Meccaryn
         else if (a == "--first-person") firstPerson = true;
         else if (a == "--third-person") firstPerson = false;
         else if (a == "--jet") jet = true;                 // hold A (jetpack)
@@ -105,6 +110,7 @@ int main(int argc, char** argv) {
 
     GameApp app;
     if (!savePath.empty()) app.setSavePath(savePath);
+    if (mainMenu) app.setMainMenu(true);
     if (!app.init(dataDir, world)) return 3;
     // Test only: force the Ripper death type (GVR_BURST_CHANCE=1 -> always burst into gore).
     if (const char* bc = std::getenv("GVR_BURST_CHANCE"))
@@ -174,6 +180,7 @@ int main(int argc, char** argv) {
         if (yFrom >= 0) in.hand[kLeft].secondary = f >= yFrom && f < yTo;
         in.hand[kLeft].menu = menuAt >= 0 && f >= menuAt && f < menuAt + 2;
         if (sxFrom >= 0) in.hand[kRight].thumbstick.x = f >= sxFrom && f < sxTo ? sxVal : 0.0f;
+        if (syFrom >= 0) in.hand[kRight].thumbstick.y = f >= syFrom && f < syTo ? syVal : 0.0f;
         if (lPathFrom >= 0 && f >= lPathFrom && f < lPathTo) {
             const float k = 1.0f / float(lPathTo - lPathFrom);
             in.hand[kLeft].gripPose.position = in.hand[kLeft].gripPose.position + Vec3{lDx, lDy, lDz} * k;

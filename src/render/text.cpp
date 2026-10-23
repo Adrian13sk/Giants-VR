@@ -61,6 +61,8 @@ bool TextRenderer::init(const AssetFS& fs, Renderer& r) {
         Vertex v{};
         v.pos[0] = p[0];
         v.pos[1] = p[1];
+        v.uv[0] = p[0] + 0.5f;  // images: top row at the top
+        v.uv[1] = 0.5f - p[1];
         v.normal[2] = 1;
         v.color[0] = v.color[1] = v.color[2] = v.color[3] = 255;
         q.vertices.push_back(v);
@@ -173,10 +175,12 @@ void TextRenderer::draw(MeshId m, const Mat4& xf, const Vec4& color) {
     r_->draw(m, xf, dp);
 }
 
-void TextRenderer::drawPanel(const Mat4& xf, float w, float h, const Vec4& color) {
+void TextRenderer::drawPanel(const Mat4& xf, float w, float h, const Vec4& color) { drawImage(xf, w, h, white_, color); }
+
+void TextRenderer::drawImage(const Mat4& xf, float w, float h, TextureId tex, const Vec4& color) {
     if (!quad_ || !r_) return;
     DrawParams dp;
-    dp.texture = white_;
+    dp.texture = tex ? tex : white_;
     dp.blend = BlendMode::AlphaBlend;
     dp.unlit = true;
     dp.noFog = true;

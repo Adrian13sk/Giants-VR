@@ -128,6 +128,7 @@ void android_main(android_app* app) {
     LOGI("Original data directory: %s", dataDir.c_str());
     // Progress checkpoint next to the Bin folder (app storage, no permission needed).
     if (app->activity->externalDataPath) game.setSavePath(std::string(app->activity->externalDataPath) + "/save.txt");
+    game.setMainMenu(true);  // start at the main menu (title scene)
     ok = ok && game.init(dataDir);
     if (!ok) LOGE("Initialisation failed; see log above. Exiting.");
 

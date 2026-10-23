@@ -40,7 +40,7 @@ bool AssetWorld::init(const std::string& dataDir, Renderer& r, const std::string
         placeWorldObjects(first);
     }
     // Test showcase (Smartie, Kabuto) only when the mission doesn't populate the level itself.
-    if (characters_.empty()) placeShowcase(spawn_ + Vec3{0, 0, -6.0f});
+    if (characters_.empty() && toLower(worldName).rfind("intro", 0) != 0) placeShowcase(spawn_ + Vec3{0, 0, -6.0f});
     status_ = "Mounted " + std::to_string(n) + " archives; world " + worldName +
               (hasTerrain_ ? " loaded" : " NOT loaded") + "; " + std::to_string(placed_.size()) +
               " static + " + std::to_string(skinned_.size()) + " animated original models placed";

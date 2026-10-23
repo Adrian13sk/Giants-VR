@@ -25,6 +25,8 @@ public:
     void draw(MeshId m, const Mat4& xf, const Vec4& color = {1, 1, 1, 1});
     // A flat panel (w x h metres, centred) behind text, for readability.
     void drawPanel(const Mat4& xf, float w, float h, const Vec4& color);
+    // A picture on a flat panel (w x h metres, centred), drawn over everything like the panel.
+    void drawImage(const Mat4& xf, float w, float h, TextureId tex, const Vec4& color = {1, 1, 1, 1});
     // Glyph count found in the font (63 expected); for tests/logs.
     size_t glyphCount() const { return glyphs_.size(); }
     // Measures glyph extents in an RGBA font image (exposed for tests).

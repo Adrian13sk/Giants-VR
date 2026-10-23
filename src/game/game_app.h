@@ -63,6 +63,9 @@ public:
     // Where progress is saved (a checkpoint at each mission start); set before init() to continue
     // from the saved mission. Empty = no saving.
     void setSavePath(const std::string& path) { savePath_ = path; }
+    // Start at the main menu (title screen on the intro island) instead of straight in the game.
+    void setMainMenu(bool on) { titleWanted_ = on; }
+    bool inMainMenu() const { return title_; }
     void update(float dt, const InputFrame& input);
     void renderEye(const EyeRenderInfo& eye);
     // Once per frame, before the eyes: the sun's shadow map around the player.
@@ -380,6 +383,7 @@ private:
         int frames = 0;
         std::string mission, title, brief;
         std::string world;  // non-empty: switch to this world first (end of a story chapter)
+        std::string worldMission;  // with `world`: start this mission of it (a checkpoint) instead of the first
     } load_;
     void beginLoading(const std::string& mission, const InputFrame& in, bool load = true);
     // A mission's title and objectives text (GText <mission>, MO_<mission>).
@@ -557,6 +561,23 @@ private:  // the mission placed enemies: no test waves
     // Draw head-anchored UI unscaled: swap the rig to scale 1 about the head and re-begin the view.
     void beginUiFrame(const EyeRenderInfo& eye);
     void endUiFrame();
+    // Main menu (game_app_title.cpp): the original's title scene - night over the intro island
+    // (w_intro_island), seen from where its menu camera rests (flk_intro_island_2), the 3D GIANTS
+    // logo (Giants_logo_3D.gbs) in the sky - with CONTINUE / NEW GAME (story, shown with its
+    // loading art) / OPTIONS.
+    bool titleWanted_ = false, title_ = false, titleViewSet_ = false, titleActHeld_ = true, titleFirst_ = true;
+    std::string titleWorld_, titleMission_;   // the checkpoint CONTINUE goes to ("" none)
+    int titleRow_ = 0, titleCampaign_ = 0;
+    float titleRepeat_ = 0, titleHold_ = 0, titleT_ = 0, titleYaw_ = 0;
+    Vec3 titleEye_;
+    const RenderModel* logoModel_ = nullptr;
+    void enterTitle();
+    void updateTitle(float dt, const InputFrame& in);
+    void renderTitle();
+    void startFromTitle(const std::string& world, const std::string& mission, bool restore, const InputFrame& in);
+    TextureId loadingArt(Hero h);
+    // Music: the ambient set for a mission (a1/a2 alternate by chapter; ours).
+    std::string ambientFor(const std::string& world) const;
     void pushUnscaledRig(const Pose& head, bool headValid);
     void popUnscaledRig();
     // VR feel (game_app_feel.cpp): controller rumble (hits by side, jetpack, landings, a heartbeat

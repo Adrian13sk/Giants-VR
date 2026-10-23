@@ -52,10 +52,26 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         startMission = pendingRestore_.mission;
         LOGI("Continuing from the checkpoint: %s / %s", worldName_.c_str(), startMission.c_str());
     }
+    // The main menu: the title scene's world first; the checkpoint waits for CONTINUE.
+    if (titleWanted_ && !std::getenv("GVR_MISSION")) {
+        titleWorld_ = haveRestore_ ? worldName_ : std::string();
+        titleMission_ = haveRestore_ ? startMission : std::string();
+        worldName_ = "intro_island";
+        startMission.clear();
+        title_ = true;
+    }
     shadowsOn_ = renderer_.initShadows(2048);  // sharper (user feedback after device test 19)
     reflOn_ = renderer_.initReflection(1024, 768);
     assetWorld_ = std::make_unique<AssetWorld>();
-    if (!assetWorld_->init(dataDir, renderer_, worldName_, startMission) && haveRestore_) {
+    if (title_ && !assetWorld_->init(dataDir, renderer_, worldName_, startMission)) {
+        // No title scene in the data: straight into the game as before.
+        LOGW("Main menu world unavailable; starting the game");
+        title_ = false;
+        worldName_ = haveRestore_ ? titleWorld_ : worldName;
+        startMission = titleMission_;
+        assetWorld_ = std::make_unique<AssetWorld>();
+    }
+    if (!title_ && !assetWorld_->init(dataDir, renderer_, worldName_, startMission) && haveRestore_) {
         // A save naming a world that won't load: start over in the default world.
         LOGW("Saved world %s unavailable; starting %s", worldName_.c_str(), worldName.c_str());
         haveRestore_ = false;
@@ -479,6 +495,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             LOGW("Player model unavailable; free camera only");
         }
     }
+    if (title_) enterTitle();
     return true;
 }
 
@@ -1592,13 +1609,16 @@ void GameApp::initMission() {
     if (std::getenv("GVR_LAUNCHER") && launcherModel_) hasLauncher_ = true;  // test hook
     // The world decides the hero (Reaper story: Delphi); she has no jetpack.
     setHero(heroForWorld(worldName_));
-    if (hero_ == Hero::Delphi) player_.jetpackAvailable = false;
+    if (hero_ != Hero::Mecc) player_.jetpackAvailable = false;
+    if (title_) return;  // the main menu's scene: no checkpoint
     if (haveRestore_) {  // what he carried at the checkpoint
         if (pendingRestore_.launcher && launcherModel_) hasLauncher_ = true;
         syringes_ = std::max(syringes_, std::min(kMaxSyringes, pendingRestore_.syringes));
         haveRestore_ = false;
     }
     writeCheckpoint();
+    // The mission's ambient music (the world's race and chapter).
+    ambientSet_ = ambientFor(worldName_);
     if (!hasLauncher_) weaponSel_ = 0;
     LOGI("Mission %s: %zu objectives, jetpack %s", assetWorld_->missionName().c_str(), objectives_.size(),
          jet ? "available" : "not yet (story)");
@@ -1615,7 +1635,7 @@ void GameApp::updateSun(float dt) {
         envBase_ = env;
     }
     sunAzimuth_ += dt * 2.0f * kPi / 1200.0f;
-    if (!settings_.dayNight) {
+    if (!settings_.dayNight || title_) {
         // Always day: the sun circles once in 20 minutes between 30 and 62 degrees up.
         const float el = (46.0f + 16.0f * std::sin(sunAzimuth_ * 2.0f)) * kPi / 180.0f;
         env.sunDirection = Vec3{std::cos(el) * std::sin(sunAzimuth_), std::sin(el), std::cos(el) * std::cos(sunAzimuth_)} * -1.0f;
@@ -2041,6 +2061,8 @@ void GameApp::updateLoading(float dt, const InputFrame& in) {
                     streamsIndexed_ = false;
                     streamFiles_.clear();
                     load_.mission = assetWorld_->missions().empty() ? std::string() : assetWorld_->missions().front();
+                    for (const auto& m : assetWorld_->missions())  // a checkpoint's mission
+                        if (!load_.worldMission.empty() && toLower(m) == toLower(load_.worldMission)) load_.mission = m;
                     missionText(load_.mission, load_.title, load_.brief);
                 }
                 if (!load_.mission.empty()) loadMission(load_.mission);
@@ -2068,14 +2090,29 @@ void GameApp::renderLoading() {
     if (load_.phase == LoadPhase::FadeOut) return;
     const Quat r = Quat::fromAxisAngle({0, 1, 0}, load_.yaw);
     const Vec3 base = eye + r.rotate(Vec3{0, 0, -2.0f});
-    auto place = [&](float up) { return Mat4::translation(base + Vec3{0, up, 0}) * Mat4::rotation(r); };
-    float w = 0, h = 0;
-    if (const MeshId t = text_.mesh(load_.title, 0.14f, 1.8f, &w, &h)) text_.draw(t, place(0.55f), {1.0f, 0.85f, 0.4f, 1.0f});
+    auto place = [&](float x, float up) { return Mat4::translation(base + r.rotate(Vec3{x, up, 0})) * Mat4::rotation(r); };
+    // The original loading art of the story's race on the left (mecc_ / reaper_ / kabuto_loading),
+    // the mission's title and objectives on the right.
+    const Hero dest = !load_.world.empty() ? heroForWorld(load_.world) : hero_;
+    const TextureId art = loadingArt(dest);
+    const float fade = std::min(1.0f, (load_.phase == LoadPhase::Show ? 0.0f : 0.3f) + load_.t / 0.6f);
+    float textX = 0.0f, wrap = 2.6f, titleWrap = 1.8f;
+    if (art) {
+        text_.drawImage(place(-0.66f, -0.08f), 1.12f, 0.84f, art, {1, 1, 1, fade});
+        textX = 0.62f;
+        wrap = titleWrap = 1.15f;
+    }
+    float w = 0, h = 0, th = 0;
+    float y = art ? 0.32f : 0.42f;
+    if (const MeshId t = text_.mesh(load_.title, art ? 0.1f : 0.14f, titleWrap, &w, &th)) {
+        text_.draw(t, place(textX, y - 0.5f * th), {1.0f, 0.85f, 0.4f, 1.0f});
+        y -= th + 0.06f;
+    }
     if (!load_.brief.empty())
-        if (const MeshId b = text_.mesh(load_.brief, 0.055f, 2.6f, &w, &h)) text_.draw(b, place(0.1f - 0.5f * h + 0.3f), {0.9f, 0.9f, 0.85f, 1.0f});
+        if (const MeshId b = text_.mesh(load_.brief, art ? 0.05f : 0.055f, wrap, &w, &h)) text_.draw(b, place(textX, y - 0.5f * h), {0.9f, 0.9f, 0.85f, 1.0f});
     const float pulse = 0.55f + 0.45f * std::sin(load_.t * 4.0f);
     const char* label = load_.phase == LoadPhase::Show ? "LOADING..." : "GET READY";
-    if (const MeshId l = text_.mesh(label, 0.07f, 1.5f, &w, &h)) text_.draw(l, place(-0.75f), {1, 1, 1, pulse});
+    if (const MeshId l = text_.mesh(label, 0.07f, 1.5f, &w, &h)) text_.draw(l, place(0.0f, -0.62f), {1, 1, 1, pulse});
 }
 
 void GameApp::loadMission(const std::string& name) {
@@ -2190,8 +2227,7 @@ void GameApp::initMusic() {
     if (musicFiles_.empty()) { musicSet_.reset(); return; }
     music_ = std::make_unique<MusicDirector>(*musicSet_);
     // Ambient mood by story: Mecc a1 (the game also has a2, and Kabuto/Reaper sets).
-    const int race = int(assetWorld_->mission().setup[0]);
-    ambientSet_ = race == 1 ? "ka1" : (race == 3 ? "ra1" : "ma1");
+    ambientSet_ = ambientFor(worldName_);
     music_->request(ambientSet_);
     audio_->setMusicVolume(0.8f * float(settings_.music) / 8.0f);
 }
@@ -2220,7 +2256,7 @@ void GameApp::updateMusic(float dt) {
     std::string want = ambientSet_;
     if (engaged > 0) combatHold_ = 6.0f;
     else combatHold_ = std::max(0.0f, combatHold_ - dt);
-    if (combatHold_ > 0) want = pre + (engaged >= 4 ? "lb" : "sb");
+    if (combatHold_ > 0) want = pre + (engaged >= 4 ? "lb" : (pre == "k" ? "ff" : "sb"));  // Kabuto's sets have no sb
     if (stingerLeft_ > 0) want = pre + "vy";
     if (streamLeft_ > 0) want.clear();  // a cutscene soundtrack is playing
     music_->request(want);
@@ -3102,12 +3138,19 @@ void GameApp::update(float dt, const InputFrame& in) {
     }
     // The first mission's briefing, before its opening cutscene (the level is already loaded).
     if (!firstBriefDone_ && std::getenv("GVR_NO_BRIEF")) firstBriefDone_ = true;  // test hook (headless default)
-    if (!firstBriefDone_ && assetWorld_ && !assetWorld_->missionName().empty() && in.headValid && playMode_) {
+    if (!firstBriefDone_ && !title_ && assetWorld_ && !assetWorld_->missionName().empty() && in.headValid && playMode_) {
         firstBriefDone_ = true;
         beginLoading(assetWorld_->missionName(), in, false);
     }
     if (load_.phase != LoadPhase::Idle) {
         updateLoading(dt, in);
+        lastInput_ = in;
+        return;
+    }
+    if (title_) {
+        if (!menuOpen_ && menuEdge_.pressed(in.hand[kLeft].menu)) openMenu(in);
+        updateTitle(dt, in);
+        updateMusic(dt);
         lastInput_ = in;
         return;
     }
@@ -3385,6 +3428,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
                                         Mat4::scale(Vec3{1, 1, 1} * (3.0f + 4.0f * k)), true, 1.0f - k);
     }
     renderFx();
+    if (title_) renderTitle();
     beginUiFrame(eye);  // the HUD, menu and hands at human scale (Kabuto)
     if (cut) renderCutscene();
     else if (playMode_) renderHud();

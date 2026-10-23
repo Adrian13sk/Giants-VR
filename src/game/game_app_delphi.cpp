@@ -152,6 +152,12 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
     gunValid_ = false;
     swordValid_ = false;
     if (!playerModel_) return;
+    // "You can regenerate by immersing yourself in deep water if you are badly wounded" (the Reaper
+    // story's mission hints): health returns while she swims (rate ours).
+    if (player_.swimming() && playerHealth_ > 0 && playerHealth_ < 100.0f) {
+        playerHealth_ = std::min(100.0f, playerHealth_ + 6.0f * dt);
+        healFlash_ = std::max(healFlash_, 0.15f);
+    }
     const int gh = rig_.turnHand(), mh = rig_.moveHand();
     for (auto& c : swordCool_) c.second -= dt;
     swordCool_.erase(std::remove_if(swordCool_.begin(), swordCool_.end(), [](const std::pair<int, float>& c) { return c.second <= 0; }),
