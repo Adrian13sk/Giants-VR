@@ -3587,6 +3587,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     for (const auto& c : collapses_)
         if (c.model) c.model->render(renderer_, c.xf);
     renderPickups();
+    renderHealthBars();
     renderVillagers(false, renderer_.currentView().eyePosition, 90.0f);
     renderVimps(false, renderer_.currentView().eyePosition, 150.0f);
     renderJetski(false, renderer_.currentView().eyePosition);

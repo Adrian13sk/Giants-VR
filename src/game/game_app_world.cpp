@@ -48,6 +48,16 @@ void GameApp::initDestruction(AssetWorld* w, ModelCache* mc) {
         // whose data hp is 0, get ours).
         else if (cls == 98 || cls == 101) { kind = DestructKind::House; hp = dataHp > 0 ? dataHp : 400.0f; }
         else if (cls == 44) { kind = DestructKind::House; hp = dataHp > 0 ? dataHp : 200.0f; }  // SAM turrets (guard_sam)
+        // The rest of what is built (ours: hit points by size) - fences, walls, columns, gates,
+        // Smartie towers, domes, wells, the woodshop pile.
+        else if (o.name.find("fence") != std::string::npos) { kind = DestructKind::House; hp = 60.0f; }
+        else if (o.name.rfind("smw_wall", 0) == 0 || o.name.rfind("smw_entrance", 0) == 0) { kind = DestructKind::House; hp = 220.0f; }
+        else if (o.name.rfind("smw_column", 0) == 0 || o.name.rfind("sm_post", 0) == 0) { kind = DestructKind::House; hp = 120.0f; }
+        else if (o.name.rfind("sm_tower", 0) == 0 || o.name.rfind("sm_dome", 0) == 0 || o.name.rfind("sm_well", 0) == 0 ||
+                 o.name.rfind("sm_woodshop", 0) == 0) {
+            kind = DestructKind::House;
+            hp = dataHp > 0 ? dataHp : 250.0f;
+        }
         else if (o.name == "log_launcher_base" || o.name == "guard_army_barracks" || o.name == "barracks_story2") {
             kind = DestructKind::House;
             hp = dataHp > 0 ? dataHp : 600.0f;
@@ -71,6 +81,17 @@ void GameApp::initDestruction(AssetWorld* w, ModelCache* mc) {
         ++counts[int(kind)];
     }
     downTime_.assign(destruct_.items.size(), 0.0f);
+    // Towers: their collapse rig and ruin model now, not mid-fight.
+    towerRigs_.clear();
+    for (size_t k = 0; k < destruct_.items.size(); ++k) {
+        const Destructible& d = destruct_.items[k];
+        if (d.kind != DestructKind::Tower) continue;
+        const auto& o = objs[size_t(d.object)];
+        auto m = std::make_unique<SkinnedModel>();
+        const std::string anim = reg.modelAnim(o.type);
+        if (!anim.empty() && m->load(w->fs(), *mc, renderer_, o.name, anim)) towerRigs_.push_back({int(k), std::move(m)});
+        mc->get(o.name + "d.gbs", "", false);  // the ruin, cached
+    }
     // Damage look: the data's scorched texture variants ("<texture>_d": Smartie canopies, stone)
     // and our char/ember overlays.
     if (!burnTexIds_[0]) {
@@ -167,6 +188,8 @@ void GameApp::updateDestruction(float dt) {
         switch (ev.kind) {
             case DestructEvent::Hit:
             case DestructEvent::Stage:
+                if (lastHitT_.size() != destruct_.items.size()) lastHitT_.assign(destruct_.items.size(), -1e9f);
+                lastHitT_[size_t(ev.index)] = float(time_);
                 break;
             case DestructEvent::Collapse:
                 assetWorld_->collisionMutable().setEnabled(obj.collision, false);
@@ -183,19 +206,22 @@ void GameApp::updateDestruction(float dt) {
                     sfx("ex_stonl", obj.centre, 0.9f, 0.8f);
                     throwDebris(debrisStone_, top, 8, 7.0f, 1.0f);
                     throwDebris(debrisWood_, top, 6, 7.0f, 0.8f);
-                    dustBurst(d.base + Vec3{0, 1.0f, 0}, d.radius, 18);
+                    dustBurst(d.base + Vec3{0, 1.0f, 0}, d.radius, 10);
                 } else {  // tower: its own collapse clip on a skinned copy
                     sfx("ex_metll", top, 1.0f, 0.85f);
                     obj.hidden = true;
                     Collapse c;
                     c.item = ev.index;
                     c.xf = obj.placement;
-                    auto m = std::make_unique<SkinnedModel>();
-                    const std::string anim = assetWorld_->registry().modelAnim(obj.type);
-                    if (!anim.empty() && m->load(assetWorld_->fs(), *mc, renderer_, obj.name, anim)) {
-                        m->pose(renderer_, 0.0f);
-                        c.model = std::move(m);
+                    // The collapse rig was loaded with the level (loading it here stalled the frame).
+                    for (auto& pre : towerRigs_)
+                        if (pre.first == ev.index && pre.second) { c.model = std::move(pre.second); break; }
+                    if (!c.model) {
+                        auto m = std::make_unique<SkinnedModel>();
+                        const std::string anim = assetWorld_->registry().modelAnim(obj.type);
+                        if (!anim.empty() && m->load(assetWorld_->fs(), *mc, renderer_, obj.name, anim)) c.model = std::move(m);
                     }
+                    if (c.model) c.model->pose(renderer_, 0.0f);
                     collapses_.push_back(std::move(c));
                 }
                 LOGI("Destroyed: %s (%s)", obj.name.c_str(),
@@ -237,7 +263,7 @@ void GameApp::updateDestruction(float dt) {
             length(d.base - player_.position) < 150.0f) {
             d.smoke -= dt;
             if (d.smoke <= 0) {
-                d.smoke = d.stage == 1 ? 0.35f : 0.15f;
+                d.smoke = d.stage == 1 ? 0.5f : 0.25f;
                 const Vec3 at = top + Vec3{(frand() - 0.5f) * d.radius * 0.4f, 0, (frand() - 0.5f) * d.radius * 0.4f};
                 smokePuff(FxTex::SmokeBlack, at, Vec3{0, 1.2f, 0}, 1.0f, 4.5f, 5.0f, 0.55f, 0.3f);
                 if (d.stage == 2) smokePuff(FxTex::Fire, at, Vec3{0, 1.5f, 0}, 1.2f, 0.4f, 0.6f, 0.9f, 0.0f);
@@ -257,7 +283,7 @@ void GameApp::updateDestruction(float dt) {
                 obj.transform = Mat4::translation(d.base + Vec3{0, -0.2f * d.height * e, 0}) * Mat4::rotation(Quat::fromAxisAngle(axis, 0.18f * e)) *
                                 Mat4::scale({1.0f, 1.0f - 0.7f * e, 1.0f}) * Mat4::translation(d.base * -1.0f) * obj.placement;
                 d.smoke -= dt;
-                if (d.smoke <= 0) { d.smoke = 0.12f; dustBurst(d.base + Vec3{0, 0.5f, 0}, d.radius * 0.8f, 2); }
+                if (d.smoke <= 0) { d.smoke = 0.3f; dustBurst(d.base + Vec3{0, 0.5f, 0}, d.radius * 0.8f, 2); }
             }
         }
         if (d.stage == 4) {
@@ -346,7 +372,7 @@ void GameApp::dustBurst(const Vec3& at, float radius, int count) {
         const float a = frand() * 6.28f;
         const Vec3 dir{std::cos(a), 0.25f + 0.3f * frand(), std::sin(a)};
         smokePuff(FxTex::Dust, at + Vec3{std::cos(a), 0, std::sin(a)} * (radius * 0.4f * frand()), dir * (1.5f + 2.0f * frand()),
-                  1.0f + 0.4f * radius, 3.0f + 1.0f * radius, 3.5f, 0.6f, 0.15f);
+                  std::min(3.0f, 1.0f + 0.4f * radius), std::min(6.5f, 3.0f + 0.6f * radius), 3.5f, 0.6f, 0.15f);
     }
 }
 
@@ -387,8 +413,15 @@ void GameApp::buildBatches() {
     for (auto& b : fxBatch_) b.clear();
     for (auto& b : bloodBatch_) b.clear();
     for (const auto& p : fx_.parts) {
-        if (length(p.pos - eye) > 200.0f) continue;
-        const float a = p.opacity();
+        const float dd = length(p.pos - eye);
+        if (dd > 200.0f) continue;
+        // A puff filling the view costs a full screen of blending per eye (dust and smoke round a
+        // collapsing building stacked dozens deep and the frame rate fell): those that would cover
+        // most of the view fade out as the eye gets into them, and are skipped inside.
+        const float ang = p.size() / std::max(0.1f, dd);
+        if (ang > 1.3f) continue;
+        const float near = ang > 0.65f ? (1.3f - ang) / 0.65f : 1.0f;
+        const float a = p.opacity() * near;
         if (a <= 0.01f) continue;
         uint8_t c[4] = {255, 255, 255, uint8_t(std::min(1.0f, a) * 255.0f)};
         if (p.additive) { const uint8_t g = c[3]; c[0] = c[1] = c[2] = g; c[3] = 255; }  // additive: fade by colour
@@ -461,6 +494,29 @@ void GameApp::updateBurn() {
             g = 0.6f * std::min(1.0f, hot) * flicker;
         }
         o.glow = g;
+    }
+}
+
+// Health bars over damaged buildings: shown once a building has taken damage, nearer than 90 m;
+// bright for a few seconds after each hit. Green, yellow, red by what is left.
+void GameApp::renderHealthBars() {
+    if (!assetWorld_ || !text_.ready() || !playMode_) return;
+    const Vec3 eye = renderer_.currentView().eyePosition;
+    const float now = float(time_);
+    for (size_t k = 0; k < destruct_.items.size(); ++k) {
+        const Destructible& d = destruct_.items[k];
+        if (!d.alive() || d.kind == DestructKind::Tree || d.kind == DestructKind::Rock || d.hp >= d.maxHp - 0.5f) continue;
+        const Vec3 at = d.base + Vec3{0, d.height + 1.2f, 0};
+        const float dist = length(at - eye);
+        if (dist > 90.0f) continue;
+        const float since = k < lastHitT_.size() ? now - lastHitT_[k] : 99.0f;
+        const float a = since < 4.0f ? 1.0f : 0.55f;
+        const float f = std::max(0.0f, std::min(1.0f, d.hp / std::max(1.0f, d.maxHp)));
+        const float w = std::max(1.6f, std::min(d.radius * 1.2f, 6.0f)) * std::max(1.0f, dist / 40.0f), h = w * 0.09f;
+        const Mat4 xf = Mat4::translation(at) * Mat4::rotation(headWorldRot_);
+        text_.drawPanel(xf, w + h * 0.5f, h * 1.5f, {0.0f, 0.0f, 0.0f, 0.6f * a});
+        const Vec4 col = f > 0.6f ? Vec4{0.3f, 0.9f, 0.3f, a} : (f > 0.3f ? Vec4{0.95f, 0.85f, 0.2f, a} : Vec4{0.95f, 0.25f, 0.15f, a});
+        text_.drawPanel(xf * Mat4::translation({-0.5f * w * (1.0f - f), 0, 0.01f}), w * f, h, col);
     }
 }
 

@@ -669,6 +669,9 @@ private:  // the mission placed enemies: no test waves
     void updateBosses(float dt);
     // SAM turrets (guard_sam, class 44): "detect airborne targets and hammer them with homing
     // missiles" (2b's briefing). Ours: a missile every few seconds at a flying player in range.
+    std::vector<std::pair<int, std::unique_ptr<SkinnedModel>>> towerRigs_;
+    std::vector<float> lastHitT_;  // destruct item -> time of its last hit (health bars)
+    void renderHealthBars();  // destruct item -> preloaded collapse rig
     std::vector<std::pair<int, float>> samCool_;  // destruct_ item -> seconds to the next launch
     void updateSams(float dt);
     bool spawnRivalKabuto(const Vec3& pos, float yaw);
