@@ -852,3 +852,23 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
     6 s after it's quiet. Posed only within 70 m.
   - Unit test (stroll near home, flee away, cower, calm, wave). Harness render of a Smartie in 1a's village.
 - **Not device-tested.**
+
+### List items 5–6: checkpoints and the options menu (2026-10-23, build 0a8b1c0)
+- **Checkpoints (e3d512c):**
+  - `save.txt` (version, world, mission, injections, launcher) is written at every mission start, atomically
+    (temporary file + rename). On Quest it sits in the app's external files directory next to `Bin`.
+  - Launch continues from it; a world that won't load falls back to Story1.
+  - `GVR_MISSION` (tests) overrides it; the headless harness writes one only with `--save <path>`.
+  - New game: hold X 3 s in the free camera (tapping X still skips a mission, now on release), or from the options
+    menu.
+  - Harness: a fresh start writes 1a; a hand-written 1c_2 checkpoint resumes there with 3 injections and the launcher;
+    a Story2/2b_1 checkpoint opens Story2 at 2b_1. Unit test for the file round trip and rejecting damaged files.
+- **Options menu (0a8b1c0):** the left controller's menu button opens it and pauses the game.
+  - It is world-fixed 1.3 m ahead, in the game font.
+  - Rows: Resume; Turning (snap 30°/45°, smooth 90 or 150°/s); Main hand; View (first/third person); HUD size (0.8/1/1.3
+    ×, scales the forearm/TP panel and the weapon strip); Volume; Music; Subtitles (cutscenes and Timmy); New game
+    (hold the trigger 2 s).
+  - Either stick chooses (up/down) and changes (left/right) with repeat; trigger/A activates.
+  - Settings go to `settings.txt` beside the save and are applied at launch. The HUD hides while the menu is open.
+  - Harness render of the menu; unit test for the settings file.
+- **Not device-tested.**

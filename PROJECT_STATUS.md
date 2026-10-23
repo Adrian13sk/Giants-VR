@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-23 (build 5b56bea: Story 1 → Story 2, Dactyls, village Smarties)
+Last updated: 2026-10-23 (build 0a8b1c0: checkpoints, options menu)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -35,8 +35,8 @@ original Giants data and renders the original worlds in stereo.
    - **Then, in priority order:**
      1. ~~Finish Story 1~~ (5b56bea, host verified): village Smarties, flying Dactyls, 1d → Story 2. Next for Story 2:
         Vimp-meat and destination objectives (B9) and the world opcodes that stop Story2/3/5's streams (B5).
-     2. Save and checkpoints between missions.
-     3. In-headset settings menu: comfort, smooth/snap turn, left-handed mode, HUD size, volume.
+     2. ~~Save and checkpoints~~ (e3d512c, host verified).
+     3. ~~In-headset settings menu~~ (0a8b1c0, host verified).
      4. Performance pass on the headset: per-effect cost in the busiest scenes, keep 72 fps with headroom, maybe 90 Hz.
      5. VR feel: controller vibration for hits and jetpack take-off, weapon holster points on the body.
      6. Visual upgrades: sharper sky, water foam, light shafts, a short day/night cycle.

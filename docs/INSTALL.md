@@ -97,7 +97,8 @@ moves him too.
 | Right stick click | First ↔ third person (third: camera behind him) | — |
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
 | Y | — | Debug fly/noclip on/off (strong buzz = on) |
-| X | Health injection (FP: into the left hand, push into the chest; TP: inject) | Next mission (loads it and returns to play) |
+| X | Health injection (FP: into the left hand, push into the chest; TP: inject) | Tap: next mission. Hold 3 s: **new game** (forgets the checkpoint, back to 1a) |
+| **Menu button (left)** | **Options** (game paused): turning, main hand, first/third person, HUD size, volume, music, subtitles, new game. Stick up/down to choose, left/right to change; trigger or A on RESUME | same |
 | **Left stick click (hold)** | **Mission briefing** over the world while held (title, objectives, progress) | Toggle the engineering test geometry |
 | Long-press Oculus button | System recentre | same |
 
@@ -106,3 +107,11 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
 
 ## Uninstall
 `adb uninstall io.github.giantsvr.dev`
+
+## Progress and options
+- **Checkpoints:** progress is saved when each mission starts (`save.txt` next to your `Bin` folder: world, mission,
+  injections carried, rocket launcher). Starting the app continues from there. New game: Options → NEW GAME (hold the
+  trigger 2 s), or in the free camera hold X for 3 s.
+- **Options** are kept in `settings.txt` next to `save.txt`.
+- **Story:** finishing 1d now continues into Story 2 (2a). Story 2's objectives aren't implemented yet (2a can't be
+  completed).

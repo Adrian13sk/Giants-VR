@@ -282,3 +282,11 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - 1a's Dactyls circling and banking;
   - 1a village Smarties (8) and the hatch village (6).
 - **Not device-tested.**
+
+## Host verification — build 0a8b1c0 (APK sha256 5d85a67c…)
+- `gvr_tests`: all pass (new: save game and settings round trips).
+- Harness:
+  - checkpoint written at start;
+  - resumed from hand-written 1c_2 and Story2/2b_1 checkpoints (injections and launcher restored);
+  - options menu opened with `--menu-at` and navigated with the stick.
+- **Not device-tested.**
