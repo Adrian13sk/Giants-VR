@@ -9,7 +9,7 @@
 
 namespace gvr {
 
-enum class FxTex : int { Smoke = 0, SmokeBlack, SmokeGrey, Dust, Fire, FireBlue, FireGreen, Count };
+enum class FxTex : int { Smoke = 0, SmokeBlack, SmokeGrey, Dust, Fire, FireBlue, FireGreen, Drip, Spray, Count };  // Drip: water drops (additive), Spray: splash spray
 
 struct Particle {
     Vec3 pos, vel;

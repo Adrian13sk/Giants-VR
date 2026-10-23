@@ -496,6 +496,13 @@ private:
     struct WaterFx { Vec3 pos; float age; int kind; float scale; };  // kind 0 splash, 1 ring
     std::vector<WaterFx> waterFx_;
     std::unique_ptr<SkinnedModel> splashFx_, ringFx_, pirSwim_, pirJump_;
+    // game_app_water.cpp: splashes (sound 0 none, 1 a shot, 2 a body), shots into the water,
+    // the piranhas' frenzy, the water round the legs.
+    float flowT_ = 0, flowRingT_ = 0;
+    void waterSplash(const Vec3& at, float size, int sound);
+    bool shotIntoWater(const Vec3& p, const Vec3& dir);
+    void piranhaBite(const Vec3& at, float size, bool loud);
+    void updateWaterFlow(float dt);
     static constexpr int kPiranhas = 5;
     struct Piranha { float angle = 0, jump = -1; };
     // A school circles its prey just under the surface: the swimming player (school 0) or a

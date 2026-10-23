@@ -379,6 +379,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     return;
                 }
                 if (target < 0) {
+                    if (shotIntoWater(p, shotDir)) return;  // a splash where it went in
                     sfx(frand() < 0.5f ? "bi_dirt1" : (frand() < 0.5f ? "bi_hit1" : "bi_hit2"), p, 0.45f, 0.9f + 0.2f * frand());
                     return;
                 }
@@ -449,7 +450,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             };
             enemyFire_.onHit = [this](int target, const Vec3& p, const Vec3& dir) {
                 if (target == -2) { hitFrom_ = p - dir * 10.0f; hitDirTimer_ = 1.2f; damagePlayer(5.0f, DeathCause::Shot); }
-                else sfx(frand() < 0.5f ? "bi_hit1" : "bi_dirt1", p, 0.35f, 0.9f + 0.2f * frand());
+                else if (!shotIntoWater(p, dir)) sfx(frand() < 0.5f ? "bi_hit1" : "bi_dirt1", p, 0.35f, 0.9f + 0.2f * frand());
             };
             // NPCs float in deep water (the sea surface is at 0): they can't walk on the sea floor.
             enemies_.groundHeight = [w](float x, float z) {
@@ -804,8 +805,7 @@ void GameApp::updateRescue(float dt, const InputFrame& in) {
                 LOGI("Smartie %d is back", e.index);
                 break;
             case SmartieEvent::Splashed:
-                waterFx_.push_back({Vec3{e.pos.x, 0.02f, e.pos.z}, 0.0f, 0, 0.8f});
-                sfx("se_splsh", e.pos, 0.9f);
+                waterSplash(e.pos, 0.8f, 2);
                 sfx(frand() < 0.5f ? "pi_swrm1" : "pi_swrm2", e.pos, 0.9f);
                 LOGI("Smartie %d fell in the water", e.index);
                 break;
@@ -2757,6 +2757,7 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
     if (deathCause_ == DeathCause::Drowned) {
         sink = std::max(0.0f, deathTime_ - 1.2f) * 0.5f;  // goes under
         if (frand() < dt * 3.0f) bloodInWater(player_.position, 0.8f);
+        if (deathTime_ < 4.0f && frand() < dt * 3.5f) piranhaBite(player_.position, 1.2f, true);  // the frenzy goes on
     }
     bodyXf_ = Mat4::translation(player_.position + Vec3{0, heroLift_ - sink, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
     if (playerModel_ && !playerGibbed_) {
@@ -2784,6 +2785,8 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
 }
 
 void GameApp::explode(const Vec3& at, float radius, float damage, bool fire) {
+    if (at.y < player_.seaLevel + 1.0f && (!enemies_.groundHeight || enemies_.groundHeight(at.x, at.z) < player_.seaLevel - 0.2f))
+        waterSplash(at, std::min(3.0f, 0.5f * radius), 2);  // in (or just over) the water
     creatures_.disturb(at, std::max(15.0f, radius * 4.0f));  // the ground shakes: buried Rippers come up
     if (fire) {
         blasts_.push_back({at, 3, 0.0f});
@@ -3030,7 +3033,7 @@ void GameApp::updateSchools(float dt) {
                 if (found->biteTimer <= 0) {
                     found->biteTimer = 0.55f + 0.3f * frand();
                     sfx(frand() < 0.5f ? "pi_swrm1" : "pi_swrm2", sm.pos, 0.9f, 0.95f + 0.2f * frand());
-                    bloodInWater(sm.pos, 0.6f);
+                    piranhaBite(sm.pos, 0.75f, false);
                 }
             }
         }
@@ -3057,18 +3060,9 @@ void GameApp::updateCombat(float dt) {
     // briefing warns of them): after a moment there they gather round and bite; leaving deep water
     // (shallows, the shore, the jetpack) sends them away. Rates and damage ours.
     const bool swim = playMode_ && player_.swimming();
-    if (swim && !wasSwimming_) {
-        waterFx_.push_back({Vec3{player_.position.x, 0.02f, player_.position.z}, 0.0f, 0, 1.2f});
-        sfx("se_splsh", player_.position, 0.9f);
-    }
+    if (swim && !wasSwimming_) waterSplash(player_.position, 1.2f, 2);
+    updateWaterFlow(dt);
     wasSwimming_ = swim;
-    if (swim && player_.horizontalSpeed() > 0.4f) {
-        ringTimer_ -= dt;
-        if (ringTimer_ <= 0) {
-            ringTimer_ = 0.5f;
-            waterFx_.push_back({Vec3{player_.position.x, 0.03f, player_.position.z}, 0.0f, 1, 2.5f});
-        }
-    }
     for (auto& f : waterFx_) f.age += dt;
     waterFx_.erase(std::remove_if(waterFx_.begin(), waterFx_.end(), [](const WaterFx& f) { return f.age > 2.0f; }), waterFx_.end());
     if (swim) {
@@ -3083,7 +3077,8 @@ void GameApp::updateCombat(float dt) {
                 biteTimer_ = 0.5f;
                 sfx(frand() < 0.5f ? "pi_swrm1" : "pi_swrm2", player_.position, 1.0f, 0.9f + 0.2f * frand());
                 damagePlayer(8.0f, DeathCause::Drowned);
-                bloodInWater(player_.position, 0.8f);
+                piranhaBite(player_.position, 1.0f, true);
+                for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.6f, 0.08f});
             }
         }
     } else {
@@ -3091,15 +3086,7 @@ void GameApp::updateCombat(float dt) {
         biteTimer_ = 0;
         piranhaAttack_ = false;
     }
-    // Wading (feet in the water, not swimming): rings round the legs while moving, splashing steps.
-    const bool wading = playMode_ && !swim && player_.onGround && player_.position.y < player_.seaLevel - 0.08f;
-    if (wading && player_.horizontalSpeed() > 0.4f) {
-        wadeTimer_ -= dt;
-        if (wadeTimer_ <= 0) {
-            wadeTimer_ = 0.35f;
-            waterFx_.push_back({Vec3{player_.position.x, 0.03f, player_.position.z}, 0.0f, 1, 1.4f});
-        }
-    }
+    // Wading and swimming: the water round the legs (updateWaterFlow).
     // NPCs in the water leave rings too (Rippers and Reapers floating or wading).
     {
         size_t k = 0;
@@ -3601,6 +3588,19 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     for (const auto& f : waterFx_) {
         SkinnedModel* m = f.kind == 0 ? splashFx_.get() : ringFx_.get();
         if (!m) continue;
+        if (f.kind == 0) {
+            // The splash crown (its clip doesn't move it): opens out, leaps up and falls back in.
+            const float k = f.age / 0.9f;
+            if (k >= 1.0f) continue;
+            const float wide = f.scale * (0.45f + 0.85f * std::sqrt(k));
+            const float tall = f.scale * 1.25f * std::sin(3.14159f * std::min(1.0f, k * 1.1f));
+            if (tall < 0.01f) continue;
+            m->pose(renderer_, 0.0f);
+            const float spin = std::fmod(f.pos.x * 7.3f + f.pos.z * 3.1f, 6.28f);
+            m->render(renderer_, Mat4::translation(f.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, spin + k * 0.6f)) *
+                                     Mat4::scale(Vec3{wide, tall, wide}));
+            continue;
+        }
         m->pose(renderer_, std::min(f.age, m->animDuration() * 0.999f));
         m->render(renderer_, Mat4::translation(f.pos) * Mat4::scale(Vec3{1, 1, 1} * f.scale));
     }

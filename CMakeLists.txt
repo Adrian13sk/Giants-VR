@@ -52,6 +52,7 @@ add_library(gvr_core STATIC
   src/game/game_app_jet.cpp
   src/game/game_app_jetski.cpp
   src/game/game_app_ripper.cpp
+  src/game/game_app_water.cpp
   src/game/game_app_vimp.cpp
   src/game/save_game.cpp
   src/game/settings.cpp

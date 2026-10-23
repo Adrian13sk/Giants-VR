@@ -339,8 +339,8 @@ void GameApp::debugBlast(float gx, float gy, float height) {
 void GameApp::initFx(ModelCache* mc) {
     if (batchesReady_) return;
     const char* names[int(FxTex::Count)] = {"b_smoke", "efx_smoke_black", "efx_smoke_mgrey", "b_dust", "efx_fire_trail", "efx_bfire_trail",
-                                           "efx_gfire_trail"};
-    const size_t caps[int(FxTex::Count)] = {192, 256, 256, 160, 256, 96, 48};
+                                           "efx_gfire_trail", "b_drip", "EFX_splash"};
+    const size_t caps[int(FxTex::Count)] = {192, 256, 256, 160, 256, 96, 48, 160, 96};
     for (int k = 0; k < int(FxTex::Count); ++k) {
         fxTex_[k] = mc->texture(names[k]);
         fxBatch_[k].init(renderer_, caps[k]);
@@ -365,7 +365,7 @@ void GameApp::smokePuff(FxTex tex, const Vec3& at, const Vec3& vel, float size0,
     p.angle = frand() * 6.28f;
     p.spin = (frand() - 0.5f) * 1.2f;
     p.tex = tex;
-    p.additive = tex == FxTex::Fire || tex == FxTex::FireBlue || tex == FxTex::FireGreen;
+    p.additive = tex == FxTex::Fire || tex == FxTex::FireBlue || tex == FxTex::FireGreen || tex == FxTex::Drip;
     fx_.emit(p);
 }
 
@@ -505,7 +505,7 @@ void GameApp::renderFx() {
         bloodBatch_[k].draw(renderer_, dp);
     }
     for (int k = 0; k < int(FxTex::Count); ++k) {
-        const bool fire = k == int(FxTex::Fire) || k == int(FxTex::FireBlue) || k == int(FxTex::FireGreen);
+        const bool fire = k == int(FxTex::Fire) || k == int(FxTex::FireBlue) || k == int(FxTex::FireGreen) || k == int(FxTex::Drip);
         DrawParams fp = dp;
         fp.texture = fxTex_[k];
         if (fire) { fp.blend = BlendMode::Additive; fp.noFog = true; }
