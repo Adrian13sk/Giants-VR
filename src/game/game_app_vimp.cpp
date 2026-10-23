@@ -287,8 +287,8 @@ bool GameApp::bossRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& i
 }
 
 namespace {
-const char* const kBossHurt[4] = {"", "ka_mdht1", "of_dhit1", "ca_injr1"};
-const char* const kBossDie[4] = {"", "ka_deth1", "of_deth1", "ca_deat1"};
+const char* const kBossHurt[5] = {"", "ka_mdht1", "of_dhit1", "ca_injr1", "so_injr1"};
+const char* const kBossDie[5] = {"", "ka_deth1", "of_deth1", "ca_deat1", "so_deat1"};
 }  // namespace
 
 void GameApp::hitBoss(int i, float amount, const Vec3& at, const Vec3& dir) {
@@ -324,7 +324,7 @@ struct BossSpec {
     float at1, at2;            // when in the clip the blow lands (fraction)
     const char* sAttack1; const char* sAttack2; const char* sRoar; const char* sHurt; const char* sDie;
 };
-const BossSpec kBoss[4] = {
+const BossSpec kBoss[5] = {
     {},
     {{"kb_stand.anm", "kb_walk.anm", "kb_punch.anm", "kb_stomp.anm", "kb_roar.anm", "kb_die.anm"}, 7.0f, 0.32f, 28, 22, 0.45f, 0.5f,
      "ka_pnch1", "ka_jump2", "ka_roar1", "ka_mdht1", "ka_deth1"},
@@ -333,11 +333,13 @@ const BossSpec kBoss[4] = {
     {{"charger_stand_agro.anm", "charger_run_fast.anm", "charger_attack.anm", "charger_run_fast_open.anm", "charger_sniff.anm",
       "charger_mid_run_die.anm"},
      6.0f, 0.45f, 18, 30, 0.5f, 0.0f, "ca_snort", "ca_roar", "ca_roar", "ca_injr1", "ca_deat1"},
+    {{"sonak_idle.anm", "sonak_walk.anm", "sonak_roar_attack.anm", "sonak_stomp.anm", "sonak_idle_roar.anm", "sonak_die.anm"}, 5.0f, 0.55f, 16,
+     24, 0.45f, 0.5f, "so_atst1", "so_snrt1", "so_roar1", "so_injr1", "so_deat1"},
 };
 }  // namespace
 
 void GameApp::setupBossAI(CharacterInst& ci, int kind) {
-    if (!ci.model || kind < 1 || kind > 3 || !assetWorld_) return;
+    if (!ci.model || kind < 1 || kind > 4 || !assetWorld_) return;
     ci.bossKind = kind;
     ci.bossKb = kind == 1;
     for (int k = 0; k < 6; ++k) {
@@ -350,13 +352,15 @@ void GameApp::setupBossAI(CharacterInst& ci, int kind) {
 
 // kstory5_4 ("Kabuto, meet Kabuto. DEFEAT KABUTO!"): the mission places only the player's Kabuto
 // (id 1) and a marker (id 3); the rival giant is ours, standing at that marker.
-bool GameApp::spawnRivalKabuto(const Vec3& pos, float yaw) {
-    if (!assetWorld_) return false;
+bool GameApp::spawnRivalKabuto(const Vec3& pos, float yaw) { return spawnBoss(1, "kb_l0", "kb_stand.anm", pos, yaw, 2500.0f) >= 0; }
+
+int GameApp::spawnBoss(int kind, const char* model, const char* idle, const Vec3& pos, float yaw, float hp) {
+    if (!assetWorld_) return -1;
     auto m = std::make_unique<SkinnedModel>();
-    if (!m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "kb_l0", "kb_stand.anm")) return false;
+    if (!m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, model, idle)) return -1;
     CharacterInst ci;
     ci.model = std::move(m);
-    setupBossAI(ci, 1);
+    setupBossAI(ci, kind);
     ci.model->pose(renderer_, 0.0f);
     Vec3 mn, mx;
     ci.model->posedBounds(mn, mx);
@@ -364,15 +368,16 @@ bool GameApp::spawnRivalKabuto(const Vec3& pos, float yaw) {
     ci.yaw = yaw;
     ci.lift = ci.restLift = -mn.y;
     ci.boss = true;
-    ci.hp = ci.bossMaxHp = 2500.0f;  // kb_l0's type hit points
+    ci.hp = ci.bossMaxHp = hp;
     ci.bossR = std::max(1.5f, 0.12f * (mx.y - mn.y));
+    if (kind != 1) ci.bossR = std::max(1.0f, 0.3f * std::max(mx.x - mn.x, mx.z - mn.z));
     ci.bossH = std::max(2.0f, mx.y - mn.y);
     ci.objective = int(objectives_.size());
     objectives_.push_back({2, pos, pos});
     chars_.push_back(std::move(ci));
     missionHostiles_ = true;
-    LOGI("Objective: defeat the rival Kabuto (%.1f m tall)", chars_.back().bossH);
-    return true;
+    LOGI("Objective: defeat %s (%.0f hp, %.1f m tall)", model, hp, chars_.back().bossH);
+    return int(chars_.size()) - 1;
 }
 
 void GameApp::updateBosses(float dt) {

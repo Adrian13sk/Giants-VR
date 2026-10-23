@@ -859,7 +859,9 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "js_start", "js_finis", "js_win", "js_lose",
         // Offspring and Charger (bosses).
         "of_claw1", "of_claw2", "of_roar1", "of_roar2", "of_dhit1", "of_dhit2", "of_deth1", "of_deth2", "ca_snort", "ca_roar", "ca_injr1",
-        "ca_injr2", "ca_deat1", "ca_deat2"};
+        "ca_injr2", "ca_deat1", "ca_deat2",
+        // Sonak.
+        "so_atst1", "so_atsol", "so_snrt1", "so_roar1", "so_roar2", "so_injr1", "so_injr2", "so_deat1", "so_deat2"};
     std::vector<std::string> all(std::begin(names), std::end(names));
     for (int k = 1; k <= 15; ++k)  // Smartie voice pairs gsmNN_1 / gsmNN_2 (no 07 in the data)
         for (int j = 1; j <= 2; ++j) {
@@ -1686,9 +1688,10 @@ void GameApp::initMission() {
     for (const auto& t : assetWorld_->triggerObjects()) {
         if (t.kind != 2) continue;
         const Vec3 c = (t.boundsMin + t.boundsMax) * 0.5f;
-        // Class 97: a group spawner ("1mcsonak_4guards", "1tsonak_4guards", "1tsonak"): a Sonak and
-        // its Reaper guard. Ours: the guards appear round it and the group dies with them (the
-        // Sonak - a flying mount - isn't implemented; a lone Sonak spawner gets one guard).
+        // Class 97: a group spawner ("1mcsonak_4guards", "1tsonak_4guards", "1tsonak"): a Sonak - the
+        // Reapers' war beast (sonak_l0, 350 hp) - and its Reaper guards. Ours: the Sonak stands at
+        // the spawner with the guards round it; the group dies with all of them (a lone Sonak
+        // spawner gets one guard).
         if (const ObjectType* ot = assetWorld_->registry().type(t.type); ot && ot->objectClass == 97) {
             const std::string nm = assetWorld_->registry().modelName(t.type);
             const int guards = nm.find("4guards") != std::string::npos ? 4 : 1;
@@ -1700,6 +1703,13 @@ void GameApp::initMission() {
                 const int ei = enemies_.spawn(p, a);
                 enemies_.enemies[size_t(ei)].objective = int(objectives_.size());
                 objectives_.push_back({2, p, p});
+            }
+            {
+                const ObjectType* st = assetWorld_->registry().type(575);  // sonak_l0
+                Vec3 sp = c;
+                float sy;
+                if (assetWorld_->terrain().heightAt(sp.x, sp.z, sy)) sp.y = sy;
+                spawnBoss(4, "sonak_l0", "sonak_idle.anm", sp, frand() * 6.28f, st && st->hitPoints > 0 ? st->hitPoints : 350.0f);
             }
             missionHostiles_ = true;
             LOGI("Objective: kill the %d guard%s of %s at game (%.0f, %.0f)", guards, guards > 1 ? "s" : "", nm.c_str(), -c.x / gGameUnitsToMeters,
