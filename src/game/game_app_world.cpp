@@ -35,7 +35,14 @@ void GameApp::initDestruction(AssetWorld* w, ModelCache* mc) {
         else if (o.name.rfind("rock_", 0) == 0 && o.radius < 12.0f) { kind = DestructKind::Rock; hp = 160.0f; }
         else if (o.name.find("guard_tower") != std::string::npos) { kind = DestructKind::Tower; hp = dataHp > 0 ? dataHp : 350.0f; }
         else if (cls == 61 && dataHp > 0) { kind = DestructKind::House; hp = dataHp; }
-        else continue;
+        // Mission targets that come down: barracks (class 98), prisons and doors (101), and the
+        // other buildings a mission's death trigger names (log_launcher_base; the army barracks,
+        // whose data hp is 0, get ours).
+        else if (cls == 98 || cls == 101) { kind = DestructKind::House; hp = dataHp > 0 ? dataHp : 400.0f; }
+        else if (o.name == "log_launcher_base" || o.name == "guard_army_barracks" || o.name == "barracks_story2") {
+            kind = DestructKind::House;
+            hp = dataHp > 0 ? dataHp : 600.0f;
+        } else continue;
         Vec3 base{o.placement.m[12], o.placement.m[13], o.placement.m[14]};
         float gy;
         if (w->terrain().heightAt(base.x, base.z, gy)) base.y = gy;

@@ -318,6 +318,12 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     int iv = -1;
                     if (vimpRay(o, d, maxD, tv, iv) && (!he || tv < te)) { he = true; te = tv; ne = d * -1.0f; ie = kVimpTarget + iv; }
                 }
+                // Mission-target characters without AI (Offspring, Charger).
+                {
+                    float tb2 = maxD;
+                    int ib2 = -1;
+                    if (bossRay(o, d, maxD, tb2, ib2) && (!he || tb2 < te)) { he = true; te = tb2; ne = d * -1.0f; ie = kBossTarget + ib2; }
+                }
                 // Ripper nests: a sphere around the mound.
                 for (size_t k = 0; k < nests_.size(); ++k) {
                     const NestInst& n = nests_[k];
@@ -360,6 +366,11 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 }
                 // Gunfire carries: Reapers nearby hear it.
                 enemies_.alertNear(p, 20.0f);
+                if (target >= kBossTarget && target < kObjectTarget) {
+                    hitBoss(target - kBossTarget, 25.0f * hitMul_, p, shotDir);
+                    haptics_.push_back({rig_.turnHand(), 0.4f, 0.04f});
+                    return;
+                }
                 if (target >= kCorpseEnemy) {
                     shootCorpse(target, p, shotDir);
                     haptics_.push_back({rig_.turnHand(), 0.4f, 0.04f});
@@ -1056,6 +1067,23 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         m->posedBounds(mn, mx);
         ci.lift = -mn.y * ci.scale;
         ci.restLift = ci.lift;
+        // Mission triggers on other characters: reaching one (trigger 1, e.g. Borjoyzee in
+        // story3_borjoyzee_2), or killing one that has no AI here yet (trigger 2: Offspring, Charger).
+        if (ch.trigger == 1) {
+            objectives_.push_back({1, ch.position - Vec3{2, 0, 2}, ch.position + Vec3{2, 3, 2}});
+            LOGI("Objective: reach %s", ch.model.c_str());
+        }
+        if (ch.trigger == 2 && ci.ambient && ch.objectClass != 18) {
+            const ObjectType* t = reg.type(ch.type);
+            ci.boss = true;
+            ci.hp = t && t->hitPoints > 0 ? t->hitPoints : 300.0f;
+            ci.bossR = std::max(0.6f, 0.35f * std::max(mx.x - mn.x, mx.z - mn.z) * ci.scale);
+            ci.bossH = std::max(1.0f, (mx.y - mn.y) * ci.scale);
+            ci.objective = int(objectives_.size());
+            objectives_.push_back({2, ch.position, ch.position});
+            missionHostiles_ = true;
+            LOGI("Objective: kill %s (%.0f hp, %.1f m tall)", ch.model.c_str(), ci.hp, ci.bossH);
+        }
         ci.time = frand() * 3.0f;
         Mat4 hand;
         if (hanging && m->nodeWorld(ch.hold, hand)) {
@@ -1605,6 +1633,46 @@ void GameApp::initMission() {
             objectives_.push_back({4, t.boundsMin, t.boundsMax});
             LOGI("Objective: bring %d pieces of Vimp meat to type %d", kVimpMeatNeeded, int(t.type));
         }
+    // Death triggers on buildings: destroy it. The trigger is matched to the destructible of the
+    // same type nearest its centre.
+    for (const auto& t : assetWorld_->triggerObjects()) {
+        if (t.kind != 2) continue;
+        const Vec3 c = (t.boundsMin + t.boundsMax) * 0.5f;
+        // Class 97: a group spawner ("1mcsonak_4guards", "1tsonak_4guards", "1tsonak"): a Sonak and
+        // its Reaper guard. Ours: the guards appear round it and the group dies with them (the
+        // Sonak - a flying mount - isn't implemented; a lone Sonak spawner gets one guard).
+        if (const ObjectType* ot = assetWorld_->registry().type(t.type); ot && ot->objectClass == 97) {
+            const std::string nm = assetWorld_->registry().modelName(t.type);
+            const int guards = nm.find("4guards") != std::string::npos ? 4 : 1;
+            for (int g = 0; g < guards; ++g) {
+                const float a = 6.2832f * float(g) / float(guards);
+                Vec3 p = c + Vec3{std::cos(a) * 4.0f, 0, std::sin(a) * 4.0f};
+                float gy;
+                if (assetWorld_->terrain().heightAt(p.x, p.z, gy)) p.y = gy;
+                const int ei = enemies_.spawn(p, a);
+                enemies_.enemies[size_t(ei)].objective = int(objectives_.size());
+                objectives_.push_back({2, p, p});
+            }
+            missionHostiles_ = true;
+            LOGI("Objective: kill the %d guard%s of %s at game (%.0f, %.0f)", guards, guards > 1 ? "s" : "", nm.c_str(), -c.x / gGameUnitsToMeters,
+                 c.z / gGameUnitsToMeters);
+            continue;
+        }
+        int best = -1;
+        float bestD = 12.0f;
+        const auto& objs = assetWorld_->worldObjects();
+        for (size_t k = 0; k < destruct_.items.size(); ++k) {
+            const auto& o = objs[size_t(destruct_.items[k].object)];
+            const float d = length(Vec3{o.centre.x - c.x, 0, o.centre.z - c.z});
+            if (o.type == t.type && d < bestD) { bestD = d; best = int(k); }
+        }
+        if (best < 0) { LOGW("Death trigger on type %d: no destructible found", int(t.type)); continue; }
+        Objective ob{5, t.boundsMin, t.boundsMax};
+        ob.item = best;
+        objectives_.push_back(ob);
+        LOGI("Objective: destroy %s at game (%.0f, %.0f)", objs[size_t(destruct_.items[size_t(best)].object)].name.c_str(),
+             -c.x / gGameUnitsToMeters, c.z / gGameUnitsToMeters);
+    }
     for (const auto& t : assetWorld_->triggerObjects())
         if (t.kind == 1) {
             objectives_.push_back({1, t.boundsMin, t.boundsMax});
@@ -2197,6 +2265,11 @@ void GameApp::updateMission(float dt) {
                      std::max(o.boundsMin.z, std::min(o.boundsMax.z, p.z))};
         if (length(c - p) <= 10.0f * gGameUnitsToMeters + (player_.radius - 0.35f)) completeObjective(int(i));
     }
+    for (size_t i = 0; i < objectives_.size(); ++i) {
+        const Objective& o = objectives_[i];
+        if (!o.done && o.kind == 5 && o.item >= 0 && size_t(o.item) < destruct_.items.size() && !destruct_.items[size_t(o.item)].alive())
+            completeObjective(int(i));
+    }
 }
 
 namespace {
@@ -2652,6 +2725,12 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire) {
             creatureSound(e);
         }
     }
+    for (size_t i = 0; i < chars_.size(); ++i) {
+        const CharacterInst& ci = chars_[i];
+        if (!ci.boss || ci.hp <= 0) continue;
+        const float db = std::max(0.0f, length(ci.pos + Vec3{0, 0.5f * ci.bossH, 0} - at) - ci.bossR);
+        if (db < radius) hitBoss(int(i), damage * (1.0f - 0.6f * db / radius), ci.pos + Vec3{0, 0.5f * ci.bossH, 0}, normalize(ci.pos - at + Vec3{0, 0.5f, 0}));
+    }
     for (size_t i = 0; i < vimps_.vimps.size(); ++i) {
         const Vimp& v = vimps_.vimps[i];
         const float dv = length(v.pos + Vec3{0, 2.0f, 0} - at);
@@ -2958,6 +3037,7 @@ void GameApp::updateCombat(float dt) {
     updateBurn();
     updateVillagers(dt);
     updateVimps(dt);
+    updateBosses(dt);
     updateFx(dt);
     // Sentries killed by their fall.
     for (int i : enemies_.landed) {

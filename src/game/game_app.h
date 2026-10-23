@@ -261,6 +261,10 @@ private:
         int type = -1;       // object type (hidden while a cutscene shows its own copy)
         int rescue = -1;     // index in rescue_ (1b's stranded Smarties); clipIndex = SmartieClip
         bool pooled = false; // a nest's Ripper model, lent to a hatched Ripper while it lives
+        // A mission target that is neither Reaper nor Ripper (death trigger: Offspring in 4b, the
+        // Charger in 5a): shootable with the data's hit points; it doesn't fight back yet (ours).
+        bool boss = false;
+        float hp = 0, bossR = 1, bossH = 2, dieT = -1;
         // Flyers (Dactyls): circle their home in the sky, banking into the turn.
         bool flyer = false;
         Vec3 home;
@@ -372,7 +376,9 @@ private:
     // Mission objectives from the mission stream's trigger objects (op 8): 1 proximity (within
     // 10 game units = 2 m of the object's bounds), 2 death. Kinds 3 (destination arrival) and 4
     // (Vimp meat) are not implemented yet. All done = mission complete.
-    struct Objective { int kind; Vec3 boundsMin, boundsMax; bool done = false; };
+    // kind: 1 reach, 2 kill (a character), 3 rescue, 4 bring Vimp meat, 5 destroy a structure (a death
+    // trigger on a building: barracks, prison, door, launcher base; `item` = its destruct_ index).
+    struct Objective { int kind; Vec3 boundsMin, boundsMax; bool done = false; int item = -1; };
     std::vector<Objective> objectives_;
     size_t objectivesDone_ = 0;
     bool missionComplete_ = false;
@@ -648,6 +654,10 @@ private:  // the mission placed enemies: no test waves
     bool vimpRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
     void hitVimp(int i, float amount, const Vec3& at, const Vec3& dir);
     void dropMeat(const Vec3& at, int pieces);
+    static constexpr int kBossTarget = 8000;  // weapon target ids for boss characters (index into chars_)
+    bool bossRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
+    void hitBoss(int i, float amount, const Vec3& at, const Vec3& dir);
+    void updateBosses(float dt);
     void creatureSound(const CreatureEvent& e);
     void updateCombat(float dt);
     void damagePlayer(float amount, DeathCause cause = DeathCause::Shot);

@@ -259,3 +259,55 @@ void GameApp::renderVimps(bool shadow, const Vec3& eye, float range) {
 }
 
 }  // namespace gvr
+
+namespace gvr {
+
+// Mission-target characters without their own AI yet (see CharacterInst::boss).
+bool GameApp::bossRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const {
+    bool hit = false;
+    for (size_t i = 0; i < chars_.size(); ++i) {
+        const CharacterInst& ci = chars_[i];
+        if (!ci.boss || ci.hp <= 0 || !ci.visible) continue;
+        // Upright cylinder approximated by a sphere stack along the body.
+        for (float f = 0.25f; f < 1.0f; f += 0.25f) {
+            const Vec3 c = ci.pos + Vec3{0, ci.bossH * f, 0};
+            const float r = ci.bossR;
+            const Vec3 oc = o - c;
+            const float b = dot(oc, d), cc = dot(oc, oc) - r * r, disc = b * b - cc;
+            if (disc < 0) continue;
+            const float tn = -b - std::sqrt(disc);
+            if (tn < 0 || tn > maxD || (hit && tn >= t)) continue;
+            t = tn;
+            index = int(i);
+            hit = true;
+        }
+    }
+    return hit;
+}
+
+void GameApp::hitBoss(int i, float amount, const Vec3& at, const Vec3& dir) {
+    if (i < 0 || size_t(i) >= chars_.size()) return;
+    CharacterInst& ci = chars_[size_t(i)];
+    if (!ci.boss || ci.hp <= 0) return;
+    ci.hp -= amount;
+    bleed(at, dir, ci.hp <= 0, std::max(1.0f, ci.bossH / 2.0f));
+    if (ci.hp <= 0) {
+        ci.dieT = 0;
+        blood_.pool(ci.pos, std::max(1.5f, ci.bossR * 2.0f));
+        sfx("ex_bdyl1", at, 1.0f, 0.8f);
+        if (ci.objective >= 0) completeObjective(ci.objective);
+        LOGI("Mission target killed (character %d)", i);
+    }
+}
+
+void GameApp::updateBosses(float dt) {
+    for (auto& ci : chars_) {
+        if (!ci.boss || ci.dieT < 0) continue;
+        // Down: it sinks into the ground and is gone.
+        ci.dieT += dt;
+        ci.lift = ci.restLift - std::max(0.0f, ci.dieT - 1.0f) * 0.6f;
+        if (ci.dieT > 1.0f + ci.bossH / 0.6f) ci.visible = false;
+    }
+}
+
+}  // namespace gvr
