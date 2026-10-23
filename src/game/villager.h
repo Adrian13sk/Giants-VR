@@ -1,0 +1,67 @@
+// Smartie villagers: Smarties living in a village (Smartie houses), going about their day -
+// standing about, chatting, laughing, singing, tai chi, sitting, strolling between the houses -
+// waving at the Meccaryn when he comes close, running from danger (Reapers, Rippers, gunfire,
+// blasts) and cowering until it passes. Renderer-independent; the game layer poses the original
+// sm_* clips named by VillagerClip. The behaviour is ours: the original Story 1 missions place no
+// villagers (user request, device test 24 list).
+#pragma once
+
+#include <cstdint>
+#include <functional>
+#include <vector>
+
+#include "core/math.h"
+
+namespace gvr {
+
+enum class VillagerClip : int {
+    Stand = 0, Walk, Scan, Talk, Listen, Laugh, Sing, TaiChi, Sit, Celebrate, Wave, Run, Cower, Count
+};
+
+enum class VillagerState : int { Idle, Walk, Act, Wave, Flee, Cower };
+
+struct Villager {
+    Vec3 pos, home, target;
+    float yaw = 0;
+    VillagerState state = VillagerState::Idle;
+    VillagerClip clip = VillagerClip::Stand;
+    float stateTime = 0, duration = 2, clipTime = 0, rate = 1;
+    float calm = 99;       // seconds since the last fright
+    float waveCooldown = 0;
+    int slot = -1;         // model slot (game layer)
+};
+
+struct VillagerParams {
+    float walkSpeed = 1.1f;     // m/s strolling
+    float runSpeed = 3.6f;      // m/s fleeing
+    float walkStride = 1.1f;    // m/s the walk clip covers at 1x (provisional)
+    float runStride = 3.0f;
+    float homeRadius = 16.0f;   // m: strolls stay this close to home
+    float fearRadius = 22.0f;   // m: an enemy this close scares them
+    float blastFear = 30.0f;    // m: an explosion or gunfire this close scares them
+    float waveRadius = 5.0f;    // m: the Meccaryn this close (and calm): they wave
+    float calmAfter = 6.0f;     // s without a threat before they stop cowering
+    float turnRate = 6.0f;      // rad/s
+};
+
+class VillagerDirector {
+public:
+    VillagerParams params;
+    std::vector<Villager> villagers;
+    std::function<float(float, float)> groundHeight;           // world (x, z) -> ground y
+    std::function<bool(const Vec3&, const Vec3&)> blocked;     // walking a -> b runs into something
+
+    int add(const Vec3& pos, float yaw);
+    // threats: positions of enemies about; scares: explosions / gunfire this frame.
+    void update(float dt, const Vec3& player, const std::vector<Vec3>& threats, const std::vector<Vec3>& scares);
+    // Pick a random action (exposed for tests).
+    void startIdle(Villager& v);
+
+private:
+    uint32_t rng_ = 12345u;
+    float rand01() { rng_ = rng_ * 1664525u + 1013904223u; return float(rng_ >> 8) / float(1u << 24); }
+    void setClip(Villager& v, VillagerClip c);
+    void face(Villager& v, const Vec3& dir, float dt);
+};
+
+}  // namespace gvr

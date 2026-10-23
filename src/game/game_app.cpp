@@ -1092,6 +1092,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     timmyLineT_ = 0;
     timmyChatCooldown_ = 4.0f;
     initPickups(mc);
+    initVillagers(w, mc);
     initDestruction(w, mc);
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
 }
@@ -1587,6 +1588,7 @@ void GameApp::renderShadowMap() {
         if (!c.visible || length(c.pos - centre) > half * 1.4f) continue;
         c.model->renderShadow(renderer_, c.xf());
     }
+    renderVillagers(true, centre, half * 1.4f);
     for (const auto& n : nests_)
         if (n.alive && n.model && length(n.pos - centre) < half * 1.4f)
             for (const auto& part : n.model->parts) renderer_.drawShadow(part.mesh, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown));
@@ -2757,6 +2759,7 @@ void GameApp::updateCombat(float dt) {
     updateGore(dt);
     updateDestruction(dt);
     updateBurn();
+    updateVillagers(dt);
     updateFx(dt);
     // Sentries killed by their fall.
     for (int i : enemies_.landed) {
@@ -3134,6 +3137,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     for (const auto& c : collapses_)
         if (c.model) c.model->render(renderer_, c.xf);
     renderPickups();
+    renderVillagers(false, renderer_.currentView().eyePosition, 90.0f);
     for (const auto& g : gibs_)
         drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) *
                                Mat4::scale({g.scale, g.scale, g.scale}),

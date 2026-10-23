@@ -18,6 +18,7 @@
 #include "game/destruction.h"
 #include "game/particles.h"
 #include "game/hud_gauge.h"
+#include "game/villager.h"
 #include "render/quad_batch.h"
 #include "game/vr_rig.h"
 #include "render/renderer.h"
@@ -493,6 +494,15 @@ public:
 private:  // the mission placed enemies: no test waves
     void initCharacters(AssetWorld* w, ModelCache* mc);
     void updateCharacters(float dt);
+    // Smartie villagers in the villages (game_app_village.cpp): ours, see villager.h.
+    VillagerDirector villagers_;
+    std::vector<std::unique_ptr<SkinnedModel>> villagerModels_;
+    std::vector<float> villagerLift_;
+    int villagerClip_[int(VillagerClip::Count)] = {};
+    size_t villagerShots_ = 0;
+    void initVillagers(AssetWorld* w, ModelCache* mc);
+    void updateVillagers(float dt);
+    void renderVillagers(bool shadow, const Vec3& eye, float range);
     void creatureSound(const CreatureEvent& e);
     void updateCombat(float dt);
     void damagePlayer(float amount, DeathCause cause = DeathCause::Shot);

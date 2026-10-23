@@ -24,6 +24,7 @@
 #include "game/destruction.h"
 #include "game/particles.h"
 #include "game/hud_gauge.h"
+#include "game/villager.h"
 #include "audio/mixer.h"
 #include "audio/music.h"
 #include "assets/gtext.h"
@@ -1134,12 +1135,48 @@ static void testHudGauge() {
     std::printf("hud gauge / player action / hit box / burn ok\n");
 }
 
+static void testVillagers() {
+    VillagerDirector vd;
+    vd.groundHeight = [](float, float) { return 0.0f; };
+    vd.add({0, 0, 0}, 0.0f);
+    const Vec3 far{500, 0, 500};
+    std::vector<Vec3> none;
+    // Calm: they go about their day (acts and strolls), staying near home.
+    bool walked = false;
+    for (int i = 0; i < 72 * 120; ++i) {
+        vd.update(1.0f / 72.0f, far, none, none);
+        walked |= vd.villagers[0].state == VillagerState::Walk;
+        CHECK(length(vd.villagers[0].pos - vd.villagers[0].home) < vd.params.homeRadius + 0.5f);
+    }
+    CHECK(walked);
+    // A Ripper close by: they run away from it, then cower, and calm down after it's gone.
+    const Vec3 start = vd.villagers[0].pos;
+    std::vector<Vec3> threat{start + Vec3{3, 0, 0}};
+    vd.update(1.0f / 72.0f, far, threat, none);
+    CHECK(vd.villagers[0].state == VillagerState::Flee && vd.villagers[0].clip == VillagerClip::Run);
+    for (int i = 0; i < 72 * 3; ++i) vd.update(1.0f / 72.0f, far, threat, none);
+    CHECK(vd.villagers[0].pos.x < start.x);  // away from the threat (on +x)
+    for (int i = 0; i < 72 * 8; ++i) vd.update(1.0f / 72.0f, far, threat, none);
+    CHECK(vd.villagers[0].state == VillagerState::Cower);
+    for (int i = 0; i < 72 * 8; ++i) vd.update(1.0f / 72.0f, far, none, none);
+    CHECK(vd.villagers[0].state != VillagerState::Cower && vd.villagers[0].state != VillagerState::Flee);
+    // The Meccaryn comes close: a wave.
+    bool waved = false;
+    for (int i = 0; i < 72 * 3 && !waved; ++i) {
+        vd.update(1.0f / 72.0f, vd.villagers[0].pos + Vec3{1.5f, 0, 0}, none, none);
+        waved = vd.villagers[0].state == VillagerState::Wave;
+    }
+    CHECK(waved);
+    std::printf("villagers ok\n");
+}
+
 int main() {
     testGameText();
     testRescue();
     testGore();
     testDestruction();
     testHudGauge();
+    testVillagers();
     testAffineInverse();
     testGti();
     testWorldBin();
