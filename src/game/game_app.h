@@ -223,7 +223,7 @@ private:
     bool switchArmed_ = true;
     float rocketCooldown_ = 0;
     bool rocketTriggerHeld_ = false;
-    struct Rocket { Vec3 pos, vel; float life; int kind = 0; };  // kind 0 rocket, 1 Delphi's fire bolt
+    struct Rocket { Vec3 pos, vel; float life; int kind = 0; };  // kind 0 rocket, 1 Delphi's fire bolt, 2 a SAM's homing missile
     std::vector<Rocket> rockets_;
     void updateRockets(float dt);
     void explode(const Vec3& at, float radius, float damage, bool fire = true);
@@ -667,6 +667,10 @@ private:  // the mission placed enemies: no test waves
     bool bossRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
     void hitBoss(int i, float amount, const Vec3& at, const Vec3& dir);
     void updateBosses(float dt);
+    // SAM turrets (guard_sam, class 44): "detect airborne targets and hammer them with homing
+    // missiles" (2b's briefing). Ours: a missile every few seconds at a flying player in range.
+    std::vector<std::pair<int, float>> samCool_;  // destruct_ item -> seconds to the next launch
+    void updateSams(float dt);
     bool spawnRivalKabuto(const Vec3& pos, float yaw);
     int spawnBoss(int kind, const char* model, const char* idle, const Vec3& pos, float yaw, float hp);  // index in chars_
     // Gives a placed character the boss AI of its kind (clips loaded into its model).

@@ -861,7 +861,7 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "of_claw1", "of_claw2", "of_roar1", "of_roar2", "of_dhit1", "of_dhit2", "of_deth1", "of_deth2", "ca_snort", "ca_roar", "ca_injr1",
         "ca_injr2", "ca_deat1", "ca_deat2",
         // Sonak.
-        "so_atst1", "so_atsol", "so_snrt1", "so_roar1", "so_roar2", "so_injr1", "so_injr2", "so_deat1", "so_deat2"};
+        "so_atst1", "so_atsol", "so_snrt1", "so_roar1", "so_roar2", "so_injr1", "so_injr2", "so_deat1", "so_deat2", "pr_wsmil"};
     std::vector<std::string> all(std::begin(names), std::end(names));
     for (int k = 1; k <= 15; ++k)  // Smartie voice pairs gsmNN_1 / gsmNN_2 (no 07 in the data)
         for (int j = 1; j <= 2; ++j) {
@@ -2850,6 +2850,29 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire) {
 void GameApp::updateRockets(float dt) {
     for (auto& r : rockets_) {
         r.life += dt;
+        if (r.kind == 2) {
+            // A SAM's homing missile: turns toward the player (limited rate), bursts close to him,
+            // on the ground or when its fuel runs out.
+            const Vec3 chest = player_.position + Vec3{0, 0.5f * player_.height, 0};
+            const Vec3 to = chest - r.pos;
+            const float dist = length(to);
+            const float sp = length(r.vel);
+            Vec3 f = r.vel * (1.0f / std::max(1e-3f, sp));
+            const Vec3 want = to * (1.0f / std::max(1e-3f, dist));
+            const float k = std::min(1.0f, (1.8f + 40.0f / std::max(5.0f, dist)) * dt);  // tighter when close: no orbiting
+            f = normalize(f + (want - f) * k);
+            r.vel = f * std::min(30.0f, sp + 10.0f * dt);
+            if (frand() < dt * 25.0f) smokePuff(FxTex::Smoke, r.pos, Vec3{0, 0.3f, 0}, 0.3f, 1.4f, 1.2f, 0.45f, 0.1f);
+            float g = -1e9f;
+            const bool ground = assetWorld_ && assetWorld_->terrain().heightAt(r.pos.x, r.pos.z, g) && r.pos.y < g + 0.3f;
+            if (dist < 3.0f || ground || r.pos.y < 0.0f || r.life > 9.0f || dying_) {
+                explode(r.pos, 3.5f, 60.0f);
+                r.life = 1e9f;
+                continue;
+            }
+            r.pos += r.vel * dt;
+            continue;
+        }
         const float step = length(r.vel) * dt;
         const Vec3 dir = normalize(r.vel);
         float t;
@@ -3104,6 +3127,7 @@ void GameApp::updateCombat(float dt) {
     updateVillagers(dt);
     updateVimps(dt);
     updateBosses(dt);
+    updateSams(dt);
     updateFx(dt);
     // Sentries killed by their fall.
     for (int i : enemies_.landed) {

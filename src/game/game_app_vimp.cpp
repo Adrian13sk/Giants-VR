@@ -511,4 +511,35 @@ void GameApp::updateBosses(float dt) {
     }
 }
 
+void GameApp::updateSams(float dt) {
+    if (!assetWorld_ || !playMode_ || dying_) return;
+    const auto& objs = assetWorld_->worldObjects();
+    // The player counts as airborne a few metres up (jetpack flight, a big jump).
+    float g = player_.position.y;
+    if (player_.groundHeight) g = player_.groundHeight(player_.position.x, player_.position.z);
+    const bool airborne = !player_.onGround && player_.position.y - g > 3.0f;
+    int live = 0;
+    for (const auto& r : rockets_) live += r.kind == 2 && r.life < 1e9f;
+    for (size_t k = 0; k < destruct_.items.size(); ++k) {
+        const Destructible& it = destruct_.items[k];
+        if (!it.alive() || objs[size_t(it.object)].name != "guard_sam") continue;
+        auto c = std::find_if(samCool_.begin(), samCool_.end(), [&](const std::pair<int, float>& p) { return p.first == int(k); });
+        if (c == samCool_.end()) { samCool_.push_back({int(k), 2.0f}); c = samCool_.end() - 1; }
+        c->second -= dt;
+        const Vec3 top = it.base + Vec3{0, it.height * 0.9f, 0};
+        const float d = length(player_.position - top);
+        if (!airborne || d > 160.0f || c->second > 0 || live >= 3) continue;
+        c->second = 4.5f;
+        Rocket r;
+        r.kind = 2;
+        r.pos = top;
+        r.vel = normalize(Vec3{0, 1.0f, 0} + normalize(player_.position - top) * 0.6f) * 14.0f;  // up out of the tube
+        r.life = 0;
+        rockets_.push_back(r);
+        ++live;
+        sfx("pr_wsmil", top, 1.0f);
+        LOGI("SAM launches at the airborne player (%.0f m)", d);
+    }
+}
+
 }  // namespace gvr

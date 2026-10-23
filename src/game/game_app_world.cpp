@@ -18,6 +18,7 @@ namespace gvr {
 
 void GameApp::initDestruction(AssetWorld* w, ModelCache* mc) {
     destruct_ = DestructionDirector{};
+    samCool_.clear();
     destructEvents_.clear();
     collapses_.clear();
     auto& objs = w->worldObjects();
@@ -46,6 +47,7 @@ void GameApp::initDestruction(AssetWorld* w, ModelCache* mc) {
         // other buildings a mission's death trigger names (log_launcher_base; the army barracks,
         // whose data hp is 0, get ours).
         else if (cls == 98 || cls == 101) { kind = DestructKind::House; hp = dataHp > 0 ? dataHp : 400.0f; }
+        else if (cls == 44) { kind = DestructKind::House; hp = dataHp > 0 ? dataHp : 200.0f; }  // SAM turrets (guard_sam)
         else if (o.name == "log_launcher_base" || o.name == "guard_army_barracks" || o.name == "barracks_story2") {
             kind = DestructKind::House;
             hp = dataHp > 0 ? dataHp : 600.0f;
