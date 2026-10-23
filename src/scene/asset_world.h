@@ -85,6 +85,9 @@ public:
     const std::string& worldName() const { return worldName_; }
     // The world that follows `world` in the Meccaryn story (Story1 -> Story2 ... -> the_end), or empty.
     static std::string nextStoryWorld(const std::string& world);
+    // The world this one's scenario list continues to (op 92 kind 3: Story5 -> rstory1, Rstory5 ->
+    // kstory1, Kstory5 -> the_end); empty if none.
+    std::string nextWorld() const;
     // World bounds of the first placed object using <model>.gbs (case-insensitive); false if none.
     bool objectBounds(const std::string& model, Vec3& mn, Vec3& mx) const;
     // Object types not drawn (a cutscene shows its own animated copy, e.g. the hatch).

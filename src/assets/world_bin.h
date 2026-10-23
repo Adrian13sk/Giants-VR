@@ -29,6 +29,9 @@ struct WorldDefinition {
     uint8_t ambientRGB[3] = {255, 255, 255};  // op 40
     std::vector<WorldObjectRecord> objects;  // op 42
     struct Scenario { uint8_t kind; std::string name; };
+    // Ops 108-111: music set pairs (set, its ending), only in w_Story2 (msu, msb, mwb, mlb); read as
+    // the world's own moods - 108 ambient, 109 small battle, 110 'wb', 111 large battle (provisional).
+    std::string music[4], musicEnd[4];
     std::vector<Scenario> scenarios;         // op 92: mission files wm_<name>.bin (kind 2) etc.
     size_t recordsParsed = 0;
     size_t streamSize = 0, streamConsumed = 0;

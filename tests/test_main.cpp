@@ -632,6 +632,13 @@ static void testWorldBin() {
     s.push_back(52); { char n[44] = "grnd_tex"; s.insert(s.end(), n, n + 44); }
     s.push_back(41); putf(s, 10.0f); putf(s, 100.0f); s.push_back(1); s.push_back(2); s.push_back(3);
     s.push_back(42); put32(s, 1298); putf(s, 1.0f); putf(s, 2.0f); putf(s, 3.0f); putf(s, 0.5f);
+    // Sizes fixed against the data (B5): 50 = op + u16; 35 = 16-char name; 44 = 32-char name;
+    // 108-110 = two 32-char names (music set pairs in w_Story2). An object after them must parse.
+    s.push_back(50); s.push_back(8); s.push_back(0);
+    s.push_back(35); { char n[16] = "c"; s.insert(s.end(), n, n + 16); }
+    s.push_back(44); { char n[32] = "kabuto"; s.insert(s.end(), n, n + 32); }
+    s.push_back(110); { char n[64] = "mwb"; std::memcpy(n + 32, "mwbend", 7); s.insert(s.end(), n, n + 64); }
+    s.push_back(42); put32(s, 7); putf(s, 4.0f); putf(s, 5.0f); putf(s, 6.0f); putf(s, 0.0f);
     s.push_back(0xFF);
     put32(d, uint32_t(s.size()));
     d.insert(d.end(), s.begin(), s.end());
@@ -640,7 +647,7 @@ static void testWorldBin() {
     CHECK(parseWorldBin(d.data(), d.size(), w, &err));
     CHECK(w.terrainName == "test.gti" && w.groundTexture == "grnd_tex");
     CHECK(w.hasFog && near(w.fogFar, 100.0f) && w.fogRGB[2] == 3);
-    CHECK(w.objects.size() == 1 && w.objects[0].type == 1298 && near(w.objects[0].z, 3.0f));
+    CHECK(w.objects.size() == 2 && w.objects[0].type == 1298 && near(w.objects[0].z, 3.0f) && w.objects[1].type == 7);
     CHECK(w.complete && w.stopOpcode == 0xFF);
 }
 

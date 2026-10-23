@@ -66,6 +66,7 @@ public:
     // Start at the main menu (title screen on the intro island) instead of straight in the game.
     void setMainMenu(bool on) { titleWanted_ = on; }
     bool inMainMenu() const { return title_; }
+    void debugCompleteMission() { missionComplete_ = true; }  // test hook (harness --complete-at)
     void update(float dt, const InputFrame& input);
     void renderEye(const EyeRenderInfo& eye);
     // Once per frame, before the eyes: the sun's shadow map around the player.

@@ -12,9 +12,9 @@ namespace {
 int recordSize(uint8_t op) {
     switch (op) {
         case 19: return 2;  case 23: return 5;  case 29: case 30: case 31: case 32: case 33: case 34: return 17;
-        case 35: return -1; case 36: case 37: case 38: return 17; case 39: return 18; case 40: return 4;
-        case 41: return 12; case 42: return 21; case 43: return 5; case 44: return -1; case 45: return 38;
-        case 46: return 13; case 47: return 29; case 48: return 19; case 49: return 41; case 50: return 6;
+        case 35: return 17; case 36: case 37: case 38: return 17; case 39: return 18; case 40: return 4;
+        case 41: return 12; case 42: return 21; case 43: return 5; case 44: return 33; case 45: return 38;
+        case 46: return 13; case 47: return 29; case 48: return 19; case 49: return 41; case 50: return 3;
         case 52: case 53: case 54: return 45; case 57: return 29; case 58: return 37; case 59: return 2;
         case 60: return 17; case 61: return -1; case 62: return 21; case 63: return 9; case 64: return 26;
         case 65: return 9; case 66: return 93; case 67: return -1; case 68: case 69: return 1;
@@ -24,7 +24,7 @@ int recordSize(uint8_t op) {
         case 89: return -2; case 90: case 91: return 13; case 92: return 38; case 93: case 94: return 33;
         case 95: return 13; case 96: return 5; case 97: case 98: return 9; case 99: case 100: return 1;
         case 101: return 13; case 102: return 9; case 103: case 104: return -2; case 106: return 4;
-        case 107: return 5; case 108: case 109: case 110: return -1; case 111: return 65; case 112: return -1;
+        case 107: return 5; case 108: case 109: case 110: return 65; case 111: return 65; case 112: return -1;
         case 113: return 34; case 114: case 115: case 116: return 45; case 117: return 5; case 118: return -2;
         case 119: case 120: return 49; case 121: return 93; case 129: return 5; case 130: return 33;
         case 132: return -2; case 133: case 134: case 135: case 136: return 45; case 137: case 138: return 46;
@@ -107,6 +107,10 @@ bool parseWorldBin(const uint8_t* data, size_t size, WorldDefinition& w, std::st
                 std::memcpy(w.waterFogRGB, pl + 8, 3);
                 break;
             case 92: w.scenarios.push_back({pl[0], strAt(pl + 5, 32)}); break;
+            case 108: case 109: case 110: case 111:
+                w.music[op - 108] = strAt(pl, 32);
+                w.musicEnd[op - 108] = strAt(pl + 32, 32);
+                break;
             case 42: {
                 WorldObjectRecord o;
                 std::memcpy(&o.type, pl, 4);

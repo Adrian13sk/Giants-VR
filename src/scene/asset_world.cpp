@@ -306,8 +306,8 @@ void AssetWorld::collectMissions(const std::string& worldName) {
     for (const auto& sc : world_.scenarios)
         if (sc.kind == 2 && fs_.exists("wm_" + sc.name + ".bin")) missions_.push_back(sc.name);
     if (!missions_.empty()) return;
-    // The world streams of Story2, Story3 and Story5 stop before their scenario list (an
-    // undecoded opcode, B5): their missions are found by file name instead, in story order -
+    // Fallback for data whose world stream doesn't reach its scenario list (all 33 shipped worlds
+    // now parse to the end, B5 fixed): missions found by file name, in story order -
     // "<n><letter>_<k>_<name>" (2a_1_getmeat, 2b_1, 2b_2...) and "story<n>_<name>_<k>" (by k).
     std::string w = toLower(worldName);
     // Kabuto and Reaper chapters: kstoryN -> k<N><letter>_* and kstory<N>_*; rstoryN likewise.
@@ -354,6 +354,12 @@ void AssetWorld::collectMissions(const std::string& worldName) {
     }
     for (const auto& m : missions_) world_.scenarios.push_back({2, m});  // so placeWorldObjects finds them
     if (!missions_.empty()) LOGI("World %s: %zu missions found by file name (scenario list not decoded)", worldName.c_str(), missions_.size());
+}
+
+std::string AssetWorld::nextWorld() const {
+    for (const auto& sc : world_.scenarios)
+        if (sc.kind == 3 && fs_.exists("w_" + sc.name + ".bin")) return sc.name;
+    return {};
 }
 
 std::string AssetWorld::nextStoryWorld(const std::string& world) {

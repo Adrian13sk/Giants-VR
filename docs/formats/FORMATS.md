@@ -73,8 +73,16 @@ Verified ops:
 - 42 object: u32 type, f32 x, y, z (game units, Z-up), f32 yaw in DEGREES (21 bytes in total)
 - 92 scenario: u8 kind, u32 ?, char name[32]: mission files `wm_<name>.bin` (kind 2 = mission)
 
-Status: 9/33 world streams walk cleanly to 0xFF; the other 24 stop at an unknown or mis-sized
-opcode (B5). The fog colour byte order is unverified.
+- Sizes fixed 2026-10-23 against all 33 worlds (each fix verified by the streams then ending exactly on 0xFF):
+  - 50: 3 bytes in total (op + u16). Was 6, which swallowed the start of the next record; this fix alone completes
+    19 worlds.
+  - 35: 17 bytes (a 16-char name, like 29-34 / 36-38).
+  - 44: 33 bytes (a 32-char name: "kabuto" in Kstory1/3/4).
+  - 108 / 109 / 110 / 111: 65 bytes, two 32-char names. In w_Story2 these are music set pairs: msu/msuend, msb/msbend,
+    mwb/mwbend, mlb/mlbend.
+
+Status: **33/33 world streams walk to the 0xFF terminator** (w_menus ends 2 bytes before its stated length). The fog
+colour byte order is unverified.
 
 ## Object definitions (section 3 of any 0x1A0002E5 .bin) — V
 Container: section offset table index 3 → `u32 size; blob[size]`; offsets below are relative to the blob.

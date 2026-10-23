@@ -195,6 +195,9 @@ std::string GameApp::ambientFor(const std::string& world) const {
     for (char c : w)
         if (c >= '0' && c <= '9') { chapter = c - '0'; break; }
     if (w == "intro_island") return "ma2";  // the main menu (ours)
+    // A world that names its own ambient set (op 108; only Story2: msu) gets it.
+    if (assetWorld_ && toLower(assetWorld_->worldName()) == w && !assetWorld_->world().music[0].empty())
+        return toLower(assetWorld_->world().music[0]);
     return std::string(1, pre) + (chapter % 2 == 1 ? "a1" : "a2");
 }
 

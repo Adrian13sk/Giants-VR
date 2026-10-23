@@ -1022,3 +1022,32 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - **Not verified:** the menu music. Only part of the Music folder is in the cloud copy; the segments it needs are on
   the PC.
 - **Not device-tested.**
+
+### 2026-10-23 — World streams fully decoded (B5 resolved)
+- **Method:** a Python walker over all 33 w_*.bin streams. Every size hypothesis was kept only if the streams then
+  ended exactly on the 0xFF terminator.
+- **Sizes fixed:**
+  - Op 50 is 3 bytes (op + u16: 8, 12 or 20), not 6. The old size swallowed the next record's first 3 bytes. This fix
+    alone completes 19 worlds (all multiplayer maps, Kstory2/5, Rstory2/4/5, Story5).
+  - Op 35: 17 bytes (a 16-char name, like 29–34 / 36–38): "c" in Story3, "menu_null" in menus.
+  - Op 44: 33 bytes (a 32-char name: "kabuto" in Kstory1/3/4).
+  - Ops 108–111: 65 bytes, two 32-char names. In w_Story2 these are music set pairs: msu/msuend, msb/msbend, mwb/mwbend,
+    mlb/mlbend.
+  - Result: 33/33 worlds parse to the end (w_menus 2 bytes short of its stated length).
+- **Effects:**
+  - Later worlds get their full object lists. Story2 places 250 level objects (was 48), Story3 98 (was 92), Rstory4
+    419. Kstory1's 128 world objects now load (was 0).
+  - Each world's own scenario list (op 92) is reached, so missions come from the data: kind 2 = mission, kind 1 =
+    intro, kind 3 = the next world, kind 4 = "startmenu123" in the_end. This replaces the file-name fallback, which is
+    kept for data that doesn't parse. Examples: Kstory2 = k2a_adrenalin, k2d_offspring; Rstory4 = r4a_buildbase.
+  - **The campaign order is the original's:** Story5 → rstory1, Rstory5 → kstory1, Kstory5 → the_end. The chapter end
+    now follows the data (`AssetWorld::nextWorld`), with our table as the fallback. The main menu still starts any of
+    the three stories.
+  - Story2's world music sets are used: msu as its ambient, msb / mlb in its battles. Reading 108 as ambient, 109 /
+    111 as small / large battle is provisional.
+- **Harness:**
+  - `--complete-at` hook: completing 5c_securebase goes on to rstory1 as Delphi.
+  - All 33 worlds load.
+  - Story1 start render byte-identical to before.
+  - Story2 shows its palms and logs; Story3 its own sea texture.
+- **Not device-tested.**

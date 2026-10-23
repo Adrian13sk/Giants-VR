@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-23 (build 93a8eed: Delphi playable in the Reaper story)
+Last updated: 2026-10-23 (build after 9750e19: all 33 world streams decoded, data-driven campaign order)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -46,7 +46,9 @@ original Giants data and renders the original worlds in stereo.
      8. ~~Polish~~ (42ac61a, host verified): ~~main menu~~ (intro island, 3D logo), ~~loading screens with the original
         art~~, music per world (a1/a2 by chapter is our mapping; the original's choice is native code, not decoded).
    - Resume planned 2026-10-23 00:31 (user).
-2. **Remaining Story1 work:** Smartie AI in the villages, Dactyl flight, 1d (sneak past); the world opcode table (B5).
+2. ~~World opcode table (B5)~~ (2026-10-23): all 33 worlds parse to the end. Later chapters gain their full scenery
+   and their scenario lists, which give the original campaign order: Story1–5 → Rstory1–5 → Kstory1–5 → the_end.
+3. **Remaining Story1 work:** Smartie AI in the villages, Dactyl flight, 1d (sneak past); the world opcode table (B5).
 3. **Visual fidelity:** compare against original screenshots (B6).
 
 ## Resume instructions

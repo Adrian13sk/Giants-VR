@@ -330,3 +330,12 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - Loading screens: Mecc art with "The Wax Smarties" briefing, Delphi art with "Yan, the Samurai Smartie".
 - **Not verified:** menu music (segments not in the cloud copy).
 - **Not device-tested.**
+
+## Host verification — world streams (B5)
+- Python walker: 33/33 w_*.bin streams end on 0xFF with the new sizes.
+- `gvr_tests`: all pass, including a new world-bin case with ops 50 / 35 / 44 / 110 followed by an object.
+- **Harness:**
+  - Every story world loads with `complete=1`.
+  - Chapter end Story5 → rstory1 (Delphi).
+  - Story1 render byte-identical.
+- **Not device-tested.**

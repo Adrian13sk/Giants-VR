@@ -2257,6 +2257,10 @@ void GameApp::updateMusic(float dt) {
     if (engaged > 0) combatHold_ = 6.0f;
     else combatHold_ = std::max(0.0f, combatHold_ - dt);
     if (combatHold_ > 0) want = pre + (engaged >= 4 ? "lb" : (pre == "k" ? "ff" : "sb"));  // Kabuto's sets have no sb
+    if (combatHold_ > 0 && assetWorld_) {  // the world's own battle sets (op 109 / 111), if it names them
+        const std::string& own = assetWorld_->world().music[engaged >= 4 ? 3 : 1];
+        if (!own.empty()) want = toLower(own);
+    }
     if (stingerLeft_ > 0) want = pre + "vy";
     if (streamLeft_ > 0) want.clear();  // a cutscene soundtrack is playing
     music_->request(want);
@@ -3128,7 +3132,8 @@ void GameApp::update(float dt, const InputFrame& in) {
         const std::string next = assetWorld_->nextMission();
         if (!next.empty()) {
             beginLoading(next, in);
-        } else if (const std::string world = AssetWorld::nextStoryWorld(worldName_); !world.empty()) {
+        } else if (std::string world = assetWorld_->nextWorld().empty() ? AssetWorld::nextStoryWorld(worldName_) : assetWorld_->nextWorld();
+                   !world.empty()) {
             // The chapter's last mission is done: on to the next world of the story (Story1 -> Story2).
             beginLoading(std::string(), in);
             load_.world = world;
