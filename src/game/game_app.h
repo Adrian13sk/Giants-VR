@@ -268,6 +268,8 @@ private:
         float hp = 0, bossR = 1, bossH = 2, dieT = -1;
         // The other Kabuto (kstory5_4 / 5_5): walks at the player, punches and stomps (ours).
         bool bossKb = false;
+        int bossKind = 0;      // with AI: 1 Kabuto, 2 Offspring, 3 Charger (0: a target only)
+        Vec3 bossChargeDir;
         int bossClip[6] = {};  // stand, walk, punch, stomp, roar, die
         int bossState = 0;
         float bossT = 0, bossClipT = 0, bossCool = 2, bossMaxHp = 1;
@@ -666,6 +668,8 @@ private:  // the mission placed enemies: no test waves
     void hitBoss(int i, float amount, const Vec3& at, const Vec3& dir);
     void updateBosses(float dt);
     bool spawnRivalKabuto(const Vec3& pos, float yaw);
+    // Gives a placed character the boss AI of its kind (clips loaded into its model).
+    void setupBossAI(CharacterInst& ci, int kind);
     // Reaperski (game_app_jetski.cpp, see jetski.h): Delphi rides a jetski - a parked one she
     // walks into (rstory2_jetski_*), or from the start in the races; the races run on the data's
     // gates and racing lines against rivals.

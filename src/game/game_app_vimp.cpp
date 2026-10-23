@@ -286,6 +286,11 @@ bool GameApp::bossRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& i
     return hit;
 }
 
+namespace {
+const char* const kBossHurt[4] = {"", "ka_mdht1", "of_dhit1", "ca_injr1"};
+const char* const kBossDie[4] = {"", "ka_deth1", "of_deth1", "ca_deat1"};
+}  // namespace
+
 void GameApp::hitBoss(int i, float amount, const Vec3& at, const Vec3& dir) {
     if (i < 0 || size_t(i) >= chars_.size()) return;
     CharacterInst& ci = chars_[size_t(i)];
@@ -298,14 +303,49 @@ void GameApp::hitBoss(int i, float amount, const Vec3& at, const Vec3& dir) {
     }
     ci.hp -= amount;
     bleed(at, dir, ci.hp <= 0, std::max(1.0f, ci.bossH / 2.0f));
-    if (ci.bossKb && ci.hp > 0 && frand() < 0.15f) sfx(frand() < 0.5f ? "ka_mdht1" : "ka_hvht1", at, 1.0f);
+    if (ci.bossKind > 0 && ci.hp > 0 && frand() < 0.2f) sfx(kBossHurt[ci.bossKind], at, 1.0f);
     if (ci.hp <= 0) {
         ci.dieT = 0;
         blood_.pool(ci.pos, std::max(1.5f, ci.bossR * 2.0f));
-        sfx(ci.bossKb ? "ka_deth1" : "ex_bdyl1", at, 1.0f, ci.bossKb ? 1.0f : 0.8f);
+        sfx(ci.bossKind > 0 ? kBossDie[ci.bossKind] : "ex_bdyl1", at, 1.0f, ci.bossKind > 0 ? 1.0f : 0.8f);
+        ci.bossClipT = 0;
         if (ci.objective >= 0) completeObjective(ci.objective);
         LOGI("Mission target killed (character %d)", i);
     }
+}
+
+namespace {
+// Boss AI per kind (ours: the original's is native code). Clips: stand, move, attack 1, attack 2,
+// roar, die. Attack 2 is Kabuto's stomp (a quake), the Offspring's bite and the Charger's charge.
+struct BossSpec {
+    const char* clips[6];
+    float speed, reach;        // m/s approaching; reach as a fraction of its height (+ the player's radius)
+    float hit1, hit2;          // damage
+    float at1, at2;            // when in the clip the blow lands (fraction)
+    const char* sAttack1; const char* sAttack2; const char* sRoar; const char* sHurt; const char* sDie;
+};
+const BossSpec kBoss[4] = {
+    {},
+    {{"kb_stand.anm", "kb_walk.anm", "kb_punch.anm", "kb_stomp.anm", "kb_roar.anm", "kb_die.anm"}, 7.0f, 0.32f, 28, 22, 0.45f, 0.5f,
+     "ka_pnch1", "ka_jump2", "ka_roar1", "ka_mdht1", "ka_deth1"},
+    {{"offspring_stand.anm", "offspring_run.anm", "offspring_claw.anm", "offspring_bite.anm", "offspring_roar.anm", "offspring_die.anm"},
+     9.0f, 0.30f, 14, 20, 0.45f, 0.55f, "of_claw1", "of_claw2", "of_roar1", "of_dhit1", "of_deth1"},
+    {{"charger_stand_agro.anm", "charger_run_fast.anm", "charger_attack.anm", "charger_run_fast_open.anm", "charger_sniff.anm",
+      "charger_mid_run_die.anm"},
+     6.0f, 0.45f, 18, 30, 0.5f, 0.0f, "ca_snort", "ca_roar", "ca_roar", "ca_injr1", "ca_deat1"},
+};
+}  // namespace
+
+void GameApp::setupBossAI(CharacterInst& ci, int kind) {
+    if (!ci.model || kind < 1 || kind > 3 || !assetWorld_) return;
+    ci.bossKind = kind;
+    ci.bossKb = kind == 1;
+    for (int k = 0; k < 6; ++k) {
+        const int id = ci.model->addAnimation(assetWorld_->fs(), kBoss[kind].clips[k]);
+        ci.bossClip[k] = std::max(0, id);
+    }
+    ci.bossState = 0;
+    ci.bossCool = 2.0f;
 }
 
 // kstory5_4 ("Kabuto, meet Kabuto. DEFEAT KABUTO!"): the mission places only the player's Kabuto
@@ -315,21 +355,20 @@ bool GameApp::spawnRivalKabuto(const Vec3& pos, float yaw) {
     auto m = std::make_unique<SkinnedModel>();
     if (!m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "kb_l0", "kb_stand.anm")) return false;
     CharacterInst ci;
-    static const char* kc[6] = {"kb_stand.anm", "kb_walk.anm", "kb_punch.anm", "kb_stomp.anm", "kb_roar.anm", "kb_die.anm"};
-    for (int k = 0; k < 6; ++k) ci.bossClip[k] = std::max(0, k == 0 ? 0 : m->addAnimation(assetWorld_->fs(), kc[k]));
-    m->pose(renderer_, 0.0f);
+    ci.model = std::move(m);
+    setupBossAI(ci, 1);
+    ci.model->pose(renderer_, 0.0f);
     Vec3 mn, mx;
-    m->posedBounds(mn, mx);
+    ci.model->posedBounds(mn, mx);
     ci.pos = pos;
     ci.yaw = yaw;
     ci.lift = ci.restLift = -mn.y;
-    ci.bossKb = ci.boss = true;
+    ci.boss = true;
     ci.hp = ci.bossMaxHp = 2500.0f;  // kb_l0's type hit points
     ci.bossR = std::max(1.5f, 0.12f * (mx.y - mn.y));
     ci.bossH = std::max(2.0f, mx.y - mn.y);
     ci.objective = int(objectives_.size());
     objectives_.push_back({2, pos, pos});
-    ci.model = std::move(m);
     chars_.push_back(std::move(ci));
     missionHostiles_ = true;
     LOGI("Objective: defeat the rival Kabuto (%.1f m tall)", chars_.back().bossH);
@@ -340,8 +379,8 @@ void GameApp::updateBosses(float dt) {
     for (size_t idx = 0; idx < chars_.size(); ++idx) {
         CharacterInst& ci = chars_[idx];
         if (!ci.boss) continue;
-        if (ci.bossKb) {
-            // --- The other Kabuto.
+        if (ci.bossKind > 0) {
+            const BossSpec& sp = kBoss[ci.bossKind];
             ci.bossT += dt;
             ci.bossClipT += dt;
             float gy;
@@ -353,73 +392,108 @@ void GameApp::updateBosses(float dt) {
                 clip = 5;
                 once = true;
                 ci.bossClipT = ci.dieT;
+                // Kabuto lies where he fell; the beasts sink away after a while.
+                if (ci.bossKind != 1 && ci.dieT > 5.0f) {
+                    ci.lift = ci.restLift - (ci.dieT - 5.0f) * 0.5f;
+                    if (ci.dieT > 5.0f + ci.bossH / 0.5f) ci.visible = false;
+                }
             } else if (playMode_ && !dying_) {
                 Vec3 to = player_.position - ci.pos;
                 to.y = 0;
                 const float d = length(to);
-                const float reach = 0.32f * ci.bossH + player_.radius;
+                const float reach = sp.reach * ci.bossH + player_.radius + 0.5f;
                 const float want = std::atan2(-to.x, -to.z);
+                const Vec3 fwd{-std::sin(ci.yaw), 0, -std::cos(ci.yaw)};
                 ci.bossCool = std::max(0.0f, ci.bossCool - dt);
                 auto setState = [&](int st) { ci.bossState = st; ci.bossClipT = 0; ci.bossHit = false; };
-                const float dur = ci.model->animDuration(ci.bossClip[ci.bossState == 2 ? 2 : (ci.bossState == 3 ? 3 : 4)]);
+                auto clipLen = [&](int c) { return std::max(0.2f, ci.model->animDuration(ci.bossClip[c])); };
+                auto strike = [&](float dmg, const Vec3& from, DeathCause cause) {
+                    hitFrom_ = from;
+                    hitDirTimer_ = 1.2f;
+                    damagePlayer(dmg, cause);
+                    LOGI("Boss (kind %d) hits: health %.0f", ci.bossKind, playerHealth_);
+                };
+                auto walkable = [&](const Vec3& p) {  // not into the sea or up a cliff
+                    float g;
+                    return assetWorld_ && assetWorld_->terrain().heightAt(p.x, p.z, g) && g > player_.seaLevel - 1.0f &&
+                           std::fabs(g - ci.pos.y) < 3.0f;
+                };
                 switch (ci.bossState) {
                     case 0:  // approach
-                        ci.yaw += std::max(-1.5f * dt, std::min(1.5f * dt, angleDelta(ci.yaw, want)));
-                        if (d > reach) {
-                            const float step = std::min(d - reach * 0.8f, 7.0f * dt);
-                            ci.pos = ci.pos + Vec3{-std::sin(ci.yaw), 0, -std::cos(ci.yaw)} * step;
+                        ci.yaw += std::max(-1.8f * dt, std::min(1.8f * dt, angleDelta(ci.yaw, want)));
+                        if (ci.bossKind == 3 && d > 14.0f && d < 80.0f && ci.bossCool <= 0 && std::fabs(angleDelta(ci.yaw, want)) < 0.3f) {
+                            // The Charger lowers its head and charges at where the player is.
+                            setState(5);
+                            ci.bossChargeDir = to * (1.0f / d);
+                            sfx(sp.sAttack2, ci.pos, 1.0f);
+                        } else if (d > reach) {
+                            const Vec3 np = ci.pos + fwd * std::min(d - reach * 0.8f, sp.speed * dt);
+                            if (walkable(np)) ci.pos = np;
                             clip = 1;
-                            if (d > 80.0f && ci.bossCool <= 0) { setState(4); ci.bossCool = 12.0f; sfx(frand() < 0.5f ? "ka_roar1" : "ka_roar3", ci.pos, 1.0f); }
+                            if (d > 80.0f && ci.bossCool <= 0) { setState(4); ci.bossCool = 12.0f; sfx(sp.sRoar, ci.pos, 1.0f); }
                         } else if (ci.bossCool <= 0) {
-                            setState(frand() < 0.65f ? 2 : 3);
-                            sfx(ci.bossState == 2 ? "ka_pnch1" : "ka_jump2", ci.pos, 1.0f);
+                            setState(ci.bossKind == 3 || frand() < 0.6f ? 2 : 3);
+                            sfx(ci.bossState == 2 ? sp.sAttack1 : sp.sAttack2, ci.pos, 1.0f);
                         }
                         break;
-                    case 2:  // punch: lands at 45 %
+                    case 2:  // the main blow (punch, claw, gore)
                         clip = 2;
                         once = true;
-                        if (!ci.bossHit && ci.bossClipT > dur * 0.45f) {
+                        if (!ci.bossHit && ci.bossClipT > clipLen(2) * sp.at1) {
                             ci.bossHit = true;
-                            if (d < reach + 2.0f) {
-                                hitFrom_ = ci.pos + Vec3{0, 0.6f * ci.bossH, 0};
-                                hitDirTimer_ = 1.2f;
-                                damagePlayer(28.0f, DeathCause::Shot);
-                                LOGI("Rival Kabuto punches: health %.0f", playerHealth_);
-                                sfx("ka_hvht1", player_.position, 1.0f);
-                            }
+                            if (d < reach + 1.5f) strike(sp.hit1, ci.pos + Vec3{0, 0.6f * ci.bossH, 0}, DeathCause::Shot);
                         }
-                        if (ci.bossClipT > dur) { setState(0); ci.bossCool = 1.2f; }
+                        if (ci.bossClipT > clipLen(2)) { setState(0); ci.bossCool = 1.0f; }
                         break;
-                    case 3: {  // stomp: a quake at its front foot at 50 %
+                    case 3:  // the second (Kabuto's stomp: a quake; the Offspring's bite)
                         clip = 3;
                         once = true;
-                        if (!ci.bossHit && ci.bossClipT > dur * 0.5f) {
+                        if (!ci.bossHit && ci.bossClipT > clipLen(3) * sp.at2) {
                             ci.bossHit = true;
-                            const Vec3 foot = ci.pos + Vec3{-std::sin(ci.yaw), 0, -std::cos(ci.yaw)} * (0.15f * ci.bossH);
-                            dustBurst(foot, 0.3f * ci.bossH, 20);
-                            sfx("ka_stomp", foot, 1.0f);
-                            haptics_.push_back({kLeft, 0.8f, 0.25f});
-                            haptics_.push_back({kRight, 0.8f, 0.25f});
-                            if (length(Vec3{player_.position.x - foot.x, 0, player_.position.z - foot.z}) < 0.45f * ci.bossH + player_.radius) {
-                                hitFrom_ = foot;
-                                hitDirTimer_ = 1.2f;
-                                damagePlayer(22.0f, DeathCause::Blast);
-                                LOGI("Rival Kabuto stomps: health %.0f", playerHealth_);
+                            if (ci.bossKind == 1) {
+                                const Vec3 foot = ci.pos + fwd * (0.15f * ci.bossH);
+                                dustBurst(foot, 0.3f * ci.bossH, 20);
+                                sfx("ka_stomp", foot, 1.0f);
+                                haptics_.push_back({kLeft, 0.8f, 0.25f});
+                                haptics_.push_back({kRight, 0.8f, 0.25f});
+                                if (length(Vec3{player_.position.x - foot.x, 0, player_.position.z - foot.z}) < 0.45f * ci.bossH + player_.radius)
+                                    strike(sp.hit2, foot, DeathCause::Blast);
+                            } else if (d < reach + 1.0f) {
+                                strike(sp.hit2, ci.pos + Vec3{0, 0.5f * ci.bossH, 0}, DeathCause::Bitten);
                             }
                         }
-                        if (ci.bossClipT > dur) { setState(0); ci.bossCool = 2.0f; }
+                        if (ci.bossClipT > clipLen(3)) { setState(0); ci.bossCool = 1.6f; }
                         break;
-                    }
                     case 4:  // roar
                         clip = 4;
                         once = true;
-                        if (ci.bossClipT > std::min(3.0f, dur)) setState(0);
+                        if (ci.bossClipT > std::min(3.0f, clipLen(4))) setState(0);
                         break;
+                    case 5: {  // the Charger's charge: straight on, fast, until it hits or runs out
+                        clip = 3;
+                        const float spd = 17.0f;
+                        const Vec3 np = ci.pos + ci.bossChargeDir * (spd * dt);
+                        ci.yaw = std::atan2(-ci.bossChargeDir.x, -ci.bossChargeDir.z);
+                        const bool blocked = !walkable(np);
+                        if (!blocked) ci.pos = np;
+                        if (frand() < dt * 8.0f) dustBurst(ci.pos, 1.0f, 2);
+                        if (!ci.bossHit && d < reach + 1.0f) {
+                            ci.bossHit = true;
+                            strike(sp.hit2, ci.pos + Vec3{0, 0.5f * ci.bossH, 0}, DeathCause::Blast);
+                            // Thrown aside.
+                            player_.velocity.x += ci.bossChargeDir.x * 10.0f;
+                            player_.velocity.z += ci.bossChargeDir.z * 10.0f;
+                            player_.velocity.y = std::max(player_.velocity.y, 5.0f);
+                            player_.onGround = false;
+                        }
+                        if (blocked || ci.bossHit || ci.bossClipT > 3.5f) { setState(0); ci.bossCool = 3.0f; }
+                        break;
+                    }
                 }
             }
             if (length(ci.pos - player_.position) < 300.0f) {
-                const float len = ci.model->animDuration(ci.bossClip[clip]);
-                const float t = once ? std::min(ci.bossClipT, len - 0.01f) : std::fmod(ci.bossClipT, std::max(0.1f, len));
+                const float len = std::max(0.1f, ci.model->animDuration(ci.bossClip[clip]));
+                const float t = once ? std::min(ci.bossClipT, len - 0.01f) : std::fmod(ci.bossClipT, len);
                 ci.model->poseBlend(renderer_, ci.bossClip[clip], t, ci.bossClip[clip], t, 0.0f);
             }
             continue;

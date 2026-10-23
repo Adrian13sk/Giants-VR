@@ -856,7 +856,10 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "vi_deat1", "vi_deat2", "vi_injr1", "vi_injr2", "vi_moo1", "vi_moo2", "vi_squi1", "pu_meat1", "pu_meat2", "ka_vimp1", "ka_vimp2",
         // The Reaperski: engine, rider on/off, gates, bumps, turbo, start / win / lose.
         "js_ron", "js_roff", "js_ridl1", "js_rmve1", "js_rrvu1", "js_rrvd1", "js_buoy", "js_mbuoy", "js_bump1", "js_bump2", "js_tbact",
-        "js_start", "js_finis", "js_win", "js_lose"};
+        "js_start", "js_finis", "js_win", "js_lose",
+        // Offspring and Charger (bosses).
+        "of_claw1", "of_claw2", "of_roar1", "of_roar2", "of_dhit1", "of_dhit2", "of_deth1", "of_deth2", "ca_snort", "ca_roar", "ca_injr1",
+        "ca_injr2", "ca_deat1", "ca_deat2"};
     std::vector<std::string> all(std::begin(names), std::end(names));
     for (int k = 1; k <= 15; ++k)  // Smartie voice pairs gsmNN_1 / gsmNN_2 (no 07 in the data)
         for (int j = 1; j <= 2; ++j) {
@@ -1090,9 +1093,9 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         }
         if (ch.objectClass == 1 && ci.ambient) {
             // Kabuto placed by a mission (the end of his story): the other giant, a fight.
-            static const char* kc[6] = {"kb_stand.anm", "kb_walk.anm", "kb_punch.anm", "kb_stomp.anm", "kb_roar.anm", "kb_die.anm"};
-            for (int k = 0; k < 6; ++k) ci.bossClip[k] = std::max(0, k == 0 ? 0 : m->addAnimation(w->fs(), kc[k]));
-            ci.bossKb = true;
+            ci.model = std::move(m);
+            setupBossAI(ci, 1);
+            m = std::move(ci.model);
             ci.boss = true;
             // Full size, as the player's Kabuto (kb_l0's type scale, 0.25, would make him 4 m tall).
             ci.scale = 1.0f;
@@ -1114,7 +1117,11 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             ci.objective = int(objectives_.size());
             objectives_.push_back({2, ch.position, ch.position});
             missionHostiles_ = true;
-            LOGI("Objective: kill %s (%.0f hp, %.1f m tall)", ch.model.c_str(), ci.hp, ci.bossH);
+            // The ones with clips for a fight get the boss AI: the Offspring (class 4), the Charger.
+            const std::string lm = toLower(ch.model);
+            const int kind = ch.objectClass == 4 || lm.rfind("offspring", 0) == 0 ? 2 : (lm == "charger" ? 3 : 0);
+            if (kind) { ci.model = std::move(m); setupBossAI(ci, kind); m = std::move(ci.model); }
+            LOGI("Objective: kill %s (%.0f hp, %.1f m tall%s)", ch.model.c_str(), ci.hp, ci.bossH, kind ? ", fights" : "");
         }
         ci.time = frand() * 3.0f;
         Mat4 hand;
@@ -1634,7 +1641,7 @@ void GameApp::updateCharacters(float dt) {
     }
     // Ambient characters loop their default clip (only animated when near).
     for (auto& ci : chars_) {
-        if (!ci.ambient || ci.bossKb) continue;  // the other Kabuto: updateBosses
+        if (!ci.ambient || ci.bossKind > 0) continue;  // bosses with AI: updateBosses
         ci.time += dt;
         if (ci.flyer) {
             // A wide, slowly breathing circle round its home, rising and dipping; banked into the
