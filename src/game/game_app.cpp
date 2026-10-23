@@ -364,8 +364,9 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     smokePuff(k == DestructKind::Tree ? FxTex::Dust : FxTex::Smoke, p, normalize(shotDir * -1.0f) * 0.8f, 0.2f, 0.9f, 0.8f, 0.6f, 0.2f);
                     return;
                 }
-                // Gunfire carries: Reapers nearby hear it.
+                // Gunfire carries: Reapers nearby hear it, buried Rippers feel the shot land.
                 enemies_.alertNear(p, 20.0f);
+                creatures_.disturb(p, 12.0f);
                 if (target >= kBossTarget && target < kObjectTarget) {
                     hitBoss(target - kBossTarget, 25.0f * hitMul_, p, shotDir);
                     haptics_.push_back({rig_.turnHand(), 0.4f, 0.04f});
@@ -1042,8 +1043,9 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             ++ambient;
         } else if (ch.objectClass == 23) {
             // Ripper animation slots (xx_ripper.bin): 1 idle, 2 walk, 10 attack, 11 attack jump,
-            // 44 hit, 49 small hit, 45 suffer (ends lying on the ground: the collapse death), 50 spit.
-            static const int slots[int(CreatureClip::Count)] = {1, 2, 10, 11, 44, 49, 45, 50};
+            // 44 hit, 49 small hit, 45 suffer (ends lying on the ground: the collapse death), 50 spit,
+            // 41 popup (out of the ground), 42 buried idle, 43 dive (into it), 51 attack_mecc (latched on).
+            static const int slots[int(CreatureClip::Count)] = {1, 2, 10, 11, 44, 49, 45, 50, 41, 42, 43, 51};
             for (int c = 1; c < int(CreatureClip::Count); ++c) {
                 const std::string a = reg.anim(ch.type, slots[c]);
                 const int k = a.empty() ? -1 : m->addAnimation(w->fs(), a);
@@ -1072,6 +1074,11 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             const float hp = t && t->hitPoints > 0 ? t->hitPoints : 40.0f;
             ci.size = hp <= 25.0f ? CreatureSize::Small : (hp <= 60.0f ? CreatureSize::Medium : CreatureSize::Large);
             const int idx = creatures_.spawn(ch.position, ch.yaw, ch.scale, ci.size, hp, true);
+            // Most Rippers start underground (user report on the original: nine in ten), under a
+            // mound, and come up when they feel the player or a shot lands near (GVR_BURIED sets
+            // the share for tests).
+            static const float buried = std::getenv("GVR_BURIED") ? float(std::atof(std::getenv("GVR_BURIED"))) : 0.9f;
+            if (frand() < buried) creatures_.bury(idx);
             if (ch.trigger == 2) {
                 ci.objective = int(objectives_.size());
                 objectives_.push_back({2, ch.position, ch.position});
@@ -1141,16 +1148,28 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     for (const auto& n : w->nests()) nests_.push_back({n.position, n.model, n.transform, n.radius, n.hitPoints, n.hitPoints, 1.0f, 1.0f,
                                                        2.0f + 3.0f * frand(), true, -1.0f});
     if (!nests_.empty()) {
-        const uint32_t breed[2] = {229, 73};  // small and medium Rippers (hit points 20 / 40)
-        const int pool = std::min(10, 3 * int(nests_.size()));
+        // All nests are one type (ripnest, 100 hp); their size is the placement's scale. The
+        // smaller ones (well under the level's biggest, or under 3 m across) hatch mini Rippers
+        // (type 229, 20 hp, drawn at 0.55 scale); the big ones medium Rippers (type 73).
+        float maxR = 0;
+        for (const auto& n : nests_) maxR = std::max(maxR, n.radius);
+        int bigNests = 0;
+        for (auto& n : nests_) {
+            n.small = n.radius < 0.8f * maxR || n.radius < 1.5f;
+            bigNests += !n.small;
+            LOGI("Ripper nest at (%.0f %.0f): radius %.2f m, %s", n.pos.x, n.pos.z, n.radius, n.small ? "small (mini Rippers)" : "big");
+        }
+        const int pool = std::min(12, 3 * int(nests_.size()));
+        const int bigPool = bigNests == 0 ? 0 : (bigNests == int(nests_.size()) ? pool : std::max(3, pool * bigNests / int(nests_.size())));
         for (int k = 0; k < pool; ++k) {
-            const uint32_t type = breed[k % 2];
+            const bool mini = k >= bigPool;
+            const uint32_t type = mini ? 229 : 73;
             const std::string model = reg.modelName(type);
             auto m = std::make_unique<SkinnedModel>();
             if (model.empty() || !m->load(w->fs(), *mc, renderer_, model, reg.modelAnim(type))) break;
             CharacterInst ci;
             ci.type = int(type);
-            static const int slots[int(CreatureClip::Count)] = {1, 2, 10, 11, 44, 49, 45, 50};
+            static const int slots[int(CreatureClip::Count)] = {1, 2, 10, 11, 44, 49, 45, 50, 41, 42, 43, 51};
             for (int c = 1; c < int(CreatureClip::Count); ++c) {
                 const std::string a = reg.anim(type, slots[c]);
                 const int ki = a.empty() ? -1 : m->addAnimation(w->fs(), a);
@@ -1160,9 +1179,8 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
                 for (int c = 0; c < int(CreatureClip::Count); ++c)
                     creatures_.clipDuration[c] = std::max(0.1f, m->animDuration(ci.clipIndex[c]));
             const ObjectType* t = reg.type(type);
-            ci.scale = t && t->scale > 0 ? t->scale : 1.0f;
-            const float hp = t && t->hitPoints > 0 ? t->hitPoints : 40.0f;
-            ci.size = hp <= 25.0f ? CreatureSize::Small : CreatureSize::Medium;
+            ci.scale = (t && t->scale > 0 ? t->scale : 1.0f) * (mini ? 0.55f : 1.0f);
+            ci.size = mini ? CreatureSize::Small : CreatureSize::Medium;
             ci.ambient = false;
             ci.visible = false;
             ci.pooled = true;
@@ -1233,6 +1251,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     }
     initGore(w, mc);
     initFx(mc);
+    initBurrows(w, mc);
     initHud(mc);
     timmyGreeted_ = false;
     timmyLineT_ = 0;
@@ -1294,6 +1313,7 @@ void GameApp::creatureSound(const CreatureEvent& e) {
             play("deat1", "deat2", 1.0f);
             if (e.burst) sfx(frand() < 0.5f ? "ex_bdyl1" : "ex_bdyl2", e.pos, 0.9f, 0.95f + 0.1f * frand());
             break;
+        default: break;  // burrowing and latching: burrowEvent
     }
 }
 
@@ -1557,6 +1577,7 @@ void GameApp::updateCharacters(float dt) {
     creatures_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, creatureEvents_);
     for (const auto& e : creatureEvents_) {
         creatureSound(e);
+        burrowEvent(e);
         if (e.kind == CreatureEvent::SpitLaunch) ++spitsLaunched_;
         if (e.kind == CreatureEvent::SpitBurst && e.damage > 0.5f) ++spitHits_;
         if ((e.kind == CreatureEvent::Strike || e.kind == CreatureEvent::SpitBurst) && e.damage > 0.5f)
@@ -1573,16 +1594,31 @@ void GameApp::updateCharacters(float dt) {
     for (auto& c : creatures_.creatures) {
         if (c.slot < 0 || size_t(c.slot) >= chars_.size() || c.exploded) continue;
         CharacterInst& ci = chars_[size_t(c.slot)];
+        if (CreatureDirector::underground(c)) continue;  // a mound (renderBurrows), not drawn
         ci.visible = true;
         ci.pos = c.pos;
         ci.yaw = c.yaw;
+        if (c.state == CreatureState::Latched) {
+            // Riding the player: at the legs or the waist (latchOffset, turned with his body),
+            // facing in; the creature stands where it hangs so it drops off there.
+            const Vec3 off = Quat::fromAxisAngle({0, 1, 0}, player_.yaw).rotate(Vec3{c.latchOffset.x, 0, c.latchOffset.z});
+            ci.pos = player_.position + off + Vec3{0, c.latchOffset.y, 0};
+            ci.yaw = std::atan2(off.x, off.z);  // facing the player (-Z forward: toward -off)
+            c.pos = Vec3{ci.pos.x, player_.position.y, ci.pos.z};
+            c.yaw = ci.yaw;
+        }
         const float dist = length(c.pos - player_.position);
         if (dist > 120.0f) continue;  // too far to see the animation: skip skinning
         ci.model->poseBlend(renderer_, ci.clipIndex[int(c.prevClip)], c.prevTime, ci.clipIndex[int(c.clip)], c.clipTime,
                             c.fadeWeight(creatures_.params.crossfade));
         Vec3 mn, mx;
         ci.model->posedBounds(mn, mx);
-        ci.lift += (-mn.y * ci.scale - ci.lift) * std::min(1.0f, dt / 0.06f);
+        // The burrowing clips move the body below the ground themselves (rip_popup rises from
+        // 2 m down, rip_dive sinks): the model stays at its standing height for those.
+        const bool dig = c.clip == CreatureClip::Popup || c.clip == CreatureClip::BuriedIdle || c.clip == CreatureClip::Dive ||
+                         c.clip == CreatureClip::Latch;
+        if (dig) ci.lift = ci.restLift;
+        else ci.lift += (-mn.y * ci.scale - ci.lift) * std::min(1.0f, dt / 0.06f);
         // Footsteps while running.
         if (c.clip == CreatureClip::Walk && c.speed > 0.5f && dist < 30.0f) {
             ci.stepTimer -= dt * c.rate;
@@ -1593,6 +1629,7 @@ void GameApp::updateCharacters(float dt) {
             }
         }
     }
+    updateBurrows(dt);
     // Spit balls wobble (their own clip); blasts and gore age.
     for (auto& b : spitBall_)
         if (b) b->pose(renderer_, float(time_));
@@ -2744,6 +2781,7 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
 }
 
 void GameApp::explode(const Vec3& at, float radius, float damage, bool fire) {
+    creatures_.disturb(at, std::max(15.0f, radius * 4.0f));  // the ground shakes: buried Rippers come up
     if (fire) {
         blasts_.push_back({at, 3, 0.0f});
         sfx("me_mslex", at, 1.0f, 0.95f + 0.1f * frand());
@@ -2921,7 +2959,7 @@ void GameApp::updateNests(float dt) {
         if (brood >= 3) continue;
         for (size_t k = 0; k < chars_.size(); ++k) {
             CharacterInst& ci = chars_[k];
-            if (!ci.pooled || used[k]) continue;
+            if (!ci.pooled || used[k] || (ci.size == CreatureSize::Small) != n.small) continue;
             const Vec3 to = player_.position - n.pos;
             const float yaw = std::atan2(-to.x, -to.z);
             const ObjectType* t = assetWorld_->registry().type(uint32_t(ci.type));
@@ -3537,6 +3575,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         if (cut && std::find(cutTypes.begin(), cutTypes.end(), c.type) != cutTypes.end()) continue;
         c.model->render(renderer_, c.xf());
     }
+    renderBurrows(v.eyePosition);
     for (const auto& sp : creatures_.spits) {
         const int k = int(sp.size);
         if (k > 0 && spitBall_[k])

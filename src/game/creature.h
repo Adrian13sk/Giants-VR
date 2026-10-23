@@ -21,8 +21,8 @@
 
 namespace gvr {
 
-enum class CreatureClip : int { Idle = 0, Walk, Attack, Lunge, Hit, HitSmall, Die, Spit, Count };
-enum class CreatureState : int { Idle, Chase, Attack, Lunge, Spit, Hit, Return, Dead };
+enum class CreatureClip : int { Idle = 0, Walk, Attack, Lunge, Hit, HitSmall, Die, Spit, Popup, BuriedIdle, Dive, Latch, Count };
+enum class CreatureState : int { Idle, Chase, Attack, Lunge, Spit, Hit, Return, Dead, Buried, Tunnel, Emerge, Dive, Latched };
 
 // Ripper size class (sound set rs_/rm_/rl_, spit model mspit/lspit).
 enum class CreatureSize : int { Small = 0, Medium = 1, Large = 2 };
@@ -54,6 +54,14 @@ struct Creature {
     bool hunter = false;    // spawned by a nest: goes straight for the player, never gives up
     uint32_t uid = 0;       // stable id (corpses, Cleaners)
     float eaten = 0, corpseHp = 30;
+    // Burrowing (rip_buried_idle / rip_dive / rip_popup): lies in wait underground, tunnels at the
+    // player and bursts out of the ground at him, or digs back in.
+    bool canBurrow = true;
+    bool disturbed = false;   // a shot or blast nearby: comes up (or out) now
+    float lostTime = 0;       // s chasing without seeing the player
+    float latchTime = 0;      // Latched: seconds left on the player (small Rippers)
+    Vec3 latchOffset;         // where on the player it hangs (body frame)
+    bool dropped = false;     // game layer: its spit left behind as a health pickup
     bool gibbed = false, cleanersCalled = false;
     Vec3 patrolTo;
     float patrolWait = 0, notice = 0;  // notice > 0: spotted the player, about to charge
@@ -78,9 +86,9 @@ struct CreatureParams {
     float lungeDamage = 10.0f;
     float lungeCooldown = 4.0f;   // s
     float spitMin = 7.0f, spitMax = 28.0f;   // m: spitting range
-    float spitCooldown = 3.5f;    // s (plus up to 2 s random)
+    float spitCooldown = 2.4f;    // s (plus up to 1.5 s random); quicker than before (user: the original's spit faster)
     float spitAt = 0.55f;         // fraction of the spit clip when the ball leaves the mouth
-    float spitSpeed = 15.0f;      // m/s horizontal launch speed
+    float spitSpeed = 21.0f;      // m/s horizontal launch speed
     float spitGravity = 12.0f;    // m/s^2 on the ball (a visible lob)
     float spitDamage[3] = {0.0f, 10.0f, 28.0f};  // direct-hit damage by size (splash falls off): the big blue spit hurts (device test 22)
     float spitRadius[3] = {0.0f, 1.8f, 3.2f};    // m: blast radius by size
@@ -101,10 +109,23 @@ struct CreatureParams {
     float noticeDelay = 0.5f;     // s: chitters and turns before it charges
     float patrolRadius = 5.0f;    // m around home: sniffs about while idle
     float patrolSpeed = 0.8f;     // m/s
+    // Burrowing (ours; the clips are the original's).
+    float buriedHear = 24.0f;     // m: a buried Ripper feels the player's steps this close (any side)
+    float tunnelSpeed = 8.5f;     // m/s underground at scale 1; the big ones (Large) at tunnelLargeFactor
+    float tunnelLargeFactor = 0.4f;
+    float emergeDist = 2.8f;      // m at scale 1: bursts out this close to the player
+    float emergeStrikeAt = 0.35f; // fraction of the popup clip when the burst bites
+    float emergeDamage = 9.0f;
+    float diveChance = 0.25f;     // per second, chasing a player out of spitting range: dives to tunnel
+    float loseAfter = 8.0f;       // s without seeing the player: digs back in where it is
+    // Small Rippers latch onto the player (rip_attack_mecc) and drop off after a while.
+    float latchChance = 0.35f;    // per bite
+    float latchMin = 3.0f, latchMax = 6.0f;
+    float latchDps = 3.0f;        // damage per second while latched
 };
 
 struct CreatureEvent {
-    enum Kind { Alert, Swing, Strike, Lunge, SpitLaunch, SpitBurst, Hurt, Die } kind;
+    enum Kind { Alert, Swing, Strike, Lunge, SpitLaunch, SpitBurst, Hurt, Die, Emerge, DiveIn, LatchOn, LatchOff } kind;
     int index;      // creature index (spit events: the shooter's index at launch, may be stale)
     float damage;   // Strike / SpitBurst: damage dealt to the player
     Vec3 pos;
@@ -134,6 +155,12 @@ public:
     int spawn(const Vec3& pos, float yaw, float scale, CreatureSize size, float hitPoints, bool canSpit);
     // A Ripper born from a nest: chases the player at once and never returns home.
     int spawnHunter(const Vec3& pos, float yaw, float scale, CreatureSize size, float hitPoints);
+    // Puts creature i underground, lying in wait (missions start most Rippers so).
+    void bury(int i);
+    // A shot or blast at `at`: buried / tunnelling Rippers within `radius` come for the player.
+    void disturb(const Vec3& at, float radius);
+    // Underground (not drawn, can't be shot): Buried, Tunnel, or the hidden part of Dive.
+    static bool underground(const Creature& c);
     // Advances AI and spit balls; appends what happened this frame to `events` (cleared first).
     void update(float dt, const Vec3& playerPos, bool playerAlive, std::vector<CreatureEvent>& events);
     // Applies damage; returns true if this killed the creature. `dir`: direction of the shot.

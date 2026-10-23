@@ -108,7 +108,7 @@ void GameApp::updateVillagers(float dt) {
     for (const auto& e : enemies_.enemies)
         if (e.state != EnemyState::Dead) threats.push_back(e.pos);
     for (const auto& c : creatures_.creatures)
-        if (c.state != CreatureState::Dead) threats.push_back(c.pos);
+        if (c.state != CreatureState::Dead && !CreatureDirector::underground(c)) threats.push_back(c.pos);
     if (hero_ == Hero::Kabuto) threats.push_back(player_.position);  // Smarties are his food
     for (const auto& b : blasts_)
         if (b.age < 0.05f) scares.push_back(b.pos);

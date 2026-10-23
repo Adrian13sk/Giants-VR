@@ -295,6 +295,26 @@ private:
     struct Gib { const RenderModel* model; Vec3 pos, vel, axis; float angle, spin, scale, life; };
     std::vector<Gib> gibs_;
     void spawnGore(const Vec3& pos, const Vec3& dir, float scale);
+    // Burrowing Rippers (game_app_ripper.cpp): mounds over the buried ones, the dirt thrown up ahead
+    // of one tunnelling, the hole it leaves bursting out, small ones riding the player, and the
+    // spit a dead one leaves behind (a health pickup: orange a little, blue a lot).
+    std::unique_ptr<SkinnedModel> mound_;
+    int moundOpen_ = 0;
+    const RenderModel* dirtChunk_ = nullptr;
+    struct GroundHole { Vec3 pos, normal; float size, angle, age; };
+    std::vector<GroundHole> holes_;
+    struct OpenMound { Vec3 pos; float scale, yaw, age; };
+    std::vector<OpenMound> openMounds_;
+    TextureId holeTex_ = 0;
+    QuadBatch holeBatch_;
+    struct SpitDrop { Vec3 pos; int big; float age; };
+    std::vector<SpitDrop> spitDrops_;
+    float burrowTick_ = 0;
+    void initBurrows(AssetWorld* w, ModelCache* mc);
+    void burrowEvent(const CreatureEvent& e);
+    void updateBurrows(float dt);
+    void renderBurrows(const Vec3& eye);
+    void addHole(const Vec3& at, float size);
     // Blood (original aablood.gzp textures), corpses and the Cleaners that eat them.
     BloodSystem blood_;
     CleanerDirector cleaners_;
@@ -340,6 +360,7 @@ private:
         float radius, hp, maxHp, target, shown, timer;
         bool alive;
         float dying;  // >= 0: seconds since it was destroyed
+        bool small = true;  // the smaller nests hatch mini Rippers, the big ones full-sized
     };
     std::vector<NestInst> nests_;
     static constexpr int kNestTarget = 5000;  // weapon target ids for nests

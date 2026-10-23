@@ -347,6 +347,8 @@ void GameApp::initFx(ModelCache* mc) {
     }
     const size_t bcaps[5] = {64, 64, 64, 160, 40};
     for (int k = 0; k < 5; ++k) bloodBatch_[k].init(renderer_, bcaps[k]);
+    holeTex_ = mc->texture("blastmark_2");  // Ripper holes (game_app_ripper.cpp)
+    holeBatch_.init(renderer_, 40);
     batchesReady_ = true;
 }
 
@@ -412,6 +414,21 @@ void GameApp::buildBatches() {
     const Vec3 eye = rig_.toWorld(lastInput_.head).position;
     for (auto& b : fxBatch_) b.clear();
     for (auto& b : bloodBatch_) b.clear();
+    holeBatch_.clear();
+    for (const auto& h : holes_) {
+        // Where a Ripper burst out of the ground: a dark, dirt-streaked hole (blastmark_2, browned).
+        if (length(h.pos - eye) > 90.0f || holeBatch_.full()) continue;
+        const float a = std::min(1.0f, (90.0f - h.age) / 10.0f) * 0.95f;
+        const Vec3 n = h.normal;
+        const Vec3 t1 = normalize(cross(n, std::fabs(n.y) < 0.9f ? Vec3{0, 1, 0} : Vec3{1, 0, 0}));
+        const Vec3 t2 = cross(n, t1);
+        const float ca = std::cos(h.angle), sa = std::sin(h.angle), r = 0.5f * h.size;
+        const Vec3 u = (t1 * ca + t2 * sa) * r, w = (t2 * ca - t1 * sa) * r;
+        const Vec3 c0 = h.pos + n * 0.04f;
+        const Vec3 q[4] = {c0 - u - w, c0 + u - w, c0 + u + w, c0 - u + w};
+        const uint8_t col[4] = {110, 80, 50, uint8_t(a * 255.0f)};
+        holeBatch_.add(q, col);
+    }
     for (const auto& p : fx_.parts) {
         const float dd = length(p.pos - eye);
         if (dd > 200.0f) continue;
@@ -450,6 +467,7 @@ void GameApp::buildBatches() {
     }
     for (auto& b : fxBatch_) b.upload(renderer_);
     for (auto& b : bloodBatch_) b.upload(renderer_);
+    holeBatch_.upload(renderer_);
 }
 
 void GameApp::renderFx() {
@@ -459,6 +477,10 @@ void GameApp::renderFx() {
     dp.unlit = true;
     dp.depthWrite = false;
     dp.doubleSided = true;
+    if (holeTex_ && holeBatch_.count()) {
+        dp.texture = holeTex_;
+        holeBatch_.draw(renderer_, dp);
+    }
     const TextureId bt[5] = {bloodTex_[0], bloodTex_[1], bloodTex_[2], dropTex_, sprayTex_ ? sprayTex_ : dropTex_};
     for (int k = 0; k < 5; ++k) {
         dp.texture = bt[k];

@@ -42,6 +42,26 @@ int CreatureDirector::spawnHunter(const Vec3& pos, float yaw, float scale, Creat
     return i;
 }
 
+bool CreatureDirector::underground(const Creature& c) {
+    return c.state == CreatureState::Buried || c.state == CreatureState::Tunnel;
+}
+
+void CreatureDirector::bury(int i) {
+    if (i < 0 || size_t(i) >= creatures.size()) return;
+    Creature& c = creatures[size_t(i)];
+    c.state = CreatureState::Buried;
+    c.stateTime = 0;
+    c.speed = 0;
+    setClip(c, CreatureClip::BuriedIdle, true);
+    c.fade = 1e9f;
+}
+
+void CreatureDirector::disturb(const Vec3& at, float radius) {
+    for (auto& c : creatures)
+        if ((c.state == CreatureState::Buried || c.state == CreatureState::Idle) && length(Vec3{c.pos.x - at.x, 0, c.pos.z - at.z}) < radius)
+            c.disturbed = true;
+}
+
 size_t CreatureDirector::aliveCount() const {
     size_t n = 0;
     for (const auto& c : creatures) n += c.state != CreatureState::Dead;
@@ -93,6 +113,7 @@ bool CreatureDirector::damage(int i, float amount, const Vec3& dir, std::vector<
     if (i < 0 || size_t(i) >= creatures.size()) return false;
     Creature& c = creatures[size_t(i)];
     if (c.state == CreatureState::Dead) return false;
+    if (underground(c)) { c.disturbed = true; return false; }  // the ground takes it; wakes it up
     c.health -= amount;
     if (c.health <= 0) {
         c.state = CreatureState::Dead;
@@ -106,8 +127,9 @@ bool CreatureDirector::damage(int i, float amount, const Vec3& dir, std::vector<
         }
         return true;
     }
+    if (c.state == CreatureState::Latched) c.latchTime = 0;  // shot off the player: drops at once
     // A hit interrupts everything but a lunge in flight.
-    if (c.state != CreatureState::Lunge) {
+    if (c.state != CreatureState::Lunge && c.state != CreatureState::Latched) {
         c.state = CreatureState::Hit;
         c.stateTime = 0;
         c.speed = 0;
@@ -256,7 +278,109 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
         };
         const bool sees = playerAlive && dist < params.sightRange * ss && (dist < params.hearRange * ss || lineOfSight(c.pos + Vec3{0, 0.6f * s, 0}, player + Vec3{0, 1.2f, 0}));
         switch (c.state) {
+            case CreatureState::Buried: {
+                // Lies in wait: feels the player's steps close by (any side), or comes up when a
+                // shot or blast lands near. Far off it tunnels at him; close by it bursts out now.
+                c.speed = 0;
+                setClip(c, CreatureClip::BuriedIdle, true);
+                const bool feels = playerAlive && dist < params.buriedHear * ss;
+                if ((feels || c.disturbed) && playerAlive) {
+                    c.disturbed = false;
+                    events.push_back({CreatureEvent::Alert, int(i), 0, c.pos, c.size});
+                    c.stateTime = 0;
+                    if (dist > params.emergeDist * s * 1.5f) {
+                        c.state = CreatureState::Tunnel;
+                    } else {
+                        c.state = CreatureState::Emerge;
+                        c.struck = false;
+                        setClip(c, CreatureClip::Popup, false);
+                        c.clipTime = 0;
+                        events.push_back({CreatureEvent::Emerge, int(i), 0, c.pos, c.size});
+                    }
+                }
+                break;
+            }
+            case CreatureState::Tunnel: {
+                // Underground, fast and straight at the player (under buildings too); the big
+                // ones plough along slowly. Out of the ground right by him.
+                if (!playerAlive) { c.state = CreatureState::Buried; break; }
+                turn(faceYaw, params.turnRate * 1.5f);
+                const float spd = params.tunnelSpeed * ss * (c.size == CreatureSize::Large ? params.tunnelLargeFactor : 1.0f);
+                c.speed = spd;
+                const Vec3 step = headingDir(c.yaw) * (std::min(dist, spd * dt));
+                // Not into the sea or up a cliff face.
+                if (groundHeight) {
+                    const float g0 = groundHeight(c.pos.x, c.pos.z), g1 = groundHeight(c.pos.x + step.x, c.pos.z + step.z);
+                    if (g1 > -0.3f && g1 - g0 < 1.5f * s) c.pos += step;
+                } else {
+                    c.pos += step;
+                }
+                setClip(c, CreatureClip::BuriedIdle, true);
+                if (dist < params.emergeDist * s || c.stateTime > 25.0f) {
+                    c.state = CreatureState::Emerge;
+                    c.stateTime = 0;
+                    c.struck = false;
+                    c.yaw = faceYaw;
+                    setClip(c, CreatureClip::Popup, false);
+                    c.clipTime = 0;
+                    c.fade = 1e9f;
+                    events.push_back({CreatureEvent::Emerge, int(i), 0, c.pos, c.size});
+                }
+                break;
+            }
+            case CreatureState::Emerge: {
+                // Bursting out of the ground at the player: bites on the way up.
+                turn(faceYaw, params.turnRate);
+                const float dur = clipDuration[int(CreatureClip::Popup)];
+                if (!c.struck && c.clipTime >= dur * params.emergeStrikeAt) {
+                    c.struck = true;
+                    if (playerAlive && dist <= reach + 0.8f * s)
+                        events.push_back({CreatureEvent::Strike, int(i), params.emergeDamage * ss, c.pos, c.size});
+                }
+                if (c.clipTime >= dur * 0.95f) {
+                    c.state = playerAlive ? CreatureState::Chase : CreatureState::Idle;
+                    c.stateTime = 0;
+                    c.lostTime = 0;
+                    c.home = c.pos;
+                }
+                break;
+            }
+            case CreatureState::Dive: {
+                // Digs in: underground once the clip is done; tunnels on if it still wants the player.
+                c.speed = 0;
+                if (c.clipTime >= clipDuration[int(CreatureClip::Dive)] * 0.95f) {
+                    const bool chase = playerAlive && c.lostTime < params.loseAfter;
+                    c.state = chase ? CreatureState::Tunnel : CreatureState::Buried;
+                    c.stateTime = 0;
+                    c.home = c.pos;
+                    c.lostTime = 0;
+                    setClip(c, CreatureClip::BuriedIdle, true);
+                    c.fade = 1e9f;
+                }
+                break;
+            }
+            case CreatureState::Latched: {
+                // Hanging on the player, chewing; drops off when its time is up (or he dies).
+                c.latchTime -= dt;
+                c.speed = 0;
+                setClip(c, CreatureClip::Latch, true);
+                c.stateTime += 0;  // (position set by the game layer)
+                if (playerAlive && int(c.stateTime / 0.5f) != int((c.stateTime - dt) / 0.5f))
+                    events.push_back({CreatureEvent::Strike, int(i), params.latchDps * 0.5f, c.pos, c.size});
+                if (c.latchTime <= 0 || !playerAlive) {
+                    c.state = CreatureState::Lunge;  // jumps off, away
+                    c.stateTime = 0;
+                    c.struck = true;
+                    c.yaw = angleDelta(0.0f, c.yaw + 3.14159f);
+                    c.lungeWait = params.lungeCooldown;
+                    setClip(c, CreatureClip::Lunge, false);
+                    c.clipTime = 0;
+                    events.push_back({CreatureEvent::LatchOff, int(i), 0, c.pos, c.size});
+                }
+                break;
+            }
             case CreatureState::Idle: {
+                if (c.disturbed) { c.disturbed = false; if (playerAlive) c.notice = 0.05f; }
                 if (c.hunter && playerAlive) {
                     c.state = CreatureState::Chase;
                     c.stateTime = 0;
@@ -320,7 +444,29 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                 break;
             }
             case CreatureState::Chase: {
-                if (!playerAlive || (!c.hunter && fromHome > params.leash && dist > params.sightRange * ss)) {
+                // Lost the player a while: digs back in where it is. Far out of reach: dives and
+                // tunnels at him.
+                c.lostTime = sees ? 0.0f : c.lostTime + dt;
+                const bool soil = !groundHeight || groundHeight(c.pos.x, c.pos.z) > -0.2f;  // not in the water
+                if (c.canBurrow && soil && !c.hunter && (c.lostTime > params.loseAfter || !playerAlive)) {
+                    c.state = CreatureState::Dive;
+                    c.stateTime = 0;
+                    c.speed = 0;
+                    setClip(c, CreatureClip::Dive, false);
+                    c.clipTime = 0;
+                    events.push_back({CreatureEvent::DiveIn, int(i), 0, c.pos, c.size});
+                    break;
+                }
+                if (c.canBurrow && soil && playerAlive && dist > params.spitMax * ss * 1.2f && rnd() < dt * params.diveChance) {
+                    c.state = CreatureState::Dive;
+                    c.stateTime = 0;
+                    c.speed = 0;
+                    setClip(c, CreatureClip::Dive, false);
+                    c.clipTime = 0;
+                    events.push_back({CreatureEvent::DiveIn, int(i), 0, c.pos, c.size});
+                    break;
+                }
+                if (!playerAlive || (!c.hunter && !c.canBurrow && fromHome > params.leash && dist > params.sightRange * ss)) {
                     c.state = CreatureState::Return;
                     break;
                 }
@@ -384,8 +530,24 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                 const float dur = clipDuration[int(CreatureClip::Attack)];
                 if (!c.struck && c.clipTime >= dur * params.biteAt) {
                     c.struck = true;
-                    if (playerAlive && dist <= reach + 0.4f * s)
+                    if (playerAlive && dist <= reach + 0.4f * s) {
                         events.push_back({CreatureEvent::Strike, int(i), params.biteDamage * ss, c.pos, c.size});
+                        // A small one may latch on (one at a time per side is the game layer's look).
+                        if (c.size == CreatureSize::Small && rnd() < params.latchChance) {
+                            int latched = 0;
+                            for (const auto& o : creatures) latched += o.state == CreatureState::Latched;
+                            if (latched < 3) {
+                                c.state = CreatureState::Latched;
+                                c.stateTime = 0;
+                                c.latchTime = params.latchMin + (params.latchMax - params.latchMin) * rnd();
+                                const float a = rnd() * kTwoPi;
+                                c.latchOffset = Vec3{std::sin(a) * 0.6f, 0.15f + 0.45f * rnd(), std::cos(a) * 0.6f};  // on the legs
+                                setClip(c, CreatureClip::Latch, true);
+                                events.push_back({CreatureEvent::LatchOn, int(i), 0, c.pos, c.size});
+                                break;
+                            }
+                        }
+                    }
                 }
                 if (c.clipTime >= dur * 0.98f) {
                     c.state = CreatureState::Chase;
@@ -421,7 +583,7 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                     c.state = CreatureState::Chase;
                     c.stateTime = 0;
                     c.blockedTime = 0;
-                    c.spitWait = params.spitCooldown + rnd() * 2.0f;
+                    c.spitWait = params.spitCooldown + rnd() * 1.5f;
                 }
                 break;
             }
@@ -461,7 +623,13 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                 if (c.sink > params.height * s + 0.5f) c.remove = true;
                 break;
         }
-        if (c.state != CreatureState::Dead) {
+        if (c.state == CreatureState::Latched) {
+            c.clipTime += dt * c.rate;
+            c.prevTime += dt;
+            c.fade += dt;
+            continue;  // rides the player (the game layer places it)
+        }
+        if (c.state != CreatureState::Dead && !underground(c)) {
             // Ground too steep to stand on: slide down; buildings push out.
             if (groundHeight) {
                 const float h = 0.5f;
@@ -507,7 +675,7 @@ bool CreatureDirector::raycast(const Vec3& o, const Vec3& d, float maxDist, floa
     float best = maxDist;
     for (size_t i = 0; i < creatures.size(); ++i) {
         const Creature& c = creatures[i];
-        if (c.state == CreatureState::Dead) continue;
+        if (c.state == CreatureState::Dead || underground(c) || c.state == CreatureState::Latched) continue;
         if (params.hasBox) {
             // Oriented box: the ray in the creature's frame (unscaled), slab test.
             const Quat inv = Quat::fromAxisAngle({0, 1, 0}, c.yaw).conjugate();

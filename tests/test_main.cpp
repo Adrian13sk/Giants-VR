@@ -737,6 +737,81 @@ static void testObjectDefs() {
     CHECK(!r2.addDefinitionFile(file.v.data(), file.v.size()));
 }
 
+static void testBurrows() {
+    using namespace gvr;
+    auto flat = [](float, float) { return 0.0f; };
+    const Vec3 shot{0, 0, -1};
+    std::vector<CreatureEvent> ev;
+    // Buried: can't be shot or hit (the ground takes it), lies still while the player is far.
+    CreatureDirector b;
+    b.groundHeight = flat;
+    for (int c = 0; c < int(CreatureClip::Count); ++c) b.clipDuration[c] = 0.6f;
+    b.spawn({0, 0, -60}, 0, 1.0f, CreatureSize::Medium, 40.0f, true);
+    b.bury(0);
+    CHECK(CreatureDirector::underground(b.creatures[0]));
+    float t; Vec3 n; int idx = -1;
+    CHECK(!b.raycast({0, 0.5f, 0}, {0, 0, -1}, 100, t, n, idx));
+    CHECK(!b.damage(0, 100.0f, shot) && b.creatures[0].health > 0);
+    for (int f = 0; f < 120; ++f) b.update(1.0f / 60, Vec3{0, 0, 0}, true, ev);
+    // (the blocked hit disturbed it: it tunnels at the player)
+    CHECK(b.creatures[0].state == CreatureState::Tunnel);
+    // Tunnels fast and bursts out right by the player, biting on the way up.
+    bool emerged = false, struck = false;
+    float when = 0;
+    for (int f = 0; f < 900 && !struck; ++f) {
+        b.update(1.0f / 60, Vec3{0, 0, 0}, true, ev);
+        for (const auto& e : ev) {
+            if (e.kind == CreatureEvent::Emerge && !emerged) { emerged = true; when = f / 60.0f; }
+            if (e.kind == CreatureEvent::Strike) struck = true;
+        }
+    }
+    CHECK(emerged && struck);
+    CHECK(when < 10.0f);  // ~58 m at 8.5 m/s
+    CHECK(length(b.creatures[0].pos) < 4.0f);
+    // A large one ploughs along slower underground.
+    CreatureDirector l;
+    l.groundHeight = flat;
+    l.spawn({0, 0, -60}, 0, 1.0f, CreatureSize::Large, 90.0f, true);
+    l.bury(0);
+    l.disturb({0, 0, -60}, 5.0f);
+    for (int f = 0; f < 120; ++f) l.update(1.0f / 60, Vec3{0, 0, 0}, true, ev);
+    CHECK(l.creatures[0].state == CreatureState::Tunnel);
+    CHECK(length(l.creatures[0].pos - Vec3{0, 0, -60}) < 0.6f * (length(b.creatures[0].pos - Vec3{0, 0, -60})));
+    // Far from the player and undisturbed, a buried one stays put.
+    CreatureDirector q;
+    q.groundHeight = flat;
+    q.spawn({0, 0, -80}, 0, 1.0f, CreatureSize::Small, 20.0f, false);
+    q.bury(0);
+    for (int f = 0; f < 300; ++f) q.update(1.0f / 60, Vec3{0, 0, 0}, true, ev);
+    CHECK(q.creatures[0].state == CreatureState::Buried && length(q.creatures[0].pos - Vec3{0, 0, -80}) < 1e-3f);
+    // Not into the sea: tunnelling stops at the shore.
+    CreatureDirector s;
+    s.groundHeight = [](float, float z) { return z > -20.0f ? -2.0f : 0.0f; };
+    s.spawn({0, 0, -40}, 0, 1.0f, CreatureSize::Medium, 40.0f, true);
+    s.bury(0);
+    s.disturb({0, 0, -40}, 5.0f);
+    for (int f = 0; f < 300; ++f) s.update(1.0f / 60, Vec3{0, 0, 0}, true, ev);
+    CHECK(s.creatures[0].pos.z < -19.0f);
+    // A small one latches on now and then when it bites, then jumps off.
+    bool latched = false, off = false;
+    for (int trial = 0; trial < 20 && !(latched && off); ++trial) {
+        CreatureDirector m;
+        m.groundHeight = flat;
+        for (int c = 0; c < int(CreatureClip::Count); ++c) m.clipDuration[c] = 0.6f;
+        m.params.latchChance = 1.0f;
+        m.spawn({0, 0, -3}, 0, 1.0f, CreatureSize::Small, 20.0f, false);
+        for (int f = 0; f < 1200; ++f) {
+            m.update(1.0f / 60, Vec3{0, 0, 0}, true, ev);
+            for (const auto& e : ev) {
+                if (e.kind == CreatureEvent::LatchOn) latched = true;
+                if (e.kind == CreatureEvent::LatchOff) off = true;
+            }
+        }
+    }
+    CHECK(latched && off);
+    std::printf("burrows ok\n");
+}
+
 static void testCreatures() {
     using namespace gvr;
     CreatureDirector cd;
@@ -1311,6 +1386,7 @@ int main() {
     testWeapon();
     testEnemies();
     testCreatures();
+    testBurrows();
     testAudio();
     testMusic();
     if (g_failures) {

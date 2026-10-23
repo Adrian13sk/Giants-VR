@@ -102,7 +102,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
         }
         for (size_t i = 0; i < creatures_.creatures.size(); ++i) {
             const Creature& c = creatures_.creatures[i];
-            if (c.state == CreatureState::Dead) continue;
+            if (c.state == CreatureState::Dead || CreatureDirector::underground(c)) continue;
             const Vec3 p = c.pos + Vec3{0, 0.5f * c.scale, 0};
             if (length(p - at) < r + 0.6f * c.scale) { hitMul_ = mul; weapon_.onHit(kCreatureTargetK + int(i), p, dir); hitMul_ = 1.0f; any = true; }
         }
@@ -235,7 +235,8 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
         for (size_t i = 0; i < enemies_.enemies.size(); ++i)
             if (enemies_.enemies[i].state != EnemyState::Dead) consider(int(i), enemies_.enemies[i].pos);
         for (size_t i = 0; i < creatures_.creatures.size(); ++i)
-            if (creatures_.creatures[i].state != CreatureState::Dead && creatures_.creatures[i].scale < 2.5f)
+            if (creatures_.creatures[i].state != CreatureState::Dead && creatures_.creatures[i].scale < 2.5f &&
+                !CreatureDirector::underground(creatures_.creatures[i]))
                 consider(kCreatureTargetK + int(i), creatures_.creatures[i].pos);
         for (size_t i = 0; i < villagers_.villagers.size(); ++i) consider(kVillagerTargetK + int(i), villagers_.villagers[i].pos);
         for (size_t i = 0; i < vimps_.vimps.size(); ++i)
