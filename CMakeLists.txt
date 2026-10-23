@@ -47,6 +47,8 @@ add_library(gvr_core STATIC
   src/game/game_app_hud.cpp
   src/game/game_app_village.cpp
   src/game/villager.cpp
+  src/game/vimp.cpp
+  src/game/game_app_vimp.cpp
   src/game/save_game.cpp
   src/game/settings.cpp
   src/game/game_app_menu.cpp

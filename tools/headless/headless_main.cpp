@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     bool testScene = true, freeCam = false, firstPerson = true, jet = false;
     float gripAmount = 0.0f, handsFwd = 0.35f, handsUp = 1.2f;
     bool mainMenu = false;
-    int completeAt = -1;
+    int completeAt = -1, vimpMeat = -1;
     int syFrom = -1, syTo = -1;
     float syVal = 0;
     int ltrigFrom = -1, ltrigTo = -1, yFrom = -1, yTo = -1;
@@ -76,6 +76,7 @@ int main(int argc, char** argv) {
         else if (a == "--free") freeCam = true;
         else if (a == "--main-menu") mainMenu = true;     // start at the main menu
         else if (a == "--complete-at") completeAt = std::atoi(next());  // mark the mission complete at this frame
+        else if (a == "--vimp-meat") vimpMeat = std::atoi(next());  // carrying this much Vimp meat from the start
         else if (a == "--stick-y-window") { syFrom = std::atoi(next()); syTo = std::atoi(next()); syVal = std::atof(next()); }  // right stick y            // free camera instead of the Meccaryn
         else if (a == "--first-person") firstPerson = true;
         else if (a == "--third-person") firstPerson = false;
@@ -190,6 +191,7 @@ int main(int argc, char** argv) {
         }
         if (f == hurtAt) app.debugHurt(hurtAmount, hurtYaw);
         if (f == completeAt) app.debugCompleteMission();
+        if (f == 0 && vimpMeat >= 0) app.debugSetVimpMeat(vimpMeat);
         if (handPathFrom >= 0 && f >= handPathFrom && f < handPathTo) {
             const float k = 1.0f / float(handPathTo - handPathFrom);
             in.hand[kRight].gripPose.position = in.hand[kRight].gripPose.position + Vec3{handDx, handDy, handDz} * k;

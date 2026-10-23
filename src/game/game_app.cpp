@@ -312,6 +312,12 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 if (creatures_.raycast(o, d, maxD, tc, nc, ic) && (!he || tc < te)) {
                     he = true; te = tc; ne = nc; ie = kCreatureTarget + ic;
                 }
+                // Vimps.
+                {
+                    float tv = maxD;
+                    int iv = -1;
+                    if (vimpRay(o, d, maxD, tv, iv) && (!he || tv < te)) { he = true; te = tv; ne = d * -1.0f; ie = kVimpTarget + iv; }
+                }
                 // Ripper nests: a sphere around the mound.
                 for (size_t k = 0; k < nests_.size(); ++k) {
                     const NestInst& n = nests_[k];
@@ -361,6 +367,11 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 }
                 if (target < 0) {
                     sfx(frand() < 0.5f ? "bi_dirt1" : (frand() < 0.5f ? "bi_hit1" : "bi_hit2"), p, 0.45f, 0.9f + 0.2f * frand());
+                    return;
+                }
+                if (target >= kVimpTarget && target < kNestTarget) {
+                    hitVimp(target - kVimpTarget, 25.0f * hitMul_, p, shotDir);
+                    haptics_.push_back({rig_.turnHand(), 0.4f, 0.04f});
                     return;
                 }
                 if (target >= kNestTarget) {
@@ -820,7 +831,9 @@ void GameApp::setAudio(AudioMixer* mixer) {
         // Kabuto: footsteps by surface, punches and hits, stomp, landing, eating, roars, death.
         "ka_fsgr1", "ka_fsgr2", "ka_fssa1", "ka_fssa2", "ka_fsst1", "ka_fsst2", "ka_fswa1", "ka_fswa2", "ka_pnch1", "ka_pnch2",
         "ka_ltht1", "ka_mdht1", "ka_hvht1", "ka_stomp", "ka_lndhd", "ka_grab", "ka_eat1", "ka_eat2", "ka_belch", "ka_sniff",
-        "ka_roar1", "ka_roar2", "ka_roar3", "ka_roar4", "ka_deth1", "ka_deth2", "ka_wound", "ka_smrt1", "ka_smrt2"};
+        "ka_roar1", "ka_roar2", "ka_roar3", "ka_roar4", "ka_deth1", "ka_deth2", "ka_wound", "ka_smrt1", "ka_smrt2",
+        // Vimps and their meat.
+        "vi_deat1", "vi_deat2", "vi_injr1", "vi_injr2", "vi_moo1", "vi_moo2", "vi_squi1", "pu_meat1", "pu_meat2", "ka_vimp1", "ka_vimp2"};
     std::vector<std::string> all(std::begin(names), std::end(names));
     for (int k = 1; k <= 15; ++k)  // Smartie voice pairs gsmNN_1 / gsmNN_2 (no 07 in the data)
         for (int j = 1; j <= 2; ++j) {
@@ -1157,6 +1170,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     timmyChatCooldown_ = 4.0f;
     initPickups(mc);
     initVillagers(w, mc);
+    initVimps(w, mc);
     initDestruction(w, mc);
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
 }
@@ -1587,6 +1601,11 @@ void GameApp::updateCharacters(float dt) {
 void GameApp::initMission() {
     // Proximity triggers on placed objects (death triggers were added with their characters).
     for (const auto& t : assetWorld_->triggerObjects())
+        if (t.kind == 4) {  // "On Vimp Meat Proximity": bring the meat here
+            objectives_.push_back({4, t.boundsMin, t.boundsMax});
+            LOGI("Objective: bring %d pieces of Vimp meat to type %d", kVimpMeatNeeded, int(t.type));
+        }
+    for (const auto& t : assetWorld_->triggerObjects())
         if (t.kind == 1) {
             objectives_.push_back({1, t.boundsMin, t.boundsMax});
             const Vec3 c = (t.boundsMin + t.boundsMax) * 0.5f;
@@ -1713,6 +1732,7 @@ void GameApp::renderShadowMap() {
         c.model->renderShadow(renderer_, c.xf());
     }
     renderVillagers(true, centre, half * 1.4f);
+    renderVimps(true, centre, half * 1.4f);
     for (const auto& n : nests_)
         if (n.alive && n.model && length(n.pos - centre) < half * 1.4f)
             for (const auto& part : n.model->parts) renderer_.drawShadow(part.mesh, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown));
@@ -2632,6 +2652,12 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire) {
             creatureSound(e);
         }
     }
+    for (size_t i = 0; i < vimps_.vimps.size(); ++i) {
+        const Vimp& v = vimps_.vimps[i];
+        const float dv = length(v.pos + Vec3{0, 2.0f, 0} - at);
+        if (v.state != VimpState::Dead && dv < radius + 1.5f)
+            hitVimp(int(i), damage * (1.0f - 0.6f * std::min(1.0f, dv / (radius + 1.5f))), v.pos + Vec3{0, 2.0f, 0}, normalize(v.pos - at + Vec3{0, 0.5f, 0}));
+    }
     // Scenery in the blast: distance to the object's upright axis, less its size.
     for (size_t k = 0; k < destruct_.items.size(); ++k) {
         const Destructible& it = destruct_.items[k];
@@ -2931,6 +2957,7 @@ void GameApp::updateCombat(float dt) {
     updateDestruction(dt);
     updateBurn();
     updateVillagers(dt);
+    updateVimps(dt);
     updateFx(dt);
     // Sentries killed by their fall.
     for (int i : enemies_.landed) {
@@ -3367,6 +3394,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         if (c.model) c.model->render(renderer_, c.xf);
     renderPickups();
     renderVillagers(false, renderer_.currentView().eyePosition, 90.0f);
+    renderVimps(false, renderer_.currentView().eyePosition, 150.0f);
     for (const auto& g : gibs_)
         drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) *
                                Mat4::scale({g.scale, g.scale, g.scale}),

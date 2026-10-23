@@ -25,6 +25,7 @@
 #include "game/particles.h"
 #include "game/hud_gauge.h"
 #include "game/villager.h"
+#include "game/vimp.h"
 #include "game/save_game.h"
 #include "game/settings.h"
 #include "audio/mixer.h"
@@ -1144,6 +1145,28 @@ static void testHudGauge() {
     std::printf("hud gauge / player action / hit box / burn ok\n");
 }
 
+static void testVimps() {
+    VimpDirector d;
+    d.groundHeight = [](float, float) { return 0.0f; };
+    const int h = d.addHerd({0, 0, 0});
+    for (int k = 0; k < 4; ++k) d.add(h, {float(k) * 2.0f, 0, 0}, 0.0f);
+    // Calm: they graze where they are.
+    for (int f = 0; f < 72; ++f) d.update(1.0f / 72.0f, {}, {});
+    CHECK(d.vimps.size() == 4 && d.aliveCount() == 4);
+    // The player walks up from +X: the herd stampedes away (toward -X).
+    for (int f = 0; f < 72 * 3; ++f) d.update(1.0f / 72.0f, {Vec3{12, 0, 0}}, {});
+    float mx = 0;
+    for (const auto& v : d.vimps) mx += v.pos.x;
+    CHECK(mx / 4.0f < -8.0f);
+    CHECK(d.herds[0].calm < 5.0f);
+    // 20 hp: a 25-damage shot kills, a 10 only hurts.
+    CHECK(!d.damage(0, 10.0f, {5, 0, 0}) && d.vimps[0].state == VimpState::Hit);
+    CHECK(d.damage(1, 25.0f, {5, 0, 0}) && d.vimps[1].state == VimpState::Dead && d.aliveCount() == 3);
+    // Carcasses go after a while.
+    for (int f = 0; f < 72 * 25; ++f) d.update(1.0f / 72.0f, {}, {});
+    CHECK(d.vimps.size() == 3);
+}
+
 static void testVillagers() {
     VillagerDirector vd;
     vd.groundHeight = [](float, float) { return 0.0f; };
@@ -1215,6 +1238,7 @@ int main() {
     testDestruction();
     testHudGauge();
     testVillagers();
+    testVimps();
     testSaveGame();
     testAffineInverse();
     testGti();

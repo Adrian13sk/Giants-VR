@@ -19,6 +19,7 @@
 #include "game/particles.h"
 #include "game/hud_gauge.h"
 #include "game/villager.h"
+#include "game/vimp.h"
 #include "game/save_game.h"
 #include "game/settings.h"
 #include "render/quad_batch.h"
@@ -67,6 +68,7 @@ public:
     void setMainMenu(bool on) { titleWanted_ = on; }
     bool inMainMenu() const { return title_; }
     void debugCompleteMission() { missionComplete_ = true; }  // test hook (harness --complete-at)
+    void debugSetVimpMeat(int n) { vimpMeat_ = n; }  // test hook (harness --vimp-meat)
     void update(float dt, const InputFrame& input);
     void renderEye(const EyeRenderInfo& eye);
     // Once per frame, before the eyes: the sun's shadow map around the player.
@@ -624,6 +626,28 @@ private:  // the mission placed enemies: no test waves
     void initVillagers(AssetWorld* w, ModelCache* mc);
     void updateVillagers(float dt);
     void renderVillagers(bool shadow, const Vec3& eye, float range);
+    // Vimp herds and Vimp meat (game_app_vimp.cpp): ours, see vimp.h. Meat dropped by a killed
+    // Vimp is picked up by walking over it; mission trigger kind 4 ("On Vimp Meat Proximity", the
+    // original's trigger name) completes when the player brings kVimpMeatNeeded pieces to it.
+    static constexpr int kVimpTarget = 4000;   // weapon target ids for Vimps (index = id - this)
+    static constexpr int kVimpMeatNeeded = 20; // "Return 20 PIECES OF VIMP MEAT" (2a's briefing)
+    VimpDirector vimps_;
+    std::vector<std::unique_ptr<SkinnedModel>> vimpModels_;
+    float vimpLift_ = 0;
+    int vimpClip_[int(VimpClip::Count)] = {};
+    size_t vimpShots_ = 0;
+    struct Meat { Vec3 pos, vel; float yaw = 0, spin = 0, t = 0; int model = 0; bool rest = false; };
+    std::vector<Meat> meat_;
+    const RenderModel* meatModel_[3] = {};
+    TextureId meatIcon_ = 0, dropoffTex_ = 0;
+    int vimpMeat_ = 0;
+    float meatFlash_ = 0, meatHintT_ = 0;
+    void initVimps(AssetWorld* w, ModelCache* mc);
+    void updateVimps(float dt);
+    void renderVimps(bool shadow, const Vec3& eye, float range);
+    bool vimpRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
+    void hitVimp(int i, float amount, const Vec3& at, const Vec3& dir);
+    void dropMeat(const Vec3& at, int pieces);
     void creatureSound(const CreatureEvent& e);
     void updateCombat(float dt);
     void damagePlayer(float amount, DeathCause cause = DeathCause::Shot);
@@ -633,7 +657,7 @@ private:  // the mission placed enemies: no test waves
     // (FP: over the move-hand wrist; TP: head-locked, lower left); the weapon strip that pops up on
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
-                    kHudSword, kHudFire, kHudSyringe, kHudNumbers, kHudMarks, kHudLayers };
+                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudNumbers, kHudMarks, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     QuadBatch hudBatch_[kHudLayers];

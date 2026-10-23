@@ -266,6 +266,10 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
                 const Creature& c = creatures_.creatures[i];
                 if (c.state != CreatureState::Dead && inArc(c.pos, 2.4f + c.scale)) strike(kCreatureTargetD + int(i), c.pos + Vec3{0, 0.6f * c.scale, 0}, fwd, mul);
             }
+            for (size_t i = 0; i < vimps_.vimps.size(); ++i) {
+                const Vimp& v = vimps_.vimps[i];
+                if (v.state != VimpState::Dead && inArc(v.pos, 3.6f)) strike(kVimpTarget + int(i), v.pos + Vec3{0, 2.0f, 0}, fwd, mul);
+            }
         }
         if (swipeT_ > dur || !player_.inAction()) swipeT_ = -1;
     }

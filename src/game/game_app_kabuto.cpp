@@ -19,6 +19,7 @@ namespace gvr {
 namespace {
 constexpr int kCreatureTargetK = 1000;  // as game_app.cpp's kCreatureTarget
 constexpr int kVillagerTargetK = 5000;  // eat targets: Smarties of a village
+constexpr int kVimpTargetK = 6000;      // eat targets: Vimps
 constexpr float kMeccHeight = 1.8f;     // the Meccaryn's capsule height (m): heroScale_ = 1
 }
 
@@ -113,6 +114,10 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
                 damageObject(int(i), 40.0f * mul, true, at);
                 any = true;
             }
+        }
+        for (size_t i = 0; i < vimps_.vimps.size(); ++i) {
+            const Vimp& v = vimps_.vimps[i];
+            if (v.state != VimpState::Dead && length(v.pos + Vec3{0, 2.0f, 0} - at) < r + 1.5f) { hitVimp(int(i), 25.0f * mul, at, dir); any = true; }
         }
         // Smarties (village folk): squashed.
         auto& vs = villagers_.villagers;
@@ -227,6 +232,8 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
             if (creatures_.creatures[i].state != CreatureState::Dead && creatures_.creatures[i].scale < 2.5f)
                 consider(kCreatureTargetK + int(i), creatures_.creatures[i].pos);
         for (size_t i = 0; i < villagers_.villagers.size(); ++i) consider(kVillagerTargetK + int(i), villagers_.villagers[i].pos);
+        for (size_t i = 0; i < vimps_.vimps.size(); ++i)
+            if (vimps_.vimps[i].state != VimpState::Dead) consider(kVimpTargetK + int(i), vimps_.vimps[i].pos);
         if (best >= 0) {
             player_.startAction(PlayerAnim::Inject, std::max(0.5f, player_.oneShot[int(PlayerAnim::Inject)]));
             k.eatT = 0;
@@ -248,7 +255,15 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
             // Gone in one bite: killed and taken (no body left).
             const Vec3 mouth = player_.position + Vec3{0, 0.8f * H, 0} + fwd * (0.1f * H);
             bool ate = false;
-            if (k.eatTarget >= kVillagerTargetK) {
+            if (k.eatTarget >= kVimpTargetK) {
+                const size_t vi = size_t(k.eatTarget - kVimpTargetK);
+                if (vi < vimps_.vimps.size() && vimps_.vimps[vi].state != VimpState::Dead) {
+                    vimps_.vimps[vi].remove = true;
+                    vimps_.vimps[vi].state = VimpState::Dead;
+                    vimps_.vimps[vi].slot = -1;
+                    ate = true;
+                }
+            } else if (k.eatTarget >= kVillagerTargetK) {
                 const size_t vi = size_t(k.eatTarget - kVillagerTargetK);
                 if (vi < villagers_.villagers.size()) {
                     villagers_.villagers.erase(villagers_.villagers.begin() + long(vi));
@@ -276,7 +291,8 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
                 playerHealth_ = std::min(100.0f, playerHealth_ + 25.0f);
                 healFlash_ = 1.0f;
                 blood_.burst(mouth, Vec3{0, -1, 0}, 14, 3.0f, 0.12f);
-                if (k.eatTarget >= kVillagerTargetK) sfx2D(frand() < 0.5f ? "ka_smrt1" : "ka_smrt2", 1.0f);  // (names read as "Smartie")
+                if (k.eatTarget >= kVimpTargetK) sfx2D(frand() < 0.5f ? "ka_vimp1" : "ka_vimp2", 1.0f);
+                else if (k.eatTarget >= kVillagerTargetK) sfx2D(frand() < 0.5f ? "ka_smrt1" : "ka_smrt2", 1.0f);  // (names read as "Smartie")
                 else sfx2D(frand() < 0.5f ? "ka_eat1" : "ka_eat2", 1.0f);
                 haptics_.push_back({mh, 0.7f, 0.2f});
                 LOGI("Kabuto ate something: health %.0f", playerHealth_);

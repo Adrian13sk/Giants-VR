@@ -22,8 +22,8 @@ void GameApp::initHud(ModelCache* mc) {
     // Layer -> texture (drawn in layer order, over everything).
     const char* names[kHudLayers] = {nullptr,          "st_mec_hbar",    "st_mec_fuel",     "st_mec_energy",
                                      "st_mec_jetpack", "st_mec_wpslot",  "st_mec_gun",      "st_mec_launcher",
-                                     "st_rp_sword",    "st_rp_firewall", "st_mec_syringe",  "st_mec_numbers", nullptr};
-    const size_t caps[kHudLayers] = {8, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 16, 48};
+                                     "st_rp_sword",    "st_rp_firewall", "st_mec_syringe",  "st_vimpmeat",     "st_mec_numbers", nullptr};
+    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 24, 48};
     for (int k = 0; k < kHudLayers; ++k) {
         hudTex_[k] = names[k] ? mc->texture(names[k]) : whiteTex_;
         if (!hudTex_[k]) hudTex_[k] = whiteTex_;
@@ -104,6 +104,17 @@ void GameApp::hudStatus(const HudFrame& f) {
     if (!giant) hudRect(kHudSyringe, f, 0.032f, 0.018f, 0.030f * pop, 0.030f * pop, syringes_ > 0 ? on : dim);
     const uint8_t num[4] = {255, 255, 255, uint8_t(syringes_ > 0 ? 255 : 110)};
     if (!giant) hudDigits(f, 0.046f, 0.012f, 0.018f, syringes_, num);
+    // Vimp meat carried (once there is any, or a mission wants it): gold when there's enough.
+    bool wantMeat = vimpMeat_ > 0;
+    for (const auto& o : objectives_) wantMeat |= o.kind == 4 && !o.done;
+    if (wantMeat && !giant) {
+        const float mp = 1.0f + 0.5f * std::max(0.0f, meatFlash_);
+        hudRect(kHudPlate, f, 0.098f, 0.018f, 0.062f, 0.036f, plate);
+        hudRect(kHudMeat, f, 0.080f, 0.018f, 0.028f * mp, 0.028f * mp, on);
+        const bool enough = vimpMeat_ >= kVimpMeatNeeded;
+        const uint8_t mc[4] = {255, uint8_t(enough ? 205 : 255), uint8_t(enough ? 25 : 255), 255};
+        hudDigits(f, 0.094f, 0.012f, 0.018f, vimpMeat_, mc);
+    }
     // The weapon in hand.
     if (giant) {
     } else if (hero_ == Hero::Delphi) {
