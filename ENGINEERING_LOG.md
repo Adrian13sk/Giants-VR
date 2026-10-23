@@ -908,3 +908,36 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Not done from the item's wish list: light shafts (would need a post-process pass on Quest; skipped); water foam
   already existed.
 - **Not device-tested.**
+
+### List item 7: next characters - Delphi (2026-10-23, build 93a8eed)
+- **Hero by world:** Rstory* worlds play as Delphi (rp_l0), every other world as the Meccaryn.
+  - `GameApp::setHero` swaps the player model and the PlayerAnim→clip table, and sets player params.
+  - Delphi: a jumper (A jumps, 10 m/s, uncapped; air steering), run 5.5 m/s, turbo ×1.9 with rp_turbo, swim 4.2
+    m/s with rp_swim_breast / rp_swim_treadwater, hard-landing threshold 22 m/s, no jetpack.
+  - The Meccaryn's models and params are kept and restored on the way back.
+  - PlayerAnim gained Swim, Turbo, Attack1–3 and Cast (the Meccaryn maps them to existing clips).
+- **Clips:** rp_stand, rp_run, rp_jump_cycle, rp_runjump_cycle, rp_fall, rp_land, rp_land_hard, rp_side_r, rp_slide,
+  rp_swipe_1/2/3, rp_spell_arm_bolt, rp_swim_*.
+- **Sword (rp_sword.gbs):**
+  - First person: in the weapon hand along the controller's pointing direction. A blade moving faster than 3 m/s cuts
+    what it sweeps (a ray from the tip's last position to its new one, and along the blade, through the same raycast
+    and onHit as bullets, ×0.6–2.5 by speed), with a 0.4 s per-target cooldown.
+  - Third person: on Ref_Rhand (as the cutscenes attach props). The trigger starts a three-swipe combo (rp_swipe_1/2/3
+    as one-shot actions); the hit lands a third in, on everything within 2.8 m in a ±70° arc in front, ×2 (×3 for the
+    third swipe).
+  - Sounds: SR_SWSH1/2 swish and SR_SWHT1–4 hits (names read as such).
+- **Fire bolt:** the move hand's trigger, 1 s cooldown; a rocket of kind 1 at 28 m/s drawn as fire particles; it bursts
+  with a 2.6 m blast for 75 (self-damage rules as for rockets). SR_SPFSH (provisional).
+- **HUD:** st_rp_sword as the weapon icon; st_rp_firewall, lit when the bolt is ready, where the jetpack gauge was.
+- **New game** (options) now chooses MECC STORY (BAZ) or REAPER STORY (DELPHI). Chapter chains: Rstory1 → Rstory2 →
+  Rstory3_race_1..3 → Rstory4 → Rstory5, Kstory1..5. The missions of incompletely parsed Kstory/Rstory worlds are found
+  by file name (k1a_…, kstory3_…, r1_…, rstory2_…).
+- **Harness:**
+  - Rstory1 with Delphi running (sword in hand);
+  - a jump (3.5 m apex);
+  - a TP swipe;
+  - FP sword with the controllers;
+  - the menu starting the Reaper story from Story1 (hero switch at run time).
+- **Not done:** her first-person body (the Meccaryn's arm IK uses his bone names); her own story's Reaper-side
+  mechanics (Smartie grabbing, spells beyond the bolt); Kabuto (next).
+- **Not device-tested.**

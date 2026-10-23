@@ -299,3 +299,8 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 ## Host verification — build 2d57afb (APK sha256 7feac221…)
 - `gvr_tests`: all pass.
 - Harness: day, dusk, night (stars, moonlight) and dawn renders of 1a's start. **Not device-tested.**
+
+## Host verification — build 93a8eed (APK sha256 0da55f65…)
+- `gvr_tests`: all pass.
+- Harness: Delphi in Rstory1 (TP run, jump trace, swipe; FP sword); the options menu starting the Reaper story from
+  Story1. **Not device-tested.**

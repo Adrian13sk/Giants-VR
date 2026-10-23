@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-23 (build 2d57afb: day and night, anisotropic filtering)
+Last updated: 2026-10-23 (build 93a8eed: Delphi playable in the Reaper story)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -41,7 +41,7 @@ original Giants data and renders the original worlds in stereo.
         **Needs device numbers:** turn on options → FRAME RATE and report it in 1a's village, at a tower collapse, in flight.
      5. ~~VR feel~~ (8626e3c, host verified).
      6. ~~Visual upgrades~~ (2d57afb, host verified): day/night with stars and moon, anisotropic filtering. Light shafts skipped.
-     7. Next characters: Delphi, then Kabuto with his own camera scale.
+     7. Next characters: ~~Delphi~~ (93a8eed, host verified; FP body still missing), then Kabuto with his own camera scale.
      8. Polish: main menu, loading screen with art, the original music per mission.
    - Resume planned 2026-10-23 00:31 (user).
 2. **Remaining Story1 work:** Smartie AI in the villages, Dactyl flight, 1d (sneak past); the world opcode table (B5).

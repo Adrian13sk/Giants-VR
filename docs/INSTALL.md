@@ -120,3 +120,12 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   harder on turbo), landings, and a heartbeat below 30 health.
 - **Story:** finishing 1d now continues into Story 2 (2a). Story 2's objectives aren't implemented yet (2a can't be
   completed).
+
+## Delphi (Reaper story)
+Options → NEW GAME: choose **REAPER STORY (DELPHI)** with the stick, hold the trigger 2 s. Delphi has no jetpack:
+- **A**: jump (she steers in the air). **Left grip**: turbo run. Deep water: she swims fast.
+- **Sword (right hand):** first person - **swing the controller**; the faster the swing, the harder the hit. Third
+  person - **right trigger**: a three-swipe combo, the third hits hardest.
+- **Fire bolt: left trigger** (first person: from your left hand where it points; third person: toward the crosshair or
+  straight ahead), about one a second. The HUD's fire icon is lit when it's ready.
+- In first person her body isn't drawn (you see the controllers and the sword).
