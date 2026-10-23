@@ -319,3 +319,14 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - Audio: 163/163 sounds.
 - **Regression:** Story1 Mecc FP and Rstory1 Delphi TP renders unchanged.
 - **Not device-tested.**
+
+## Host verification — build 42ac61a (APK sha256 219ffef8…)
+- `gvr_tests`: all pass. Story1 start render byte-identical to the previous build.
+- **Harness `--main-menu`:**
+  - Title scene with logo, menu and art card.
+  - CONTINUE into Story1 / 1b_1_catchsmarties (syringes 2 restored, checkpoint rewritten).
+  - CONTINUE into Kstory1, playing as Kabuto after the loading screen.
+  - NEW GAME → Rstory1 after the 1.5 s hold (checkpoint replaced).
+  - Loading screens: Mecc art with "The Wax Smarties" briefing, Delphi art with "Yan, the Samurai Smartie".
+- **Not verified:** menu music (segments not in the cloud copy).
+- **Not device-tested.**

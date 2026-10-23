@@ -985,3 +985,40 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   - Kstory missions' own objectives: k1a has none parsed. The world stream stops early (B5); mission objects load.
   - Kabuto's growth from eating, adrenaline / spikes moves.
 - **Not device-tested.** Comfort at 8× scale (IPD ≈ 0.5 m) and the frame rate in the village are the things to check.
+
+### 2026-10-23 — Main menu, loading art, music per world (build 42ac61a)
+- **Title-scene data found:** w_intro_island (terrain, night sky, sea), flk_intro_island_1 (a 66.7 s camera flight,
+  nodes Object01 / Text01 / Text02 = the logo's parts) and flk_intro_island_2 (3.3 s hold). Its camera rests at game
+  (−3231, 4058, 374) looking at (2759, −2021, 2869), about 16° up. Giants_logo_3D.gbs: the 65 m G / IANTS / CITIZEN
+  KABUTO logo (Giants_logo_512 + _rep textures), in xx_giants_logo_3d.gzp. The same archive holds the original loading
+  screens mecc_loading, reaper_loading and kabuto_loading (640×480), giants_loading and MP_screen.
+- **Main menu** (`game_app_title.cpp`, enabled by the Android entry point; `--main-menu` in the harness):
+  - The app starts in intro_island. The viewer stands where the original's menu camera rests, facing its direction,
+    with world colours (no day/night).
+  - The logo floats 110 m out, 13° up, unlit, gently bobbing.
+  - The panel offers:
+    - CONTINUE: the checkpoint's mission by its title.
+    - NEW GAME: Mecc, Reaper or Kabuto story. Held 1.5 s when a checkpoint exists, since it replaces it.
+    - OPTIONS: the usual menu.
+  - The chosen story's loading art stands beside the panel.
+  - CONTINUE switches world straight to the checkpoint's mission (new `LoadState::worldMission`) and restores what was
+    carried. The title world writes no checkpoint and gets no test showcase. Without the title world in the data, the
+    app starts the game as before.
+- **Loading screen:** the destination's race art on the left, title and objectives on the right.
+- **Music:** the ambient set now follows the world on every mission start (was fixed at app start):
+  - race prefix m / r / k, a1 on odd chapters, a2 on even (ours);
+  - the menu plays ma2 (ours);
+  - Kabuto has no small-battle set, so his small fights use kff.
+- **Delphi:** regenerates health while swimming (6 / s). Her own briefing text says so: "You can regenerate by
+  immersing yourself in deep water if you are badly wounded."
+- **Fix:** Kabuto and Delphi never get the jetpack on later missions. initMission used to re-enable it for any non-Mecc
+  mission when the hero didn't change.
+- **Harness:**
+  - Main menu with and without a checkpoint.
+  - CONTINUE into Story1 / 1b (syringes restored) and into Kstory1 (plays as Kabuto).
+  - NEW GAME → Reaper story with the hold (checkpoint replaced).
+  - Loading screens with Mecc and Reaper art.
+  - Story1 start render byte-identical to before.
+- **Not verified:** the menu music. Only part of the Music folder is in the cloud copy; the segments it needs are on
+  the PC.
+- **Not device-tested.**

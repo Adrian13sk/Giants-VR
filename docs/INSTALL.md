@@ -144,3 +144,13 @@ scaled so your eyes are at his height (about 13 m). The HUD and menu stay their 
 - Trees and Smartie houses smaller than him are trampled when you walk into them. Smarties run from you.
 - In first person his body isn't drawn (you see the controllers). The Kabuto missions' objectives aren't implemented
   yet, so you can roam and fight but not complete them.
+
+## Main menu
+The game now starts at the main menu: night over the intro island with the GIANTS logo in the sky.
+- **Stick**: choose. **Trigger or A**: select.
+- **CONTINUE** goes back to your last checkpoint (the mission's name is shown).
+- **NEW GAME**: pick the story with the stick left/right (its loading art shows beside the menu). If you have a
+  checkpoint, hold the trigger 1.5 s, because a new game replaces it.
+- **OPTIONS**: the usual options. The left menu button opens them too.
+- Loading screens show the original art of the story's race next to the mission briefing.
+- Delphi regains health while swimming in deep water, as her briefing says.

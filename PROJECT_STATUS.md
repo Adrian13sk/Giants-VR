@@ -43,7 +43,8 @@ original Giants data and renders the original worlds in stereo.
      6. ~~Visual upgrades~~ (2d57afb, host verified): day/night with stars and moon, anisotropic filtering. Light shafts skipped.
      7. ~~Next characters~~: ~~Delphi~~ (93a8eed, host verified; FP body still missing), ~~Kabuto with his own camera
         scale~~ (866dfdc, host verified; FP body not drawn, Kstory mission objectives not implemented).
-     8. Polish: main menu, loading screen with art, the original music per mission.
+     8. ~~Polish~~ (42ac61a, host verified): ~~main menu~~ (intro island, 3D logo), ~~loading screens with the original
+        art~~, music per world (a1/a2 by chapter is our mapping; the original's choice is native code, not decoded).
    - Resume planned 2026-10-23 00:31 (user).
 2. **Remaining Story1 work:** Smartie AI in the villages, Dactyl flight, 1d (sneak past); the world opcode table (B5).
 3. **Visual fidelity:** compare against original screenshots (B6).
