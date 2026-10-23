@@ -304,3 +304,18 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 - `gvr_tests`: all pass.
 - Harness: Delphi in Rstory1 (TP run, jump trace, swipe; FP sword); the options menu starting the Reaper story from
   Story1. **Not device-tested.**
+
+## Host verification — build 866dfdc (APK sha256 a5e4426a…)
+- `gvr_tests`: all pass.
+- **Harness, Kstory1 as Kabuto:**
+  - FP and TP views: HUD and controllers at normal size, Kabuto 17 m tall over the village.
+  - Walk: 8.7 m/s measured.
+  - Grab-and-eat of a Smartie: "Kabuto ate something".
+  - TP punch: destroyed a tree.
+  - Stomp: quake plus destroyed tree.
+  - FP ground pound: 11.7 m/s hand, quake.
+  - Trampling a Smartie house.
+  - Death: kb_die.
+  - Audio: 163/163 sounds.
+- **Regression:** Story1 Mecc FP and Rstory1 Delphi TP renders unchanged.
+- **Not device-tested.**

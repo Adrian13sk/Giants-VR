@@ -41,7 +41,8 @@ original Giants data and renders the original worlds in stereo.
         **Needs device numbers:** turn on options → FRAME RATE and report it in 1a's village, at a tower collapse, in flight.
      5. ~~VR feel~~ (8626e3c, host verified).
      6. ~~Visual upgrades~~ (2d57afb, host verified): day/night with stars and moon, anisotropic filtering. Light shafts skipped.
-     7. Next characters: ~~Delphi~~ (93a8eed, host verified; FP body still missing), then Kabuto with his own camera scale.
+     7. ~~Next characters~~: ~~Delphi~~ (93a8eed, host verified; FP body still missing), ~~Kabuto with his own camera
+        scale~~ (866dfdc, host verified; FP body not drawn, Kstory mission objectives not implemented).
      8. Polish: main menu, loading screen with art, the original music per mission.
    - Resume planned 2026-10-23 00:31 (user).
 2. **Remaining Story1 work:** Smartie AI in the villages, Dactyl flight, 1d (sneak past); the world opcode table (B5).

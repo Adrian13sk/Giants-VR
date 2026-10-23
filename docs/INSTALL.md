@@ -129,3 +129,18 @@ Options → NEW GAME: choose **REAPER STORY (DELPHI)** with the stick, hold the 
 - **Fire bolt: left trigger** (first person: from your left hand where it points; third person: toward the crosshair or
   straight ahead), about one a second. The HUD's fire icon is lit when it's ready.
 - In first person her body isn't drawn (you see the controllers and the sword).
+
+## Kabuto (Kabuto story)
+Options → NEW GAME: choose **KABUTO STORY** with the stick, hold the trigger 2 s. You are the giant: the world is
+scaled so your eyes are at his height (about 13 m). The HUD and menu stay their normal size.
+- **Left stick**: walk. **Left grip**: run. **A**: jump. Landing from a jump shakes the ground.
+- **Right trigger** (third person): punch, alternating fists.
+- **First person punches:** swing your fists, since the controllers are his hands. Slam a fist down to the floor for a
+  ground pound.
+- **Left trigger**: stomp, which hurts everything around his foot.
+- **X**: grab and eat the nearest Smartie, Reaper or small Ripper in front of you. It heals you, and it's the only way
+  to heal.
+- **Y**: roar, which knocks Reapers back.
+- Trees and Smartie houses smaller than him are trampled when you walk into them. Smarties run from you.
+- In first person his body isn't drawn (you see the controllers). The Kabuto missions' objectives aren't implemented
+  yet, so you can roam and fight but not complete them.

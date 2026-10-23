@@ -941,3 +941,47 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - **Not done:** her first-person body (the Meccaryn's arm IK uses his bone names); her own story's Reaper-side
   mechanics (Smartie grabbing, spells beyond the bolt); Kabuto (next).
 - **Not device-tested.**
+
+### 2026-10-23 — Kabuto (build 866dfdc)
+- **Hero::Kabuto** for Kstory worlds (`heroForWorld`), in `game_app_kabuto.cpp`; `setHero` rewritten for three heroes
+  (each hero's model parked and restored; per-hero death clips: mc_die…, rp_die / rp_land_dead, kb_die / kb_drown —
+  fixes Delphi having used the Meccaryn's clip indices and chunks on death).
+- **Size (measured):** kb_l0 in kb_stand is 17.3 m tall (posed bounds y −0.2…17.1 m at 0.2 m per game unit), eye 13.4 m
+  (front of the head bone's vertices). heroScale_ = 8.3 (body / the Meccaryn's 1.8 m).
+- **Giant scale:** `rig_.comfort.worldScale = kabutoEye_ / userEye_` (≈ 8.4) while playing as Kabuto (1 in cutscenes,
+  loading and the free camera). Every tracked pose is scaled, so the eyes (IPD), head motion and hands are a giant's;
+  physical walking and the FP camera placement scale with it. TP camera distance, height, collision margins scale with
+  heroScale_.
+- **UI at human scale:** `pushUnscaledRig` re-roots the tracking space at scale 1 about the head (same head position and
+  heading); `beginUiFrame` re-begins the eye view from it. HUD (built in update), Timmy line, briefing, menu (open,
+  update, render) and controllers are drawn in that frame, so they look exactly as for the Meccaryn.
+- **Moves:**
+  - Clips: kb_stand, kb_walk (8.7 m/s, its measured foot travel), kb_run1 on turbo (13 m/s; new
+    `PlayerParams::turboStride`), kb_side_r, kb_slide, kb_jump_up_loop / kb_run_jump_loop / kb_fall, kb_land_light,
+    kb_land, kb_mud_walk (deep water).
+  - A jumper: 24 m/s take-off with gravity 30 (≈10 m up). No fall damage. Capsule 1.6 m radius, 14.9 m tall, step 2.5 m.
+  - Takes 30 % damage.
+- **Combat:**
+  - Third-person right trigger: kb_punch / kb_punch_lft alternating; the hit lands at 45 % on whatever is in front at
+    0.25–0.55 of his height (×5).
+  - First person: fists are the controllers. A swing faster than 2.2 m/s (real) smashes what it meets (×1.5–7 by
+    speed). A fast blow down to the floor is a ground pound (quake, 4.5 m radius).
+  - Left trigger: kb_stomp, a quake (6.7 m radius, 90) at his front foot.
+  - Landing from a big jump: a quake too.
+  - A quake is `explode(…, fire=false)`: no fireball and no self-throw, dust.
+- **Eating and other actions:**
+  - X: grab and eat the nearest Smartie, Reaper or small Ripper within 9 m in front. kb_eat_small plays; the victim is
+    gone at 30 % and heals 25 (KA_SMRT1/2 for Smarties, KA_EAT1/2 otherwise; names read as such).
+  - Y: kb_roar (shortened to 3 s), Reapers pushed back, 6 s cooldown.
+  - Walking into trees and Smartie houses lower than 70 % of his height tramples them.
+  - Village Smarties now fear him.
+- **Sound and HUD:**
+  - Sounds: KA_FS* footsteps by surface with a rumble and dust per step, KA_PNCH, KA_LTHT/MDHT/HVHT hits, KA_STOMP,
+    KA_LNDHD, KA_GRAB, KA_BELCH, KA_SNIFF, KA_ROAR1–4, KA_WOUND, KA_DETH1/2. All 163 preloaded sounds found.
+  - HUD: health only (no injections or weapons).
+- **Menu:** NEW GAME cycles MECC / REAPER / KABUTO STORY (Kstory1).
+- **Not done:**
+  - His first-person body. The view shows controllers as his hands.
+  - Kstory missions' own objectives: k1a has none parsed. The world stream stops early (B5); mission objects load.
+  - Kabuto's growth from eating, adrenaline / spikes moves.
+- **Not device-tested.** Comfort at 8× scale (IPD ≈ 0.5 m) and the frame rate in the village are the things to check.
