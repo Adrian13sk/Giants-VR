@@ -29,6 +29,26 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
+**Saved for later (user, 2026-10-23 16:45):**
+- Story 2's bush-pack disguise.
+- Flares against homing missiles.
+- Kabuto growing from eating.
+- The performance pass, which needs device frame-rate numbers (Options → Frame rate).
+
+**In progress (user list, 2026-10-23 16:45):**
+- Rippers burrowing, mini Rippers, latching, faster spit, spit health drops.
+- Building health bars and the collapse frame drop.
+- VR map.
+- Timmy fighting on his tower.
+- Jetpack plasma and the out-of-fuel sputter.
+- Piranha gore.
+- Name tags and Smartie lines.
+- Shop and health pool.
+- Water interaction.
+- HUD injection number.
+- TP weapons attached to the hands.
+- Projectile colours.
+
 1. **Device test 25** (build f811216, host verified only): Timmy leaning; Timmy's lines and subtitles; the new terrain
    (beach, sea bed, earth patches, rock on slopes); **frame rate with the terrain shader** (watch `perf: ... quality down`).
    The three requests from device test 24 are implemented.
