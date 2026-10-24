@@ -1577,3 +1577,38 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Briefings name the weapons behind more item numbers: story3_bunker_3 (items 1 3 6) "Your new SNIPER GUN ... zoom
   in"; 4a (1 7) "Try out your MILLENIUM GUN"; so 6 = sniper gun, 7 = Millenium gun (not implemented yet).
   The pop-up bomb is now granted from item 10 (prison_7's list) rather than by mission name.
+
+### 2026-10-24 — weapondefs.bin decoded; the Meccaryn arsenal from the data
+- Data: `Bin/weapondefs.bin` (loose) is a key/type/value table: 53 weapon records then one record of 73 inventory
+  items (format in docs/formats/FORMATS.md; parser src/assets/weapondefs.cpp, unit-tested on synthetic data;
+  `gzptool weapons <Bin>` dumps it). Its item ids are the missions' op 0x0E item ids, and its key 39 names the held
+  object (GameObj types 21 mc_gun_l0, 22 mc_shotgun_l0, 300 mc_machinegun_l0, 787 mc_snipergun_l0, 790
+  mc_mortar_l0, 785 mc_launcher_l0...). Cross-checks: 6 = IconSnipergun in story3_bunker_3 (its briefing), 10 =
+  IconPopup in prison_7, 20 = IconBush in 2b; 1c-2c list item 3 and are exactly the missions that place
+  mc_pickup_shells; GText "iconmortar = Millenium Mortar" = item 7 (4a: "Try out your MILLENIUM GUN").
+- **Two earlier readings were wrong:** item 1 is the handgun (not the jetpack) and item 3 the shotgun (not the
+  rocket launcher; the launcher is item 14, first listed in story3_launcher_5). Consequences, following the data:
+  1c onward hands out the shotgun; the rocket launcher now comes from story3_launcher_5 (or a Shop) instead of 1c.
+  Story 1's jetpack gating on item 1 is kept as our rule (comment updated).
+- Placed mc_pickup_shells were being turned into health pickups (all class 37 was read as health): they are now
+  shotgun ammo pickups (2 shells each, the ammo item's key 46). 1c_1: 3 ammo pickups, 0 health (was 3 health).
+- Ours (game_app_arsenal.cpp): shotgun (sel 4), machine gun (5), sniper gun (6), Millenium mortar (7), each held at
+  its .anm Ref_handle and firing from Ref_nozzle01, with damage scaled against the handgun's record (fx_gun every
+  0.2 s, 12): shotgun 3.3x (one shell per pull every 1.3 s, a direct hit plus a 1.8 m burst), machine gun 0.67x every
+  0.1 s while held (300 m/s), sniper 6.7x every 1.5 s at 500 m/s (one-shot kills a Reaper), mortar a lobbed bomb
+  (mc_lbomb) that bounces once and bursts (5.5 m, 225: the record's 150 vs the rocket's 80). Ammo: start/max from the
+  item (shotgun 25/35, machine gun 800/2500, sniper 8/12, mortar 6/10); empty = out-of-ammo click (ME_OUTAM).
+  Sounds by name (guessed): ME_RSGSH/RSGEX shotgun, ME_MCHST/MCHLP/MCHEN machine gun, ME_SPRSH sniper, ME_MTRSH/MTRHT
+  mortar, PU_AMMO pickup. HUD: st_mec_shotgun / machine / sniper / mortar icons with rounds left; the weapon strip
+  now lists what is carried (first four cells on the st_mec_wpslot art). Saved per checkpoint (gunN=<ammo>).
+  Mission select grants every item listed before the chosen mission.
+- Grenades (item 8, 5a and kstory5_5; ours for VR, game_app_grenade.cpp): picked on the strip (sel 8), one sits in
+  the hand (MC_grenade_L0); hold the trigger, swing, let go: it leaves with the fastest hand velocity of the last ten
+  frames x1.6 (capped 30 m/s); a slow release lobs it ahead at 12 m/s (third person always). It bounces (0.4) and
+  bursts after a 2.5 s fuse or on a character (3.6 m, 130; weapon 2: 80 / (75, 0, 30, 50)). 5 given, 8 carried (item).
+  Harness 5a: a hand swing of 0.85 m in 10 frames throws at 9.8 m/s; a lob burst 0.6 m from a Reaper 12 m away kills it.
+- Not done: the sniper's zoom (the model has a "screen" node, the scope display), ammo for the rocket launcher (still
+  unlimited), Reaper guards dropping ammo, mines (item 9).
+- Harness (story3_bunker_3, a Reaper spawned ahead, auto-aim): sniper at 40 m - 1 hit, dead; shotgun at 15 m - one
+  direct shell, dead; machine gun at 15 m - dead after 8 hits; handgun - 5 hits. 1c: "Picked up 2 rounds for the
+  shotgun (27)". The three new guns render in hand in first person (screenshots checked).

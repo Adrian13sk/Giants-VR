@@ -26,7 +26,9 @@ bool WeaponSystem::update(float dt, bool triggerHeld, const Vec3& muzzle, const 
             p.life = -1.0f;
             ++hits_;
             lastHitDist_ = p.travelled + t;
+            hitDamage_ = p.damage;
             if (onHit) onHit(target, hp, dir);
+            hitDamage_ = 1.0f;
         } else {
             p.pos += step;
             p.travelled += len;
@@ -45,7 +47,7 @@ bool WeaponSystem::update(float dt, bool triggerHeld, const Vec3& muzzle, const 
 
 void WeaponSystem::spawnShot(const Vec3& muzzle, const Vec3& forward) {
     const Vec3 f = normalize(forward);
-    projectiles_.push_back({muzzle, f * projectileSpeed, range / projectileSpeed});
+    projectiles_.push_back({muzzle, f * projectileSpeed, range / projectileSpeed, 0.0f, shotDamage});
     effects_.push_back({WeaponEffect::Muzzle, muzzle, f, 0.0f, 0.07f});
     ++shots_;
 }

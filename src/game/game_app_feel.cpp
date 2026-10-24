@@ -67,6 +67,7 @@ void GameApp::updateFeel(float dt, const InputFrame& in) {
     holsterGun_ = holsterLauncher_ = false;
     if (!playerModel_ || !gunModel_) return;
     const bool launcherOut = weaponSel_ == 1 && launcherModel_;
+    const bool longOut = launcherOut || gunOfSel(weaponSel_) >= 0;  // a two-handed gun in hand: the pistol rides on the thigh
     const float bodyScale = eyeModel_.y > 0.1f ? userEye_ / eyeModel_.y : 1.0f;
     const float k = firstPerson_ ? bodyScale * 0.6f : 0.75f;  // the in-hand sizes
     const Quat body = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
@@ -77,7 +78,7 @@ void GameApp::updateFeel(float dt, const InputFrame& in) {
     Mat4 hr, hb;
     if (bodyRef("ref_holsterr", "leg r", holsterRCache_, hr)) {
         holsterGunPos_ = worldPoint(hr);
-        if (launcherOut) {
+        if (longOut) {
             // Barrel down along the thigh, the grip up by the hip.
             const Quat q = body * rotationBetween(Vec3{0, 0, -1}, normalize(Vec3{0.0f, -1.0f, -0.25f}));
             const Vec3 handle = giantsToRuntime(gunHandle_.x, gunHandle_.y, gunHandle_.z);
@@ -105,12 +106,12 @@ void GameApp::updateFeel(float dt, const InputFrame& in) {
         const bool grip = c.squeeze > 0.7f;
         if (grip && !holsterGripHeld_ && c.gripPoseValid) {
             const Vec3 hand = rig_.toWorld(c.gripPose).position;
-            const bool atGun = launcherOut && length(hand - holsterGunPos_) < 0.3f;
+            const bool atGun = longOut && length(hand - holsterGunPos_) < 0.3f;
             const bool atBack = !launcherOut && (length(hand - holsterBackPos_) < 0.42f ||
                                                  (in.headValid && hand.y > rig_.toWorld(in.head).position.y - 0.1f &&
                                                   dot(hand - rig_.toWorld(in.head).position, body.rotate(Vec3{0, 0, 1})) > 0.02f));
             if (atGun || atBack) {
-                weaponSel_ = launcherOut ? 0 : 1;
+                weaponSel_ = atGun ? 0 : 1;
                 weaponHudT_ = 0;
                 sfx2D("ph_selct", 0.7f);
                 haptics_.push_back({gh, 0.6f, 0.08f});

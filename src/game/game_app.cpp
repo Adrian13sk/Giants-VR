@@ -272,6 +272,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                      launcherHandle_.z, launcherMuzzle_.x, launcherMuzzle_.y, launcherMuzzle_.z);
             }
             launcherModel_ = mc->get("mc_launcher_l0.gbs", "", /*dynamicLit=*/true);
+            arsenalReady_ = false;  // this world's model cache: the guns are fetched again (kept: what he carries)
+            initArsenal();
             rocketModel_ = mc->get("mc_rocket.gbs", "mc_rocket.anm", /*dynamicLit=*/true);
             boltModel_ = mc->get("mc_bullet.gbs", "mc_bullet.anm");
             muzzleModel_ = mc->get("muzzle_flash.gbs", "muzzle_flash.anm");
@@ -372,9 +374,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 return true;
             };
             weapon_.onHit = [this](int target, const Vec3& p, const Vec3& shotDir) {
+                const float hm = hitMul_ * weapon_.hitDamage();  // the gun that fired it (sniper, machine gun) x the hero's power
                 if (target >= kObjectTarget) {
                     const int item = target - kObjectTarget;
-                    damageObject(item, 25.0f * hitMul_, false, player_.position);
+                    damageObject(item, 25.0f * hm, false, player_.position);
                     const DestructKind k = destruct_.items[size_t(item)].kind;
                     sfx(k == DestructKind::Tree || k == DestructKind::House ? "ex_woods" : "ex_stons", p, 0.45f, 1.1f + 0.2f * frand());
                     smokePuff(k == DestructKind::Tree ? FxTex::Dust : FxTex::Smoke, p, normalize(shotDir * -1.0f) * 0.8f, 0.2f, 0.9f, 0.8f, 0.6f, 0.2f);
@@ -384,7 +387,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 enemies_.alertNear(p, 20.0f);
                 creatures_.disturb(p, 12.0f);
                 if (target >= kBossTarget && target < kObjectTarget) {
-                    hitBoss(target - kBossTarget, 25.0f * hitMul_, p, shotDir);
+                    hitBoss(target - kBossTarget, 25.0f * hm, p, shotDir);
                     haptics_.push_back({rig_.turnHand(), 0.4f, 0.04f});
                     return;
                 }
@@ -399,12 +402,12 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     return;
                 }
                 if (target >= kVimpTarget && target < kNestTarget) {
-                    hitVimp(target - kVimpTarget, 25.0f * hitMul_, p, shotDir);
+                    hitVimp(target - kVimpTarget, 25.0f * hm, p, shotDir);
                     haptics_.push_back({rig_.turnHand(), 0.4f, 0.04f});
                     return;
                 }
                 if (target >= kNestTarget) {
-                    damageNest(target - kNestTarget, 25.0f * hitMul_);
+                    damageNest(target - kNestTarget, 25.0f * hm);
                     haptics_.push_back({rig_.turnHand(), 0.5f, 0.05f});
                     return;
                 }
@@ -416,7 +419,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     // A Ripper's head (round its mouth) is its weak spot.
                     Vec3 mouth;
                     const bool weak = creatures_.mouth && creatures_.mouth(ci, mouth) && length(mouth - p) < 0.55f * scale;
-                    const bool died = creatures_.damage(ci, (weak ? 45.0f : 25.0f) * hitMul_, shotDir, &ev);
+                    const bool died = creatures_.damage(ci, (weak ? 45.0f : 25.0f) * hm, shotDir, &ev);
                     if (died && slot >= 0 && size_t(slot) < chars_.size() && chars_[size_t(slot)].objective >= 0)
                         completeObjective(chars_[size_t(slot)].objective);
                     bleed(p, shotDir, died, scale);
@@ -434,7 +437,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 // Headshots (hit above the shoulders) hurt a Reaper two and a half times as much.
                 const bool head = p.y - enemies_.enemies[size_t(target)].pos.y > 1.6f;
                 if (head) sfx("bi_hit2", p, 0.8f, 1.4f);
-                const bool killed = enemies_.damage(target, (head ? 62.5f : 25.0f) * hitMul_);
+                const bool killed = enemies_.damage(target, (head ? 62.5f : 25.0f) * hm);
                 if (killed && enemies_.enemies[size_t(target)].objective >= 0)
                     completeObjective(enemies_.enemies[size_t(target)].objective);
                 bleed(p, shotDir, killed, 1.0f);
@@ -690,6 +693,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateShop(dt, in);
     updateBase(dt, in);
     updatePopup(dt, in);
+    updateGrenades(dt, in);
     { GVR_PROF("map"); updateMap(dt, in); }
     updateFlares(dt, in);
     { GVR_PROF("camera"); placeCamera(dt, false, &in); }
@@ -870,7 +874,7 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "me_peas1", "me_peas2", "bi_dirt1", "bi_hit1", "bi_hit2", "ex_bdys1", "rh_sprsh", "rh_fsld1",
         "rpman_hit1", "rpman_hit2", "rpman_hit3", "rpman_hit4", "rpman_die1", "rpman_die2", "rpman_die3",
         "rpman_die4", "rpman_die5", "me_shrt1", "me_shrt2", "me_shrt3", "me_jpkst", "me_jpklp", "me_jpken",
-        "me_jpkno", "me_fsgr1", "me_fsgr2", "me_hdfl1", "me_hdfl2", "me_sld1", "me_slden",
+        "me_jpkno", "me_rsgsh", "me_rsgex", "me_sprsh", "me_mchst", "me_mchlp", "me_mchen", "me_outam", "pu_ammo", "me_mtrsh", "me_mtrht", "me_grnth", "me_grnex", "me_fsgr1", "me_fsgr2", "me_hdfl1", "me_hdfl2", "me_sld1", "me_slden",
         // Footsteps by surface, the swimming loop.
         "me_fsgr1", "me_fsgr2", "me_fssa1", "me_fssa2", "me_fsst1", "me_fsst2", "me_fswd1", "me_fswd2", "me_fswa1", "me_fswa2", "me_swmlp",
         // Cleaners eating a body.
@@ -1838,9 +1842,11 @@ void GameApp::initMission() {
                  c.z / gGameUnitsToMeters, t.boundsMax.x - t.boundsMin.x);
         }
     // (Reaperski riding and races are set up at the end, once the hero is known.)
-    // Starting inventory: a Mecc mission lists the items the player must hold (op 0x0E). Item 1
-    // is read as the jetpack: absent only in 1a_1_timmy, where Baz loses it in the opening
-    // cutscene and Timmy hands it over (provisional reading, see the engineering log).
+    // Starting inventory: a Mecc mission lists the items the player is handed (op 0x0E).
+    // weapondefs.bin's item table names item 1 the handgun (IconHandgun, object mc_gun_l0), not
+    // the jetpack as first read; the jetpack has no item there. We still gate the jetpack on it in
+    // Story 1 (absent only in 1a_1_timmy, where Baz loses his kit in the opening cutscene): kept
+    // because it plays as before, now known to be our rule rather than the data's.
     const MissionData& m = assetWorld_->mission();
     bool jet = true;
     if (m.setup[0] == 2) jet = std::find(m.items.begin(), m.items.end(), 1u) != m.items.end();
@@ -1848,9 +1854,10 @@ void GameApp::initMission() {
     // differently, and he keeps it from then on (2a lists no item 1 either).
     if (!jet && toLower(worldName_) != "story1") jet = true;
     player_.jetpackAvailable = jet;
-    // Item 3 is read as the rocket launcher ("RPG"): first listed in 1c, after Timmy hands it over
-    // at the end of 1b (provisional, like item 1 = jetpack).
-    if (m.setup[0] == 2 && std::find(m.items.begin(), m.items.end(), 3u) != m.items.end() && launcherModel_) hasLauncher_ = true;
+    // The items he is handed (weapondefs.bin's item table: 3 shotgun, 5 machine gun, 6 sniper gun,
+    // 14 rocket launcher; game_app_arsenal.cpp). Item 3 was read as the launcher until the table was
+    // decoded; 1c-2c place mc_pickup_shells, the shotgun's ammo.
+    if (m.setup[0] == 2) grantMissionItems(m.items, "mission start");
     if (std::getenv("GVR_LAUNCHER") && launcherModel_) hasLauncher_ = true;  // test hook
     // The world decides the hero (Reaper story: Delphi); she has no jetpack.
     // The mission's race (setup op 0x0B: 1 Kabuto, 2 Mecc, 3 Reaper) picks the hero - kstory5_5 is
@@ -1877,6 +1884,12 @@ void GameApp::initMission() {
     if (title_) return;  // the main menu's scene: no checkpoint
     if (haveRestore_) {  // what he carried at the checkpoint
         if (pendingRestore_.launcher && launcherModel_) hasLauncher_ = true;
+        grenades_ = std::max(grenades_, std::min(grenadeMax_, pendingRestore_.grenades));
+        for (int g = 0; g < kNumGuns; ++g)
+            if (pendingRestore_.guns[g] && guns_[g].model) {
+                guns_[g].have = true;
+                guns_[g].ammo = std::max(guns_[g].ammo, std::min(guns_[g].maxAmmo, pendingRestore_.ammo[g]));
+            }
         flares_ = std::max(0, std::min(kMaxFlares, pendingRestore_.flares));
         syringes_ = std::max(syringes_, std::min(kMaxSyringes, pendingRestore_.syringes));
         haveRestore_ = false;
@@ -1885,7 +1898,8 @@ void GameApp::initMission() {
     // The mission's ambient music (the world's race and chapter).
     ambientSet_ = ambientFor(worldName_);
     initJetski();
-    if (!hasLauncher_) weaponSel_ = 0;
+    if (const char* w = std::getenv("GVR_WEAPON")) weaponSel_ = std::atoi(w);  // test hook: start with this weapon in hand
+    if (!weaponOwned(weaponSel_)) weaponSel_ = 0;
     LOGI("Mission %s: %zu objectives, jetpack %s", assetWorld_->missionName().c_str(), objectives_.size(),
          jet ? "available" : "not yet (story)");
 }
@@ -2128,6 +2142,8 @@ void GameApp::writeCheckpoint() {
     g.mission = assetWorld_->missionName();
     g.syringes = syringes_;
     g.launcher = hasLauncher_;
+    for (int k = 0; k < kNumGuns; ++k) { g.guns[k] = guns_[k].have; g.ammo[k] = guns_[k].ammo; }
+    g.grenades = grenades_;
     g.flares = flares_;
     if (writeSaveGame(savePath_, g)) LOGI("Checkpoint saved: %s / %s", g.world.c_str(), g.mission.c_str());
     else LOGW("Checkpoint could not be written to %s", savePath_.c_str());
@@ -2206,7 +2222,7 @@ void GameApp::renderReflection() {
     const Vec3 eye = head.position;
     if (playMode_ && playerModel_ && !cut && !playerGibbed_) playerModel_->renderFull(renderer_, bodyXf_);
     if (playMode_ && timmyOn_ && !cut) timmy_->render(renderer_, timmyXf_);
-    if (playMode_ && gunValid_ && !cut) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
+    if (playMode_ && gunValid_ && !cut) drawModel(heldModel(), gunXf_, false);
     for (const auto& c : chars_) {
         if (!c.visible || length(c.pos - eye) > (c.flyer ? 260.0f : 90.0f)) continue;
         if (cut && std::find(cutTypes.begin(), cutTypes.end(), c.type) != cutTypes.end()) continue;
@@ -3044,6 +3060,47 @@ void GameApp::updateRockets(float dt) {
             r.pos += r.vel * dt;
             continue;
         }
+        if (r.kind == 5 || r.kind == 6) {
+            // Lobbed: a Millenium bomb bounces once and bursts at its next landing; a grenade bounces
+            // and rolls until its fuse (2.5 s) runs out. Either bursts on whoever it strikes.
+            const bool gren = r.kind == 6;
+            r.vel.y -= 9.8f * dt;
+            const float st = length(r.vel) * dt;
+            const Vec3 d5 = normalize(r.vel);
+            float t5 = st;
+            Vec3 n5{0, 1, 0};
+            int tg = -1;
+            bool h5 = st > 1e-5f && weapon_.raycast && weapon_.raycast(r.pos, d5, st, t5, n5, tg);
+            if (!h5 && r.pos.y + r.vel.y * dt < 0.0f) { h5 = true; t5 = st; n5 = {0, 1, 0}; tg = -1; }  // the sea
+            const bool fuse = gren ? r.life > 2.5f : r.life > 5.0f;
+            if (!fuse && h5 && tg == -1 && r.pos.y > 0.0f && (gren || r.bounces == 0)) {
+                r.pos += d5 * std::max(0.0f, t5 - 0.05f);
+                r.vel = (r.vel - n5 * (2.0f * dot(r.vel, n5))) * (gren ? 0.4f : 0.45f);  // off the slope, losing most of its speed
+                ++r.bounces;
+                if (r.bounces <= 3 && length(r.vel) > 1.0f) sfx(gren ? "bi_dirt1" : "me_mtrht", r.pos, gren ? 0.5f : 0.8f, 1.0f + 0.1f * frand());
+                continue;
+            }
+            if (h5 || fuse) {
+                const Vec3 at = h5 ? r.pos + d5 * t5 : r.pos;
+                if (gren) {
+                    // weapon 2: 80 damage, splash 75 over (.., 30, 50) - near the rocket's 80 / (.., 30, 55).
+                    explode(at + Vec3{0, 0.3f, 0}, 3.6f, 130.0f, false);
+                    blasts_.push_back({at + Vec3{0, 0.3f, 0}, 2, 0.0f});
+                    sfx("me_grnex", at, 1.0f, 0.95f + 0.1f * frand());
+                    float near = 1e9f;
+                    for (const auto& e : enemies_.enemies)
+                        if (e.state != EnemyState::Dead) near = std::min(near, length(e.pos + Vec3{0, 0.9f, 0} - at));
+                    LOGI("Grenade bursts %.1f m away (nearest Reaper %.1f m from it, %d bounces)", length(at - player_.position), near, r.bounces);
+                } else {
+                    // weapon 1: 150 damage, splash 150 over (.., 50, 80) - against the rocket's 80 / (.., 30, 55).
+                    explode(at, 5.5f, 225.0f);
+                }
+                r.life = 1e9f;
+                continue;
+            }
+            r.pos += r.vel * dt;
+            continue;
+        }
         if (r.kind == 3) {
             // A Reaper's bazooka rocket: smoke trail; bursts near the player as well as on what it hits.
             if (frand() < dt * 25.0f) smokePuff(FxTex::SmokeGrey, r.pos, Vec3{0, 0.3f, 0}, 0.25f, 1.2f, 1.0f, 0.45f, 0.1f);
@@ -3067,6 +3124,19 @@ void GameApp::updateRockets(float dt) {
         if (hit || r.life > 5.0f) {
             if (r.kind == 1) explode(hit ? r.pos + dir * t : r.pos, 2.6f, 75.0f);  // fire bolt: smaller blast
             else if (r.kind == 3) explode(hit ? r.pos + dir * t : r.pos, 3.5f, 55.0f);
+            else if (r.kind == 4) {
+                // Shotgun shell (weapon 6: 40 damage, splash 40): the hit itself like a bullet of that
+                // weight, then a small burst round it.
+                const Vec3 at = hit ? r.pos + dir * t : r.pos;
+                if (hit && target != -1 && weapon_.onHit) {
+                    hitMul_ = guns_[kGunShotgun].damage;
+                    weapon_.onHit(target, at, dir);
+                    hitMul_ = 1.0f;
+                }
+                explode(at, 1.8f, 40.0f, false);
+                blasts_.push_back({at, 1, 0.0f});
+                sfx("me_rsgex", at, 0.9f, 0.95f + 0.1f * frand());
+            }
             else explode(hit ? r.pos + dir * t : r.pos, 4.0f, 120.0f);
             r.life = 1e9f;
             continue;
@@ -3375,11 +3445,18 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         // The weapon strip drops in either way (showing what is carried); with only the gun
         // there is nothing to switch to.
         switchArmed_ = false;
-        // Gun -> launcher (once he has it) -> bush pack (from 2b) -> gun.
-        for (int k = 0; k < 4; ++k) {
-            weaponSel_ = (weaponSel_ + 1) % 4;
-            if (weaponSel_ == 0 || (weaponSel_ == 1 && hasLauncher_) || (weaponSel_ == 2 && hasBush()) ||
-                (weaponSel_ == 3 && popupBombs_ > 0)) break;
+        // Handgun -> shotgun -> machine gun -> sniper gun -> launcher -> bush pack -> pop-up bomb,
+        // skipping what he doesn't carry.
+        static const int kOrder[9] = {0, 4, 5, 6, 7, 8, 1, 2, 3};
+        int at = 0;
+        while (at < 9 && kOrder[at] != weaponSel_) ++at;
+        for (int k = 1; k <= 9; ++k) {
+            const int next = kOrder[(at + k) % 9];
+            if (weaponOwned(next)) { weaponSel_ = next; break; }
+        }
+        if (weaponSel_ == 8) {
+            timmyLine_ = "GRENADES (" + std::to_string(grenades_) + ") - HOLD THE TRIGGER, THROW, LET GO";
+            timmyLineT_ = 3.0f;
         }
         if (weaponSel_ == 3) {
             timmyLine_ = "POP-UP BOMB (" + std::to_string(popupBombs_) + ") - TRIGGER TO SET IT DOWN";
@@ -3388,17 +3465,24 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         weaponHudT_ = 0;
         sfx2D("ph_selct", 0.7f);
         haptics_.push_back({gh, 0.5f, 0.06f});
-        LOGI("Weapon: %s", weaponSel_ == 3 ? "pop-up bomb" : weaponSel_ == 2 ? "bush pack" : (weaponSel_ ? "rocket launcher" : "gun"));
+        const int gs = gunOfSel(weaponSel_);
+        if (gs >= 0) {
+            timmyLine_ = std::string(gs == kGunShotgun ? "SHOTGUN" : gs == kGunMachine ? "MACHINE GUN" : gs == kGunSniper ? "SNIPER GUN" : "MILLENIUM MORTAR") + " (" +
+                         std::to_string(guns_[gs].ammo) + ")";
+            timmyLineT_ = 2.0f;
+        }
+        if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
+        LOGI("Weapon: %s", gs >= 0 ? guns_[gs].name : weaponSel_ == 3 ? "pop-up bomb" : weaponSel_ == 2 ? "bush pack" : (weaponSel_ ? "rocket launcher" : "gun"));
     }
-    if (weaponSel_ == 2 || weaponSel_ == 3) { gunValid_ = false; return; }  // in the bush / holding the bomb: no gun in hand
+    if (weaponSel_ == 2 || weaponSel_ == 3 || weaponSel_ == 8) { gunValid_ = false; return; }  // in the bush / holding a bomb or grenade: no gun in hand
     const bool launcher = weaponSel_ == 1 && launcherModel_;
-    const RenderModel* held = launcher ? launcherModel_ : gunModel_;
+    const RenderModel* held = heldModel();
     // Handle / muzzle in each model's GAME frame (forward -Y, up +Z): the launcher is a
     // shoulder tube (9.5 units long) held at its pistol grip, a little behind the middle.
     // The hand holds each weapon at its own Ref_handle; shots leave from its Ref_nozzle01 (the
     // weapons' .anm reference nodes: mc_gun.anm, mc_launcher.anm).
-    const Vec3 handleGame = launcher ? launcherHandle_ : gunHandle_;
-    const Vec3 muzzleGame = launcher ? launcherMuzzle_ : gunMuzzle_;
+    Vec3 handleGame, muzzleGame;
+    heldRefs(handleGame, muzzleGame);
     Mat4 ref;
     Vec3 muzzle, fwd;
     if (firstPerson_) {
@@ -3482,6 +3566,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         return;
     }
     rocketTriggerHeld_ = trigger;
+    if (fireGun(dt, trigger, gunValid_, muzzle, fwd)) return;  // shotgun, machine gun, sniper gun
     if (weapon_.update(dt, trigger && gunValid_, muzzle, fwd)) {
         haptics_.push_back({gh, 0.35f, 0.04f});
         sfx((weapon_.shotsFired() & 1) ? "me_peas1" : "me_peas2", muzzle, 0.7f, 0.95f + 0.1f * frand());
@@ -3674,8 +3759,7 @@ void GameApp::update(float dt, const InputFrame& in) {
             if (!savePath_.empty()) std::remove(savePath_.c_str());
             syringes_ = 0;
             flares_ = 0;
-            hasLauncher_ = false;
-            weaponSel_ = 0;
+            resetArsenal();
             setPlayMode(true, in);
             if (toLower(worldName_) == "story1" && !assetWorld_->missions().empty()) {
                 beginLoading(assetWorld_->missions().front(), in);
@@ -3758,7 +3842,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     // sits right behind your head and the body turns with it, so he'd only ever flicker at the edge
     // of view: not drawn there.
     if (playMode_ && timmyOn_ && !cut && !firstPerson_) timmy_->render(renderer_, timmyXf_);
-    if (playMode_ && gunValid_ && !cut && !dying_) drawModel(weaponSel_ == 1 && launcherModel_ ? launcherModel_ : gunModel_, gunXf_, false);
+    if (playMode_ && gunValid_ && !cut && !dying_) drawModel(heldModel(), gunXf_, false);
     if (playMode_ && !cut && !dying_ && !playerGibbed_) {  // the other weapon, holstered on the body
         if (holsterGun_) drawModel(gunModel_, holsterGunXf_, false);
         if (holsterLauncher_ && !firstPerson_) drawModel(launcherModel_, holsterLauncherXf_, false);
@@ -3766,6 +3850,24 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (rocketModel_)
         for (const auto& r : rockets_) {
             if (r.kind == 1) continue;  // Delphi's bolt is all fire (particles)
+            if (r.kind == 6) {
+                if (grenadeModel_) {
+                    const float k = 0.45f;
+                    drawModel(grenadeModel_, Mat4::translation(r.pos) * Mat4::rotation(Quat::fromAxisAngle(normalize(Vec3{0.3f, 1, 0.2f}), r.life * 7.0f)) *
+                                                 Mat4::scale({k, k, k}) * Mat4::translation((grenadeModel_->boundsMin + grenadeModel_->boundsMax) * -0.5f), false);
+                }
+                continue;
+            }
+            if (r.kind == 5 && lbombModel_) {  // the Millenium bomb, tumbling
+                const float k = 0.35f;
+                drawModel(lbombModel_, Mat4::translation(r.pos) * Mat4::rotation(Quat::fromAxisAngle(normalize(Vec3{1, 0.3f, 0.2f}), r.life * 9.0f)) *
+                                           Mat4::scale({k, k, k}) * Mat4::translation((lbombModel_->boundsMin + lbombModel_->boundsMax) * -0.5f), false);
+                continue;
+            }
+            if (r.kind == 4) {  // shotgun shell: a hot slug
+                if (boltModel_) drawModel(boltModel_, Mat4::translation(r.pos) * Mat4::scale({1.6f, 1.6f, 1.6f}), true, 0.9f);
+                continue;
+            }
             // The rocket model points along -Y (game) = -Z (runtime): orient it along its flight.
             const Vec3 f = normalize(r.vel);
             const Quat yawQ = Quat::fromAxisAngle({0, 1, 0}, std::atan2(-f.x, -f.z));
@@ -3781,6 +3883,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     renderShop();
     renderBase(v.eyePosition);
     renderPopup();
+    renderGrenades();
     renderSpells();
     renderKabutoPowers(v.eyePosition);
     renderThrows();

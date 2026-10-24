@@ -565,3 +565,20 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 ## Host verification — Reaper battle bases
 - rstory2_battle_1 / rstory5_battle_2: base, crew (3 + 5 hatches), Yan, army paths (7 / 12 lead to the base), raids
   spawn; renders checked. 5c and r4a placements unchanged. Not device-tested.
+
+## Host verification — Meccaryn arsenal (weapondefs.bin)
+- Unit tests: weapondefs parser on a synthetic file (records, flags, 4-value entries, strings, item runs, bad version);
+  save game round trip with guns and ammo. `build/host/gvr_tests`: all passed.
+- `gzptool weapons <Bin>`: 53 weapons, 73 items parsed from the user's file.
+- Harness, story3_bunker_3 with a Reaper spawned ahead (`--spawn-reaper`, `--auto-aim`, `--trigger-pulse`):
+  sniper at 40 m - 1 hit, dead; shotgun at 15 m - 1 direct shell, dead; machine gun at 15 m - dead after 8 hits;
+  handgun - 5 hits. 4a: mortar bomb lobbed at a Reaper 20 m ahead - dead.
+- 1c_1: shotgun granted from item 3; the three mc_pickup_shells are ammo pickups ("Picked up 2 rounds for the shotgun
+  (27)"), no longer health pickups. First-person renders of the shotgun, machine gun and sniper gun in hand checked.
+- Sweeps (`scripts/mission_sweep.sh`): plain 56/56 exit 0, 0 errors; with every gun and the machine gun firing
+  (GVR_ARSENAL=1 GVR_WEAPON=5) 56/56 exit 0, 0 errors.
+- Mortar (4a, a Reaper 20 m ahead, auto-aim): dead from the first bomb. Sweep firing the mortar everywhere
+  (GVR_ARSENAL=1 GVR_WEAPON=7): 56/56 exit 0, 0 errors; bombs lobbed in the 25 Meccaryn missions.
+- Grenades (5a): hand swing (`--hand-path` 0.85 m in 10 frames while the trigger is held) throws at 9.8 m/s; lobbed
+  grenade bursts 0.6 m from a Reaper 12 m ahead and kills it. Held grenade visible in the first-person hand.
+- **Not device-tested.** Sound names (ME_RSGSH, ME_SPRSH, ME_MCH*, ME_MTR*, ME_GRN*) are guesses from the file names.

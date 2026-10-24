@@ -6,7 +6,21 @@ Everything here passed the desktop test harness; none of it has run on the heads
 
 For each item: works / doesn't / how it feels. A phone photo of anything that looks wrong helps a lot.
 
-## 1. Base building (newest work)
+## 0. Meccaryn weapons (newest work)
+**Changed from earlier builds:** the rocket launcher no longer comes in 1c - the game's data gives the **shotgun**
+there; the launcher comes in Story 3's launcher mission (or from a Shop).
+- [ ] **2. 1c**: you have the shotgun (right stick forward). One exploding shell per pull; the number under the icon
+      counts down; at 0 a click. Shell boxes on the map refill it (+2). Does it feel strong enough?
+- [ ] **Story 3 bunker mission**: the sniper gun - one shot kills a Reaper at long range. (No zoom yet.)
+- [ ] **18. 4a**: the Millenium mortar lobs a bomb that bounces once and blows up big - don't fire it at your feet.
+- [ ] **5a**: the machine gun - hold the trigger; a firing loop sound while held.
+- [ ] **5a**: **grenades** - hold the trigger, swing and let go. Does it go where you threw it, about as far as you'd
+      expect? Too weak / too strong? (Letting go without a swing lobs it a few metres.)
+- [ ] Each gun sits right in the hand (grip at the handle, barrel forward) in first and third person; the handgun
+      rides on your right thigh while a long gun is out.
+- [ ] The weapon strip at the top lists only what you carry, with ammo counts.
+
+## 1. Base building
 **22. 5c "The Battle!" (Meccaryn)**
 - [ ] Opening cutscene plays; you start near Borjoyzee (he waves when you're close).
 - [ ] Walk to a **Smartie hatch** (the level has three): the lid opens, 3 Smarties climb out and run to the base.

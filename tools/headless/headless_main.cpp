@@ -57,6 +57,8 @@ int main(int argc, char** argv) {
     bool autoAim = false, viewBody = false, viewCorpse = false;
     int viewFrames = 0, killShots = 0, killPlayerAt = -1, killCause = 0;
     bool killDemo = false;
+    int trigPulse = 0;
+    float spawnReaper = 0;
     float blastX = 0, blastY = 0, blastH = 1;
     int blastN = 0, blastFrame = -1;
     std::string audioOut, scriptPath;
@@ -93,6 +95,7 @@ int main(int argc, char** argv) {
         else if (a == "--grip") gripAmount = std::atof(next());  // both grips 0..1
         else if (a == "--stick-up-window") { stickFrom = std::atoi(next()); stickTo = std::atoi(next()); }  // right stick forward
         else if (a == "--trigger-window") { trigFrom = std::atoi(next()); trigTo = std::atoi(next()); }
+        else if (a == "--trigger-pulse") trigPulse = std::atoi(next());  // inside the trigger window: pulled for N frames, released for N
         else if (a == "--ltrigger-window") { ltrigFrom = std::atoi(next()); ltrigTo = std::atoi(next()); }  // left trigger
         else if (a == "--y-window") { yFrom = std::atoi(next()); yTo = std::atoi(next()); }  // Y (left secondary)
         else if (a == "--grip-window") { gripFrom = std::atoi(next()); gripTo = std::atoi(next()); }  // right grip for frames [from, to)
@@ -110,6 +113,7 @@ int main(int argc, char** argv) {
         else if (a == "--aim-yaw") aimYawDeg = std::atof(next());      // controller yaw (deg, + = left)
         else if (a == "--auto-aim") autoAim = true;  // test only: point the right controller at the nearest enemy
         else if (a == "--view-body") viewBody = true; // test only: after the frames, stand 4 m from an enemy body
+        else if (a == "--spawn-reaper") spawnReaper = float(std::atof(next()));  // a live Reaper this many metres ahead at the start
         else if (a == "--kill-demo") { killDemo = true; killShots = std::atoi(next()); }  // a Reaper killed 5 m ahead at the start (then N shots at the body)
         else if (a == "--kill-player") { killPlayerAt = std::atoi(next()); killCause = std::atoi(next()); }  // frame, cause (0 shot 1 bitten 2 drowned 3 blast)
         else if (a == "--blast-at") { blastX = std::atof(next()); blastY = std::atof(next()); blastH = std::atof(next()); blastN = std::atoi(next()); blastFrame = std::atoi(next()); }  // N rocket blasts at game x y, h m up, at frame F
@@ -195,6 +199,14 @@ int main(int argc, char** argv) {
     if (useScript && script.briefing) app.debugReloadWithBriefing(in);
     in.hand[kRight].trigger = triggerAmount;
     in.hand[kLeft].thumbstickClick = holdBrief;
+    if (spawnReaper > 0) {
+        const Pose hw = app.rig().toWorld(in.head);
+        Vec3 f = hw.orientation.rotate(Vec3{0, 0, -1});
+        f.y = 0;
+        f = normalize(f);
+        const int i = app.debugSpawnReaperAt(hw.position + f * spawnReaper);
+        std::printf("spawned Reaper %d %.0f m ahead\n", i, double(spawnReaper));
+    }
     if (killDemo) {
         const Pose hw = app.rig().toWorld(in.head);
         Vec3 f = hw.orientation.rotate(Vec3{0, 0, -1});
@@ -211,7 +223,7 @@ int main(int argc, char** argv) {
         if (jetFrom >= 0) in.hand[kRight].primary = f >= jetFrom && f < jetTo;
         if (gripFrom >= 0) in.hand[kRight].squeeze = f >= gripFrom && f < gripTo ? 1.0f : 0.0f;
         if (stickFrom >= 0) in.hand[kRight].thumbstick.y = f >= stickFrom && f < stickTo ? 1.0f : 0.0f;
-        if (trigFrom >= 0) in.hand[kRight].trigger = f >= trigFrom && f < trigTo ? 1.0f : 0.0f;
+        if (trigFrom >= 0) in.hand[kRight].trigger = f >= trigFrom && f < trigTo && (trigPulse <= 0 || ((f - trigFrom) / trigPulse) % 2 == 0) ? 1.0f : 0.0f;
         if (xFrom >= 0) in.hand[kLeft].primary = f >= xFrom && f < xTo;
         if (ltrigFrom >= 0) in.hand[kLeft].trigger = f >= ltrigFrom && f < ltrigTo ? 1.0f : 0.0f;
         if (yFrom >= 0) in.hand[kLeft].secondary = f >= yFrom && f < yTo;

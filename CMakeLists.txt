@@ -31,6 +31,7 @@ add_library(gvr_core STATIC
   src/assets/mission.cpp
   src/assets/flick.cpp
   src/assets/gtext.cpp
+  src/assets/weapondefs.cpp
   src/render/text.cpp
   src/render/quad_batch.cpp
   src/game/cutscene.cpp
@@ -64,6 +65,8 @@ add_library(gvr_core STATIC
   src/game/game_app_basecrew.cpp
   src/game/game_app_popup.cpp
   src/game/game_app_rpweapons.cpp
+  src/game/game_app_arsenal.cpp
+  src/game/game_app_grenade.cpp
   src/game/game_app_spells.cpp
   src/game/game_app_tags.cpp
   src/game/game_app_water.cpp

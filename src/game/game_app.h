@@ -12,6 +12,7 @@
 #include "game/input_state.h"
 #include "game/player.h"
 #include "game/weapon.h"
+#include "assets/weapondefs.h"
 #include "game/enemy.h"
 #include "game/creature.h"
 #include "game/smartie.h"
@@ -151,6 +152,8 @@ public:
         const Vec3 p = enemies_.enemies[size_t(i)].pos + Vec3{0, 1.2f, 0};
         for (int k = 0; k < 4; ++k) weapon_.onHit(i, p, shotDir);
     }
+    // Test hook: a live Reaper standing at `at` (index, -1 if none).
+    int debugSpawnReaperAt(const Vec3& at) { return enemies_.spawn(at, 0.0f); }
     // Test hook: a rocket blast at game (x, y), `height` metres above the ground.
     void debugBlast(float gx, float gy, float height);
     size_t destroyedCount() const { size_t n = 0; for (const auto& d : destruct_.items) n += !d.alive(); return n; }
@@ -230,11 +233,62 @@ private:
     Vec3 launcherHandle_{0.0f, 3.85f, -0.45f}, launcherMuzzle_{0.0f, -4.58f, 0.03f};
     const RenderModel* rocketModel_ = nullptr;
     bool hasLauncher_ = false;
-    int weaponSel_ = 0;  // 0 gun, 1 launcher
+    // weaponSel_: 0 handgun, 1 launcher, 2 bush pack, 3 pop-up bomb, 4 shotgun, 5 machine gun, 6 sniper,
+    // 7 Millenium mortar, 8 grenades.
+    int weaponSel_ = 0;
+    // The Meccaryn's other guns (game_app_arsenal.cpp), from weapondefs.bin: the items the missions
+    // hand out (3 shotgun from 1c, 5 machine gun, 6 sniper gun from story3_bunker_3, 7 the Millenium
+    // mortar from 4a), each with its
+    // model's Ref_handle / Ref_nozzle01, its weapon record (damage, rate, speed) and ammo.
+    enum { kGunShotgun = 0, kGunMachine, kGunSniper, kGunMortar, kNumGuns };
+    struct Gun {
+        const char* name = "";
+        int item = -1, sel = -1, hudLayer = -1;
+        const RenderModel* model = nullptr;
+        Vec3 handle, muzzle;
+        float damage = 1.0f;     // x the handgun's
+        float interval = 0.5f, speed = 70.0f, range = 250.0f;  // s, m/s, m
+        int maxAmmo = 30, startAmmo = 10, pickupAmmo = 5;
+        bool have = false;
+        int ammo = 0;
+    };
+    Gun guns_[kNumGuns];
+    WeaponDefs weaponDefs_;
+    bool arsenalReady_ = false;
+    void initArsenal();
+    void grantMissionItems(const std::vector<uint32_t>& items, const char* why);
+    void grantItem(uint32_t item);
+    void resetArsenal();
+    int gunOfSel(int sel) const;  // kGun* for a weaponSel_, -1 for the others
+    bool weaponOwned(int sel) const;
+    const RenderModel* heldModel() const;
+    void heldRefs(Vec3& handle, Vec3& muzzle) const;
+    // Fires the selected gun (shotgun / machine gun / sniper); false if it is not one of them.
+    bool fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, const Vec3& fwd);
+    void ammoPickup(int objectType, const Vec3& at);
+    std::vector<uint32_t> missionItems(const std::string& mission) const;
+    struct AmmoPickup { Vec3 pos; int gun; int amount; float t = 0; };
+    std::vector<AmmoPickup> ammoPickups_;
+    const RenderModel* shellsModel_ = nullptr;
+    const RenderModel* lbombModel_ = nullptr;  // the mortar's Millenium bomb (mc_lbomb)
+    bool gunTriggerHeld_ = false;
+    uint32_t mgLoop_ = 0;  // the machine gun's firing loop
+    float gunCooldown_ = 0;
+    void updateAmmoPickups(float dt);
+    void renderAmmoPickups();
+    // Grenades (item 8; game_app_grenade.cpp): thrown by hand - hold the trigger, swing, let go.
+    int grenades_ = 0, grenadeMax_ = 8, grenadeGive_ = 5;
+    const RenderModel* grenadeModel_ = nullptr;
+    Vec3 grenHandPrev_, grenHandVel_;
+    Vec3 grenVelHist_[10];  // the hand's last frames' velocities: a throw uses the fastest (release comes late)
+    int grenVelAt_ = 0;
+    bool grenHandValid_ = false, grenCocked_ = false;
+    void updateGrenades(float dt, const InputFrame& in);
+    void renderGrenades();
     bool switchArmed_ = true;
     float rocketCooldown_ = 0;
     bool rocketTriggerHeld_ = false;
-    struct Rocket { Vec3 pos, vel; float life; int kind = 0; };  // kind 0 rocket, 1 Delphi's fire bolt, 2 a SAM's homing missile, 3 a Reaper's bazooka rocket
+    struct Rocket { Vec3 pos, vel; float life; int kind = 0; int bounces = 0; };  // kind 0 rocket, 1 Delphi's fire bolt, 2 a SAM's homing missile, 3 a Reaper's bazooka rocket, 4 a shotgun shell, 5 a Millenium bomb, 6 a grenade
     // Reaper soldiers' weapons (game_app_rpweapons.cpp): 0 spear gun, 1 bazooka.
     struct RpWeapon { const RenderModel* model = nullptr; Mat4 handleInv = Mat4::identity(), nozzle = Mat4::identity(); };
     RpWeapon rpWeapon_[2];
@@ -1024,7 +1078,7 @@ private:  // the mission placed enemies: no test waves
     // (FP: over the move-hand wrist; TP: head-locked, lower left); the weapon strip that pops up on
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
-                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudLayers };
+                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     float digitU_[11] = {}, digitU0_[10] = {}, digitU1_[10] = {};

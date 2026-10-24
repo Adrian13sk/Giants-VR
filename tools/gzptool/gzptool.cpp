@@ -20,6 +20,7 @@
 #include "assets/flick.h"
 #include "assets/mission.h"
 #include "assets/object_defs.h"
+#include "assets/weapondefs.h"
 #include "assets/skin_anim.h"
 #include "assets/world_bin.h"
 #include <dirent.h>
@@ -454,7 +455,32 @@ static int cmdType(const char* dir, int n, char** ids) {
     return 0;
 }
 
+// weapondefs.bin: the weapon records and the inventory items (ids as the missions list them).
+static int cmdWeapons(const char* dir) {
+    AssetFS fs;
+    fs.mountAllArchives(dir);
+    fs.mountDirectory(dir);
+    std::vector<uint8_t> d;
+    gvr::WeaponDefs w;
+    std::string err;
+    if (!fs.read("weapondefs.bin", d) || !gvr::parseWeaponDefs(d.data(), d.size(), w, &err)) { std::printf("weapondefs.bin: %s\n", err.c_str()); return 1; }
+    ObjectRegistry reg;
+    reg.build(dir);
+    std::printf("%zu weapons, %zu items\n", w.weapons.size(), w.items.size());
+    for (const auto& x : w.weapons)
+        std::printf("weapon %2d proj %4d %-18s dmg %6g every %4gs speed %5g range %5g splash (%g %g %g %g) fx %s / %s / %s / %s\n", x.id, x.projectileType,
+                    reg.modelName(uint32_t(x.projectileType)).c_str(), double(x.damage), double(x.interval), double(x.speed), double(x.range),
+                    double(x.splash[0]), double(x.splash[1]), double(x.splash[2]), double(x.splash[3]), x.fxProjectile.c_str(), x.fxImpact.c_str(),
+                    x.fxSplash.c_str(), x.fxNozzle.c_str());
+    for (const auto& i : w.items)
+        std::printf("item %2d %-20s cat %2d race %2d object %4d %-18s pickup %4d ammo item %2d max %4d per pickup %3d\n", i.id, i.icon.c_str(), i.category,
+                    i.race, i.objectType, i.objectType >= 0 ? reg.modelName(uint32_t(i.objectType)).c_str() : "-", i.pickupType, i.ammoItem,
+                    i.maxAmmo, i.ammoPerPickup);
+    return 0;
+}
+
 int main(int argc, char** argv) {
+    if (argc >= 3 && !std::strcmp(argv[1], "weapons")) return cmdWeapons(argv[2]);
     if (argc >= 4 && !std::strcmp(argv[1], "anminfo")) return cmdAnmInfo(argv[2], argc - 3, argv + 3);
     if (argc >= 4 && !std::strcmp(argv[1], "mission")) return cmdMission(argv[2], argv[3]);
     if (argc >= 4 && !std::strcmp(argv[1], "type")) return cmdType(argv[2], argc - 3, argv + 3);

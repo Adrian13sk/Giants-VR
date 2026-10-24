@@ -225,6 +225,29 @@ One file per shot; shots chain into a cutscene through the "next shot" name.
 ## Mission starting items (op 0x0E) - readings so far (2026-10-24)
 Lists per mission: 1b `1`; 1c/1d `1 3`; 2a `3`; 2b_1 `20`; story3 `1 3` (bunker_3 `1 3 6`, launcher_5 `1 14`,
 prison_7 `1 10`); 4a `1 7`; 5a `1 3 5 0 8`; kstory5_5 `1 3 8 0`; Reaper: r1_smartiegrab `45`, r1_turbo `21`,
-r1_saveyan `25`, r4a `23 22 25 44 45 46`. Read: 1 jetpack, 3 rocket launcher, 10 the pop-up bomb (only prison_7,
-whose briefing is the bomb), 20 the bush pack (only 2b_1, where Story 2's bush disguise starts), 6 the sniper gun
-(bunker_3: "Your new SNIPER GUN"), 7 the Millenium gun (4a: "Try out your MILLENIUM GUN"). Others unknown.
+r1_saveyan `25`, r4a `23 22 25 44 45 46`. **Superseded by weapondefs.bin's item table (below):** the ids are that
+table's key-36 item ids. 1 handgun (not the jetpack), 3 shotgun (not the rocket launcher), 5 machine gun, 6 sniper gun,
+7 mortar = the "MILLENIUM GUN" of 4a's briefing (its weapon fires mc_lbomb with fx_splash_millenium), 8 grenade,
+0 health syringe, 10 pop-up bomb, 14 missile (rocket) launcher, 20 bush pack; Reaper 21-33 spells (21 smartie grab,
+22 cluster, 23 cloak, 25 firewall, 33 tornado...), 44 bow, 45 RPG, 46 sniper bow. The earlier guesses that matched
+(6, 10, 20) are confirmed; 1 and 3 were wrong.
+
+## weapondefs.bin (loose in Bin/) — V (structure), P (key meanings) (2026-10-24)
+`u32 version=1, u32 fileSize`, then records of `{u32 key, u32 type, (type-2) x u32}`: type 2 = flag (no value),
+3 = one value, 4 = two, 6 = four. `{key 2, type 2}` ends a record. Strings are offsets to NUL-terminated names in
+the pool at the end of the file (from offset 22180 in the GOG file). Parser: `src/assets/weapondefs.cpp`; dump:
+`gzptool weapons <Bin>`. 53 weapon records, then one record holding 73 items.
+- **Weapon record** (key 1 = weapon id): 3 projectile object type (793 mc_sniper_bullit, 800 mc_rocket, 1114
+  mc_shotgun_shell, 808 mc_lbomb, 38 mc_zip...), 10 damage, 13 seconds between shots, 24 projectile speed (game
+  units/s), 34 range (game units; 5 and 6 repeat it in most), 9 four floats on blast weapons (first = splash damage),
+  22/23/53/29 effect names (projectile, impact, splash, nozzle), 4 repeated flag bits, 57 flag. Meanings read from
+  the values: the sniper record (fx_sniper_bullit) has 80 damage every 1.5 s at 2500, the handgun-like fx_gun records
+  12 every 0.2 s (16), 12 every 0.5 s (17), 8 every 0.1 s (42, read as the machine gun), the rocket (3) 80 every 1.8 s,
+  the shotgun (6, mc_shotgun_shell, fx_nozzle_shotgun) 40 every 1.3 s, the popup bomb (12) 900 with a 300-unit blast.
+- **Item** (a run from key 36 = item id to key 37 = flag): 39 the object type held (21 mc_gun_l0, 22 mc_shotgun_l0,
+  300 mc_machinegun_l0, 787 mc_snipergun_l0, 790 mc_mortar_l0, 785 mc_launcher_l0, 822 mc_popupbomb, 920
+  mc_bushpack...), 41 its pickup object (647 mc_pickup_shells for item 37 "IconShells"), 42 its ammo item, 45 most
+  carried, 46 amount given (weapon: with it; ammo item: per pickup), 47 category (1 gun, 2 thrown, 3 gadget/spell, 4
+  ammo, 5 consumable, 6 building), 54 race (1 any, 2 Meccaryn, 3 Reaper), 48 HUD icon name. Check: the items' ids
+  agree with the missions' op 0x0E lists and their briefings (6 sniper in bunker_3, 10 pop-up in prison_7, 20 bush in
+  2b), and 1c-2c, which list item 3, are the missions that place mc_pickup_shells (the shotgun's ammo pickup).

@@ -66,8 +66,7 @@ void GameApp::startFromTitle(const std::string& world, const std::string& missio
         if (!savePath_.empty()) std::remove(savePath_.c_str());
         syringes_ = 0;
         flares_ = 0;
-        hasLauncher_ = false;
-        weaponSel_ = 0;
+        resetArsenal();
     }
     setPlayMode(true, in);
     beginLoading(std::string(), in);
@@ -78,14 +77,17 @@ void GameApp::startFromTitle(const std::string& world, const std::string& missio
 }
 
 // Mission select: a fresh start at the chosen mission, carrying what the campaign would have
-// given by then - the rocket launcher, Timmy's present at the end of 1b (ours: the original
-// keeps it in the save).
+// given by then - every item the missions before it hand out (the shotgun from 1c, the sniper gun
+// from story3_bunker_3, the rocket launcher from story3_launcher_5...).
 void GameApp::startChosenMission(const InputFrame& in) {
     const auto wm = titleMissions_[size_t(titleMissionSel_)];
     startFromTitle(wm.first, wm.second, false, in);
-    const std::string m = toLower(wm.second);
-    if (launcherModel_ && toLower(wm.first) != "story1") hasLauncher_ = true;
-    if (launcherModel_ && (m.rfind("1c", 0) == 0 || m.rfind("1d", 0) == 0)) hasLauncher_ = true;
+    std::vector<uint32_t> items;
+    for (int i = 0; i < titleMissionSel_ && size_t(i) < titleMissions_.size(); ++i) {
+        const auto it = missionItems(titleMissions_[size_t(i)].second);
+        items.insert(items.end(), it.begin(), it.end());
+    }
+    grantMissionItems(items, "mission select");
     LOGI("Mission select: %s / %s (rocket launcher %s)", wm.first.c_str(), wm.second.c_str(), hasLauncher_ ? "carried" : "not yet");
 }
 

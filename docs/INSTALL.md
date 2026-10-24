@@ -104,10 +104,10 @@ moves him too.
 |---|---|---|
 | Left stick | Run (5 m/s) relative to where you look; sideways = sidestep, back = backpedal | Move |
 | Left grip (hold) | Sprint ×1.5 (in the air with the jetpack: turbo, double fuel use); near a Smartie: pick it up (release = let go) | Speed boost ×5 |
-| Right grip (hold) | Near a Smartie: pick it up (release = let go). First person: **reach to your right thigh (gun) or over your shoulder (launcher) and grip to draw the holstered weapon** | — |
+| Right grip (hold) | Near a Smartie: pick it up (release = let go). First person: **reach to your right thigh (handgun) or over your shoulder (launcher) and grip to draw the holstered weapon** | — |
 | Right stick left/right | Snap turn 30° | Snap turn 30° |
-| Right stick forward | Switch gun ↔ rocket launcher (once you have it: from 1c on, Timmy's "present" at the end of 1b); shows the weapon strip | — |
-| **Right trigger** | **Fire**: gun (hold for auto-fire, 5 shots/s) or rocket launcher (one rocket per pull, 1 s reload, splash damage; keep your distance) | Haptic test pulse |
+| Right stick forward | Next weapon you carry: handgun → shotgun → machine gun → sniper gun → Millenium mortar → grenades → rocket launcher → bush pack → pop-up bomb; shows the weapon strip | — |
+| **Right trigger** | **Fire**: handgun (hold, 5 shots/s), shotgun (one exploding shell per pull), machine gun (hold, 10/s), sniper gun (one heavy shot per pull, kills a Reaper), mortar (lobs a bouncing bomb - big blast, keep your distance), rocket launcher (one rocket per pull) | Haptic test pulse |
 | **A** (hold) | **Jetpack**: lifts you; steer with the left stick only while it fires (otherwise you drift and fall). Fuel lasts ~8 s and refills only on the ground; burn it dry and it overheats until partly refilled. **Dry in the air, keep holding A**: it sputters and brakes your fall so you land safely | — |
 | Right stick click | First ↔ third person (third: camera behind him) | — |
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
@@ -171,6 +171,19 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   and the Smarties rebuild it as the game's second-level model: Stone Workshop, Giftshop 2 (adds a pop-up bomb to its
   counter), Stone Gate, Stone Walls; Delphi: Persuader 2, Spellshop 2, Reaper Gate 2, Forcefields 2. Upgraded
   buildings take 60% more punishment from raiders. (The Pub and Party Houses have no second level in the data.)
+
+## Meccaryn weapons (from the game's weapondefs.bin)
+- The missions hand out the guns as in the original's item lists: **shotgun** from 1c, **sniper gun** from Story 3's
+  bunker mission, **rocket launcher** from Story 3's launcher mission (or a Shop), **Millenium mortar** from 4a,
+  **machine gun** and **grenades** from 5a. You keep them from mission to mission (the checkpoint saves them and their
+  ammo).
+- **Grenades:** pick them on the strip; one sits in your right hand. Hold the trigger, swing your arm and let go - it
+  flies as fast as you threw it, bounces and blows up 2.5 s later (or when it hits someone). Let go without swinging
+  and it is lobbed a few metres ahead.
+- The new guns have ammo (the number under the icon; dim = empty, a click when you pull with none): shotgun 25 (35
+  max), sniper 8 (12), machine gun 800 (2500), mortar 6 (10). Shotgun shells lie around in Story 1-2 (the boxes
+  that used to give health injections were shell boxes): walk over them.
+- The sniper gun has no zoom yet.
 
 ## Pop-up bomb (Meccaryn: story3_prison_7, and 5c once the base is complete)
 - **Right stick forward** cycles the weapon strip to the bomb (it appears in your hand). **Right trigger** sets it

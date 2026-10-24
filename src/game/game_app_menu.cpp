@@ -101,8 +101,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             if (!savePath_.empty()) std::remove(savePath_.c_str());
             syringes_ = 0;
             flares_ = 0;
-            hasLauncher_ = false;
-            weaponSel_ = 0;
+            resetArsenal();
             if (!playMode_) setPlayMode(true, in);
             if (toLower(worldName_) == toLower(world) && assetWorld_ && !assetWorld_->missions().empty()) {
                 beginLoading(assetWorld_->missions().front(), in);

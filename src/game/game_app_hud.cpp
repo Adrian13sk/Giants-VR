@@ -23,8 +23,9 @@ void GameApp::initHud(ModelCache* mc) {
     const char* names[kHudLayers] = {nullptr,          "st_mec_hbar",    "st_mec_fuel",     "st_mec_energy",
                                      "st_mec_jetpack", "st_mec_wpslot",  "st_mec_gun",      "st_mec_launcher",
                                      "st_rp_sword",    "st_rp_firewall", "st_mec_syringe",  "st_vimpmeat",     "st_mec_flare",   "st_mec_bush",    "st_mec_numbers", nullptr,
-                                     "st_mec_pop"};  // the pop-up bomb (w_menus.gzp)
-    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 24, 48, 4};
+                                     "st_mec_pop",   // the pop-up bomb (w_menus.gzp)
+                                     "st_mec_shotgun", "st_mec_machine", "st_mec_sniper", "st_mec_mortar", "st_mec_grenade"};
+    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 64, 48, 4, 4, 4, 4, 4, 4};
     for (int k = 0; k < kHudLayers; ++k) {
         hudTex_[k] = names[k] ? mc->texture(names[k]) : whiteTex_;
         if (!hudTex_[k]) hudTex_[k] = whiteTex_;
@@ -169,7 +170,13 @@ void GameApp::hudStatus(const HudFrame& f) {
         hudRect(kHudFire, f, -0.002f, 0.0f, 0.03f, 0.03f, fire);
     } else {
         const bool launcher = weaponSel_ == 1 && launcherModel_;
-        hudRect(weaponSel_ == 3 ? kHudPop : weaponSel_ == 2 ? kHudBush : (launcher ? kHudLauncher : kHudGun), f, 0.040f, -0.024f, 0.036f, 0.036f, on);
+        const int g = gunOfSel(weaponSel_);
+        const int layer = g >= 0 ? guns_[g].hudLayer : weaponSel_ == 8 ? kHudGrenade : weaponSel_ == 3 ? kHudPop : weaponSel_ == 2 ? kHudBush : (launcher ? kHudLauncher : kHudGun);
+        hudRect(layer, f, 0.040f, -0.024f, 0.036f, 0.036f, on);
+        if (g >= 0) {  // rounds left, under the gun
+            const uint8_t nc[4] = {255, uint8_t(guns_[g].ammo > 0 ? 255 : 80), uint8_t(guns_[g].ammo > 0 ? 255 : 80), 255};
+            hudDigits(f, 0.026f, -0.046f, 0.012f, guns_[g].ammo, nc);
+        }
     }
     // Mission objectives along the top: one pip each, gold when done.
     const size_t n = objectives_.size();
@@ -194,48 +201,42 @@ void GameApp::hudWeaponStrip() {
     f.o = rig_.toWorld(lastInput_.head).position + subRot_.rotate(Vec3{0, 0.17f + drop, -0.9f});
     f.r = subRot_.rotate(Vec3{1, 0, 0});
     f.u = subRot_.rotate(Vec3{0, 1, 0});
-    const float W = 0.30f * settings_.hudScale(), H = W / 4.0f;
+    const float W = 0.30f * settings_.hudScale(), H = W / 4.0f, cw = W / 4.0f;
     const uint8_t back[4] = {0, 0, 0, uint8_t(120 * a)}, strip[4] = {255, 255, 255, uint8_t(255 * a)};
-    hudRect(kHudPlate, f, 0, 0, W + 0.01f, H + 0.01f, back);
-    hudRect(kHudWpSlot, f, 0, 0, W, H, strip);
-    const int sel = weaponSel_ == 3 ? -1 : weaponSel_ == 2 ? 3 : (weaponSel_ == 1 && launcherModel_ ? 1 : 0);
+    // One cell per thing carried, in the switching order (the injections, not a weapon, after the
+    // guns); a count under those that run out. The first four sit on the original strip art
+    // (st_mec_wpslot, four slots), more continue on plates.
+    struct Cell { int layer; bool chosen; int count; };
+    Cell cells[12];
+    int n = 0;
+    auto add = [&](int layer, bool chosen, int count) { if (n < 12) cells[n++] = {layer, chosen, count}; };
+    add(kHudGun, weaponSel_ == 0, -1);
+    for (int g = 0; g < kNumGuns; ++g)
+        if (guns_[g].have && guns_[g].model) add(guns_[g].hudLayer, weaponSel_ == guns_[g].sel, guns_[g].ammo);
+    if (grenades_ > 0) add(kHudGrenade, weaponSel_ == 8, grenades_);
+    if (hasLauncher_ && launcherModel_) add(kHudLauncher, weaponSel_ == 1, -1);
+    if (syringes_ > 0) add(kHudSyringe, false, syringes_);
+    if (hasBush()) add(kHudBush, weaponSel_ == 2, -1);
+    if (popupBombs_ > 0) add(kHudPop, weaponSel_ == 3, popupBombs_);
+    const float x0 = -0.5f * cw * float(n);
+    const int onArt = std::min(n, 4);
+    hudRect(kHudPlate, f, 0, 0, cw * float(n) + 0.01f, H + 0.01f, back);
+    hudRect(kHudWpSlot, f, x0 + 0.5f * cw * float(onArt), 0, cw * float(onArt), H, strip, 0, 0, float(onArt) / 4.0f, 1);
     const float popK = 1.0f + 0.35f * std::max(0.0f, 1.0f - t / 0.3f);
-    for (int i = 0; i < 4; ++i) {
-        const float cx = -0.5f * W + (float(i) + 0.5f) * (W / 4.0f);
-        int layer = -1;
-        bool owned = false;
-        if (i == 0) { layer = kHudGun; owned = true; }
-        if (i == 1) { layer = kHudLauncher; owned = hasLauncher_; }
-        if (i == 2) { layer = kHudSyringe; owned = syringes_ > 0; }
-        if (i == 3) { layer = kHudBush; owned = hasBush(); }
-        if (layer < 0 || !owned) continue;
-        const bool chosen = i == sel;
-        if (chosen) {
+    for (int i = 0; i < n; ++i) {
+        const Cell& c = cells[i];
+        const float cx = x0 + (float(i) + 0.5f) * cw;
+        if (c.chosen) {
             const uint8_t glow[4] = {140, 255, 140, uint8_t(110 * a)};
-            hudRect(kHudMarks, f, cx, 0, W / 4.0f - 0.006f, H - 0.006f, glow);
+            hudRect(kHudMarks, f, cx, 0, cw - 0.006f, H - 0.006f, glow);
         }
-        const float s = H * 0.82f * (chosen ? popK : 0.85f);
-        const uint8_t c[4] = {255, 255, 255, uint8_t((chosen ? 255 : 130) * a)};
-        hudRect(layer, f, cx + 0.004f, 0.004f, s, s, c);
-        if (i == 2) {
-            const uint8_t nc[4] = {255, 255, 255, uint8_t(255 * a)};
-            hudDigits(f, cx - W / 8.0f + 0.006f, -H * 0.33f, H * 0.3f, syringes_, nc);
+        const float sz = H * 0.82f * (c.chosen ? popK : 0.85f);
+        const uint8_t col[4] = {255, 255, 255, uint8_t((c.chosen ? 255 : 130) * a)};
+        hudRect(c.layer, f, cx + 0.004f, 0.004f, sz, sz, col);
+        if (c.count >= 0) {
+            const uint8_t nc[4] = {255, uint8_t(c.count > 0 ? 255 : 80), uint8_t(c.count > 0 ? 255 : 80), uint8_t(255 * a)};
+            hudDigits(f, cx - cw / 2.0f + 0.006f, -H * 0.33f, H * 0.3f, c.count, nc);
         }
-    }
-    // The pop-up bomb: a fifth cell to the right of the strip (the strip art has four), with the count.
-    if (popupBombs_ > 0) {
-        const float cx = 0.5f * W + W / 8.0f + 0.008f;
-        hudRect(kHudPlate, f, cx, 0, W / 4.0f + 0.006f, H + 0.01f, back);
-        const bool chosen = weaponSel_ == 3;
-        if (chosen) {
-            const uint8_t glow[4] = {140, 255, 140, uint8_t(110 * a)};
-            hudRect(kHudMarks, f, cx, 0, W / 4.0f - 0.006f, H - 0.006f, glow);
-        }
-        const float s = H * 0.82f * (chosen ? popK : 0.85f);
-        const uint8_t c[4] = {255, 255, 255, uint8_t((chosen ? 255 : 130) * a)};
-        hudRect(kHudPop, f, cx + 0.004f, 0.004f, s, s, c);
-        const uint8_t nc[4] = {255, 255, 255, uint8_t(255 * a)};
-        hudDigits(f, cx - W / 8.0f + 0.006f, -H * 0.33f, H * 0.3f, popupBombs_, nc);
     }
 }
 
@@ -337,6 +338,7 @@ void GameApp::renderHud() {
 
 void GameApp::initPickups(ModelCache* mc) {
     healthPickups_.clear();
+    ammoPickups_.clear();
     enemyDead_.clear();
     syringeOut_ = false;
     injectT_ = -1;
@@ -380,11 +382,18 @@ void GameApp::initPickups(ModelCache* mc) {
         Vec3 at{o.placement.m[12], o.placement.m[13], o.placement.m[14]};
         float gy;
         if (assetWorld_->terrain().heightAt(at.x, at.z, gy)) at.y = std::max(at.y, gy);
+        // Ammo (mc_pickup_shells / _clips / _rockets) is not health: weapondefs' ammo items name
+        // these pickups (item 37 shells -> type 647).
+        if (o.name.find("pickup_health") == std::string::npos && o.name.find("pickup_") != std::string::npos) {
+            ammoPickup(int(o.type), at);
+            LOGI("Ammo pickup (%s) at game (%.0f, %.0f)", o.name.c_str(), -at.x / gGameUnitsToMeters, at.z / gGameUnitsToMeters);
+            continue;
+        }
         healthPickups_.push_back({at, 0});
         LOGI("Health pickup at game (%.0f, %.0f)", -at.x / gGameUnitsToMeters, at.z / gGameUnitsToMeters);
     }
     if (const char* n = std::getenv("GVR_SYRINGES")) syringes_ = std::max(0, std::min(kMaxSyringes, std::atoi(n)));  // test hook
-    LOGI("Health pickups on the map: %zu", healthPickups_.size());
+    LOGI("Health pickups on the map: %zu, ammo pickups: %zu", healthPickups_.size(), ammoPickups_.size());
 }
 
 void GameApp::dropHealth(const Vec3& at) {
@@ -445,6 +454,7 @@ void GameApp::updatePickups(float dt, const InputFrame& in) {
     }
     healthPickups_.erase(std::remove_if(healthPickups_.begin(), healthPickups_.end(), [](const HealthPickup& p) { return p.t < -1e8f; }),
                          healthPickups_.end());
+    updateAmmoPickups(dt);
     // Using one: X (the move hand's lower face button).
     const int mh = rig_.moveHand();
     const bool press = injectEdge_.pressed(in.hand[mh].primary) && hero_ != Hero::Kabuto;  // his X eats
@@ -533,6 +543,7 @@ void GameApp::renderPickups() {
             drawModel(pickupModel_, at * Mat4::scale(Vec3{k, k, k} * 1.2f) * centre, true, 0.25f + 0.1f * std::sin(p.t * 5.0f));
         }
     if (syringeValid_ && syringeModel_ && !dying_) drawModel(syringeModel_, syringeXf_, false);
+    renderAmmoPickups();
 }
 
 }  // namespace gvr

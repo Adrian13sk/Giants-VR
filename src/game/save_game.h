@@ -12,6 +12,10 @@ struct SaveGame {
     int syringes = 0;
     bool launcher = false;
     int flares = 0;
+    // The other guns (weapondefs items 3 shotgun, 5 machine gun, 6 sniper gun, 7 mortar) and their ammo.
+    bool guns[4] = {false, false, false, false};
+    int ammo[4] = {0, 0, 0, 0};
+    int grenades = 0;
 };
 
 bool loadSaveGame(const std::string& path, SaveGame& out);

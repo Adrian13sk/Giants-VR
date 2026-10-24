@@ -13,6 +13,7 @@
 #include "assets/world_bin.h"
 #include "assets/mission.h"
 #include "assets/object_defs.h"
+#include "assets/weapondefs.h"
 #include "core/math.h"
 #include "game/test_script.h"
 #include "game/arm_ik.h"
@@ -1360,9 +1361,13 @@ static void testSaveGame() {
     a.mission = "2b_1_savewife";
     a.syringes = 4;
     a.launcher = true;
+    a.guns[0] = true;
+    a.ammo[0] = 17;
+    a.guns[2] = true;  // the sniper, out of ammo
     CHECK(writeSaveGame(path, a));
     SaveGame b;
     CHECK(loadSaveGame(path, b) && b.world == a.world && b.mission == a.mission && b.syringes == 4 && b.launcher);
+    CHECK(b.guns[0] && b.ammo[0] == 17 && !b.guns[1] && b.guns[2] && b.ammo[2] == 0);
     {  // a damaged / foreign file is not a save
         FILE* f = std::fopen(path.c_str(), "w");
         std::fputs("world=Story1\n", f);
@@ -1437,7 +1442,40 @@ static void testTestScript() {
     CHECK(!bad.parse("hold nosuchbutton 1 2\n", err) && err.find("line 1") == 0);
 }
 
+static void testWeaponDefs() {
+    // Synthetic file: one weapon {id 0, proj 793, flag 57, dmg 80, every 1.5 s, speed 2500, range 8000,
+    // fx "fx_s"}, end; the item record {36=6, 39=787, 47=1, 54=2, 48="IconS", 37 flag, 36=10, 47=3}.
+    auto f = [](float v) { uint32_t u; std::memcpy(&u, &v, 4); return u; };
+    std::vector<uint32_t> w = {1, 0,
+                               1, 3, 0, 3, 3, 793, 57, 2, 10, 3, f(80.0f), 13, 3, f(1.5f), 24, 3, f(2500.0f), 34, 3, f(8000.0f), 22, 3, 0,
+                               9, 6, f(60.0f), 0, f(30.0f), f(70.0f), 2, 2,
+                               36, 3, 6, 39, 3, 787, 47, 3, 1, 54, 3, 2, 45, 3, 0xFFFFFFFFu, 48, 3, 0, 37, 2, 36, 3, 10, 47, 3, 3};
+    const uint32_t strOff = uint32_t(w.size() * 4);
+    w[24] = strOff;      // "fx_s"
+    w[w.size() - 9] = strOff + 5;   // "IconS"
+    std::vector<uint8_t> d(w.size() * 4);
+    std::memcpy(d.data(), w.data(), d.size());
+    const char strs[] = "fx_s\0IconS\0";
+    d.insert(d.end(), strs, strs + sizeof(strs) - 1);
+    const uint32_t total = uint32_t(d.size());
+    std::memcpy(d.data() + 4, &total, 4);
+    WeaponDefs defs;
+    std::string err;
+    CHECK(parseWeaponDefs(d.data(), d.size(), defs, &err));
+    CHECK(defs.weapons.size() == 1 && defs.items.size() == 2);
+    const WeaponDef* s = defs.weapon(0);
+    CHECK(s && s->projectileType == 793 && s->damage == 80.0f && s->interval == 1.5f && s->speed == 2500.0f && s->range == 8000.0f &&
+          s->fxProjectile == "fx_s" && s->splash[0] == 60.0f && s->splash[3] == 70.0f);
+    CHECK(defs.weaponByFx("fx_s", 1.5f) == s && !defs.weaponByFx("fx_s", 0.2f));
+    const ItemDef* i = defs.item(6);
+    CHECK(i && i->objectType == 787 && i->category == 1 && i->race == 2 && i->maxAmmo == -1 && i->icon == "IconS");
+    CHECK(defs.item(10) && defs.item(10)->category == 3 && !defs.item(7));
+    d[0] = 2;
+    CHECK(!parseWeaponDefs(d.data(), d.size(), defs, &err));
+}
+
 int main() {
+    testWeaponDefs();
     testTestScript();
     testFlickVisibility();
     testFlickEffect();
