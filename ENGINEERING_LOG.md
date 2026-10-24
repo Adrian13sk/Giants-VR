@@ -1457,3 +1457,13 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Harness: 5c - raid 1 (2 Reapers) marched in, Borjoyzee's lines, PARTY HOUSE destroyed, raid 2 (3 Reapers).
   r4a - first attempt placed 0 raiders: its base stands in a lagoon (ground 0.3 m below sea level), so spawn points
   now accept wading depth; then raid, Yan's four lines, SPELL SCHOOL destroyed. Test hooks: GVR_RAID_SOON, GVR_NO_RAIDS.
+
+### 2026-10-24 — Base upgrades
+- Second-level models from the archives with their own build clips (all 3.3 s): stone_shop/Stone_shop.anm,
+  stone_gift, Stone_gate/stone_gate_build, Stone_wall/Stone_wall_build; Extractor_2, spellshop_2, magic_gate2,
+  magic_wall2. Labels from GTextEnglish (Stone Wall A.., Giftshop 2, Spellshop 2, Forcefield 2, Reaper Gate 2).
+- A standing kind's pad sign offers "UPGRADE TO <name>: cost"; all its sites rebuild as the new model (old collision
+  off, the new `_coll` mesh on completion), hp x1.6. Giftshop 2 adds a pop-up bomb to the shop counter (its
+  description: "Even more weapons"). Costs ours. Test hook GVR_BASE_UPGRADE=1.
+- Harness: 5c - Stone Workshop, Giftshop 2, Stone Gate, Stone Walls A/B ordered and completed; r4a - Persuader 2,
+  Spellshop 2, Reaper Gate 2 completed, Forcefields 2 ordered (3 sites). No errors.

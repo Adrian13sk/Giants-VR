@@ -540,3 +540,7 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 ## Host verification — base raids
 - 5c and r4a with everything ordered and GVR_RAID_SOON: raiders spawn, march, wreck a building (destroyed), the next
   raid follows; Smartie lines shown. Rebuilding a wrecked building: logic only, untested. **Not device-tested.**
+
+## Host verification — base upgrades
+- 5c and r4a with GVR_BASE_UPGRADE=1: every upgradable kind rebuilt as its second-level model and completed (log);
+  no errors. Hand-touch of an UPGRADE sign: same code path as ordering, untested by hand path. **Not device-tested.**

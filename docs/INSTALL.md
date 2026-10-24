@@ -158,7 +158,10 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   few Reapers march on the base from the barracks' side. Near a building they wreck it (it burns; a red
   "UNDER ATTACK" sign shows its health; Borjoyzee / Yan call for help). Kill them or draw them off. A wrecked
   building falls back to its site: order it again on the Build Pad. Destroying the barracks stops the raids.
-- Not yet: stone / second-level upgrades.
+- **Upgrades:** once a building stands, its sign on the Build Pad turns into **UPGRADE TO ...** with a cost; touch it
+  and the Smarties rebuild it as the game's second-level model: Stone Workshop, Giftshop 2 (adds a pop-up bomb to its
+  counter), Stone Gate, Stone Walls; Delphi: Persuader 2, Spellshop 2, Reaper Gate 2, Forcefields 2. Upgraded
+  buildings take 60% more punishment from raiders. (The Pub and Party Houses have no second level in the data.)
 
 ## Pop-up bomb (Meccaryn: story3_prison_7, and 5c once the base is complete)
 - **Right stick forward** cycles the weapon strip to the bomb (it appears in your hand). **Right trigger** sets it

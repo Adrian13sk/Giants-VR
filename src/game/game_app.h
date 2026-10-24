@@ -553,6 +553,7 @@ private:
             const RenderModel* still = nullptr;  // models without a skin
             int collision = -1;
             float hp = 0, maxHp = 0;  // once standing: raiders wear it down (ours)
+            int level = 0;            // 1: upgraded (stone / level 2)
             float hitT = -1e9f;       // last damage time (sign shows its health a while)
         };
         std::vector<Bldg> bldgs;
@@ -568,6 +569,8 @@ private:
     void renderBase(const Vec3& eye);
     std::vector<int> baseOffers() const;
     int baseKindState(int def) const;
+    int baseKindLevel(int def) const;
+    void orderUpgrade(int def);
     void orderBuilding(int def);
     void updateRaids(float dt);
     void updateShop(float dt, const InputFrame& in);

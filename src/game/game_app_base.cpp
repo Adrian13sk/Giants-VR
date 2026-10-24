@@ -75,6 +75,36 @@ const BldgDef kReaper[] = {
 const BldgDef* kDefs = kMecc;
 int kNumDefs = int(sizeof(kMecc) / sizeof(kMecc[0]));
 const char* kRes = "VIMP MEAT";
+
+// Second-level buildings (the archives' stone / level-2 models with their own build clips; names
+// from GTextEnglish basebldgstonewalla.., giftshop2, spellshop2, magicwall "Forcefield 2", magicgate
+// "Reaper Gate 2"). Costs ours; the Pub and Party Houses have no second level in the data.
+struct Upgrade { const char* key; const char* label; const char* model; const char* anim; int meat; };
+const Upgrade kUpgrades[] = {
+    {"mcworkshop", "STONE WORKSHOP", "stone_shop", "Stone_shop.anm", 8},
+    {"giftshop1", "GIFTSHOP 2", "stone_gift", "stone_gift.anm", 10},
+    {"woodgate", "STONE GATE", "Stone_gate", "stone_gate_build.anm", 6},
+    {"woodwalla", "STONE WALL A", "Stone_wall", "Stone_wall_build.anm", 5},
+    {"woodwallb", "STONE WALL B", "Stone_wall", "Stone_wall_build.anm", 4},
+    {"woodwallc", "STONE WALL C", "Stone_wall", "Stone_wall_build.anm", 5},
+    {"extractor", "PERSUADER 2", "Extractor_2", "Extractor_2.anm", 8},
+    {"spellshop1", "SPELLSHOP 2", "spellshop_2", "spellshop_2.anm", 10},
+    {"weakgate", "REAPER GATE 2", "magic_gate2", "magic_gate2.anm", 6},
+    {"weakwall", "FORCEFIELDS 2", "magic_wall2", "magic_wall2.anm", 10},
+};
+const Upgrade* upgradeFor(int d) {
+    for (const auto& u : kUpgrades)
+        if (std::string(u.key) == kDefs[d].key) return &u;
+    return nullptr;
+}
+const char* bldgLabel(int d, int level) {
+    const Upgrade* u = level > 0 ? upgradeFor(d) : nullptr;
+    return u ? u->label : kDefs[d].label;
+}
+const char* bldgModel(int d, int level) {
+    const Upgrade* u = level > 0 ? upgradeFor(d) : nullptr;
+    return u ? u->model : kDefs[d].model;
+}
 constexpr float kPadRadius = 4.0f;     // m: standing on the Build Pad
 constexpr float kDropRadius = 3.5f;    // m: the meat drop-off
 constexpr int kWorkers = 6;            // ours: Borjoyzee's workforce
@@ -204,6 +234,54 @@ std::vector<int> GameApp::baseOffers() const {
     return v;
 }
 
+int GameApp::baseKindLevel(int d) const {
+    int lv = 99;
+    for (const auto& b : base_.bldgs)
+        if (b.def == d) lv = std::min(lv, b.level);
+    return lv == 99 ? 0 : lv;
+}
+
+// Upgrading: every site of the kind is rebuilt as its second-level model (its own build clip).
+void GameApp::orderUpgrade(int d) {
+    const Upgrade* u = upgradeFor(d);
+    if (!u) return;
+    if (base_.food < u->meat) {
+        timmyLine_ = std::string(u->label) + ": NEEDS " + std::to_string(u->meat) + " " + kRes + " IN THE STORE (" +
+                     std::to_string(base_.food) + ")";
+        timmyLineT_ = 3.0f;
+        sfx2D("ph_selct", 0.5f, 0.6f);
+        return;
+    }
+    const AssetFS& fs = assetWorld_->fs();
+    ModelCache* mc = assetWorld_->models();
+    int n = 0;
+    for (auto& b : base_.bldgs) {
+        if (b.def != d || b.state != 3 || b.level != 0) continue;
+        auto sm = std::make_unique<SkinnedModel>();
+        const RenderModel* still = nullptr;
+        if (!sm->load(fs, *mc, renderer_, u->model, u->anim)) {
+            sm.reset();
+            still = mc->get(std::string(u->model) + ".gbs", u->anim, true);
+            if (!still) { LOGW("Base: %s unavailable", u->model); continue; }
+        }
+        if (b.collision >= 0) assetWorld_->collisionMutable().setEnabled(b.collision, false);
+        b.collision = -1;  // the new building's own collision once it stands
+        b.model = std::move(sm);
+        b.still = still;
+        b.level = 1;
+        b.state = 1;
+        b.progress = 0;
+        ++n;
+    }
+    if (!n) return;
+    base_.food -= u->meat;
+    timmyLine_ = std::string(u->label) + " - BUILDING...";
+    timmyLineT_ = 3.0f;
+    sfx2D("ph_selct", 1.0f, 1.2f);
+    for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.5f, 0.1f});
+    LOGI("Base: upgrade to %s ordered (%d sites, %d %s, store %d)", u->label, n, u->meat, kRes, base_.food);
+}
+
 void GameApp::orderBuilding(int d) {
     const int cost = kDefs[d].meat;
     if (base_.food < cost) {
@@ -247,7 +325,7 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
     static const bool trace = std::getenv("GVR_BASE_TRACE") != nullptr;
     if (trace && int(base_.traceT + dt) != int(base_.traceT))
         for (const auto& b : base_.bldgs)
-            if (b.state == 1) LOGI("base-trace t=%.0f %s progress %.2f", base_.traceT, kDefs[b.def].label, b.progress);
+            if (b.state == 1) LOGI("base-trace t=%.0f %s progress %.2f", base_.traceT, bldgLabel(b.def, b.level), b.progress);
     base_.traceT += dt;
     int busy = 0;
     for (auto& b : base_.bldgs) {
@@ -263,11 +341,11 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         }
         if (b.progress >= 1.0f) {
             b.state = 3;
-            b.maxHp = b.hp = kDefs[b.def].core ? 400.0f : 250.0f;
+            b.maxHp = b.hp = (kDefs[b.def].core ? 400.0f : 250.0f) * (b.level > 0 ? 1.6f : 1.0f);
             // Solid once standing: the building's own collision mesh (<model>_coll), else its model.
             ModelCache* mc = assetWorld_->models();
-            const RenderModel* coll = mc->get(std::string(kDefs[b.def].model) + "_coll.gbs", "", false);
-            if (!coll || coll->collisionTris.empty()) coll = mc->get(std::string(kDefs[b.def].model) + ".gbs", "", false);
+            const RenderModel* coll = mc->get(std::string(bldgModel(b.def, b.level)) + "_coll.gbs", "", false);
+            if (!coll || coll->collisionTris.empty()) coll = mc->get(std::string(bldgModel(b.def, b.level)) + ".gbs", "", false);
             if (b.collision >= 0) {
                 assetWorld_->collisionMutable().setEnabled(b.collision, true);  // rebuilt after a raid
             } else if (coll && !coll->collisionTris.empty()) {
@@ -280,7 +358,7 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
                 b.collision = assetWorld_->collisionMutable().addObject(tris);
                 Vec3 mn = tris[0], mx = tris[0];
                 for (const Vec3& t : tris) { mn = Vec3{std::min(mn.x, t.x), std::min(mn.y, t.y), std::min(mn.z, t.z)}; mx = Vec3{std::max(mx.x, t.x), std::max(mx.y, t.y), std::max(mx.z, t.z)}; }
-                LOGI("Base: %s solid (%zu triangles, box (%.1f %.1f %.1f)-(%.1f %.1f %.1f), site (%.1f %.1f %.1f))", kDefs[b.def].label,
+                LOGI("Base: %s solid (%zu triangles, box (%.1f %.1f %.1f)-(%.1f %.1f %.1f), site (%.1f %.1f %.1f))", bldgLabel(b.def, b.level),
                      tris.size() / 3, mn.x, mn.y, mn.z, mx.x, mx.y, mx.z, b.xf.m[12], b.xf.m[13], b.xf.m[14]);
             }
             bool allOfKind = true;
@@ -289,7 +367,11 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
                 // What a finished building gives (ours, after the game's descriptions): the Giftshop
                 // "is full of weapons and other nifty stuff" - the shop counter opens in it; the
                 // Workshop is "where your Smarties go for tools" - they build faster from then on.
-                if (std::string(kDefs[b.def].key) == "giftshop1") {
+                if (std::string(kDefs[b.def].key) == "giftshop1" && b.level > 0 && shopOn_) {
+                    // "Even more weapons are available in this upgraded Gift Shop!": a pop-up bomb joins the counter.
+                    shopItems_.push_back({3, shopAt_, false});
+                    if (!shopInside_) shopAnchored_ = false;  // laid out afresh on the next visit
+                } else if (std::string(kDefs[b.def].key) == "giftshop1") {
                     // The counter stands at its front (toward the base's middle): the building is solid.
                     const Vec3 site{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
                     Vec3 dir = base_.centre - site;
@@ -300,13 +382,17 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
                     openShopAt(at);
                 }
                 if (std::string(kDefs[b.def].key) == "mcworkshop" || std::string(kDefs[b.def].key) == "rpworkshop") base_.speed = 1.5f;
-                timmyLine_ = std::string(kDefs[b.def].label) + " - COMPLETED!";
+                timmyLine_ = std::string(bldgLabel(b.def, b.level)) + " - COMPLETED!";
                 timmyLineT_ = 3.5f;
                 sfx2D("pu_hlth", 0.9f, 0.8f);
-                LOGI("Base: %s completed", kDefs[b.def].label);
+                LOGI("Base: %s completed", bldgLabel(b.def, b.level));
             }
         }
     }
+    // Test hook: GVR_BASE_UPGRADE=1 upgrades every kind as soon as it stands.
+    if (static const bool autoUp = std::getenv("GVR_BASE_UPGRADE") != nullptr; autoUp)
+        for (int d = 1; d < kNumDefs; ++d)
+            if (baseKindState(d) == 3 && baseKindLevel(d) == 0 && upgradeFor(d)) { base_.food += upgradeFor(d)->meat; orderUpgrade(d); }
     updateRaids(dt);
     if (!base_.complete) {
         bool all = true;
@@ -357,9 +443,11 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
     for (const auto& it : base_.items) {
         bool touch = false;
         for (int k = 0; k < nh; ++k) touch = touch || length(hands[k] - it.pos) < 0.16f;
-        if (!touch || baseKindState(it.def) != 0) continue;
-        base_.touchCool = 0.8f;
-        orderBuilding(it.def);
+        if (!touch) continue;
+        const int st = baseKindState(it.def);
+        if (st == 0) { base_.touchCool = 0.8f; orderBuilding(it.def); }
+        else if (st == 3 && upgradeFor(it.def) && baseKindLevel(it.def) == 0) { base_.touchCool = 0.8f; orderUpgrade(it.def); }
+        else continue;
         break;
     }
 }
@@ -463,9 +551,9 @@ void GameApp::updateRaids(float dt) {
                 if (b.collision >= 0) assetWorld_->collisionMutable().setEnabled(b.collision, false);
                 dustBurst(bp, 6.0f, 20);
                 explode(bp + Vec3{0, 2, 0}, 3.0f, 0.0f, true);  // the noise and flash, no damage
-                timmyLine_ = std::string(kDefs[b.def].label) + " DESTROYED! REBUILD IT ON THE BUILD PAD.";
+                timmyLine_ = std::string(bldgLabel(b.def, b.level)) + " DESTROYED! REBUILD IT ON THE BUILD PAD.";
                 timmyLineT_ = 4.0f;
-                LOGI("Base: %s destroyed by raiders", kDefs[b.def].label);
+                LOGI("Base: %s destroyed by raiders", bldgLabel(b.def, b.level));
             }
             break;
         }
@@ -505,13 +593,13 @@ void GameApp::renderBase(const Vec3& eye) {
     for (const auto& b : base_.bldgs) {
         if (b.state != 1 || length(eye - Vec3{b.xf.m[12], b.xf.m[13], b.xf.m[14]}) > 60.0f) continue;
         char s[64];
-        std::snprintf(s, sizeof s, "%s  BUILDING... %d%%", kDefs[b.def].label, int(b.progress * 100.0f));
+        std::snprintf(s, sizeof s, "%s  BUILDING... %d%%", bldgLabel(b.def, b.level), int(b.progress * 100.0f));
         label(Vec3{b.xf.m[12], b.xf.m[13] + 6.0f, b.xf.m[14]}, s, {1.0f, 0.85f, 0.3f, 1.0f}, 0.35f);
     }
     for (const auto& b : base_.bldgs) {
         if (b.state != 3 || float(time_) - b.hitT > 6.0f || length(eye - Vec3{b.xf.m[12], b.xf.m[13], b.xf.m[14]}) > 80.0f) continue;
         char s[64];
-        std::snprintf(s, sizeof s, "%s UNDER ATTACK %d%%", kDefs[b.def].label, int(100.0f * b.hp / std::max(1.0f, b.maxHp)));
+        std::snprintf(s, sizeof s, "%s UNDER ATTACK %d%%", bldgLabel(b.def, b.level), int(100.0f * b.hp / std::max(1.0f, b.maxHp)));
         label(Vec3{b.xf.m[12], b.xf.m[13] + 6.0f, b.xf.m[14]}, s, {1.0f, 0.35f, 0.25f, 1.0f}, 0.35f);
     }
     if (length(eye - base_.dropAt) < 40.0f) {
@@ -526,11 +614,14 @@ void GameApp::renderBase(const Vec3& eye) {
     // The menu: a card per building you can order, at arm's length round the pad.
     for (const auto& it : base_.items) {
         const BldgDef& d = kDefs[it.def];
-        const int st = baseKindState(it.def);
-        const bool afford = st == 0 && base_.food >= d.meat;
-        char s[64];
-        if (st == 0) std::snprintf(s, sizeof s, "%s: %d %s", d.label, d.meat, base_.reaper ? "SOULS" : "MEAT");
-        else std::snprintf(s, sizeof s, "%s: %s", d.label, st == 3 ? "COMPLETED!" : "BUILDING...");
+        const int st = baseKindState(it.def), lv = baseKindLevel(it.def);
+        const Upgrade* up = upgradeFor(it.def);
+        const bool canUp = st == 3 && up && lv == 0;
+        const bool afford = (st == 0 && base_.food >= d.meat) || (canUp && base_.food >= up->meat);
+        char s[80];
+        if (st == 0) std::snprintf(s, sizeof s, "%s: %d %s", bldgLabel(it.def, lv), d.meat, base_.reaper ? "SOULS" : "MEAT");
+        else if (canUp) std::snprintf(s, sizeof s, "UPGRADE TO %s: %d %s", up->label, up->meat, base_.reaper ? "SOULS" : "MEAT");
+        else std::snprintf(s, sizeof s, "%s: %s", bldgLabel(it.def, lv), st == 3 ? "COMPLETED!" : "BUILDING...");
         const float bob = 0.03f * std::sin(float(time_) * 2.0f + it.pos.x);
         label(it.pos + Vec3{0, bob, 0}, s, afford ? Vec4{0.6f, 1.0f, 0.6f, 1.0f} : Vec4{0.75f, 0.75f, 0.75f, 1.0f}, 0.045f, 0.3f);
     }
