@@ -56,7 +56,10 @@ bool GameApp::loadKabuto() {
     Vec3 hmn, hmx;
     if (m->boneVertexBounds("head", hmn, hmx)) {
         kabutoEye_ = hmn.y + 0.55f * (hmx.y - hmn.y) + kabutoFeet_;
-        kabutoEyeModel_ = {0.5f * (hmn.x + hmx.x), hmn.y + 0.55f * (hmx.y - hmn.y), hmn.z - 0.2f};
+        // The eye 2 m (model) ahead of the face: his shoulders sit at eye height either side of
+        // the head, and with the eye at the face a forward punch put the whole upper arm across the
+        // view (harness, first person); 2 m (~24 cm at his scale) keeps the arms lower in view.
+        kabutoEyeModel_ = {0.5f * (hmn.x + hmx.x), hmn.y + 0.55f * (hmx.y - hmn.y), hmn.z - 2.0f};
     } else {
         kabutoEye_ = 0.85f * height;
         kabutoEyeModel_ = {0, kabutoEye_ - kabutoFeet_, -1.0f};

@@ -1328,3 +1328,16 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - UserSettings.foveation (0-3, default 2, settings.txt `foveation=`), Options row FOVEATED RENDERING; the Android loop
   applies changes through XrApp::setFoveation; GVR_FFR pins a level in test runs (experiment baselines now pin 0).
 - Not yet looked at: the 3-4 s of 33-45 fps right after a mission loads.
+
+### 2026-10-24 — Warm-up, shadow LOD, Kabuto first-person view (builds 26301db, this build)
+- **Warm-up behind the briefing:** while a mission's briefing shows (0.3-5 s), the first eye of each frame also draws the
+  new level from the start point in 16 directions (8 yaws, level and pitched down) and clears it, so the driver's
+  first-use work on textures and shaders happens before play (on the Quest the first 3-4 s ran at 33-45 fps, App GPU
+  up to 23 ms). Unmeasured on device; `devtest/tests/warmup_k1a.txt` reloads k1a through the briefing (new script
+  keyword `briefing`, GameApp::debugReloadWithBriefing) and measures 7-12 s.
+- **Shadow PCF LOD:** 5 taps within 8 m of the eye, one hardware-filtered tap beyond.
+- **Kabuto's shadow area** grows with him (48 m square × sqrt(scale): ~140 m at full size) - map size cost nothing.
+- **Kabuto first person:** his shoulders are at eye height beside the head (bone bounds: r_arm y 11.1-14.2 m vs eye
+  13.2 m), so a forward punch put the upper arm across the right eye's view. The eye point is now 2 m (model) ahead of
+  the face (~24 cm at his scale); harness renders at 0.2 / 1.2 / 2.0 m compared, arms lower in view at 2.0. Needs a
+  headset check (looking down no longer shows his chest).
