@@ -581,4 +581,11 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
   (GVR_ARSENAL=1 GVR_WEAPON=7): 56/56 exit 0, 0 errors; bombs lobbed in the 25 Meccaryn missions.
 - Grenades (5a): hand swing (`--hand-path` 0.85 m in 10 frames while the trigger is held) throws at 9.8 m/s; lobbed
   grenade bursts 0.6 m from a Reaper 12 m ahead and kills it. Held grenade visible in the first-person hand.
+- Sniper zoom (story3_3sonaks_4, GVR_SCOPE=1 forcing it on): the side screen shows the magnified horizon upright
+  with the red cross; the pass draws 57 calls; from the hip (no hook) it never renders.
+- Sweeps: grenades thrown everywhere (GVR_ARSENAL=1 GVR_WEAPON=8) 56/56 exit 0, 0 errors; plain sweep after the
+  grenade change 56/56 exit 0, 0 errors.
+- Sniper sweep with the zoom forced on (GVR_ARSENAL=1 GVR_WEAPON=6 GVR_SCOPE=1): 56/56 exit 0, 0 errors.
+- Shop ammo (1d): the counter lays out 4 goods (launcher, injection, flares, AMMO); taking the AMMO box was not
+  reached by the harness's walk (logic only).
 - **Not device-tested.** Sound names (ME_RSGSH, ME_SPRSH, ME_MCH*, ME_MTR*, ME_GRN*) are guesses from the file names.

@@ -64,6 +64,7 @@ void GameApp::openShopAt(const Vec3& centre) {
     shopItems_.clear();
     const int kinds[3] = {hasLauncher_ ? 1 : 0, 1, 2};
     for (int i = 0; i < 3; ++i) shopItems_.push_back({kinds[i], shopAt_, false});
+    if (hero_ == Hero::Mecc) shopItems_.push_back({4, shopAt_, false});
     LOGI("Shop opened at (%.1f %.1f %.1f)", centre.x, centre.y, centre.z);
 }
 
@@ -84,6 +85,7 @@ void GameApp::updateShop(float dt, const InputFrame& in) {
         for (size_t i = 0; i < shopItems_.size(); ++i) {
             const float a = yaw + (float(i) - 0.5f * float(shopItems_.size() - 1)) * (shopItems_.size() > 3 ? 0.6f : 0.75f);
             shopItems_[i].pos = shopAt_ + Vec3{-std::sin(a) * 1.5f, 1.1f, -std::cos(a) * 1.5f};
+            LOGI("Shop item %zu (kind %d) at %.0f deg from your view", i, shopItems_[i].kind, double((a - yaw) * 57.2958f));
         }
     }
     if (inside && !shopInside_) {
@@ -105,7 +107,16 @@ void GameApp::updateShop(float dt, const InputFrame& in) {
         bool touch = f.x * f.x + f.z * f.z < 0.8f * 0.8f;
         for (int k = 0; k < nh; ++k) touch = touch || length(hands[k] - it.pos) < 0.45f;
         if (!touch) continue;
-        if (it.kind == 3) {
+        if (it.kind == 4) {
+            // Every gun carried filled up (the shells box: mc_pickup_shells).
+            bool any = false;
+            for (auto& g : guns_)
+                if (g.have && g.ammo < g.maxAmmo) { g.ammo = g.maxAmmo; any = true; }
+            if (grenades_ > 0 && grenades_ < grenadeMax_) { grenades_ = grenadeMax_; any = true; }
+            if (!any) continue;  // nothing to fill: it stays for later
+            LOGI("Shop: took ammo (guns filled)");
+            sfx2D("pu_ammo", 1.0f);
+        } else if (it.kind == 3) {
             ++popupBombs_;
             LOGI("Shop: took a pop-up bomb (%d)", popupBombs_);
         } else if (it.kind == 0) {
@@ -123,7 +134,7 @@ void GameApp::updateShop(float dt, const InputFrame& in) {
         }
         it.taken = true;
         pickupFlash_ = 1.0f;
-        sfx2D(it.kind == 0 ? "ph_selct" : "pu_hlth", 1.0f);
+        if (it.kind != 4) sfx2D(it.kind == 0 ? "ph_selct" : "pu_hlth", 1.0f);
         for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.5f, 0.1f});
         for (int k = 0; k < 10; ++k)
             smokePuff(FxTex::FireGreen, it.pos, Vec3{(frand() - 0.5f) * 2, 1.0f + frand(), (frand() - 0.5f) * 2}, 0.4f, 0.1f, 0.6f, 1.0f, 0.0f);
@@ -177,15 +188,21 @@ void GameApp::renderShop() {
             popupModel_->render(renderer_, Mat4::translation(it.pos + Vec3{0, 0.06f * std::sin(t * 2.0f + it.pos.x) - 0.3f, 0}) *
                                                Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.8f)) * Mat4::scale(Vec3{0.6f, 0.6f, 0.6f}));
         }
-        const RenderModel* m = it.kind == 0 ? launcherModel_ : (it.kind == 2 || it.kind == 3 ? nullptr : syringeModel_);
+        const RenderModel* m = it.kind == 0 ? launcherModel_ : it.kind == 4 ? shellsModel_ : (it.kind == 2 || it.kind == 3 ? nullptr : syringeModel_);
         const float bob = 0.06f * std::sin(t * 2.0f + it.pos.x);
-        const float s = it.kind == 0 ? 1.0f : 2.0f;  // the syringe is small
+        float s = it.kind == 0 ? 1.0f : 2.0f;  // the syringe is small
+        if (it.kind == 4 && m) {  // the shells box at about 40 cm
+            const Vec3 e = m->boundsMax - m->boundsMin;
+            s = 0.4f / std::max(0.05f, std::max(e.x, std::max(e.y, e.z)));
+        }
         if (m)
             drawModel(m, Mat4::translation(it.pos + Vec3{0, bob, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.8f)) *
                              Mat4::scale(Vec3{s, s, s}),
                       it.kind == 2);  // the flare glows
         if (!near || !text_.ready()) continue;
-        const std::string label = it.kind == 3 ? "POP-UP BOMB" : it.kind == 0 ? "ROCKET LAUNCHER"
+        bool ammoFull = true;
+        for (const auto& g : guns_) ammoFull = ammoFull && (!g.have || g.ammo >= g.maxAmmo);
+        const std::string label = it.kind == 4 ? (ammoFull ? "AMMO (FULL)" : "AMMO") : it.kind == 3 ? "POP-UP BOMB" : it.kind == 0 ? "ROCKET LAUNCHER"
                                   : it.kind == 2 ? (flares_ >= kMaxFlares ? "FLARES (FULL)" : "3 FLARES")
                                                  : (syringes_ >= kMaxSyringes ? "INJECTION (FULL)" : "HEALTH INJECTION");
         float w = 0, h = 0;

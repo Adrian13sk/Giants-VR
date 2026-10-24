@@ -31,7 +31,7 @@ void GameApp::updateGrenades(float dt, const InputFrame& in) {
     }
     if (weaponSel_ == 8 && grenades_ <= 0) weaponSel_ = 0;
     const bool held = c.trigger > 0.6f;
-    if (!playMode_ || dying_ || weaponSel_ != 8 || grenades_ <= 0) { grenCocked_ = false; return; }
+    if (!playMode_ || dying_ || hero_ != Hero::Mecc || weaponSel_ != 8 || grenades_ <= 0) { grenCocked_ = false; return; }
     if (held && !grenCocked_) {
         grenCocked_ = true;
         sfx2D("ph_selct", 0.6f, 1.4f);  // the pin

@@ -261,6 +261,7 @@ void GameApp::buildHud() {
     for (auto& b : hudBatch_) b.clear();
     const bool show = playMode_ && !cutsceneActive() && !dying_ && load_.phase == LoadPhase::Idle && !menuOpen_;
     if (show) {
+        scopeCross();
         const ControllerState& lc = lastInput_.hand[rig_.moveHand()];
         if (firstPerson_ && lc.gripPoseValid) {
             // Floating over the move-hand forearm (behind the hand, so the fingers don't cover

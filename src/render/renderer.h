@@ -124,6 +124,13 @@ public:
     void endReflectionPass();
     void setReflectionActive(bool on) { reflActive_ = on; }
     bool inReflectionPass() const { return inReflection_; }
+    // A gun scope's picture: the world from the scope, rendered into a small square texture that is
+    // then drawn on the scope's eyepiece like any other texture (scopeTexture()).
+    bool initScope(int size);
+    bool scopeReady() const { return scopeFbo_ != 0; }
+    void beginScopePass(const ViewParams& view);
+    void endScopePass();
+    TextureId scopeTexture() const { return scopeTex_; }
     // Water depth below the sea surface over a rectangle of the world (R8: depth / 24 m).
     void setWaterDepthMap(int w, int h, const uint8_t* depth, float x0, float z0, float width, float depthZ);
     const ViewParams& currentView() const { return currentView_; }
@@ -160,6 +167,9 @@ private:
     bool terrainDetail_ = true;
     GLuint reflFbo_ = 0, reflColor_ = 0, reflDepth_ = 0, waterDepthTex_ = 0;
     int reflW_ = 0, reflH_ = 0;
+    GLuint scopeFbo_ = 0, scopeDepth_ = 0;
+    TextureId scopeTex_ = 0;
+    int scopeSize_ = 0;
     bool reflActive_ = false, inReflection_ = false;
     Mat4 reflMat_ = Mat4::identity();
     Vec3 reflEye_;

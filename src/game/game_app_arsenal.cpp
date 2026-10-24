@@ -163,6 +163,7 @@ int GameApp::gunOfSel(int sel) const {
 }
 
 bool GameApp::weaponOwned(int sel) const {
+    if (hero_ != Hero::Mecc) return sel == 0;  // Delphi and Kabuto fight their own way
     switch (sel) {
         case 0: return true;
         case 1: return hasLauncher_ && launcherModel_;
@@ -311,6 +312,101 @@ void GameApp::renderAmmoPickups() {
         const Mat4 at = Mat4::translation(p.pos + Vec3{0, bob, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, p.t * 1.6f));
         drawModel(shellsModel_, at * Mat4::scale({k, k, k}) * Mat4::translation((shellsModel_->boundsMin + shellsModel_->boundsMax) * -0.5f), false);
     }
+}
+
+}  // namespace gvr
+
+namespace gvr {
+
+// The sniper gun's screen: MC_snipergun_L0's third part is a flat panel beside the barrel (game units:
+// x 1.22..2.41, y -2.47..-2.26, z 1.43..2.32 - facing back along the barrel toward the shooter), next to
+// the .anm's "screen" node. The briefing: "Your new SNIPER GUN works great from a distance - zoom in".
+// Ours: the panel shows the view down the barrel, magnified, whenever the gun is held near the eye.
+void GameApp::updateScope(const Vec3& muzzle, const Vec3& fwd, const Vec3& eye) {
+    scopeWanted_ = false;
+    if (!firstPerson_ || !gunValid_ || gunOfSel(weaponSel_) != kGunSniper || quality_ >= 2) return;
+    // The panel's corners (a hair toward the shooter so they sit on the panel), counter-clockwise from
+    // the shooter's side: bottom-left, bottom-right, top-right, top-left.
+    const Vec3 g[4] = {{2.39f, -2.42f, 1.44f}, {1.24f, -2.42f, 1.44f}, {1.34f, -2.23f, 2.29f}, {2.27f, -2.23f, 2.31f}};
+    for (int i = 0; i < 4; ++i) {
+        const Vec3 r = giantsToRuntime(g[i].x, g[i].y, g[i].z);
+        const Vec4 w = gunXf_ * Vec4{r.x, r.y, r.z, 1.0f};
+        scopeCorners_[i] = {w.x, w.y, w.z};
+    }
+    const Vec3 c = (scopeCorners_[0] + scopeCorners_[2]) * 0.5f;
+    // Only while it is close to the eye (a glance at it from the hip costs nothing).
+    if (length(c - eye) > 0.45f && !std::getenv("GVR_SCOPE")) return;  // test hook: always
+    scopeEye_ = muzzle;
+    scopeFwd_ = fwd;
+    scopeWanted_ = true;
+}
+
+void GameApp::renderScope() {
+    scopeShown_ = false;
+    if (!scopeWanted_ || !assetWorld_ || !assetWorld_->loaded() || cutsceneActive()) return;
+    if (!scopeInit_) {
+        scopeInit_ = true;
+        renderer_.initScope(256);
+        scopeBatch_.init(renderer_, 1);
+    }
+    if (!renderer_.scopeReady()) return;
+    // Look rotation: -Z along the barrel, level (no roll).
+    const Vec3 f = normalize(scopeFwd_);
+    const Quat yawQ = Quat::fromAxisAngle({0, 1, 0}, std::atan2(-f.x, -f.z));
+    const Quat look = yawQ * Quat::fromAxisAngle({1, 0, 0}, std::asin(std::max(-1.0f, std::min(1.0f, f.y))));
+    Pose p;
+    p.position = scopeEye_;
+    p.orientation = look;
+    ViewParams v;
+    v.view = Mat4::fromPose(p.inverse());
+    v.eyePosition = scopeEye_;
+    // About 4x: the screen spans ~20 degrees at the eye, showing ~5 (tan 0.045 each way).
+    const float a = std::atan(0.045f);
+    v.projection = Mat4::projectionFov(-a, a, a, -a, 0.3f, 0.0f);
+    const uint32_t calls0 = renderer_.drawCallsThisFrame();
+    renderer_.beginScopePass(v);
+    assetWorld_->render(renderer_);
+    for (const auto& n : nests_)
+        if (n.alive && n.shown >= 0.02f) drawModel(n.model, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown), false);
+    for (const auto& ch : chars_)
+        if (ch.visible && ch.model) ch.model->render(renderer_, ch.xf());
+    for (const auto& e : enemies_.enemies)
+        if (e.slot >= 0)
+            enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
+                                                              Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
+    renderReaperWeapons(false, scopeEye_, 1e9f);
+    renderer_.endScopePass();
+    // The lens quad for the eyes (uploaded once per frame). The texture's v = 0 is the image's bottom.
+    scopeBatch_.clear();
+    static const float uv[4][2] = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+    const uint8_t white[4] = {255, 255, 255, 255};
+    scopeBatch_.add(scopeCorners_, uv, white);
+    scopeBatch_.upload(renderer_);
+    scopeShown_ = true;
+    static bool logged = false;
+    if (!logged) { logged = true; LOGI("Sniper screen: zoom view rendered (%u draw calls)", renderer_.drawCallsThisFrame() - calls0); }
+}
+
+// A thin red cross in the middle of the screen (where the shot goes): HUD marks, built with the HUD.
+void GameApp::scopeCross() {
+    if (!scopeWanted_ || !playMode_ || dying_) return;
+    const Vec3 c = (scopeCorners_[0] + scopeCorners_[2]) * 0.5f;
+    const Vec3 rx = (scopeCorners_[1] - scopeCorners_[0]) * 0.5f, uy = (scopeCorners_[3] - scopeCorners_[0]) * 0.5f;
+    const Vec3 n = normalize(cross(rx, uy)) * 0.002f;
+    const uint8_t red[4] = {255, 30, 20, 230};
+    const Vec3 h[4] = {c - rx * 0.35f - uy * 0.02f + n, c + rx * 0.35f - uy * 0.02f + n, c + rx * 0.35f + uy * 0.02f + n, c - rx * 0.35f + uy * 0.02f + n};
+    const Vec3 vq[4] = {c - rx * 0.02f - uy * 0.35f + n, c + rx * 0.02f - uy * 0.35f + n, c + rx * 0.02f + uy * 0.35f + n, c - rx * 0.02f + uy * 0.35f + n};
+    hudBatch_[kHudMarks].add(h, red);
+    hudBatch_[kHudMarks].add(vq, red);
+}
+
+void GameApp::drawScopeLens() {
+    if (!scopeShown_ || !playMode_ || dying_) return;
+    DrawParams dp;
+    dp.texture = renderer_.scopeTexture();
+    dp.unlit = true;
+    dp.doubleSided = true;
+    scopeBatch_.draw(renderer_, dp);
 }
 
 }  // namespace gvr

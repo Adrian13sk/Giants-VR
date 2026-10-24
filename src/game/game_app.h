@@ -276,6 +276,16 @@ private:
     float gunCooldown_ = 0;
     void updateAmmoPickups(float dt);
     void renderAmmoPickups();
+    // The sniper gun's zoom: its side screen (the model's third part, beside the "screen" node) shows
+    // the view down the barrel at 4x, rendered offscreen while the gun is held close to the eye.
+    bool scopeWanted_ = false, scopeShown_ = false, scopeInit_ = false;
+    Vec3 scopeEye_, scopeFwd_;
+    Vec3 scopeCorners_[4];
+    QuadBatch scopeBatch_;
+    void updateScope(const Vec3& muzzle, const Vec3& fwd, const Vec3& eye);
+    void renderScope();
+    void drawScopeLens();
+    void scopeCross();
     // Grenades (item 8; game_app_grenade.cpp): thrown by hand - hold the trigger, swing, let go.
     int grenades_ = 0, grenadeMax_ = 8, grenadeGive_ = 5;
     const RenderModel* grenadeModel_ = nullptr;
@@ -573,7 +583,7 @@ private:
     void updateSmartieLines(float dt);
     void renderTags();
     // The Shop (game_app_shop.cpp).
-    struct ShopItem { int kind; Vec3 pos; bool taken; };  // kind 0 rocket launcher, 1 health injection
+    struct ShopItem { int kind; Vec3 pos; bool taken; };  // kind 0 rocket launcher, 1 health injection, 2 flares, 3 pop-up bomb, 4 ammo
     std::vector<ShopItem> shopItems_;
     Vec3 shopAt_, shopCentre_;
     bool shopOn_ = false, shopInside_ = false, shopAnchored_ = false;

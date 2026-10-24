@@ -11,7 +11,9 @@ For each item: works / doesn't / how it feels. A phone photo of anything that lo
 there; the launcher comes in Story 3's launcher mission (or from a Shop).
 - [ ] **2. 1c**: you have the shotgun (right stick forward). One exploding shell per pull; the number under the icon
       counts down; at 0 a click. Shell boxes on the map refill it (+2). Does it feel strong enough?
-- [ ] **Story 3 bunker mission**: the sniper gun - one shot kills a Reaper at long range. (No zoom yet.)
+- [ ] **Story 3 bunker mission**: the sniper gun - one shot kills a Reaper at long range. Raise it to your eye: the
+      side screen shows a zoomed view with a red cross. Is it readable? Does the cross match where shots land?
+      Any frame-rate drop while it's up?
 - [ ] **18. 4a**: the Millenium mortar lobs a bomb that bounces once and blows up big - don't fire it at your feet.
 - [ ] **5a**: the machine gun - hold the trigger; a firing loop sound while held.
 - [ ] **5a**: **grenades** - hold the trigger, swing and let go. Does it go where you threw it, about as far as you'd

@@ -815,6 +815,46 @@ bool Renderer::initReflection(int w, int h) {
     return checkGl("initReflection");
 }
 
+bool Renderer::initScope(int size) {
+    scopeTex_ = uploadTexture(size, size, nullptr, false, false);
+    if (scopeTex_ == 0) return false;
+    const GLuint color = textures_[scopeTex_ - 1].tex;
+    glGenRenderbuffers(1, &scopeDepth_);
+    glBindRenderbuffer(GL_RENDERBUFFER, scopeDepth_);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, size, size);
+    glGenFramebuffers(1, &scopeFbo_);
+    glBindFramebuffer(GL_FRAMEBUFFER, scopeFbo_);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, scopeDepth_);
+    const bool complete = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    if (!complete) {
+        LOGE("Scope framebuffer incomplete");
+        glDeleteFramebuffers(1, &scopeFbo_);
+        scopeFbo_ = 0;
+        return false;
+    }
+    scopeSize_ = size;
+    LOGI("Gun scope target: %dx%d", size, size);
+    return checkGl("initScope");
+}
+
+void Renderer::beginScopePass(const ViewParams& view) {
+    glBindFramebuffer(GL_FRAMEBUFFER, scopeFbo_);
+    beginView(view, scopeSize_, scopeSize_, false);
+    glClearColor(env_.fogColor.x, env_.fogColor.y, env_.fogColor.z, 1.0f);
+    glClearDepthf(1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void Renderer::endScopePass() {
+    glBindVertexArray(0);
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 void Renderer::beginReflectionPass(const ViewParams& view, float nearZ) {
     inReflection_ = true;
     glBindFramebuffer(GL_FRAMEBUFFER, reflFbo_);

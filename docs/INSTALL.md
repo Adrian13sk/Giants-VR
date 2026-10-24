@@ -182,8 +182,10 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   and it is lobbed a few metres ahead.
 - The new guns have ammo (the number under the icon; dim = empty, a click when you pull with none): shotgun 25 (35
   max), sniper 8 (12), machine gun 800 (2500), mortar 6 (10). Shotgun shells lie around in Story 1-2 (the boxes
-  that used to give health injections were shell boxes): walk over them.
-- The sniper gun has no zoom yet.
+  that used to give health injections were shell boxes): walk over them. Every Shop now also has an **AMMO** box
+  that fills all your guns (once per level).
+- **Sniper zoom:** bring the sniper gun up to your eye - the little screen on its side shows the view down the
+  barrel, magnified about 4x, with a red cross where the shot goes.
 
 ## Pop-up bomb (Meccaryn: story3_prison_7, and 5c once the base is complete)
 - **Right stick forward** cycles the weapon strip to the bomb (it appears in your hand). **Right trigger** sets it

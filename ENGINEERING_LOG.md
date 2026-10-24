@@ -1589,6 +1589,9 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - **Two earlier readings were wrong:** item 1 is the handgun (not the jetpack) and item 3 the shotgun (not the
   rocket launcher; the launcher is item 14, first listed in story3_launcher_5). Consequences, following the data:
   1c onward hands out the shotgun; the rocket launcher now comes from story3_launcher_5 (or a Shop) instead of 1c.
+  Further confirmation: Timmy's present at the end of 1b is the cutscene flk_story1_get_rpg1-10 ("Here, take this
+  present. It's a weapon that other spaceman dropped!") - despite the file name, its actor nodes are `shotgun`,
+  `shotgunpump` and `Ref_shotgun`: he hands Baz the shotgun.
   Story 1's jetpack gating on item 1 is kept as our rule (comment updated).
 - Placed mc_pickup_shells were being turned into health pickups (all class 37 was read as health): they are now
   shotgun ammo pickups (2 shells each, the ammo item's key 46). 1c_1: 3 ammo pickups, 0 health (was 3 health).
@@ -1607,8 +1610,16 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   frames x1.6 (capped 30 m/s); a slow release lobs it ahead at 12 m/s (third person always). It bounces (0.4) and
   bursts after a 2.5 s fuse or on a character (3.6 m, 130; weapon 2: 80 / (75, 0, 30, 50)). 5 given, 8 carried (item).
   Harness 5a: a hand swing of 0.85 m in 10 frames throws at 9.8 m/s; a lob burst 0.6 m from a Reaper 12 m away kills it.
-- Not done: the sniper's zoom (the model has a "screen" node, the scope display), ammo for the rocket launcher (still
-  unlimited), Reaper guards dropping ammo, mines (item 9).
+- Sniper zoom: MC_snipergun_L0's third part (8 triangles, game x 1.22..2.41, y -2.47..-2.26, z 1.43..2.32) is a flat
+  panel on a stalk beside the barrel facing the shooter, next to the .anm's "screen" node - the gun's zoom display.
+  Ours: while the gun is within 45 cm of the eye (first person) the world is rendered from the muzzle along the barrel
+  (level, ~5 degrees across, about 4x) into a 256x256 target (Renderer::initScope / beginScopePass) and drawn on that
+  panel, with a red cross. Cost: one extra pass (57 draw calls in story3_3sonaks_4), only while aiming; none at
+  quality level 2. Harness render: the panel shows the magnified horizon the right way up.
+- Shops in Meccaryn levels also offer AMMO (the shells box, once per level, ours): every carried gun and the grenades
+  filled to their most. Missions place no other ammo than Story 1-2's shells, so without it the sniper's 8 rounds
+  would be all there is.
+- Not done: ammo for the rocket launcher (still unlimited), Reaper guards dropping ammo, mines (item 9).
 - Harness (story3_bunker_3, a Reaper spawned ahead, auto-aim): sniper at 40 m - 1 hit, dead; shotgun at 15 m - one
   direct shell, dead; machine gun at 15 m - dead after 8 hits; handgun - 5 hits. 1c: "Picked up 2 rounds for the
   shotgun (27)". The three new guns render in hand in first person (screenshots checked).

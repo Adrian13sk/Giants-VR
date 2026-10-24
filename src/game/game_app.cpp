@@ -1856,7 +1856,8 @@ void GameApp::initMission() {
     player_.jetpackAvailable = jet;
     // The items he is handed (weapondefs.bin's item table: 3 shotgun, 5 machine gun, 6 sniper gun,
     // 14 rocket launcher; game_app_arsenal.cpp). Item 3 was read as the launcher until the table was
-    // decoded; 1c-2c place mc_pickup_shells, the shotgun's ammo.
+    // decoded; 1c-2c place mc_pickup_shells, the shotgun's ammo, and Timmy's present at the end of 1b
+    // (flk_story1_get_rpg*) is animated with "shotgun" / "Ref_shotgun" nodes.
     if (m.setup[0] == 2) grantMissionItems(m.items, "mission start");
     if (std::getenv("GVR_LAUNCHER") && launcherModel_) hasLauncher_ = true;  // test hook
     // The world decides the hero (Reaper story: Delphi); she has no jetpack.
@@ -1867,6 +1868,9 @@ void GameApp::initMission() {
     if (hero_ != Hero::Mecc) player_.jetpackAvailable = false;
     initBase();   // both depend on the hero just chosen (initCharacters may have run them with the last one)
     initPopup();
+    // A Meccaryn level's Shop also sells ammo for the guns he carries (ours).
+    if (shopOn_ && hero_ == Hero::Mecc && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 4; }))
+        shopItems_.push_back({4, shopAt_, false});
     if (hero_ == Hero::Kabuto) {
         // He comes out of the sea weakened at the start of his story (k1a) and of 2a ("Eat 5
         // Smarties to reach full strength and size"); full size elsewhere. Our reading.
@@ -1969,6 +1973,7 @@ void GameApp::renderShadows() {
     popUnscaledRig();
     renderShadowMap();
     renderReflection();
+    renderScope();
 }
 
 void GameApp::renderShadows(const EyeRenderInfo& left, const EyeRenderInfo& right) {
@@ -3474,6 +3479,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
         LOGI("Weapon: %s", gs >= 0 ? guns_[gs].name : weaponSel_ == 3 ? "pop-up bomb" : weaponSel_ == 2 ? "bush pack" : (weaponSel_ ? "rocket launcher" : "gun"));
     }
+    scopeWanted_ = false;
     if (weaponSel_ == 2 || weaponSel_ == 3 || weaponSel_ == 8) { gunValid_ = false; return; }  // in the bush / holding a bomb or grenade: no gun in hand
     const bool launcher = weaponSel_ == 1 && launcherModel_;
     const RenderModel* held = heldModel();
@@ -3550,6 +3556,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         muzzle = {m4.x, m4.y, m4.z};
         fwd = normalize(Vec3{f4.x, f4.y, f4.z});
         if (!firstPerson_ && tpAiming_) fwd = normalize(aimTarget_ - muzzle);  // shots go to the crosshair
+        updateScope(muzzle, fwd, in.headValid ? rig_.toWorld(in.head).position : player_.position);
     }
     const bool trigger = in.hand[gh].trigger > 0.6f;
     rocketCooldown_ -= dt;
@@ -3842,7 +3849,10 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     // sits right behind your head and the body turns with it, so he'd only ever flicker at the edge
     // of view: not drawn there.
     if (playMode_ && timmyOn_ && !cut && !firstPerson_) timmy_->render(renderer_, timmyXf_);
-    if (playMode_ && gunValid_ && !cut && !dying_) drawModel(heldModel(), gunXf_, false);
+    if (playMode_ && gunValid_ && !cut && !dying_) {
+        drawModel(heldModel(), gunXf_, false);
+        drawScopeLens();
+    }
     if (playMode_ && !cut && !dying_ && !playerGibbed_) {  // the other weapon, holstered on the body
         if (holsterGun_) drawModel(gunModel_, holsterGunXf_, false);
         if (holsterLauncher_ && !firstPerson_) drawModel(launcherModel_, holsterLauncherXf_, false);
