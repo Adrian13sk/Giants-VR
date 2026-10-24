@@ -1709,3 +1709,10 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   SR_STOHB / SR_STOPB. Harness r4a: homing arrows shot 12 degrees off a Reaper 20 m away lock on and kill it; the
   power-up fan kills one 12 m ahead.
 - Not done: Delphi's mine (item 63 rp_mine) - she has no weapon slot for it yet.
+
+### 2026-10-24 — APK d295fa1 (user: "Build APK, and do the tests without headset")
+- Built at d295fa1 (first Android build since 89f3fd7): clean, no warnings. Delivered and checksum-verified on the PC.
+- Headset-free tests: unit (host + sanitizers), a whole-campaign soak in one process, four mission sweeps incl. one
+  under AddressSanitizer/UBSan - all clean (TEST_REPORT.md). Three new devtest scripts cover the new weapons, the bows
+  and the original effects' frame cost on the Quest; they run unattended over USB with devtest.ps1.
+- Fix found while writing them: the weapon-switch log named grenades and mines "rocket launcher" (log only).

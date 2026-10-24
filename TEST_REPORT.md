@@ -622,3 +622,21 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 - Sweeps: plain 56/56, every weapon carried with mines set everywhere (GVR_WEAPON=9) 56/56 (mines set in the 25
   Meccaryn missions), launcher + homing bow 56/56 - all exit 0, 0 errors. AddressSanitizer/UBSan runs of the mine
   and homing-bow tests: clean. **Not device-tested.**
+
+## Build d295fa1 (APK) — headset-free verification, 2026-10-24
+- APK: `scripts/build_apk.sh`, 0 compiler warnings; zipalign and APK signature v3 verified; 4.04 MiB,
+  sha256 d47154085fd2b84d9ad44aa1ed3df7c6a2d8dc2505cf6396e0c4244ff64ea881. libgiantsvr.so: ELF64 AArch64, exports
+  ANativeActivity_onCreate, needs only system libraries + libopenxr_loader; both .so stored and 4 KiB-aligned;
+  manifest io.github.giantsvr.dev, minSdk 29 / target 32, OpenXR permissions.
+- Delivered to Documents\GiantsQuestVR (GiantsVR-dev.apk and GiantsVR-dev-d295fa1.apk, giants-vr.gitbundle,
+  INSTALL.md, PLAYTEST.md, three new devtest scripts); all read back from the PC with matching sha256.
+- Unit tests (host and ASan/UBSan builds): all passed.
+- Campaign soak in one process (every gun and bow carried, firing, a mission completed every 2000 frames): 1a -> end,
+  54 missions, 17 world switches, 0 errors; resident memory 183 -> 454 MB (B15, as before).
+- Sweeps of all 56 missions: plain, mines everywhere, launcher + homing bow - 56/56 each (code of a7f8998; d295fa1
+  only renames a log line). ASan/UBSan sweep with every weapon, mines, the homing bow and the original effects on:
+  56/56, no sanitizer reports.
+- New device tests (devtest\tests): weapons_mecc (sniper zoom frame cost, mortar, grenade, mine), delphi_bows
+  (homing, power-up), fx_original (frame cost of fx.bin explosions). Dry-run in the harness: all ran clean, every
+  scripted shot / throw / switch happened. **They need the Quest on USB and devtest.ps1 run on the PC.**
+- Nothing in this build has run on the headset yet.
