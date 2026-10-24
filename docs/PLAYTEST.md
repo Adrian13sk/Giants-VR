@@ -6,7 +6,20 @@ Everything here passed the desktop test harness; none of it has run on the heads
 
 For each item: works / doesn't / how it feels. A phone photo of anything that looks wrong helps a lot.
 
-## 0. Meccaryn weapons (newest work)
+## 00. Multiplayer (branch `next`, newest work - not in the d295fa1 APK)
+**Main menu -> MULTIPLAYER < WITH COMPUTER PLAYERS | HOST A WI-FI GAME | JOIN A WI-FI GAME >**, then MAP and
+YOUR TEAM (left/right), trigger to start. The original's 12 multiplayer maps: 3-WAY (Meccaryns vs Sea Reapers vs
+Kabuto), MECCARYN (two Meccaryn sides) and REAPER (two Reaper sides). Each side has a base with its flag holder
+(a Smartie with a flag). Take an enemy flag home to your own (while yours is home): a capture. 3 captures or 30
+kills win; then a new round. Dead: back at your base after 5 s. Score panel top left; kills and flag news in the
+middle; team-coloured names over the others when you look at them.
+- **Computer players:** do they find their way (no one stuck for long)? Do they fight sensibly, too well, too badly?
+- **Frame rate** with 6-8 of them about (Options -> FRAME RATE).
+- **Hosting / joining** (needs a second Quest on the same Wi-Fi): one picks HOST A WI-FI GAME and a map; the other
+  JOIN A WI-FI GAME - the host's game should appear within a few seconds ("GAME: < 3-WAY 1 AT 192.168.x.x >").
+  Do you see each other move and shoot? Do hits count? Do kills and flag captures show on both?
+
+## 0. Meccaryn weapons
 **Changed from earlier builds:** the rocket launcher no longer comes in 1c - the game's data gives the **shotgun**
 there; the launcher comes in Story 3's launcher mission (or from a Shop).
 - [ ] **2. 1c**: you have the shotgun (right stick forward). One exploding shell per pull; the number under the icon

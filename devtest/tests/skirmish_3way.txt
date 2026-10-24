@@ -1,0 +1,13 @@
+# Multiplayer against computer players (3-way map: Meccaryns, Sea Reapers, Kabuto): the frame cost of 6 computer
+# players routing and fighting, and screenshots of the score panel and the map. GVR_SKIRMISH: <team>,<per side>.
+name skirmish_3way
+world M_3WAY_L1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_SKIRMISH 0,3
+view first
+duration 40
+perf 5 40
+shot 4 start
+move 0 1 10 30
+shot 32 later

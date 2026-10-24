@@ -659,3 +659,19 @@ Not built into an APK; nothing here is device verified.
 - Whole-campaign sweep with the branch build (56 missions, 500 frames each with firing, jetpack, map, injection,
   flare): all exit 0, 0 errors; 4 warnings, all the known harness one ("w_Rstory3.bin not found": the sweep starts
   the Rstory3 race missions without their race world).
+
+## Multiplayer (branch `next`) — host verification, 2026-10-25
+Not built into a delivered APK; nothing here is device verified. Online play is verified only between two copies on
+one machine (one Quest available).
+- Unit tests (host and ASan/UBSan): the skirmish rules (spawns from markers, capture, drop on death, friendly fire
+  off, a played-out game reaching a winner) and the network (host + joiner over loopback: join, mirror positions,
+  hits applied once, damage reaching the joiner, its death counted as a kill and heard by it). All pass.
+- All 12 multiplayer maps, 200 s each against computer players (harness): exit 0, 0 errors; kills on every map,
+  flags taken on most; captures on M_3WAY_L1 (the Kabuto bot twice). Update 0.4-0.7 ms average.
+- Under ASan/UBSan: the 12 maps (90 s, firing), the 3-way map as the Sea Reaper and as Kabuto: all exit 0, 0 errors,
+  0 sanitizer reports. Host + joiner (two processes, real-time pacing) under ASan: joined, 0 reports on either side.
+- Two harnesses paced in real time (GVR_REALTIME=1): positions agree within 1 m; the host's bot killed the joiner
+  and both logged it; joining through the main menu (found by probe, map loaded); a joiner quitting times out.
+- Whole-campaign sweep with the multiplayer branch (56 missions): 56/56 exit 0, 0 errors.
+- Android build compiles (no warnings); not delivered.
+- Device-test script `devtest/tests/skirmish_3way.txt` dry-run in the harness.

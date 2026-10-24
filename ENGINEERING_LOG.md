@@ -1762,3 +1762,38 @@ Work goes on branch `next` (from a3d2d52) so tomorrow's device results match the
   interrupting a build mid-edit.
 - Sanitizers: the 46-run targeted set (Kabuto x 32, mission chain, races, Reaperski, trails, Delphi's mine) is clean
   under ASan + UBSan.
+
+### 2026-10-25 — Multiplayer: skirmish against computer players, and LAN play (branch `next`)
+User: "Do this: Multiplayer, from the original game"; chose "Bots first, then online"; no second Quest for now.
+- **What the data holds** (FORMATS.md "Multiplayer data"): 12 multiplayer worlds w_M_* without mission files; each
+  places its sides' base templates (mecc_base_template_1 / rp_base_template_1) and, on the 3-way maps, Kabuto's eat
+  pad; markers round each base; Smartie hatches. GTextEnglish's multiplayer lines describe team games with kills,
+  flag captures (the flag a Smartie, "flag holder"; Kabuto eats it on his pad), score limits, base options and TCP
+  joining. Flag holder = smborjoyzee_l0 with Smborjoyzee_flag / _fly / _fly_rp; flags sm_flag1-3.
+- **Skirmish** (game/skirmish.*, GL-free, unit-tested): teams from the map (Blue/Mecc, Green/Reaper, Red/Kabuto),
+  spawns = markers within 160 m of a base; flags at the bases; take / drop (carrier killed) / return (own side
+  touches, or 30 s) / capture (home with an enemy flag while your own is home; Kabuto's side has no flag); win at 3
+  captures or 30 kills, then a new round. Rules are ours.
+- **Computer players:** each drives the player's own PlayerController (terrain, collision, jetpack). Roles attack /
+  defend alternate; they shoot (gun bolts 70 m/s, arrows 45 m/s with drop, leading the target; Kabuto stomps),
+  carry flags home, chase thieves, return dropped flags. Routes: SkNav, A* over a terrain grid (~4 m cells over the
+  map) with per-hero rules (Meccaryn jets up banks, Sea Reaper swims, Kabuto wades), the steepest half-metre of
+  each step measured (banks between samples had trapped them), turn waypoints kept (thinned routes cut across the
+  banks they avoided); bounded searches (4000 cells, weighted, partial routes continue), one per update.
+  Debugging found: the base templates are solid world objects (a red gizmo pillar) - hidden and made non-solid;
+  jumping while wading stalled them; the test waves of Reapers spawned in mission-less worlds (off in skirmish).
+- **Game side** (game_app_skirmish.cpp): bodies with their hero's model and clips, gun / bow in hand, team-coloured
+  name tags, shots, flag holders (carried on the back); the player's guns, blasts, sword, arrows and Kabuto's blows
+  hit them; their shots hurt the player; death respawns at the team's base; score panel; the original's lines
+  (mpchkilled1, mpchflagtaken1, mpchflagcap1...). Main menu MULTIPLAYER rows. Mission-less worlds are now set up on
+  load (loadMission with an empty name).
+- **Measured (harness, 200 s, all 12 maps):** everyone moves; kills on every map; flags taken on most, captures on
+  3-way L1 (the Kabuto bot captured twice). Skirmish update 0.2-0.4 ms average; routes 0.8 ms average, 5 ms worst
+  (PC); posing 7 bots 0.34 ms.
+- **LAN play** (game/sk_net.*, net/udp.*): host-authoritative; beacons + probes find games; join/welcome; joiner
+  state 30 Hz with its hits (resent until applied once) and shots; host snapshots 20 Hz (players, flags, scores,
+  shots, events resent until acknowledged). Joiners mirror the host's game. Verified: unit test over loopback; two
+  harnesses paced in real time (GVR_REALTIME=1): joined, positions agree within 1 m, the host's bot killed the
+  joiner and both logged it; joined through the main menu (found by probe, map loaded, team taken); a joiner that
+  quits times out and leaves cleanly. Android: INTERNET / Wi-Fi permissions, multicast lock via JNI; the APK
+  compiles. **Not tested between two headsets** (one Quest).

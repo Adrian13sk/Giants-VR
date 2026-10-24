@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-24 evening (APK d295fa1 delivered, device test pending. Branch `next` (not built into an APK): device-run summary tool, original-effects projectile trails, Delphi's mine, fixes from a review of base building and Kabuto)
+Last updated: 2026-10-25 (APK d295fa1 delivered, device test pending. Branch `next` (not delivered): multiplayer - skirmish against computer players on the original's 12 multiplayer maps and LAN play between headsets; device-run summary; original-effects trails; Delphi's mine; review fixes)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -29,6 +29,13 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
+**Multiplayer, branch `next`, 2026-10-25 (host verified; online play verified only between two copies on one
+machine):** Main menu -> MULTIPLAYER. The original's 12 multiplayer maps (3-way, Meccaryn, Reaper) with teams,
+flag holders, captures and kills; computer players that route over the terrain, fight, take and return flags.
+HOST / JOIN a game on the same Wi-Fi (our own protocol; not the original's network play). Next: the user's
+headset check of the skirmish; two-headset test when possible; then bases in multiplayer (the original's
+"starting base level"), and balance.
+
 **Branch `next`, 2026-10-24 evening (host verified, not device-tested; master stays at the d295fa1 APK the user tests):**
 `tools/py/review_results.py` summarises a device run on one page and compares it with earlier runs. Original
 effects (Options test switch) now include the projectiles' trails (fx.bin op 24). Delphi's mine is her weapon

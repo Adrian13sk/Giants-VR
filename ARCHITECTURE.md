@@ -30,6 +30,19 @@ android_main (NativeActivity, EGL pbuffer context)          src/platform/android
        └─ Renderer: GLES 3.0 forward renderer (unlit/lit, alpha test/blend, linear fog)
 ```
 
+### Multiplayer (2026-10-25)
+```
+GameApp (game_app_skirmish.cpp): the multiplayer maps (w_M_*), bodies, hits, HUD, menu
+  └─ Skirmish (game/skirmish.*): teams, flags, scores, rules; computer players driving
+     PlayerControllers (the player's own movement) along SkNav routes (A* over the terrain)
+  └─ SkNetHost / SkNetClient (game/sk_net.*): our UDP protocol on the LAN (net/udp.*)
+       host: runs the Skirmish, beacons, 20 Hz snapshots, events resent until acknowledged
+       joiner: a mirror Skirmish filled from snapshots; sends its own player 30 Hz
+```
+Authority: each headset owns its player's movement and health (it reports hits it lands and its
+own death); the host owns the computer players, flags, scores and the round. Not compatible with
+the original game's network play (DirectPlay, native code, not decoded).
+
 The headless harness (`tools/headless`) drives the identical `GameApp` with scripted poses on
 Mesa llvmpipe, so rendering and asset code is verified on every build without a headset.
 
