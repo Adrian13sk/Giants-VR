@@ -1362,3 +1362,9 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   in the hatch/save shots - a per-shot distance (clip or fog range?); not used.
 - Cutscene actors closer than 1 m to the shot camera are not drawn (logged once): story1_jetpack_6's hatch lid filled a
   third of the view. Only checkable on the harness's final frame; the rule can only hide what the camera is inside of.
+- **Finding: our cloud copy of Bin was missing 473 of the 899 files** - 465 cutscene shots (every chapter after Story 1:
+  flk_Kstory*, flk_Rstory*, flk_story2-5*) and the French/German/Italian/Spanish text and voice. The user's PC and the
+  headset have them, so 23 missions' opening cutscenes have played on the Quest without ever being checked here.
+  Staged the first 50 (Kstory1_Delphi_changes, Kstory5_End, kabuto_fight): all parse; kstory1_delphi_changes_1 plays
+  in the harness (6 actors, props, subtitles). They use ops not seen in Story 1 (0x2A, 0x2F, 0x31, 0x33, 0x35).
+  Next: stage the other 415 and run every cutscene in the harness.
