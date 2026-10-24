@@ -50,7 +50,8 @@ bool GameApp::addCrewSmartie(const Vec3& at, bool fromHatch) {
     w.pos = at;
     w.clip = fromHatch ? kHatch : kSit;
     w.joined = !fromHatch;
-    w.yaw = frand() * 6.28f;
+    // Out of a hatch they face the base (the exit clip carries them forward a little), not the player.
+    w.yaw = fromHatch ? std::atan2(-(base_.centre.x - at.x), -(base_.centre.z - at.z)) : frand() * 6.28f;
     base_.crew.push_back(std::move(w));
     return true;
 }
@@ -62,8 +63,20 @@ void GameApp::initCrew() {
     for (int k = 1; k < 16; ++k) base_.crewClip[k] = -1;
     const MissionData& md = assetWorld_->mission();
     const ObjectRegistry& reg = assetWorld_->registry();
-    for (const auto& o : md.objects)
-        if (toLower(reg.modelName(o.type)) == "sm_hatch_l0") base_.hatches.push_back({giantsToRuntime(o.x, o.y, o.z), false});
+    for (const auto& o : md.objects) {
+        if (toLower(reg.modelName(o.type)) != "sm_hatch_l0") continue;
+        Base::Hatch h;
+        h.pos = giantsToRuntime(o.x, o.y, o.z);
+        h.yaw = -o.yaw * 3.14159265f / 180.0f;
+        // Animated: the lid lifts as the Smarties climb out (sm_hatch_open, xx_smartie_stuff.gzp).
+        auto m = std::make_unique<SkinnedModel>();
+        if (m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "Sm_hatch_l0", "sm_hatch_open.anm")) {
+            h.model = std::move(m);
+            for (auto& wo : assetWorld_->worldObjects())  // the static copy placed from the mission
+                if (wo.name == "sm_hatch_l0" && length(Vec3{wo.centre.x - h.pos.x, 0, wo.centre.z - h.pos.z}) < 3.0f) wo.hidden = true;
+        }
+        base_.hatches.push_back(std::move(h));
+    }
     int start = kStartCrew;
     if (const char* f = std::getenv("GVR_BASE_WORKERS")) start = std::max(0, std::atoi(f));
     for (int i = 0; i < start; ++i) {
@@ -88,7 +101,7 @@ int GameApp::crewSites() const { return crewCount() / kPerSite; }
 void GameApp::updateCrew(float dt) {
     // Hatches: the hero comes close, out they climb.
     for (auto& h : base_.hatches) {
-        if (h.open) continue;
+        if (h.open) { h.openT += dt; continue; }
         const Vec3 d = player_.position - h.pos;
         if (d.x * d.x + d.z * d.z > 7.0f * 7.0f || std::fabs(d.y) > 6.0f) continue;
         h.open = true;
@@ -248,6 +261,12 @@ void GameApp::updateLeader(float dt) {
 // Posed once a frame (from updateBase), drawn for each eye.
 void GameApp::poseCrew() {
     const Vec3 eye = player_.position;
+    for (auto& h : base_.hatches) {
+        if (!h.model || length(h.pos - eye) > 120.0f) continue;
+        const float d = h.model->animDuration(0);
+        const float t = h.open ? std::min(d * 0.999f, h.openT) : 0.0f;
+        if (std::fabs(t - h.posedT) > 1e-3f) { h.model->pose(renderer_, t); h.posedT = t; }
+    }
     if (base_.leader && length(base_.leaderPos - eye) < 150.0f) {
         const bool carried = base_.carrier != 0;
         const Vec3 g{base_.leaderHome.x - base_.leaderPos.x, 0, base_.leaderHome.z - base_.leaderPos.z};
@@ -266,6 +285,12 @@ void GameApp::poseCrew() {
 }
 
 void GameApp::renderCrew(const Vec3& eye, bool shadow) {
+    for (const auto& h : base_.hatches) {
+        if (!h.model || h.posedT < 0 || length(h.pos - eye) > 120.0f) continue;
+        const Mat4 xf = Mat4::translation(h.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, h.yaw));
+        if (shadow) h.model->renderShadow(renderer_, xf);
+        else h.model->render(renderer_, xf);
+    }
     if (base_.leader && length(base_.leaderPos - eye) < 150.0f) {
         const bool carried = base_.carrier != 0;
         base_.leader->render(renderer_, Mat4::translation(base_.leaderPos + Vec3{0, carried ? 0.0f : base_.leaderLift, 0}) *

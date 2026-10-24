@@ -1557,3 +1557,6 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   building and fire its bursts at it (Fire clip, the usual burst cadence, real enemy bolts with sound) instead of
   idling beside it; the stuck-raider rescue skips besiegers. Harness 5c: raiders "siege 1" at the walls, walls A/B
   destroyed, Borjoyzee kidnapped. Damage to buildings is still the proximity rate (6 hp/s), not per bolt.
+- Smartie hatches are drawn as the game's skinned Sm_hatch_l0 (the mission's static copy hidden) and play
+  sm_hatch_open when the Smarties climb out; hatch Smarties face the base as they come out. Sweep after the siege
+  change: 56/56 exit 0, 0 errors.

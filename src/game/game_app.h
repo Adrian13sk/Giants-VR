@@ -557,7 +557,14 @@ private:
             std::unique_ptr<SkinnedModel> model;
         };
         std::vector<Worker> crew;
-        struct Hatch { Vec3 pos; bool open = false; };
+        struct Hatch {
+            Vec3 pos;
+            float yaw = 0;
+            bool open = false;
+            float openT = 0;                       // s since it opened (sm_hatch_open plays once)
+            std::unique_ptr<SkinnedModel> model;   // Sm_hatch_l0 (the placed static copy is hidden)
+            float posedT = -1;
+        };
         std::vector<Hatch> hatches;
         int crewClip[16] = {};
         // The base's leader - Borjoyzee (5c) / Yan (r4a) - the "flag Smartie": raiders try to carry
