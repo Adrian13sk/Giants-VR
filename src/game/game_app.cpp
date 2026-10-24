@@ -670,6 +670,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         LOGI("Jetpack burnt dry: overheated");
     }
     updatePickups(dt, in);
+    updateShop(dt, in);
     placeCamera(dt, false, &in);
     if (!playerModel_) return;
     if (firstPerson_ && hero_ != Hero::Kabuto) {
@@ -1276,6 +1277,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     timmyLineT_ = 0;
     timmyChatCooldown_ = 4.0f;
     initPickups(mc);
+    initShop();
     initVillagers(w, mc);
     initVimps(w, mc);
     initDestruction(w, mc);
@@ -3582,6 +3584,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         c.model->render(renderer_, c.xf());
     }
     renderBurrows(v.eyePosition);
+    renderShop();
     for (const auto& sp : creatures_.spits) {
         const int k = int(sp.size);
         if (k > 0 && spitBall_[k])

@@ -493,6 +493,15 @@ private:
     void smartieSay(const std::string& name, const char* key);
     void updateSmartieLines(float dt);
     void renderTags();
+    // The Shop (game_app_shop.cpp).
+    struct ShopItem { int kind; Vec3 pos; bool taken; };  // kind 0 rocket launcher, 1 health injection
+    std::vector<ShopItem> shopItems_;
+    Vec3 shopAt_, shopCentre_;
+    bool shopOn_ = false, shopInside_ = false, shopAnchored_ = false;
+    float shopPool_ = 0, shopPoolSnd_ = 0, shopFxT_ = 0, shopRingT_ = 0;
+    void initShop();
+    void updateShop(float dt, const InputFrame& in);
+    void renderShop();
     int timmyYell_[3] = {-1, -1, -1}, timmyClip_ = 0, timmyPrevClip_ = 0;
     float timmyClipT_ = 0, timmyPrevT_ = 0, timmyIdleT_ = 0, timmyFade_ = 1, timmyYellIn_ = 3, timmyLastTime_ = 0;                       // model-frame nudge of the seat (m)
     int timmyType_ = 583;
