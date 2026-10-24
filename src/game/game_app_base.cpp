@@ -175,7 +175,7 @@ void GameApp::initBase() {
             Vec3 p{bl.xf.m[12], bl.xf.m[13], bl.xf.m[14]};
             if (assetWorld_->terrain().heightAt(p.x, p.z, gy)) bl.xf.m[13] = gy;
             auto sm = std::make_unique<SkinnedModel>();
-            if (sm->load(fs, *mc, renderer_, kDefs[d].model, kDefs[d].anim)) bl.model = std::move(sm);
+            if (fs.exists(std::string(kDefs[d].model) + ".skn") && sm->load(fs, *mc, renderer_, kDefs[d].model, kDefs[d].anim)) bl.model = std::move(sm);
             else bl.still = mc->get(std::string(kDefs[d].model) + ".gbs", kDefs[d].anim, true);  // static (wood_command)
             if (!bl.model && !bl.still) LOGW("Base: %s unavailable", kDefs[d].model);
             if (d == 0) { bl.state = 3; bl.progress = 1.0f; }
@@ -193,7 +193,7 @@ void GameApp::initBase() {
         base_.dropXf = baseXf * gameMatrixToRuntime(m);
         if (reaper) {
             base_.firepit = std::make_unique<SkinnedModel>();  // the soul drop-off is animated: drawn like the fire pit
-            if (!base_.firepit->load(fs, *mc, renderer_, "Rp_soul_dropoff", "Rp_soul_dropoff.anm")) {
+            if (!fs.exists("Rp_soul_dropoff.skn") || !base_.firepit->load(fs, *mc, renderer_, "Rp_soul_dropoff", "Rp_soul_dropoff.anm")) {
                 base_.firepit.reset();  // no skin: the static model with its clip's rest pose
                 base_.dropModel = mc->get("Rp_soul_dropoff.gbs", "Rp_soul_dropoff.anm", true);
             }

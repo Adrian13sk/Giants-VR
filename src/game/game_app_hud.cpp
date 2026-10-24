@@ -22,8 +22,9 @@ void GameApp::initHud(ModelCache* mc) {
     // Layer -> texture (drawn in layer order, over everything).
     const char* names[kHudLayers] = {nullptr,          "st_mec_hbar",    "st_mec_fuel",     "st_mec_energy",
                                      "st_mec_jetpack", "st_mec_wpslot",  "st_mec_gun",      "st_mec_launcher",
-                                     "st_rp_sword",    "st_rp_firewall", "st_mec_syringe",  "st_vimpmeat",     "st_mec_flare",   "st_mec_bush",    "st_mec_numbers", nullptr};
-    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 24, 48};
+                                     "st_rp_sword",    "st_rp_firewall", "st_mec_syringe",  "st_vimpmeat",     "st_mec_flare",   "st_mec_bush",    "st_mec_numbers", nullptr,
+                                     "st_mec_pop"};  // the pop-up bomb (w_menus.gzp)
+    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 24, 48, 4};
     for (int k = 0; k < kHudLayers; ++k) {
         hudTex_[k] = names[k] ? mc->texture(names[k]) : whiteTex_;
         if (!hudTex_[k]) hudTex_[k] = whiteTex_;
@@ -168,7 +169,7 @@ void GameApp::hudStatus(const HudFrame& f) {
         hudRect(kHudFire, f, -0.002f, 0.0f, 0.03f, 0.03f, fire);
     } else {
         const bool launcher = weaponSel_ == 1 && launcherModel_;
-        hudRect(weaponSel_ == 2 ? kHudBush : (launcher ? kHudLauncher : kHudGun), f, 0.040f, -0.024f, 0.036f, 0.036f, on);
+        hudRect(weaponSel_ == 3 ? kHudPop : weaponSel_ == 2 ? kHudBush : (launcher ? kHudLauncher : kHudGun), f, 0.040f, -0.024f, 0.036f, 0.036f, on);
     }
     // Mission objectives along the top: one pip each, gold when done.
     const size_t n = objectives_.size();
@@ -220,6 +221,21 @@ void GameApp::hudWeaponStrip() {
             const uint8_t nc[4] = {255, 255, 255, uint8_t(255 * a)};
             hudDigits(f, cx - W / 8.0f + 0.006f, -H * 0.33f, H * 0.3f, syringes_, nc);
         }
+    }
+    // The pop-up bomb: a fifth cell to the right of the strip (the strip art has four), with the count.
+    if (popupBombs_ > 0) {
+        const float cx = 0.5f * W + W / 8.0f + 0.008f;
+        hudRect(kHudPlate, f, cx, 0, W / 4.0f + 0.006f, H + 0.01f, back);
+        const bool chosen = weaponSel_ == 3;
+        if (chosen) {
+            const uint8_t glow[4] = {140, 255, 140, uint8_t(110 * a)};
+            hudRect(kHudMarks, f, cx, 0, W / 4.0f - 0.006f, H - 0.006f, glow);
+        }
+        const float s = H * 0.82f * (chosen ? popK : 0.85f);
+        const uint8_t c[4] = {255, 255, 255, uint8_t((chosen ? 255 : 130) * a)};
+        hudRect(kHudPop, f, cx + 0.004f, 0.004f, s, s, c);
+        const uint8_t nc[4] = {255, 255, 255, uint8_t(255 * a)};
+        hudDigits(f, cx - W / 8.0f + 0.006f, -H * 0.33f, H * 0.3f, popupBombs_, nc);
     }
 }
 

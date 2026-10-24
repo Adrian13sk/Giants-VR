@@ -2437,8 +2437,8 @@ void GameApp::completeObjective(int index) {
     LOGI("Mission %s complete", assetWorld_->missionName().c_str());
     haptics_.push_back({kLeft, 0.9f, 0.3f});
     haptics_.push_back({kRight, 0.9f, 0.3f});
-    // The outro cutscene (op 0x19) isn't played yet; its soundtrack carries the dialogue. In
-    // 1a_1_timmy that is Timmy handing Baz the jetpack.
+    // The outro cutscene (op 0x19); where it can't be played, its soundtrack still carries the
+    // dialogue. In 1a_1_timmy that is Timmy handing Baz the jetpack.
     const MissionData& m = assetWorld_->mission();
     if (!m.flick19.empty()) {
         startCutscene(m.flick19);

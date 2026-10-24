@@ -1504,3 +1504,12 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Harness 5c: BORJOYZEE kidnapped by the snatcher, carried back along path 8 (indices 10 -> 8 ...), walls destroyed
   by the others. r4a: Yan placed, snatcher on its way. Long run (22000 frames): carried off -> mission failed -> 5c reloaded from
   its briefing.
+
+### 2026-10-24 — Outro cutscenes checked; pop-up bomb on the weapon strip
+- Every mission's outro (op 0x19) played in the harness: 20 missions name one, all 20 play with their shots and no
+  errors (5c story5_delphi_leaves_1, r4a rstory4_off_to_race included). Outros were already wired to mission
+  completion; a stale comment said otherwise.
+- Expected skinned-load warnings for unskinned base models (wood_command, Rp_soul_dropoff) silenced by checking for
+  the .skn first.
+- Pop-up bomb on the HUD: the game's own icon st_mec_pop (w_menus.gzp) in a fifth cell right of the weapon strip with
+  the count, highlighted when chosen; also shown as the held-weapon icon. Harness render checked.

@@ -557,3 +557,7 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 - 5c: leader placed at the template's borjoyzee node; snatcher kidnaps him and carries him back along its army path.
 - Loss -> restart (22000-frame harness run): kidnapped -> carried off -> mission failed -> restarting -> Loading
   5c_securebase -> loaded. Freeing him by killing the carrier: logic only. **Not device-tested.**
+
+## Host verification — outros and HUD
+- Outro cutscenes: 20/20 play (harness, 300 frames each), no errors; 36 missions name none.
+- Pop-up bomb strip cell: rendered with icon and count (story3_prison_7). Not device-tested.
