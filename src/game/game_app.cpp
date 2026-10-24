@@ -3563,7 +3563,8 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             timmyLineT_ = 2.0f;
         }
         if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
-        LOGI("Weapon: %s", gs >= 0 ? guns_[gs].name : weaponSel_ == 3 ? "pop-up bomb" : weaponSel_ == 2 ? "bush pack" : (weaponSel_ ? "rocket launcher" : "gun"));
+        static const char* kSelNames[10] = {"gun", "rocket launcher", "bush pack", "pop-up bomb", "", "", "", "", "grenades", "mines"};
+        LOGI("Weapon: %s", gs >= 0 ? guns_[gs].name : kSelNames[std::max(0, std::min(9, weaponSel_))]);
     }
     weaponsTicked_ = true;
     scopeWanted_ = false;

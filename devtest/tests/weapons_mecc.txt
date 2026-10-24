@@ -1,0 +1,26 @@
+# Baz's arsenal (weapondefs): sniper with its zoom pass forced on (frame cost), then the right stick cycles
+# to the Millenium mortar, grenades and mines. Screenshots of each in hand.
+name weapons_mecc
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_ARSENAL 1
+env GVR_WEAPON 6
+env GVR_SCOPE 1
+view first
+duration 30
+perf 3 10
+aim 0 -5
+hold trigger_r 4 4.2
+hold trigger_r 7 7.2
+shot 5 sniper_zoom
+turn 0 1 11 11.3
+hold trigger_r 13 13.2
+shot 13.6 mortar
+turn 0 1 17 17.3
+hold trigger_r 19 19.8
+shot 19.5 grenade
+turn 0 1 23 23.3
+hold trigger_r 25 25.2
+shot 27 mine

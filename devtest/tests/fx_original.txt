@@ -1,0 +1,16 @@
+# The original effects (fx.bin, Options -> EFFECTS: ORIGINAL (TEST)): a rocket explosion 8 m ahead every 3 s.
+# Frame cost while they play, and screenshots right after one starts.
+name fx_original
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_DATA_FX 1
+env GVR_FX_TEST FX_EXPLOSION_ROCKET
+view first
+duration 16
+perf 2 16
+aim 0 -5
+shot 1.15 boom_start
+shot 1.4 boom_mid
+shot 2.2 boom_late

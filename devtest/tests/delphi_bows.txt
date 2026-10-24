@@ -1,0 +1,19 @@
+# Delphi's bows: the homing bow drawn with the trigger, then the power-up bow (right stick forward).
+name delphi_bows
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_BOWS 1
+env GVR_DELPHI_WEAPON 3
+view first
+duration 20
+perf 3 18
+aim 0 -2
+hold trigger_r 4 5
+shot 4.8 homing_drawn
+hold trigger_r 7 8
+turn 0 1 10 10.3
+hold trigger_r 12 13
+shot 12.8 powerup_drawn
+hold trigger_r 15 16
