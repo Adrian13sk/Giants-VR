@@ -490,6 +490,11 @@ void GameApp::updateJetskiWorld(float dt, const InputFrame& in) {
             static const char* nth[] = {"1ST", "2ND", "3RD", "4TH", "5TH", "6TH", "7TH", "8TH", "9TH"};
             raceMsg_ = race_.lost ? "THREE GATES MISSED - RACE LOST" : std::string("YOU FINISHED ") + nth[std::min(8, race_.playerPlace - 1)] + " - RACE LOST";
             sfx2D("js_lose", 1.0f);
+            // The race missions name a second cutscene (op 0x13) beside their outro: "<race>_jetski_R_win",
+            // the rival Reaper winning (the outro, "..._D_win", is Delphi's). Played on a lost race before
+            // it is run again (V: the four race missions; which loss shows it in the original is native).
+            const std::string& lose = assetWorld_->mission().flick13;
+            if (!lose.empty()) startCutscene(lose);
         }
         raceMsgT_ = 5.0f;
         LOGI("Race over: %s (place %d, %d gates missed, %.1f s)", raceWon_ ? "won" : "lost", race_.playerPlace, race_.missed, race_.time);
