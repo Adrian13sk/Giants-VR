@@ -54,6 +54,7 @@ add_library(gvr_core STATIC
   src/game/game_app_flare.cpp
   src/game/game_app_jet.cpp
   src/game/game_app_kbpowers.cpp
+  src/game/game_app_kbthrow.cpp
   src/game/game_app_jetski.cpp
   src/game/game_app_map.cpp
   src/game/game_app_ripper.cpp

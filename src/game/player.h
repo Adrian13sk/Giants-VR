@@ -15,7 +15,7 @@
 namespace gvr {
 
 enum class PlayerAnim : int { Idle = 0, Run, Thrust, Hover, Land, Strafe, Slide, FlyFwd, FlyLeft, FlyRight, FlyBack, LandHard, Fall, Inject, Swim, Turbo,
-                             Attack1, Attack2, Attack3, Cast, Count };
+                             Attack1, Attack2, Attack3, Cast, Throw, Count };
 
 struct PlayerInput {
     Vec2 move;            // stick, -1..1, +y = forward (deadzone applied by the controller)

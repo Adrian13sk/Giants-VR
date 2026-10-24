@@ -161,6 +161,13 @@ scaled so your eyes are at his height (about 13 m). The HUD and menu stay their 
 - **Left trigger**: stomp, which hurts everything around his foot.
 - **X**: grab and eat the nearest Smartie, Reaper or small Ripper in front of you. It heals you, and it's the only way
   to heal.
+- **Throwing:** keep **X** held on a Reaper and he holds it instead of eating it; let go to throw it. Thrown Reapers
+  bowl over the ones they hit and don't get up. In first person, throw with your left hand (swing it and let go of X;
+  letting go without a swing just drops it); in third person he throws at the nearest building or Reaper in front.
+- **Boulders** (the volcano levels): punch or stomp the top of the pillar of volcanic rock and a boulder breaks off
+  (or walk up to it and press X to pull it off). Hold **X** to carry it, let go to throw it. A boulder bursts where it
+  lands and wrecks what's near it - two bring down the Reaper barracks. The pillar grows a new top after a few
+  seconds.
 - **Y**: roar, which knocks Reapers back.
 - Trees and Smartie houses smaller than him are trampled when you walk into them. Smarties run from you.
 - **Y held** (0.6 s): lay an egg. An Offspring hatches and hunts nearby Reapers, Vimps and Smarties for you, growing as

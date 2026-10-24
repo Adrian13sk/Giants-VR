@@ -36,7 +36,8 @@ bool GameApp::loadDelphi() {
         "rp_stand.anm",     "rp_run.anm",        "rp_jump_cycle.anm", "rp_swim_treadwater.anm", "rp_land.anm",
         "rp_side_r.anm",    "rp_slide.anm",      "rp_runjump_cycle.anm", "rp_jump_cycle.anm",   "rp_jump_cycle.anm",
         "rp_jump_cycle.anm", "rp_land_hard.anm", "rp_fall.anm",       "rp_spell.anm",           "rp_swim_breast.anm",
-        "rp_turbo.anm",     "rp_swipe_1.anm",    "rp_swipe_2.anm",    "rp_swipe_3.anm",         "rp_spell_arm_bolt.anm"};
+        "rp_turbo.anm",     "rp_swipe_1.anm",    "rp_swipe_2.anm",    "rp_swipe_3.anm",         "rp_spell_arm_bolt.anm",
+        "rp_spell_arm_bolt.anm"};
     for (int i = 1; i < int(PlayerAnim::Count); ++i) delphiClip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
     delphiClip_[0] = 0;
     {

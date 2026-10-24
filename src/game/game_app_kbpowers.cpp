@@ -90,7 +90,7 @@ void GameApp::initKabutoPowers() {
     kbGlassAvail_ = false;
     if (hero_ == Hero::Kabuto && assetWorld_) {
         for (const auto& o : assetWorld_->worldObjects())
-            if (o.name == "mag_crystal" || o.name == "giantwall4") {
+            if (o.name == "mag_crystal" || o.name == "giantwall4" || o.name.rfind("k_rock_gen", 0) == 0) {
                 kbGlassAvail_ = kbGlassAvail_ || o.name == "mag_crystal";
                 LOGI("Kabuto: %s at game (%.0f %.0f)", o.name.c_str(), -o.centre.x / 0.2f, o.centre.z / 0.2f);
             }

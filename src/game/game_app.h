@@ -719,6 +719,30 @@ private:  // the mission placed enemies: no test waves
     const RenderModel* glassModel_ = nullptr;
     void kabutoObjectDestroyed(const std::string& name, const Vec3& at);
     void updateGlass(float dt, const InputFrame& in);
+    // Throws (game_app_kbthrow.cpp): boulders off the volcanic rock pillars, and Reapers.
+    struct RockGen { Vec3 base, top; float radius = 1, regrow = 0, grow = 1; bool hasTop = true; };
+    struct Boulder { enum State { Resting, Loose, Held, Thrown, Gone } state = Resting; Vec3 pos, vel, rot, spin; float age = 0; };
+    struct Shrapnel { Vec3 pos, vel, rot, spin; float size = 0.2f, age = 0; };
+    struct Thrown { int index = -1; float age = 0; };
+    enum { HoldNone, HoldBoulder, HoldReaper };
+    std::vector<RockGen> kbRocks_;
+    std::vector<Boulder> kbBoulders_;
+    std::vector<Shrapnel> kbShrapnel_;
+    std::vector<Thrown> kbThrown_;
+    int kbHold_ = HoldNone, kbHeld_ = -1;
+    float kbHoldT_ = 0, boulderSize_ = 1;
+    bool kbXWas_ = false, kbHandValid_ = false;
+    Vec3 kbHandPrev_, kbHandVel_;
+    const RenderModel* boulderModel_ = nullptr;
+    void initThrows();
+    void updateThrows(float dt, const InputFrame& in);
+    void renderThrows();
+    void rockHit(const Vec3& at, float radius);
+    bool boulderInReach() const;
+    float boulderRadius() const;
+    bool throwAimAt(const Vec3& from, Vec3& target) const;
+    Vec3 lobTo(const Vec3& from, const Vec3& to, float elev) const;
+    void kabutoEat(int target);
     float heroLift_ = 0.0f;      // m: the current hero's model lift
     struct KabutoState {
         float punchT = -1, stompT = -1, eatT = -1, roarT = -1, roarCool = 0, stepT = 0;

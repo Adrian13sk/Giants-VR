@@ -108,7 +108,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             const char* clips[] = {"mc_stand.anm", "mc_run.anm", "mc_hover.anm", "mc_hover.anm", "mc_land_soft.anm", "mc_sidestep.anm",
                                    "mc_skid.anm", "mc_thrust.anm", "mc_fly_left.anm", "mc_fly_right.anm", "mc_hover_back.anm",
                                    "mc_land_hard.anm", "mc_fly_cycle.anm", "mc_health_pup.anm", "mc_hover.anm", "mc_run.anm",
-                                   "mc_stand.anm", "mc_stand.anm", "mc_stand.anm", "mc_stand.anm"};
+                                   "mc_stand.anm", "mc_stand.anm", "mc_stand.anm", "mc_stand.anm", "mc_throw_stuff.anm"};
             static_assert(sizeof(clips) / sizeof(clips[0]) == size_t(PlayerAnim::Count), "a clip per PlayerAnim");
             for (int i = 1; i < int(PlayerAnim::Count); ++i) clip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
             if (first) {
@@ -732,7 +732,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateSmartieLines(dt);
     { GVR_PROF("jetfx"); updateJetFx(dt); }
     if (hero_ == Hero::Delphi) updateDelphi(dt, in);
-    else if (hero_ == Hero::Kabuto) { updateKabuto(dt, in); updateKabutoPowers(dt, in); updateGlass(dt, in); }
+    else if (hero_ == Hero::Kabuto) { updateKabuto(dt, in); updateThrows(dt, in); updateKabutoPowers(dt, in); updateGlass(dt, in); }
     else { GVR_PROF("weapon"); updateWeapon(dt, in); }
     { GVR_PROF("feel"); updateFeel(dt, in); }
     { GVR_PROF("rescue"); updateRescue(dt, in); }
@@ -1859,6 +1859,7 @@ void GameApp::initMission() {
         applyKabutoGrowth(kbGrow_);
         LOGI("Kabuto starts at %.0f%% of his full size", kbGrow_ * 100.0f);
         initKabutoPowers();
+        initThrows();
         kbAdren_ = kbGrow_ >= 0.999f ? 1.0f : 0.0f;  // at full size he comes in ready
     }
     if (title_) return;  // the main menu's scene: no checkpoint
@@ -2852,6 +2853,7 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire) {
     if (at.y < player_.seaLevel + 1.0f && (!enemies_.groundHeight || enemies_.groundHeight(at.x, at.z) < player_.seaLevel - 0.2f))
         waterSplash(at, std::min(3.0f, 0.5f * radius), 2);  // in (or just over) the water
     creatures_.disturb(at, std::max(15.0f, radius * 4.0f));  // the ground shakes: buried Rippers come up
+    if (hero_ == Hero::Kabuto) rockHit(at, radius);          // a blow at a volcanic rock pillar's top
     if (fire) {
         blasts_.push_back({at, 3, 0.0f});
         sfx("me_mslex", at, 1.0f, 0.95f + 0.1f * frand());
@@ -3659,6 +3661,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     renderShop();
     renderSpells();
     renderKabutoPowers(v.eyePosition);
+    renderThrows();
     renderMap();
     for (const auto& sp : creatures_.spits) {
         const int k = int(sp.size);

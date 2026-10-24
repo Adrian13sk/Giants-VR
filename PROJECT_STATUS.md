@@ -33,7 +33,8 @@ original Giants data and renders the original worlds in stereo.
 tornado; all 56 missions pass a headless sweep (scripts/mission_sweep.sh). Kabuto's story powers (31f0064 and the
 magnifying-glass build): giant walls that fall only once he's grown, the adrenaline attack (both grips), Offspring eggs
 (hold Y), and the magnifying glass from the giant crystal that burns through the crystal gate (kstory3_3, kstory4_1).
-A push-out bug that could fling a hero out of a structure overlap is fixed. Host verified only.
+A push-out bug that could fling a hero out of a structure overlap is fixed. Kabuto also throws: boulders off the
+volcanic rock pillars (kstory3_2's barracks) and Reapers at each other (hold X, let go). Host verified only.
 
 **Saved-for-later items, done 2026-10-24 (host verified, waiting for device test 26):**
 - Story 2's bush-pack disguise (14386c1).

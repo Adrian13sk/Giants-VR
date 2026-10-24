@@ -1265,3 +1265,24 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   and its displacement became the velocity (dx/dt): Kabuto was flung ~200 m in a second near kstory3's gate. The
   velocity after a push-out is now capped at what it was before. Applies to every hero.
 - **Not device-tested.**
+
+### 2026-10-24 — Kabuto's throws: boulders and Reapers (this build)
+- From the briefings: kstory3_2 "Find the pillar of VOLCANIC ROCK ... smash it! Grab a BOULDER ... throw it at the nearby
+  BARRACKS ... the pillar will keep giving you more"; flick flk_kstory2b_1 "Punch/Kick RockTops to create boulders";
+  k2a "Try THROWING your enemies at each other". Data: k_rock_gen (the pillar, placed in kstory3_1/3_2/3_4, kstory4_1,
+  kstory5_1), k_rock_gen_top (class 78, the boulder; never placed by the missions, so we seat one on each pillar),
+  kb_throw.anm and KA_THROW.wav. New PlayerAnim::Throw (mc_throw_stuff for the Meccaryn, kb_throw for Kabuto).
+- A blow (fist, stomp, quake or blast) within reach of a pillar's top knocks it off as a loose boulder (at most three
+  loose per pillar); X next to a pillar pulls it off; the top grows back in 4 s.
+- X now carries a Reaper or a boulder while held. Released after < 0.35 s, a Reaper is eaten as before. Otherwise it is
+  thrown: first person with the left hand's smoothed velocity × 1.5 (≤ 90 m/s; a release under 1.2 m/s real hand speed
+  drops it), snapped to the lob that lands on a target within ~20° of the throw; third person (kb_throw) a lob at 20°
+  onto the nearest building or Reaper within 25° and 12 heights. Gravity 14 m/s² as everything else.
+- Thrown boulders raycast each step (weapon_.raycast) and burst: 250 hp to an object hit directly, a 0.3 H explosion of
+  300, dust and ten tumbling shrapnel pieces. Thrown Reapers fly in the director's Falling state (knockOff); one that
+  meets another Reaper explodes small (150) on it, and every thrown one dies on landing (120 around).
+- The carrying hand doesn't punch (its swing killed the Reaper it held).
+- Harness: kstory3_2 - a blast at the pillar top drops a boulder, X picks it up, release throws it; one boulder takes
+  the army barracks from 600 to 300 hp (77 m throw). kstory4_1 - a held Reaper thrown (third person, and first person
+  with a scripted left-hand swing) kills itself and the Reaper it hits; a quick X tap still eats.
+- **Not device-tested.** Throw strength and the aim help need the headset.

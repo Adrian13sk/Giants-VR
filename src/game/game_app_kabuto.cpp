@@ -35,11 +35,12 @@ bool GameApp::loadKabuto() {
         "kb_stand.anm",     "kb_walk.anm",       "kb_jump_up_loop.anm", "kb_stand.anm",   "kb_land_light.anm",
         "kb_side_r.anm",    "kb_slide.anm",      "kb_run_jump_loop.anm", "kb_jump_up_loop.anm", "kb_jump_up_loop.anm",
         "kb_jump_up_loop.anm", "kb_land.anm",    "kb_fall.anm",         "kb_eat_small.anm", "kb_mud_walk.anm",
-        "kb_run1.anm",      "kb_punch.anm",      "kb_punch_lft.anm",    "kb_stomp.anm",   "kb_roar.anm"};
+        "kb_run1.anm",      "kb_punch.anm",      "kb_punch_lft.anm",    "kb_stomp.anm",   "kb_roar.anm",
+        "kb_throw.anm"};
     for (int i = 1; i < int(PlayerAnim::Count); ++i) kabutoClip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
     kabutoClip_[0] = 0;
     for (PlayerAnim a : {PlayerAnim::Land, PlayerAnim::LandHard, PlayerAnim::Inject, PlayerAnim::Attack1, PlayerAnim::Attack2,
-                         PlayerAnim::Attack3, PlayerAnim::Cast})
+                         PlayerAnim::Attack3, PlayerAnim::Cast, PlayerAnim::Throw})
         kabutoOneShot_[int(a)] = m->animDuration(kabutoClip_[int(a)]);
     const int die = m->addAnimation(assetWorld_->fs(), "kb_die.anm");
     const int drown = m->addAnimation(assetWorld_->fs(), "kb_drown.anm");
@@ -160,6 +161,13 @@ void GameApp::kabutoQuake(const Vec3& at, float radius, float damage) {
     haptics_.push_back({kRight, 1.0f, 0.25f});
 }
 
+void GameApp::kabutoEat(int target) {
+    player_.startAction(PlayerAnim::Inject, std::max(0.5f, player_.oneShot[int(PlayerAnim::Inject)]));
+    kb_.eatT = 0;
+    kb_.eatDone = false;
+    kb_.eatTarget = target;
+}
+
 void GameApp::updateKabuto(float dt, const InputFrame& in) {
     gunValid_ = false;
     swordValid_ = false;
@@ -175,6 +183,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
     // A blow at a point: enemies, creatures and scenery within `r`.
     auto smash = [&](const Vec3& at, const Vec3& dir, float r, float mul) {
         bool any = false;
+        rockHit(at, r);
         if (kbAdrenT_ > 0) mul *= 2.5f;  // adrenaline
         for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
             const Enemy& e = enemies_.enemies[i];
@@ -232,7 +241,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
     for (int h = 0; h < 2; ++h) {
         k.fistCool[h] = std::max(0.0f, k.fistCool[h] - dt);
         const ControllerState& c = in.hand[h];
-        if (!firstPerson_ || !c.gripPoseValid || dt <= 0) { k.fistValid[h] = false; continue; }
+        if (!firstPerson_ || !c.gripPoseValid || dt <= 0 || (h == mh && kbHold_ != HoldNone)) { k.fistValid[h] = false; continue; }  // (a hand carrying something throws it, doesn't punch)
         const Vec3 fist = rig_.toWorld(c.gripPose).position;
         if (k.fistValid[h] && k.fistCool[h] <= 0) {
             const Vec3 v = (fist - k.fistPrev[h]) * (1.0f / dt);
@@ -304,9 +313,10 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
     k.trigWas[0] = trig[0];
     k.trigWas[1] = trig[1];
 
-    // --- X: grab and eat the nearest Reaper or creature in front (heals him).
+    // --- X: grab and eat the nearest Smartie, Vimp or creature in front (heals him). A Reaper or a
+    // boulder is grabbed and carried instead (updateThrows): tapped, a Reaper is eaten; held, thrown.
     const bool x = in.hand[mh].primary;
-    if (x && !k.xWas && !busy && player_.onGround) {
+    if (x && !k.xWas && !busy && player_.onGround && !boulderInReach()) {
         int best = -1;
         float bestD = 0.6f * H;
         auto consider = [&](int id, const Vec3& p) {
@@ -324,11 +334,10 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
         for (size_t i = 0; i < villagers_.villagers.size(); ++i) consider(kVillagerTargetK + int(i), villagers_.villagers[i].pos);
         for (size_t i = 0; i < vimps_.vimps.size(); ++i)
             if (vimps_.vimps[i].state != VimpState::Dead) consider(kVimpTargetK + int(i), vimps_.vimps[i].pos);
-        if (best >= 0) {
-            player_.startAction(PlayerAnim::Inject, std::max(0.5f, player_.oneShot[int(PlayerAnim::Inject)]));
-            k.eatT = 0;
-            k.eatDone = false;
-            k.eatTarget = best;
+        if (best >= 0 && best < kCreatureTargetK) {
+            // A Reaper: updateThrows grabs it.
+        } else if (best >= 0) {
+            kabutoEat(best);
             sfx2D("ka_grab", 0.9f);
             LOGI("Kabuto grabs target %d at %.1f m", best, bestD);
         } else {

@@ -417,3 +417,14 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 - k1a gates and kstory4_1 Offspring: see ENGINEERING_LOG.
 - **Not device-tested.**
 - Sweep (this build): all 56 missions exit 0, no errors; mean update 0.29 ms (run alongside an APK build).
+
+## Host verification — Kabuto's throws (this build)
+- `gvr_tests`: all pass.
+- kstory3_2: the pillar of volcanic rock (k_rock_gen) at game (-1217, -819) carries a k_rock_gen_top boulder; a blast at
+  its top knocks it off; X held picks it up, release throws it (third person, auto-aimed). GVR_BOULDER=1 by the army
+  barracks: the boulder bursts on it at 77 m, 600 → 300 hp.
+- kstory4_1 (GVR_REAPER_NEAR=1): X held 0.7 s then released throws Reaper 2 into Reaper 3, both die (18 → 16 alive);
+  first person with a 0.67 m scripted left-hand swing does the same; a 4-frame X tap eats the Reaper.
+- Rendered: the boulder seated on the pillar, carried in Kabuto's first-person hand, in third-person flight.
+- **Not device-tested.**
+- Sweep: all 56 missions exit 0, no errors (mean update 0.32 ms, partly run alongside an APK build).
