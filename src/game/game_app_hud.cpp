@@ -121,6 +121,18 @@ void GameApp::hudStatus(const HudFrame& f) {
         const uint8_t outline[4] = {255, 255, 255, 255};
         hudGauge(kHudFuelFill, kHudJetGauge, jetShape_, f, -0.002f, 0.0f, 0.030f, 0.084f, player_.fuel(), fuel, outline);
     }
+    if (hero_ == Hero::Kabuto) {
+        // His adrenaline in the jetpack gauge's place: red, flashing when ready, draining while on.
+        const bool ready = kbAdren_ >= 1.0f && kbAdrenT_ <= 0 && kbGrow_ >= 0.999f;
+        const bool on = kbAdrenT_ > 0 || (ready && std::fmod(t, 0.6f) < 0.3f);
+        const uint8_t ad[4] = {255, uint8_t(on ? 40 : 120), uint8_t(on ? 30 : 90), 235};
+        const uint8_t outline[4] = {255, 200, 200, 255};
+        hudGauge(kHudFuelFill, kHudJetGauge, jetShape_, f, -0.002f, 0.0f, 0.030f, 0.084f, kbAdren_, ad, outline);
+        if (kbOffspringCharges_ > 0) {  // Offspring to lay
+            const uint8_t nc[4] = {255, 230, 120, 255};
+            hudDigits(f, 0.046f, 0.012f, 0.018f, kbOffspringCharges_, nc);
+        }
+    }
     const bool giant = hero_ == Hero::Kabuto;  // the giant: no injections or weapons (he heals by eating)
     // Injections carried: the syringe icon and the count (pops when one is picked up).
     const float pop = 1.0f + 0.5f * std::max(0.0f, pickupFlash_);

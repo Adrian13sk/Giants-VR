@@ -152,6 +152,7 @@ void GameApp::updateHeroScale() {
 }
 
 void GameApp::kabutoQuake(const Vec3& at, float radius, float damage) {
+    if (kbAdrenT_ > 0) { radius *= 1.4f; damage *= 2.0f; }  // adrenaline
     explode(at, radius, damage, /*fire=*/false);
     dustBurst(at, radius * 0.6f, 22);
     sfx("ka_stomp", at, 1.0f, 0.9f + 0.15f * frand());
@@ -174,6 +175,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
     // A blow at a point: enemies, creatures and scenery within `r`.
     auto smash = [&](const Vec3& at, const Vec3& dir, float r, float mul) {
         bool any = false;
+        if (kbAdrenT_ > 0) mul *= 2.5f;  // adrenaline
         for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
             const Enemy& e = enemies_.enemies[i];
             if (e.state == EnemyState::Dead) continue;
@@ -218,6 +220,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
             }
         }
         if (any) {
+            kabutoGain(0.03f);
             sfx(mul > 4.0f ? "ka_hvht1" : (mul > 2.5f ? "ka_mdht1" : "ka_ltht1"), at, 1.0f, 0.9f + 0.2f * frand());
             enemies_.alertNear(at, 40.0f);
         }
@@ -376,6 +379,8 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
             }
             if (ate) {
                 kabutoAte(k.eatTarget >= kVimpTargetK ? 1 : (k.eatTarget >= kVillagerTargetK ? 0 : 2));
+                kabutoGain(0.15f);
+                if (k.eatTarget >= kVillagerTargetK && k.eatTarget < kVimpTargetK) kabutoAteSmartie();
                 playerHealth_ = std::min(100.0f, playerHealth_ + 25.0f);
                 healFlash_ = 1.0f;
                 blood_.burst(mouth, Vec3{0, -1, 0}, 14, 3.0f, 0.12f);
@@ -395,7 +400,14 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
     // --- Y: the roar. Reapers about are knocked back, creatures scatter.
     k.roarCool = std::max(0.0f, k.roarCool - dt);
     const bool y = in.hand[mh].secondary;
-    if (y && !k.yWas && k.roarCool <= 0 && !busy && player_.onGround) {
+    // Held 0.6 s with Offspring to lay: an egg; a short press: the roar (on release).
+    if (y) {
+        kbYHold_ += dt;
+        if (kbYHold_ > 0.6f && !kbYLaid_ && kbOffspringCharges_ > 0) { kbYLaid_ = true; layOffspring(); haptics_.push_back({mh, 0.6f, 0.2f}); }
+    }
+    const bool roarNow = !y && k.yWas && kbYHold_ < 0.5f && !kbYLaid_;
+    if (!y) { kbYHold_ = 0; kbYLaid_ = false; }
+    if (roarNow && k.roarCool <= 0 && !busy && player_.onGround) {
         player_.startAction(PlayerAnim::Cast, std::min(3.0f, std::max(0.5f, player_.oneShot[int(PlayerAnim::Cast)])));
         static const char* roars[] = {"ka_roar1", "ka_roar2", "ka_roar3", "ka_roar4"};
         sfx2D(roars[int(frand() * 3.99f)], 1.0f);

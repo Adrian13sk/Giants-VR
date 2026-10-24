@@ -172,6 +172,7 @@ void GameApp::throwDebris(const std::vector<const RenderModel*>& pieces, const V
 }
 
 void GameApp::damageObject(int item, float amount, bool blast, const Vec3& from) {
+    if (hero_ == Hero::Kabuto && !kabutoMayDamage(item)) return;  // a gate he hasn't grown into yet
     // The Reaper story's battles: "The enemy ARMY BARRACKS can only be destroyed by a TORNADO SPELL".
     if (hero_ == Hero::Delphi && !tornadoHitting_ && assetWorld_ && item >= 0 && size_t(item) < destruct_.items.size()) {
         const int o = destruct_.items[size_t(item)].object;

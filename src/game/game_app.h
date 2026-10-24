@@ -688,6 +688,30 @@ private:  // the mission placed enemies: no test waves
     PlayerParams kbBaseParams_;
     void applyKabutoGrowth(float g);
     void kabutoAte(int what);  // 0 Smartie, 1 Vimp, 2 other
+    // His story powers (game_app_kbpowers.cpp): growth-gated gates, adrenaline, Offspring.
+    float kbAdren_ = 0, kbAdrenT_ = -1, kbGateMsgT_ = 0, kbYHold_ = 0;
+    int kbOffspringCharges_ = 0;
+    bool kbGripsWas_ = false, kbYLaid_ = false;
+    struct OffspringPal {
+        std::unique_ptr<SkinnedModel> model;
+        int clip[6] = {};
+        float h0 = 1, lift0 = 0;
+        Vec3 pos;
+        float yaw = 0, scale = 1, hatch = 0, life = 0, clipT = 0, cool = 0, retarget = 0, dieT = -1;
+        int state = 0, target = -1;
+        bool alive = false, struck = false;
+    };
+    std::vector<OffspringPal> offspring_;
+    const RenderModel* eggModel_ = nullptr;
+    float gateNeed(int item, bool* needsAdren) const;
+    bool kabutoMayDamage(int item);
+    void kabutoGain(float adren);
+    bool offspringMission() const;
+    void initKabutoPowers();
+    void kabutoAteSmartie();
+    bool layOffspring();
+    void updateKabutoPowers(float dt, const InputFrame& in);
+    void renderKabutoPowers(const Vec3& eye);
     float heroLift_ = 0.0f;      // m: the current hero's model lift
     struct KabutoState {
         float punchT = -1, stompT = -1, eatT = -1, roarT = -1, roarCool = 0, stepT = 0;

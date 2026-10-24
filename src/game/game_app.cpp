@@ -732,7 +732,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateSmartieLines(dt);
     { GVR_PROF("jetfx"); updateJetFx(dt); }
     if (hero_ == Hero::Delphi) updateDelphi(dt, in);
-    else if (hero_ == Hero::Kabuto) updateKabuto(dt, in);
+    else if (hero_ == Hero::Kabuto) { updateKabuto(dt, in); updateKabutoPowers(dt, in); }
     else { GVR_PROF("weapon"); updateWeapon(dt, in); }
     { GVR_PROF("feel"); updateFeel(dt, in); }
     { GVR_PROF("rescue"); updateRescue(dt, in); }
@@ -1852,10 +1852,14 @@ void GameApp::initMission() {
         // He comes out of the sea weakened at the start of his story (k1a) and of 2a ("Eat 5
         // Smarties to reach full strength and size"); full size elsewhere. Our reading.
         const std::string mn = toLower(assetWorld_->missionName());
-        kbGrow_ = (mn.rfind("k1a", 0) == 0 || mn.rfind("k2a", 0) == 0) ? 0.6f : 1.0f;
+        // k1a: grow to break the wooden gate; k1b: "another growth spurt" for the stone gate;
+        // k2a: "grow once more and attain your full magnificent girth".
+        kbGrow_ = mn.rfind("k1a", 0) == 0 ? 0.5f : (mn.rfind("k1b", 0) == 0 ? 0.65f : (mn.rfind("k2a", 0) == 0 ? 0.8f : 1.0f));
         if (const char* g = std::getenv("GVR_KABUTO_GROW")) kbGrow_ = std::max(0.3f, std::min(1.0f, float(std::atof(g))));  // test hook
         applyKabutoGrowth(kbGrow_);
         LOGI("Kabuto starts at %.0f%% of his full size", kbGrow_ * 100.0f);
+        initKabutoPowers();
+        kbAdren_ = kbGrow_ >= 0.999f ? 1.0f : 0.0f;  // at full size he comes in ready
     }
     if (title_) return;  // the main menu's scene: no checkpoint
     if (haveRestore_) {  // what he carried at the checkpoint
@@ -3654,6 +3658,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     renderBurrows(v.eyePosition);
     renderShop();
     renderSpells();
+    renderKabutoPowers(v.eyePosition);
     renderMap();
     for (const auto& sp : creatures_.spits) {
         const int k = int(sp.size);
