@@ -1312,6 +1312,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     }
     initGore(w, mc);
     initFx(mc);
+    initDataFx();
     initBurrows(w, mc);
     initHud(mc);
     timmyGreeted_ = false;
@@ -1980,6 +1981,8 @@ void GameApp::renderShadows() {
     pushUnscaledRig(lastInput_.head, lastInput_.headValid);  // HUD at human scale (Kabuto)
     buildHud();
     popUnscaledRig();
+    if (!weaponsTicked_) dropHeldWeaponState();  // no weapon update ran since the last frame
+    weaponsTicked_ = false;
     renderShadowMap();
     renderReflection();
     renderScope();
@@ -2722,6 +2725,7 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
         cutsceneEffect(e.name, e.pos);
     }
     fx_.update(dt);  // the main loop's updateFx is paused while a cutscene plays
+    updateDataFx(dt);
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     // Skip with either trigger.
     bool skip = false;
@@ -2938,12 +2942,16 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
     }
 }
 
-void GameApp::explode(const Vec3& at, float radius, float damage, bool fire) {
+void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int hurtsPlayer) {
     if (at.y < player_.seaLevel + 1.0f && (!enemies_.groundHeight || enemies_.groundHeight(at.x, at.z) < player_.seaLevel - 0.2f))
         waterSplash(at, std::min(3.0f, 0.5f * radius), 2);  // in (or just over) the water
     creatures_.disturb(at, std::max(15.0f, radius * 4.0f));  // the ground shakes: buried Rippers come up
     if (hero_ == Hero::Kabuto) rockHit(at, radius);          // a blow at a volcanic rock pillar's top
-    if (fire) {
+    // With the original effects on (Options), the blast is fx.bin's (its own sound too).
+    const std::string fxName = blastFx_;
+    blastFx_.clear();
+    const bool dataFx = !fxName.empty() && playDataFx(fxName, at);
+    if (fire && !dataFx) {
         blasts_.push_back({at, 3, 0.0f});
         sfx("me_mslex", at, 1.0f, 0.95f + 0.1f * frand());
     }
@@ -3018,7 +3026,8 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire) {
     // His own rockets throw the Meccaryn (rocket jumps; a blast under him kills his fall speed)
     // and hurt him the closer he is: up to 40 at point blank, nothing at the blast's edge.
     const Vec3 rel = player_.position + Vec3{0, 0.9f, 0} - at;
-    const float dp = fire ? length(rel) : 1e9f;  // a quake (Kabuto's stomp) doesn't throw its maker
+    const bool hurts = hurtsPlayer < 0 ? fire : hurtsPlayer != 0;
+    const float dp = hurts ? length(rel) : 1e9f;  // a quake (Kabuto's stomp) doesn't throw its maker
     if (playMode_ && dp < radius && !dying_) {
         const float f = 1.0f - dp / radius;
         const float hurt = 40.0f * f * std::sqrt(f);
@@ -3100,15 +3109,23 @@ void GameApp::updateRockets(float dt) {
                 const Vec3 at = h5 ? r.pos + d5 * t5 : r.pos;
                 if (gren) {
                     // weapon 2: 80 damage, splash 75 over (.., 30, 50) - near the rocket's 80 / (.., 30, 55).
-                    explode(at + Vec3{0, 0.3f, 0}, 3.6f, 130.0f, false);
-                    blasts_.push_back({at + Vec3{0, 0.3f, 0}, 2, 0.0f});
-                    sfx("me_grnex", at, 1.0f, 0.95f + 0.1f * frand());
+                    blastFx_ = "FX_EXPLOSION_GRENADE";
+                    if (playDataFx(blastFx_, at)) {
+                        blastFx_.clear();
+                        explode(at + Vec3{0, 0.3f, 0}, 3.6f, 130.0f, false, 1);
+                    } else {
+                        blastFx_.clear();
+                        explode(at + Vec3{0, 0.3f, 0}, 3.6f, 130.0f, false, 1);
+                        blasts_.push_back({at + Vec3{0, 0.3f, 0}, 2, 0.0f});
+                        sfx("me_grnex", at, 1.0f, 0.95f + 0.1f * frand());
+                    }
                     float near = 1e9f;
                     for (const auto& e : enemies_.enemies)
                         if (e.state != EnemyState::Dead) near = std::min(near, length(e.pos + Vec3{0, 0.9f, 0} - at));
                     LOGI("Grenade bursts %.1f m away (nearest Reaper %.1f m from it, %d bounces)", length(at - player_.position), near, r.bounces);
                 } else {
                     // weapon 1: 150 damage, splash 150 over (.., 50, 80) - against the rocket's 80 / (.., 30, 55).
+                    blastFx_ = "FX_EXPLOSION_LBOMB";
                     explode(at, 5.5f, 225.0f);
                 }
                 r.life = 1e9f;
@@ -3149,11 +3166,16 @@ void GameApp::updateRockets(float dt) {
                     weapon_.onHit(target, at, dir);
                     hitMul_ = 1.0f;
                 }
-                explode(at, 1.8f, 40.0f, false);
-                blasts_.push_back({at, 1, 0.0f});
-                sfx(r.kind == 7 ? "me_mslex" : "me_rsgex", at, 0.9f, 0.95f + 0.1f * frand());
+                explode(at, 1.8f, 40.0f, false, 1);
+                if (!playDataFx("fx_Explosion_shotgun", at)) {  // weapon 6's / the RPG bow's impact effect
+                    blasts_.push_back({at, 1, 0.0f});
+                    sfx(r.kind == 7 ? "me_mslex" : "me_rsgex", at, 0.9f, 0.95f + 0.1f * frand());
+                }
             }
-            else explode(hit ? r.pos + dir * t : r.pos, 4.0f, 120.0f);
+            else {
+                blastFx_ = "FX_EXPLOSION_ROCKET";
+                explode(hit ? r.pos + dir * t : r.pos, 4.0f, 120.0f);
+            }
             r.life = 1e9f;
             continue;
         }
@@ -3461,8 +3483,8 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         // The weapon strip drops in either way (showing what is carried); with only the gun
         // there is nothing to switch to.
         switchArmed_ = false;
-        // Handgun -> shotgun -> machine gun -> sniper gun -> launcher -> bush pack -> pop-up bomb,
-        // skipping what he doesn't carry.
+        // Handgun -> shotgun -> machine gun -> sniper gun -> mortar -> grenades -> launcher -> bush pack ->
+        // pop-up bomb, skipping what he doesn't carry.
         static const int kOrder[9] = {0, 4, 5, 6, 7, 8, 1, 2, 3};
         int at = 0;
         while (at < 9 && kOrder[at] != weaponSel_) ++at;
@@ -3490,8 +3512,16 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
         LOGI("Weapon: %s", gs >= 0 ? guns_[gs].name : weaponSel_ == 3 ? "pop-up bomb" : weaponSel_ == 2 ? "bush pack" : (weaponSel_ ? "rocket launcher" : "gun"));
     }
+    weaponsTicked_ = true;
     scopeWanted_ = false;
-    if (weaponSel_ == 2 || weaponSel_ == 3 || weaponSel_ == 8) { gunValid_ = false; return; }  // in the bush / holding a bomb or grenade: no gun in hand
+    bowValid_ = bowLinesShown_ = bowDrawing_ = false;  // (a Reaper mission's bow)
+    if (weaponSel_ == 2 || weaponSel_ == 3 || weaponSel_ == 8) {
+        // In the bush / holding a bomb or grenade: no gun in hand (its bolts still fly).
+        gunValid_ = false;
+        weapon_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
+        if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
+        return;
+    }  // in the bush / holding a bomb or grenade: no gun in hand
     const bool launcher = weaponSel_ == 1 && launcherModel_;
     const RenderModel* held = heldModel();
     // Handle / muzzle in each model's GAME frame (forward -Y, up +Z): the launcher is a
@@ -4075,6 +4105,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
                                         Mat4::scale(Vec3{1, 1, 1} * (3.0f + 4.0f * k)), true, 1.0f - k);
     }
     renderFx();
+    renderDataFx();
     if (title_) renderTitle();
     beginUiFrame(eye);  // the HUD, menu and hands at human scale (Kabuto)
     if (cut) renderCutscene();

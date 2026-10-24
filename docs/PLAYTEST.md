@@ -25,6 +25,9 @@ there; the launcher comes in Story 3's launcher mission (or from a Shop).
       your left hand, pull back, let go: does the string follow your hand, does the arrow go where the bow points, is
       the draw distance comfortable? Also the right-trigger draw. Is the bow the right size in your hand?
 
+- [ ] Options -> **EFFECTS: ORIGINAL (TEST)**, then fire rockets / the mortar / grenades: do the explosions look like
+      the game's? Too big, too long, wrong colours? Compare with SIMPLE.
+
 ## 1. Base building
 **22. 5c "The Battle!" (Meccaryn)**
 - [ ] Opening cutscene plays; you start near Borjoyzee (he waves when you're close).

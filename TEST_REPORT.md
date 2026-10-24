@@ -604,3 +604,10 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 - All 56 missions, 500 frames each, with every gun and bow carried (GVR_ARSENAL=1 GVR_BOWS=1), firing the shotgun as
   Baz and the sniper bow as Delphi: 56/56 exit 0, no AddressSanitizer or UBSan reports.
 - Sniper zoom pass under ASan (story3_3sonaks_4, 200 frames, firing): clean.
+
+## Host verification — review fixes and fx.bin playback
+- After the review fixes: 1c shell pickup (+2), sniper / machine gun / shotgun kills at 40 / 15 / 15 m, sniper bow kill
+  at 25 m - unchanged results.
+- fx.bin playback (GVR_DATA_FX=1): cutscene Rstory1_fire_4a's effects resolve to fx.bin entries ("Effect
+  fx_flick_millenium_spear (fx.bin)"); a rocket explosion renders flash, glow and debris; ASan/UBSan run in 4a with
+  the mortar and a rocket explosion every 3 s: clean. **Looks unverified against the original.**

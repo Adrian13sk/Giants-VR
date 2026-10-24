@@ -128,6 +128,14 @@ void GameApp::initArsenal() {
     if (std::getenv("GVR_ARSENAL") && grenadeModel_) grenades_ = grenadeMax_;
 }
 
+void GameApp::dropHeldWeaponState() {
+    if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
+    scopeWanted_ = scopeShown_ = false;
+    bowValid_ = bowLinesShown_ = bowDrawing_ = false;
+    bowDraw_ = 0;
+    gunTriggerHeld_ = grenCocked_ = false;
+}
+
 void GameApp::resetArsenal() {
     for (auto& g : guns_) { g.have = false; g.ammo = 0; }
     for (auto& b : bows_) { b.have = false; b.ammo = b.maxAmmo < 0 ? -1 : 0; }
@@ -200,7 +208,7 @@ void GameApp::heldRefs(Vec3& handle, Vec3& muzzle) const {
 
 bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, const Vec3& fwd) {
     const int g = gunOfSel(weaponSel_);
-    gunCooldown_ -= dt;
+    for (auto& gg : guns_) gg.cool -= dt;  // each gun reloads on its own (switching doesn't skip or block it)
     if (g < 0 || !guns_[g].model) {
         if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
         gunTriggerHeld_ = trigger;
@@ -218,11 +226,11 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
         // The Millenium mortar lobs a bomb (mc_lbomb, weapon 1: every 3 s, range 200 units = 40 m): it
         // bounces once (fx_lbomb_bounce) and bursts on its next landing.
         weapon_.update(dt, false, muzzle, fwd);
-        if (pull && valid && gun.ammo > 0 && gunCooldown_ <= 0) {
+        if (pull && valid && gun.ammo > 0 && gun.cool <= 0) {
             Rocket r{muzzle, fwd * 20.0f + Vec3{0, 2.0f, 0}, 0.0f, 5};
             rockets_.push_back(r);
             --gun.ammo;
-            gunCooldown_ = gun.interval;
+            gun.cool = gun.interval;
             haptics_.push_back({gh, 1.0f, 0.15f});
             sfx("me_mtrsh", muzzle, 1.0f, 0.95f + 0.1f * frand());
             smokePuff(FxTex::Smoke, muzzle + fwd * 0.3f, fwd * 1.0f + Vec3{0, 0.5f, 0}, 0.3f, 1.4f, 1.0f, 0.5f, 0.2f);
@@ -231,13 +239,14 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
         return true;
     }
     if (g == kGunShotgun) {
-        // One shell per pull: it flies and bursts where it lands (mc_shotgun_shell, fx_explosion_shotgun).
+        // One shell per pull: it flies straight (no drop, ours) and bursts on what it hits (mc_shotgun_shell,
+        // fx_explosion_shotgun).
         weapon_.update(dt, false, muzzle, fwd);
-        if (pull && valid && gun.ammo > 0 && gunCooldown_ <= 0) {
+        if (pull && valid && gun.ammo > 0 && gun.cool <= 0) {
             Rocket r{muzzle, fwd * std::min(gun.speed, 70.0f), 0.0f, 4};
             rockets_.push_back(r);
             --gun.ammo;
-            gunCooldown_ = gun.interval;
+            gun.cool = gun.interval;
             haptics_.push_back({gh, 0.8f, 0.1f});
             sfx("me_rsgsh", muzzle, 1.0f, 0.95f + 0.1f * frand());
             LOGI("Shotgun shell fired (%d left)", gun.ammo);
@@ -245,14 +254,21 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
         }
         return true;
     }
-    // Machine gun (held) and sniper gun (one per pull): bolts with the record's damage and speed.
-    weapon_.fireInterval = gun.interval;
-    weapon_.projectileSpeed = std::max(70.0f, gun.speed);
-    weapon_.range = gun.range;
-    weapon_.shotDamage = gun.damage;
-    weapon_.shotStyle = g == kGunSniper ? 2 : 1;
-    const bool want = valid && gun.ammo > 0 && (g == kGunMachine ? trigger : pull);
-    if (weapon_.update(dt, want, muzzle, fwd)) {
+    // Machine gun (held) and sniper gun (one per pull): bolts with the record's damage and speed, on the
+    // gun's own reload.
+    weapon_.update(dt, false, muzzle, fwd);  // the bolts in flight
+    const bool want = valid && gun.ammo > 0 && gun.cool <= 0 && (g == kGunMachine ? trigger : pull);
+    if (want) {
+        weapon_.projectileSpeed = std::max(70.0f, gun.speed);
+        weapon_.range = gun.range;
+        weapon_.shotDamage = gun.damage;
+        weapon_.shotStyle = g == kGunSniper ? 2 : 1;
+        weapon_.spawnShot(muzzle, fwd);
+        weapon_.projectileSpeed = 70.0f;
+        weapon_.range = 250.0f;
+        weapon_.shotDamage = 1.0f;
+        weapon_.shotStyle = 0;
+        gun.cool = gun.interval;
         --gun.ammo;
         if (g == kGunSniper) {
             haptics_.push_back({gh, 0.9f, 0.1f});
@@ -270,42 +286,58 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
         mgLoop_ = 0;
         sfx("me_mchen", muzzle, 0.8f);
     }
-    // Back to the handgun's for its own shots.
-    weapon_.fireInterval = 0.2f;
-    weapon_.projectileSpeed = 70.0f;
-    weapon_.range = 250.0f;
-    weapon_.shotDamage = 1.0f;
-    weapon_.shotStyle = 0;
     return true;
 }
 
 // Placed ammo pickups (mc_pickup_shells, type 647: the shotgun's) become live pickups.
-void GameApp::ammoPickup(int objectType, const Vec3& at) {
+// Placed ammo (mc_pickup_shells, type 647): which weapon it feeds is decided when it is taken - the
+// same pickup type serves the shotgun's shells (item 37) and Delphi's RPG-bow arrows (item 55).
+bool GameApp::ammoPickup(int objectType, const Vec3& at) {
     initArsenal();
-    for (int g = 0; g < kNumGuns; ++g) {
-        const ItemDef* it = weaponDefs_.item(guns_[g].item);
-        const ItemDef* am = it && it->ammoItem >= 0 ? weaponDefs_.item(it->ammoItem) : nullptr;
-        if (am && am->pickupType == objectType) {
-            ammoPickups_.push_back({at, g, guns_[g].pickupAmmo, 0});
-            return;
-        }
-    }
-    if (objectType == 647) ammoPickups_.push_back({at, kGunShotgun, guns_[kGunShotgun].pickupAmmo, 0});  // without the file
+    bool known = objectType == 647;  // (also without the file)
+    for (const auto& it : weaponDefs_.items)
+        known = known || (it.category == 4 && it.pickupType == objectType);
+    if (known) ammoPickups_.push_back({at, objectType, 0});
+    return known;
 }
 
 void GameApp::updateAmmoPickups(float dt) {
     for (auto& p : ammoPickups_) {
         p.t += dt;
         const Vec3 d = p.pos - player_.position;
-        Gun& g = guns_[p.gun];
-        if (hero_ == Hero::Mecc && g.have && g.ammo < g.maxAmmo && d.x * d.x + d.z * d.z < 1.4f * 1.4f && std::fabs(d.y) < 2.2f) {
-            g.ammo = std::min(g.maxAmmo, g.ammo + p.amount);
-            p.t = -1e9f;
-            pickupFlash_ = 1.0f;
-            sfx2D("pu_ammo", 1.0f);
-            haptics_.push_back({rig_.moveHand(), 0.5f, 0.08f});
-            LOGI("Picked up %d rounds for the %s (%d)", p.amount, g.name, g.ammo);
-        }
+        if (d.x * d.x + d.z * d.z > 1.4f * 1.4f || std::fabs(d.y) > 2.2f) continue;
+        // The first weapon carried that this pickup feeds and that has room (its ammo item names the pickup).
+        auto feeds = [&](int item) {
+            const ItemDef* it = weaponDefs_.item(item);
+            const ItemDef* am = it && it->ammoItem >= 0 ? weaponDefs_.item(it->ammoItem) : nullptr;
+            return am ? am->pickupType == p.type : (p.type == 647 && (item == 3 || item == 45));
+        };
+        auto perPickup = [&](int item, int fallback) {
+            const ItemDef* it = weaponDefs_.item(item);
+            const ItemDef* am = it && it->ammoItem >= 0 ? weaponDefs_.item(it->ammoItem) : nullptr;
+            return am && am->ammoPerPickup > 0 ? am->ammoPerPickup : fallback;
+        };
+        bool took = false;
+        if (hero_ == Hero::Mecc)
+            for (auto& g : guns_)
+                if (!took && g.have && g.ammo < g.maxAmmo && feeds(g.item)) {
+                    g.ammo = std::min(g.maxAmmo, g.ammo + g.pickupAmmo);
+                    took = true;
+                    LOGI("Picked up %d rounds for the %s (%d)", g.pickupAmmo, g.name, g.ammo);
+                }
+        if (hero_ == Hero::Delphi)
+            for (auto& b : bows_)
+                if (!took && b.have && b.maxAmmo > 0 && b.ammo < b.maxAmmo && feeds(b.item)) {
+                    const int n = perPickup(b.item, 5);
+                    b.ammo = std::min(b.maxAmmo, b.ammo + n);
+                    took = true;
+                    LOGI("Picked up %d arrows for the %s (%d)", n, b.name, b.ammo);
+                }
+        if (!took) continue;
+        p.t = -1e9f;
+        pickupFlash_ = 1.0f;
+        sfx2D("pu_ammo", 1.0f);
+        haptics_.push_back({rig_.moveHand(), 0.5f, 0.08f});
     }
     ammoPickups_.erase(std::remove_if(ammoPickups_.begin(), ammoPickups_.end(), [](const AmmoPickup& p) { return p.t < -1e8f; }),
                        ammoPickups_.end());
@@ -352,7 +384,7 @@ void GameApp::updateScope(const Vec3& muzzle, const Vec3& fwd, const Vec3& eye) 
 
 void GameApp::renderScope() {
     scopeShown_ = false;
-    if (!scopeWanted_ || !assetWorld_ || !assetWorld_->loaded() || cutsceneActive()) return;
+    if (!scopeWanted_ || hero_ != Hero::Mecc || !playMode_ || dying_ || riding_ || !assetWorld_ || !assetWorld_->loaded() || cutsceneActive()) return;
     if (!scopeInit_) {
         scopeInit_ = true;
         renderer_.initScope(256);
@@ -398,7 +430,7 @@ void GameApp::renderScope() {
 
 // A thin red cross in the middle of the screen (where the shot goes): HUD marks, built with the HUD.
 void GameApp::scopeCross() {
-    if (!scopeWanted_ || !playMode_ || dying_) return;
+    if (!scopeWanted_ || !playMode_ || dying_ || riding_ || hero_ != Hero::Mecc) return;
     const Vec3 c = (scopeCorners_[0] + scopeCorners_[2]) * 0.5f;
     const Vec3 rx = (scopeCorners_[1] - scopeCorners_[0]) * 0.5f, uy = (scopeCorners_[3] - scopeCorners_[0]) * 0.5f;
     const Vec3 n = normalize(cross(rx, uy)) * 0.002f;

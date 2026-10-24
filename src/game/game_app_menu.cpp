@@ -12,7 +12,7 @@
 namespace gvr {
 
 namespace {
-enum MenuRow { kRowResume, kRowTurn, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowFov, kRowDay, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowTurn, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -76,6 +76,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowFps: s.showFps = !s.showFps; changed = true; break;
             case kRowFov: s.foveation = std::max(0, std::min(3, s.foveation + dx)); changed = true; break;
             case kRowDay: s.dayNight = !s.dayNight; changed = true; break;
+            case kRowFx: s.originalFx = !s.originalFx; changed = true; break;
             case kRowNewGame: menuCampaign_ = (menuCampaign_ + dx + 3) % 3; haptics_.push_back({kRight, 0.3f, 0.03f}); break;
             default: break;
         }
@@ -142,6 +143,7 @@ void GameApp::renderMenu() {
         {"FRAME RATE", s.showFps ? "SHOWN" : "HIDDEN"},
         {"FOVEATED RENDERING", fovs[s.foveation]},
         {"DAY AND NIGHT", s.dayNight ? "CYCLE" : "ALWAYS DAY"},
+        {"EFFECTS", s.originalFx ? "ORIGINAL (TEST)" : "SIMPLE"},
         {"NEW GAME", newGame},
     };
     const float rowH = 0.085f, w = 1.15f, h = rowH * float(kRowCount + 2) + 0.1f;

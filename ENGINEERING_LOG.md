@@ -1669,3 +1669,23 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   (FX_nozzle_machine, op 0x81) names 1531 me_mchst / 1530 me_mchlp / 1529 me_mchen - start, loop, end, as the code
   plays them - and the shotgun's impact effect (weapon 6 -> fx_explosion_shotgun) plays 1496 me_rsgex, the burst
   sound used. The sniper's and shotgun's firing sounds (me_sprsh, me_rsgsh) are still read from the names.
+
+### 2026-10-24 — Review fixes; the original effects as an Options test
+- A read-only review (subagent) of the day's weapon code found no crash paths but state leaks; fixed:
+  - The machine-gun loop, the sniper's zoom pass and red cross, and Delphi's drawn bow are now dropped on any frame no
+    weapon update ran (death, riding, menus, cutscenes, loading, another hero: `dropHeldWeaponState`, checked once per
+    frame before rendering); the scope pass and the bow also check the hero, play mode and riding themselves.
+  - Grenade, shotgun-shell and RPG-arrow bursts hurt and throw the player again (`explode`'s fire=false meant "a quake
+    that spares its maker"; a separate hurtsPlayer flag now).
+  - The pistol on the thigh can be drawn back with only a long gun (no launcher) out.
+  - Holding a grenade / the bomb / the bush no longer freezes bolts in flight.
+  - Each gun reloads on its own timer (a mortar or sniper shot no longer blocks the next gun after a switch).
+  - Placed pickups: an mc_pickup_* that feeds no weapon stays a health pickup as before; the shells pickup (type 647)
+    feeds whichever carried weapon its type serves when taken - the shotgun for Baz, the RPG bow for Delphi (item
+    55 names the same pickup).
+- fx.bin playback (game/fx_player.*, game_app_datafx.cpp): emitters of efx_* models with sizes, fades, gravity,
+  bounce, spin, and child effects riding a reference shape's animated Ref_debri<n> points; sounds by id. Op meanings
+  are guesses, so it is OFF by default: Options -> EFFECTS: ORIGINAL (TEST) uses it for cutscene effects (op 0x27 names
+  fx.bin entries), rocket / grenade / Millenium bomb / shotgun / pop-up explosions. Harness: the rocket explosion
+  shows a very large flash (fx 08: 10 -> 200 units, i.e. 40 m, for 0.1 s) and debris riding the sphere's points;
+  whether that matches the original is for a headset look. Projectile ops (0x24) are not played yet.

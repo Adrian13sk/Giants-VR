@@ -100,14 +100,14 @@ void GameApp::updateFeel(float dt, const InputFrame& in) {
     }
     // First person: reach for the holstered weapon and grip to draw it (right thigh for the gun,
     // over the shoulder for the launcher); the stick still switches too.
-    if (firstPerson_ && hasLauncher_) {
+    if (firstPerson_ && (hasLauncher_ || longOut)) {
         const int gh = rig_.turnHand();
         const ControllerState& c = in.hand[gh];
         const bool grip = c.squeeze > 0.7f;
         if (grip && !holsterGripHeld_ && c.gripPoseValid) {
             const Vec3 hand = rig_.toWorld(c.gripPose).position;
             const bool atGun = longOut && length(hand - holsterGunPos_) < 0.3f;
-            const bool atBack = !launcherOut && (length(hand - holsterBackPos_) < 0.42f ||
+            const bool atBack = !launcherOut && hasLauncher_ && launcherModel_ && (length(hand - holsterBackPos_) < 0.42f ||
                                                  (in.headValid && hand.y > rig_.toWorld(in.head).position.y - 0.1f &&
                                                   dot(hand - rig_.toWorld(in.head).position, body.rotate(Vec3{0, 0, 1})) > 0.02f));
             if (atGun || atBack) {

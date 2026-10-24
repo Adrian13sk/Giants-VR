@@ -87,7 +87,7 @@ bool GameApp::grantBowItem(uint32_t item) {
 void GameApp::updateBow(float dt, const InputFrame& in) {
     bowValid_ = false;
     bowLinesShown_ = false;
-    if (hero_ != Hero::Delphi || !playerModel_) { delphiWeapon_ = -1; return; }
+    if (!playerModel_) return;
     initBows();
     // Her arrows fly as the gun's bolts do (updateWeapon, which runs only for the Meccaryn, moves them there).
     weapon_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
@@ -234,7 +234,7 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
 void GameApp::buildBowLines() {
     if (!bowLinesInit_) { bowLinesInit_ = true; bowLines_.init(renderer_, 4); }
     bowLines_.clear();
-    if (bowValid_ && bowLinesShown_ && lastInput_.headValid) {
+    if (bowValid_ && bowLinesShown_ && hero_ == Hero::Delphi && !riding_ && lastInput_.headValid) {
         const Vec3 eye = rig_.toWorld(lastInput_.head).position;
         auto line = [&](const Vec3& a, const Vec3& b, float w, const uint8_t c[4]) {
             const Vec3 d = b - a;
@@ -253,7 +253,7 @@ void GameApp::buildBowLines() {
 }
 
 void GameApp::renderBow() {
-    if (!bowValid_ || delphiWeapon_ < 0 || !playMode_ || dying_) return;
+    if (!bowValid_ || delphiWeapon_ < 0 || !playMode_ || dying_ || riding_ || hero_ != Hero::Delphi) return;
     drawModel(bows_[delphiWeapon_].model, bowXf_, false);
     if (bowLinesInit_) {
         DrawParams dp;

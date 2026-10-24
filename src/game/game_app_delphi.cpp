@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "audio/mixer.h"
 #include "core/log.h"
 #include "game/arm_ik.h"
 #include "game/cutscene.h"
@@ -211,6 +212,9 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
         playerHealth_ = std::min(100.0f, playerHealth_ + 6.0f * dt);
         healFlash_ = std::max(healFlash_, 0.15f);
     }
+    weaponsTicked_ = true;
+    scopeWanted_ = false;  // (a Meccaryn mission's sniper)
+    if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
     updateBow(dt, in);  // her bows (game_app_bow.cpp); with one in hand the sword is put away
     const int gh = rig_.turnHand(), mh = rig_.moveHand();
     for (auto& c : swordCool_) c.second -= dt;

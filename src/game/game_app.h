@@ -13,6 +13,8 @@
 #include "game/player.h"
 #include "game/weapon.h"
 #include "assets/weapondefs.h"
+#include "assets/fx_defs.h"
+#include "game/fx_player.h"
 #include "game/enemy.h"
 #include "game/creature.h"
 #include "game/smartie.h"
@@ -251,8 +253,14 @@ private:
         int maxAmmo = 30, startAmmo = 10, pickupAmmo = 5;
         bool have = false;
         int ammo = 0;
+        float cool = 0;  // s until it can fire again
     };
     Gun guns_[kNumGuns];
+    // Held-weapon state that only the hero's weapon update refreshes: dropped on any frame it didn't
+    // run (death, riding, menus, cutscenes, loading, another hero) - the machine-gun loop, the scope
+    // pass, Delphi's drawn bow.
+    bool weaponsTicked_ = false;
+    void dropHeldWeaponState();
     WeaponDefs weaponDefs_;
     bool arsenalReady_ = false;
     void initArsenal();
@@ -265,9 +273,9 @@ private:
     void heldRefs(Vec3& handle, Vec3& muzzle) const;
     // Fires the selected gun (shotgun / machine gun / sniper); false if it is not one of them.
     bool fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, const Vec3& fwd);
-    void ammoPickup(int objectType, const Vec3& at);
+    bool ammoPickup(int objectType, const Vec3& at);  // false: not an ammo pickup
     std::vector<uint32_t> missionItems(const std::string& mission) const;
-    struct AmmoPickup { Vec3 pos; int gun; int amount; float t = 0; };
+    struct AmmoPickup { Vec3 pos; int type; float t = 0; };
     std::vector<AmmoPickup> ammoPickups_;
     const RenderModel* shellsModel_ = nullptr;
     const RenderModel* lbombModel_ = nullptr;  // the mortar's Millenium bomb (mc_lbomb)
@@ -276,7 +284,6 @@ private:
     const RenderModel* shellModel_ = nullptr;
     bool gunTriggerHeld_ = false;
     uint32_t mgLoop_ = 0;  // the machine gun's firing loop
-    float gunCooldown_ = 0;
     void updateAmmoPickups(float dt);
     void renderAmmoPickups();
     // Delphi's bows (game_app_bow.cpp): weapondefs items 44 bow (rp_bow), 45 RPG bow (rp_bow_rpg), 46 sniper bow
@@ -340,7 +347,9 @@ private:
     void renderReaperWeapons(bool shadow, const Vec3& eye, float range);
     std::vector<Rocket> rockets_;
     void updateRockets(float dt);
-    void explode(const Vec3& at, float radius, float damage, bool fire = true);
+    // fire: the big blast visual and sound; hurtsPlayer: -1 = as fire (a quake doesn't throw its maker).
+    void explode(const Vec3& at, float radius, float damage, bool fire = true, int hurtsPlayer = -1);
+    std::string blastFx_;  // the fx.bin effect the next explode() shows (with the original effects on)
     const RenderModel* boltModel_ = nullptr;
     const RenderModel* muzzleModel_ = nullptr;
     const RenderModel* impactModel_ = nullptr;
@@ -515,7 +524,15 @@ private:
     void initFx(ModelCache* mc);
     void smokePuff(FxTex tex, const Vec3& at, const Vec3& vel, float size0, float size1, float life, float alpha, float rise);
     void dustBurst(const Vec3& at, float radius, int count);
-    void cutsceneEffect(const std::string& name, const Vec3& at);  // flick op 0x27, approximated with our particles
+    void cutsceneEffect(const std::string& name, const Vec3& at);  // flick op 0x27: the game's effect, else our stand-in
+    // The game's own effects from fx.bin (game_app_datafx.cpp, game/fx_player.h).
+    FxLibrary fxLib_;
+    FxPlayer fxPlayer_;
+    bool fxLibLoaded_ = false;
+    void initDataFx();
+    bool playDataFx(const std::string& name, const Vec3& at, const Quat& rot = Quat{}, float scale = 1.0f);
+    void updateDataFx(float dt);
+    void renderDataFx();
     void updateFx(float dt);
     void buildBatches();
     void renderFx();

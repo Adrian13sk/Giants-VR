@@ -111,6 +111,7 @@ void GameApp::updatePopup(float dt, const InputFrame& in) {
         if (!p.fired && p.t >= kTickSeconds + 0.6f) {
             p.fired = true;
             popupBlast_ = true;
+            blastFx_ = "fx_Explosion_popup";
             explode(p.pos + Vec3{0, 1.5f, 0}, kRadius, kDamage, true);
             popupBlast_ = false;
             dustBurst(p.pos, kRadius * 0.6f, 24);

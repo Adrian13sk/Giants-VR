@@ -390,8 +390,7 @@ void GameApp::initPickups(ModelCache* mc) {
         if (assetWorld_->terrain().heightAt(at.x, at.z, gy)) at.y = std::max(at.y, gy);
         // Ammo (mc_pickup_shells / _clips / _rockets) is not health: weapondefs' ammo items name
         // these pickups (item 37 shells -> type 647).
-        if (o.name.find("pickup_health") == std::string::npos && o.name.find("pickup_") != std::string::npos) {
-            ammoPickup(int(o.type), at);
+        if (o.name.find("pickup_health") == std::string::npos && o.name.find("pickup_") != std::string::npos && ammoPickup(int(o.type), at)) {
             LOGI("Ammo pickup (%s) at game (%.0f, %.0f)", o.name.c_str(), -at.x / gGameUnitsToMeters, at.z / gGameUnitsToMeters);
             continue;
         }

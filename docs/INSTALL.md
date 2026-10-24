@@ -172,6 +172,11 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   counter), Stone Gate, Stone Walls; Delphi: Persuader 2, Spellshop 2, Reaper Gate 2, Forcefields 2. Upgraded
   buildings take 60% more punishment from raiders. (The Pub and Party Houses have no second level in the data.)
 
+## Original effects (test)
+Options → **EFFECTS: ORIGINAL (TEST)** plays explosions and cutscene effects from the game's own effect file
+(fx.bin) instead of the port's simple particles. Our reading of that file is partly guesswork, so it may look odd
+(sizes, timing) - tell us how it compares. **SIMPLE** is the default.
+
 ## Meccaryn weapons (from the game's weapondefs.bin)
 - The missions hand out the guns as in the original's item lists: **shotgun** from 1c, **sniper gun** from Story 3's
   bunker mission, **rocket launcher** from Story 3's launcher mission (or a Shop), **Millenium mortar** from 4a,

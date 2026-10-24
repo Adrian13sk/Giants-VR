@@ -391,6 +391,7 @@ void GameApp::dustBurst(const Vec3& at, float radius, int count) {
 // bursts are dust, shots and rockets are flame and smoke, glows and spells are coloured light,
 // splashes are spray, blood is the game's blood. Unknown names ("test3") draw nothing.
 void GameApp::cutsceneEffect(const std::string& name, const Vec3& at) {
+    if (playDataFx(name, at)) return;  // the game's own effect (fx.bin)
     auto has = [&](const char* k) { return name.find(k) != std::string::npos; };
     if (has("stone_explode")) {
         const float r = has("large") ? 4.0f : has("medium") ? 2.0f : 1.0f;
@@ -424,6 +425,7 @@ void GameApp::cutsceneEffect(const std::string& name, const Vec3& at) {
 
 void GameApp::updateFx(float dt) {
     fx_.update(dt);
+    updateDataFx(dt);
     // Rocket trails: a flame at the nozzle and grey smoke left hanging behind.
     for (const auto& r : rockets_) {
         const Vec3 back = normalize(r.vel) * -1.0f;
