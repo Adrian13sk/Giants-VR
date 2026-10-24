@@ -412,6 +412,7 @@ private:
     void initFx(ModelCache* mc);
     void smokePuff(FxTex tex, const Vec3& at, const Vec3& vel, float size0, float size1, float life, float alpha, float rise);
     void dustBurst(const Vec3& at, float radius, int count);
+    void cutsceneEffect(const std::string& name, const Vec3& at);  // flick op 0x27, approximated with our particles
     void updateFx(float dt);
     void buildBatches();
     void renderFx();

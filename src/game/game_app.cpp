@@ -2665,6 +2665,12 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
     const std::string stream = cutscene_->takeStream();
     if (!stream.empty()) playStream(stream);
     for (const auto& c : cutscene_->takeCues()) playStream(c, true);
+    for (const auto& e : cutscene_->takeEffects()) {
+        static const bool trace = std::getenv("GVR_CUT_TRACE") != nullptr;
+        if (trace) LOGI("cut-fx %s at (%.1f %.1f %.1f)", e.name.c_str(), e.pos.x, e.pos.y, e.pos.z);
+        cutsceneEffect(e.name, e.pos);
+    }
+    fx_.update(dt);  // the main loop's updateFx is paused while a cutscene plays
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     // Skip with either trigger.
     bool skip = false;

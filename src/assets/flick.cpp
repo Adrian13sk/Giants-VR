@@ -124,6 +124,13 @@ bool parseFlick(const uint8_t* d, size_t n, FlickShot& out, std::string* error) 
                     waited = std::max(waited, (float(word(0)) - float(out.director.startTick)) /
                                                   (float(out.director.ticksPerFrame) * float(out.director.fps)));
                 break;
+            case 0x27:
+                if (nw >= 5) {
+                    const std::string fx = cstr(d, n, word(1));
+                    if (!fx.empty())
+                        out.effects.push_back({waited, int(word(0)), fx, int(word(2)), int(word(3)), cstr(d, n, word(4))});
+                }
+                break;
             case 0x2C: {
                 const std::string s = cstr(d, n, word(0));
                 if (!s.empty()) out.cues.push_back({waited, s});

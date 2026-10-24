@@ -68,6 +68,13 @@ struct FlickShot {
             if (e.actor == actor && e.time <= t) v = e.show;
         return v;
     }
+    // op 0x27 {slot, fxNameOff, mode, actorIdx, nodeNameOff}: an effect started on an actor's node
+    // at the time of the preceding waits. Read from all 545 shots: the names are effect
+    // definitions ("fx_shotgun_flk", "fx_stone_explode_medium", "fxb_splash", "fx_sm_glow_sapho")
+    // and the nodes are the actor's bones ("ref_nozzle", "ref_lhand", "center"). mode is 1 for most
+    // (167 of 208) and 0 for splashes/shots; its meaning (looping vs one-shot?) is unverified.
+    struct Effect { float time; int slot; std::string name; int mode; int actor; std::string node; };
+    std::vector<Effect> effects;
     float duration() const { return hasDirector ? director.durationSeconds() : 0.0f; }
 };
 

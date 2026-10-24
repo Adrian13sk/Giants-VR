@@ -194,6 +194,15 @@ One file per shot; shots chain into a cutscene through the "next shot" name.
     the same moment (`{0,0}{1,2}{0,0}{1,0.25}`); we use the first pair.
   - op 0x0B / 0x0C `{actorIndex}`: show / hide an actor at that moment (V: story1_jetpack_6 hides Timmy-on-Baz's-back
     (actor 6) at the start, then at frame 61 shows him and hides the standing Timmy (actor 2) - the climb onto the back).
+  - op 0x27 `{slot, fxNameOff, mode, actorIndex, nodeNameOff}`: start an effect on an actor's node (V, census of all
+    545 shots, 2026-10-24: 208 uses in 72 shots; names are effect definitions - fx_shotgun_flk 77, test3 32,
+    fx_sm_glow_sapho 26, fx_stone_explode_medium 25, fxb_splash, fx_flick_millenium_spear/bazooka...; nodes are the
+    actor's reference nodes - ref_nozzle on carried weapons, ref_lhand, center, tongue3). Rstory1_fire_4a: five
+    guards' spears/bazookas each get one at ref_nozzle 0.1 s apart. mode: 1 in 167, 0 in 41 (meaning unknown).
+  - op 3's 4th field, when not an .anm, names the prop's own node aligned to the carrier bone (`ref_handle`); for
+    static .gbs props it comes from the prop's .anm at rest (V: Rstory1_fire_4a weapons end up in the hands).
+  - Full census (545 shots, all parse with our reader): ops 1-7, 9, 0x0B-0x17, 0x19, 0x1B, 0x1F-0x22, 0x25-0x2F,
+    0x31, 0x33-0x35 occur; still unknown: 0x0D (one shot), 0x21, 0x26 {f32}, 0x28, 0x29, 0x2A, 0x2D, 0x2E, 0x31, 0x33, 0x35.
   - op 9 `{frames}`: wait. The waits of a shot add up to its director length at 70 frames/s (story1_hatch_dilemma:
     91 + 70 + 210 = 371 frames = 5.3 s). Provisional rate.
   - op 0x2C `{nameOff}`: start a stream at that point (after the preceding waits). The streams are files in

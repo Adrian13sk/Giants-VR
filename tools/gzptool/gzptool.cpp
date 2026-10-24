@@ -211,6 +211,9 @@ static int cmdFlick(const char* dir, int n, char** names) {
                     f.next.c_str(), f.hasDirector, f.duration(), f.director.nodes.size(), f.cameraNode.c_str(), f.stream.c_str(),
                     f.subtitles.size());
         for (const auto& s : f.subtitles) std::printf("   subtitle %s\n", s.c_str());
+        for (const auto& e : f.effects)
+            std::printf("   effect %.2f s: %s on actor %d node '%s' (slot %d, mode %d)\n", e.time, e.name.c_str(), e.actor, e.node.c_str(),
+                        e.slot, e.mode);
         if (!f.hasDirector) continue;
         for (int t = 0; t < f.director.tableCount(); ++t) {
             int rp = -1;

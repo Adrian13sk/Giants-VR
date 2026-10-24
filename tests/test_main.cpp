@@ -1392,6 +1392,25 @@ static void testFlickVisibility() {
     CHECK(s.actorShownAt(2, 0.5f) && !s.actorShownAt(2, 1.0f) && s.actorShownAt(3, 1.0f));
 }
 
+static void testFlickEffect() {
+    // header, op 0x27 {slot 0, "fx_a", mode 1, actor 4, "ref_nozzle"}, op 5 (yield), strings
+    std::vector<uint32_t> w = {3, 0, 0, 0, 0, 0, 0x27, 7, 0, 0, 1, 4, 0, 5, 2};
+    const uint32_t strOff = uint32_t(w.size() * 4);
+    w[9] = strOff;
+    w[12] = strOff + 8;
+    std::vector<uint8_t> d(w.size() * 4);
+    std::memcpy(d.data(), w.data(), d.size());
+    const char strs[] = "fx_a\0\0\0\0ref_nozzle\0\0";
+    d.insert(d.end(), strs, strs + sizeof(strs) - 1);
+    const uint32_t total = uint32_t(d.size());
+    std::memcpy(d.data() + 4, &total, 4);
+    FlickShot s;
+    std::string err;
+    CHECK(parseFlick(d.data(), d.size(), s, &err));
+    CHECK(s.effects.size() == 1 && s.effects[0].name == "fx_a" && s.effects[0].node == "ref_nozzle" &&
+          s.effects[0].actor == 4 && s.effects[0].mode == 1 && s.effects[0].time == 0.0f);
+}
+
 static void testTestScript() {
     TestScript ts;
     std::string err;
@@ -1421,6 +1440,7 @@ static void testTestScript() {
 int main() {
     testTestScript();
     testFlickVisibility();
+    testFlickEffect();
     testGameText();
     testRescue();
     testGore();

@@ -47,6 +47,9 @@ public:
     std::string takeStream();
     // Timed streams (op 0x2C: sound effects, voice clips) due since the last call.
     std::vector<std::string> takeCues();
+    // Effects (op 0x27) due since the last call: name and world position of the actor node.
+    struct FxEvent { std::string name; Vec3 pos; int mode; };
+    std::vector<FxEvent> takeEffects();
     // The subtitle line(s) due now: the latest whose time has come (each holds until the next).
     std::vector<std::string> subtitles() const;
     float blackout() const;      // 0 (clear) .. 1 (black), for the fades between shots
@@ -68,6 +71,14 @@ private:
         int table = -1;   // director node table driving the actor
         int parent = -1;  // attached (op 3): index into actors_ of the carrier
         std::string parentNode, align;  // carrier bone; own node aligned to it ("ref_handle")
+        // Static (.gbs) props: reference nodes from the model's .anm at rest (game frame), for
+        // the alignment node and effect points ("ref_nozzle").
+        std::vector<std::pair<std::string, Mat4>> refs;
+        bool refNode(const std::string& name, Mat4& out) const {
+            for (const auto& r : refs)
+                if (r.first == name) { out = r.second; return true; }
+            return false;
+        }
         Mat4 xf = Mat4::identity();  // runtime transform this frame
         bool visible = true;
         mutable bool nearLogged = false;
@@ -94,6 +105,8 @@ private:
     float scriptVisibility(float t) const;  // the shot's op 0x1F fades at t (1 picture, 0 black)
     size_t shotsPlayed_ = 0;
     size_t cueNext_ = 0;
+    size_t fxNext_ = 0;
+    std::vector<FxEvent> dueFx_;
     std::vector<std::string> dueCues_;
     Vec3 eye_, eyeNow_, eyeOverride_;
     bool hasEyeOverride_ = false;

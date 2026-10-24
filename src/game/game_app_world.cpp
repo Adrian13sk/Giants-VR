@@ -385,6 +385,42 @@ void GameApp::dustBurst(const Vec3& at, float radius, int count) {
     }
 }
 
+// Cutscene effects (flick op 0x27) by the original definition's name. The definitions themselves
+// (fx_*.gfx / fxb_*) aren't decoded, so each family gets a stand-in from our own particles: rock
+// bursts are dust, shots and rockets are flame and smoke, glows and spells are coloured light,
+// splashes are spray, blood is the game's blood. Unknown names ("test3") draw nothing.
+void GameApp::cutsceneEffect(const std::string& name, const Vec3& at) {
+    auto has = [&](const char* k) { return name.find(k) != std::string::npos; };
+    if (has("stone_explode")) {
+        const float r = has("large") ? 4.0f : has("medium") ? 2.0f : 1.0f;
+        dustBurst(at, r, int(5 + 3 * r));
+        for (int i = 0; i < 3; ++i) smokePuff(FxTex::Dust, at, Vec3{frand() - 0.5f, 2.0f + frand(), frand() - 0.5f}, 0.4f * r, 1.2f * r, 1.5f, 0.8f, -4.0f);
+    } else if (has("splash") || has("spray")) {
+        for (int i = 0; i < 10; ++i) {
+            const float a = frand() * 6.28f;
+            smokePuff(FxTex::Spray, at, Vec3{std::cos(a) * 1.2f, 1.5f + 1.5f * frand(), std::sin(a) * 1.2f}, 0.15f, 0.6f, 0.7f, 0.8f, -6.0f);
+        }
+    } else if (has("blood") || has("splat")) {
+        bleed(at, Vec3{0, 1, 0}, false, 1.0f);
+    } else if (has("shotgun") || has("rocket") || has("bazooka") || has("spear") || has("explosion")) {
+        const float s = has("explosion") ? 3.0f : 1.0f;
+        smokePuff(FxTex::Fire, at, Vec3{0, 0.3f, 0}, 0.35f * s, 0.9f * s, 0.18f * s, 1.0f, 0.0f);
+        for (int i = 0; i < 3; ++i)
+            smokePuff(FxTex::SmokeGrey, at, Vec3{frand() - 0.5f, 0.4f, frand() - 0.5f} * s, 0.25f * s, 1.3f * s, 1.4f, 0.5f, 0.3f);
+    } else if (has("smoke_wall")) {
+        for (int i = 0; i < 8; ++i)
+            smokePuff(FxTex::Smoke, at + Vec3{(frand() - 0.5f) * 6.0f, 0, (frand() - 0.5f) * 6.0f}, Vec3{0, 0.3f, 0}, 2.0f, 6.0f, 5.0f, 0.7f, 0.1f);
+    } else if (has("glow") || has("spell") || has("transformation") || has("portal") || has("cloak")) {
+        const FxTex t = has("yan") ? FxTex::FireGreen : FxTex::FireBlue;
+        const float s = has("transformation") || has("portal") ? 2.5f : 1.0f;
+        for (int i = 0; i < 6; ++i)
+            smokePuff(t, at, Vec3{frand() - 0.5f, frand() * 0.6f, frand() - 0.5f} * s, 0.3f * s, 0.8f * s, 1.2f, 0.9f, 0.2f);
+    } else {
+        static int unknown = 0;
+        if (unknown++ < 8) LOGI("Cutscene effect '%s' has no stand-in", name.c_str());
+    }
+}
+
 void GameApp::updateFx(float dt) {
     fx_.update(dt);
     // Rocket trails: a flame at the nozzle and grey smoke left hanging behind.

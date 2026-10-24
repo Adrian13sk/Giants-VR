@@ -47,6 +47,7 @@ bool CutscenePlayer::loadShot(const std::string& name) {
     shotName_ = name;
     t_ = 0;
     cueNext_ = 0;
+    fxNext_ = 0;
     duration_ = std::max(0.5f, shot_.duration());
     // A last shot fading out holds until its fade is through (story1_start_12's 2 s fade starts
     // 1.3 s before the director ends).
@@ -222,6 +223,18 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         }
         if (!act.skinned) act.model = models_.get(model + ".gbs", anim, true);
         if (!act.skinned && !act.model) continue;
+        if (!act.skinned && !anim.empty()) {
+            std::vector<uint8_t> b;
+            AnmAnimation ra;
+            if (fs_.read(anim, b) && parseAnm(b.data(), b.size(), ra)) {
+                std::vector<Mat4> wm;
+                ra.evaluate(0.0f, wm);
+                for (size_t k = 0; k < ra.nodes.size() && k < wm.size(); ++k) {
+                    const std::string nm = lower(ra.nodes[k].name);
+                    if (nm.compare(0, 4, "ref_") == 0) act.refs.push_back({nm, wm[k]});
+                }
+            }
+        }
         LOGI("Cutscene %s: prop %s (type %d) on %s.%s", name.c_str(), model.c_str(), a.type,
              actors_[size_t(carrier)].info.node.c_str(), a.parentNode.c_str());
         actors_.push_back(std::move(act));
@@ -324,6 +337,21 @@ void CutscenePlayer::update(float dt) {
         }
     }
     updateProps(t);
+    while (fxNext_ < shot_.effects.size() && shot_.effects[fxNext_].time <= t_) {
+        const auto& e = shot_.effects[fxNext_++];
+        for (const auto& a : actors_) {
+            if (a.info.index != e.actor) continue;
+            if (!a.visible) break;
+            Mat4 bone;
+            Vec3 at{a.xf.m[12], a.xf.m[13], a.xf.m[14]};
+            if (!e.node.empty() && (a.skinned ? a.skinned->nodeWorld(e.node, bone) : a.refNode(toLower(e.node), bone))) {
+                const Mat4 w = a.xf * gameMatrixToRuntime(bone);
+                at = Vec3{w.m[12], w.m[13], w.m[14]};
+            }
+            if (dueFx_.size() < 32) dueFx_.push_back({e.name, at, e.mode});
+            break;
+        }
+    }
 }
 
 void CutscenePlayer::groundActors() {
@@ -377,6 +405,8 @@ void CutscenePlayer::updateProps(float t) {
             Mat4 al;
             if (!a.align.empty() && a.skinned->nodeWorld(a.align, al)) local = local * gameMatrixToRuntime(al).affineInverse();
         }
+        Mat4 al;
+        if (!a.skinned && !a.align.empty() && a.refNode(a.align, al)) local = local * gameMatrixToRuntime(al).affineInverse();
         a.xf = c.xf * local;
     }
 }
@@ -430,6 +460,12 @@ std::vector<std::string> CutscenePlayer::subtitles() const {
     for (size_t i = 0; i < shot_.subtitles.size(); ++i)
         if (i < shot_.subtitleTimes.size() && shot_.subtitleTimes[i] <= t_ + 0.05f) cur = int(i);
     if (cur >= 0) v.push_back(shot_.subtitles[size_t(cur)]);
+    return v;
+}
+
+std::vector<CutscenePlayer::FxEvent> CutscenePlayer::takeEffects() {
+    std::vector<FxEvent> v;
+    v.swap(dueFx_);
     return v;
 }
 
