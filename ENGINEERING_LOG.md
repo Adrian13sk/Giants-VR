@@ -1665,4 +1665,7 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   shifted names and 111 conflicts between files; the record really starts with the id and ends with the name
   offset - then 660 ids with 5 conflicts, and fx.bin's ids land on fitting sounds (rocket explosion me_mslex,
   bullet hits bi_hit1/2, the Millenium bomb's bounce me_mtrht - which is the sound the mortar code already used).
-  The table names ids only: which gun fires me_sprsh / me_rsgsh is still read from the file names.
+  The table names ids only, but chained with fx.bin it ties some guns to sounds: the machine gun's nozzle effect
+  (FX_nozzle_machine, op 0x81) names 1531 me_mchst / 1530 me_mchlp / 1529 me_mchen - start, loop, end, as the code
+  plays them - and the shotgun's impact effect (weapon 6 -> fx_explosion_shotgun) plays 1496 me_rsgex, the burst
+  sound used. The sniper's and shotgun's firing sounds (me_sprsh, me_rsgsh) are still read from the names.
