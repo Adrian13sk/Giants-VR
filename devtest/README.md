@@ -23,3 +23,11 @@ restores the proximity sensor at the end.
 Test scripts are plain text (`tests\*.txt`); the format is described at the top of
 `src/game/test_script.h`. A script can be dry-run on the PC with the headless harness:
 `build/host/headless_render --data <Bin> --play --script devtest/tests/perf_1a_village.txt`.
+
+## Reading the results
+
+`python3 tools/py/review_results.py devtest/results/<stamp>` prints a one-page Markdown summary: fps,
+frame-time percentiles, CPU and GPU time, memory and the system's VrApi numbers per test; the worst frames
+and whether they waited on the GPU, the CPU or neither; the sniper zoom and original-effects costs
+(weapons_mecc, fx_original); and the change against the newest earlier run of the same tests in the same
+results folder (or `--compare <older stamp>`). Anything that needs a look is listed at the end.
