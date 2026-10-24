@@ -12,6 +12,7 @@
 #include "game/input_state.h"
 #include "game/player.h"
 #include "game/skirmish.h"
+#include "game/sk_net.h"
 #include "game/weapon.h"
 #include "assets/weapondefs.h"
 #include "assets/fx_defs.h"
@@ -918,6 +919,22 @@ private:  // the mission placed enemies: no test waves
     float skAnimT_ = 0, skBannerT_ = 0, skRoundT_ = 0;
     std::string skBanner_;
     static constexpr int kBotTarget = 3000;  // weapon target ids for skirmish players (id = target - this)
+    // Online (game/sk_net.h): this headset hosts the skirmish or has joined someone's.
+    enum class SkNetMode { Off, Host, Join };
+    SkNetMode skNet_ = SkNetMode::Off;
+    SkNetHost skHost_;
+    SkNetClient skClient_;
+    int skNetWant_ = 0;            // the menu's choice: 0 computer players, 1 host, 2 join
+    int titleSkGame_ = 0;          // the found game chosen to join
+    bool titleJoining_ = false;
+    int skLastHurtBy_ = -1;
+    size_t skShotsSeen_ = 0;
+    float skLostT_ = 0;
+    int skPrevWinner_ = -1;
+    bool skAddBody(int id);        // the model of a player, by its team's hero
+    int skAddRemote(const std::string& name, int team);
+    void skOwnShots();             // the local player's new shots, for the others to see
+    void skHandleEvent(const SkEvent& e);
     void initSkirmish();
     void updateSkirmish(float dt);
     void renderSkirmish(bool shadow, const Vec3& eye);

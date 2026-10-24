@@ -15,7 +15,8 @@
 namespace gvr {
 
 namespace {
-enum TitleRow { kTitleContinue, kTitleNewGame, kTitleMission, kTitleSkirmish, kTitleSkTeam, kTitleOptions, kTitleRowCount };
+enum TitleRow { kTitleContinue, kTitleNewGame, kTitleMission, kTitleSkMode, kTitleSkirmish, kTitleSkTeam, kTitleOptions, kTitleRowCount };
+const char* const kSkModes[3] = {"WITH COMPUTER PLAYERS", "HOST A WI-FI GAME", "JOIN A WI-FI GAME"};
 // The original's multiplayer maps (w_M_*), played against computer players (game_app_skirmish.cpp).
 const char* const kSkMaps[12] = {"M_3WAY_L1", "M_3WAY_L2", "M_3WAY_L3", "M_3WAY_Lw1", "M_Mecc_L1", "M_Mecc_L2",
                                  "M_Mecc_L3", "M_Mecc_Lw1", "M_Reaper_L1", "M_Reaper_L2", "M_Reaper_L3", "M_Reaper_Lw1"};
@@ -148,7 +149,44 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
         sfx2D("ph_selct", 0.6f, 1.2f);
         titleHold_ = 0;
     }
-    if (dx != 0 && (titleRow_ == kTitleSkirmish || titleRow_ == kTitleSkTeam)) {
+    // Joining: listen for games on the LAN while that's chosen; a welcome loads the host's map.
+    if (skNetWant_ == 2) {
+        if (skClient_.state == SkNetClient::State::Idle || skClient_.state == SkNetClient::State::Lost) skClient_.search();
+        SkNetSelf none;
+        Skirmish scratch;
+        skClient_.update(dt, none, scratch);
+        skClient_.games.erase(std::remove_if(skClient_.games.begin(), skClient_.games.end(), [](const SkNetGame& g) { return g.age > 4.0f; }),
+                              skClient_.games.end());
+        titleSkGame_ = std::max(0, std::min(int(skClient_.games.size()) - 1, titleSkGame_));
+        if (titleJoining_ && skClient_.state == SkNetClient::State::Joined) {
+            titleJoining_ = false;
+            skWantTeam_ = skClient_.myTeam;
+            title_ = false;
+            haveRestore_ = false;
+            firstBriefDone_ = true;
+            setPlayMode(true, in);
+            beginLoading(std::string(), in);
+            load_.world = skClient_.map;
+            load_.worldMission.clear();
+            load_.title = "JOINING " + skClient_.map;
+            LOGI("Main menu: joined the game on %s", skClient_.map.c_str());
+            return;
+        }
+        if (titleJoining_ && skClient_.state == SkNetClient::State::Lost) titleJoining_ = false;
+    } else if (skClient_.state == SkNetClient::State::Searching) {
+        skClient_.leave();
+    }
+    if (dx != 0 && titleRow_ == kTitleSkMode) {
+        skNetWant_ = (skNetWant_ + dx + 3) % 3;
+        titleJoining_ = false;
+        haptics_.push_back({kRight, 0.3f, 0.03f});
+        sfx2D("ph_selct", 0.6f, 1.2f);
+    }
+    if (dx != 0 && titleRow_ == kTitleSkirmish && skNetWant_ == 2 && !skClient_.games.empty()) {
+        titleSkGame_ = (titleSkGame_ + dx + int(skClient_.games.size())) % int(skClient_.games.size());
+        haptics_.push_back({kRight, 0.3f, 0.03f});
+        sfx2D("ph_selct", 0.6f, 1.2f);
+    } else if (dx != 0 && (titleRow_ == kTitleSkirmish || titleRow_ == kTitleSkTeam)) {
         if (titleRow_ == kTitleSkirmish) titleSkMap_ = (titleSkMap_ + dx + 12) % 12;
         else titleSkTeam_ = (titleSkTeam_ + dx + skTeams(titleSkMap_)) % skTeams(titleSkMap_);
         titleSkTeam_ = std::min(titleSkTeam_, skTeams(titleSkMap_) - 1);
@@ -183,7 +221,14 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
             if (titleRow_ == kTitleContinue && !titleWorld_.empty()) startFromTitle(titleWorld_, titleMission_, true, in);
             else if (titleRow_ == kTitleNewGame) startFromTitle(kStoryWorld[titleCampaign_], std::string(), false, in);
             else if (missionRow) startChosenMission(in);
-            else if (titleRow_ == kTitleSkirmish || titleRow_ == kTitleSkTeam) {
+            else if ((titleRow_ == kTitleSkMode || titleRow_ == kTitleSkirmish || titleRow_ == kTitleSkTeam) && skNetWant_ == 2) {
+                // Join the chosen game (its welcome, in a moment, starts the load above).
+                if (!skClient_.games.empty() && !titleJoining_) {
+                    titleJoining_ = skClient_.join(skClient_.games[size_t(titleSkGame_)].host, "QUEST", titleSkTeam_);
+                    sfx2D("pu_hlth", 0.6f, 1.2f);
+                }
+            }
+            else if (titleRow_ == kTitleSkMode || titleRow_ == kTitleSkirmish || titleRow_ == kTitleSkTeam) {
                 // A skirmish doesn't touch the campaign's checkpoint.
                 skWantTeam_ = titleSkTeam_;
                 title_ = false;
@@ -249,9 +294,21 @@ void GameApp::renderTitle() {
         ms = titleHold_ > 0.05f && titleRow_ == kTitleMission ? "HOLD... " + std::to_string(int(std::ceil(1.5f - titleHold_)))
                                                               : "MISSION:  < " + std::to_string(titleMissionSel_ + 1) + ". " + (t.empty() ? wm.second : t) + " >";
     }
-    const std::string sk = "MULTIPLAYER:  < " + skMapLabel(titleSkMap_) + " >";
+    const std::string mode = std::string("MULTIPLAYER:  < ") + kSkModes[skNetWant_] + " >";
+    std::string sk = "   MAP:  < " + skMapLabel(titleSkMap_) + " >";
+    if (skNetWant_ == 2) {
+        if (titleJoining_) sk = "   JOINING...";
+        else if (skClient_.games.empty()) sk = "   LOOKING FOR GAMES ON THIS WI-FI...";
+        else {
+            const SkNetGame& g = skClient_.games[size_t(std::min<int>(titleSkGame_, int(skClient_.games.size()) - 1))];
+            int mapIdx = 0;
+            for (int i = 0; i < 12; ++i)
+                if (toLower(kSkMaps[i]) == toLower(g.map)) mapIdx = i;
+            sk = "   GAME:  < " + skMapLabel(mapIdx) + " AT " + g.host.str().substr(0, g.host.str().find(':')) + " (" + std::to_string(g.players) + ") >";
+        }
+    }
     const std::string skt = "   YOUR TEAM:  < " + skTeamLabel(titleSkMap_, titleSkTeam_) + " >";
-    const std::string rows[kTitleRowCount] = {cont, ng, ms, sk, skt, "OPTIONS"};
+    const std::string rows[kTitleRowCount] = {cont, ng, ms, mode, sk, skt, "OPTIONS"};
     float tw, th;
     for (int i = 0; i < kTitleRowCount; ++i) {
         const float y = 0.5f * h - 0.08f - rowH * (0.5f + float(i));

@@ -2925,7 +2925,7 @@ void GameApp::startDeath() {
         sfx2D(hero_ == Hero::Kabuto ? (frand() < 0.5f ? "ka_deth1" : "ka_deth2") : "me_shrt3", 1.0f, 0.85f);
         if (deathCause_ != DeathCause::Drowned) blood_.pool(player_.position, 1.4f);
     }
-    if (skirmish_) sk_.localDied(skLocal_);
+    if (skirmish_ && skNet_ != SkNetMode::Join) sk_.localDied(skLocal_);  // (a joiner's death goes to the host with its state)
     static const char* const kCause[] = {"shot", "bitten", "eaten in the water", "blown apart", "fell"};
     LOGI("Player died (%s)", kCause[int(deathCause_)]);
 }

@@ -17,6 +17,7 @@
 #include "assets/fx_defs.h"
 #include "game/fx_player.h"
 #include "game/skirmish.h"
+#include "game/sk_net.h"
 #include "scene/model_cache.h"
 #include "core/math.h"
 #include "game/test_script.h"
@@ -1647,8 +1648,83 @@ static void testSkirmish() {
                 sk.teams[0].captures, sk.teams[1].captures, sk.teams[0].kills, sk.teams[1].kills);
 }
 
+static void testSkNet() {
+    // A host on localhost with one bot a side, and a joiner, exchanging packets as two games would.
+    Skirmish host;
+    host.groundAt = [](float, float) { return 0.0f; };
+    host.setup({SkHero::Mecc, SkHero::Mecc}, {{-60, 0, 0}, {60, 0, 0}}, {});
+    host.rules.killLimit = 0;
+    PlayerController proto;
+    const int me = host.addPlayer("HOST", 0, false, true, proto);
+    const int bot = host.addPlayer("GREEN 1", 1, true, false, proto);
+    host.players[size_t(bot)].body.position = Vec3{55, 0, 30};  // out of the way
+    SkNetHost net;
+    CHECK(net.start("M_TEST", &host, 0));
+    int remoteId = -1;
+    net.addRemote = [&](const std::string& name, int team) {
+        remoteId = host.addPlayer(name, team < 0 ? 1 : team, false, false, proto);
+        host.players[size_t(remoteId)].remote = true;
+        return remoteId;
+    };
+    const NetAddr where{0x7F000001u, net.port()};
+    Skirmish mirror;
+    mirror.groundAt = host.groundAt;
+    mirror.setup({SkHero::Mecc, SkHero::Mecc}, {{-60, 0, 0}, {60, 0, 0}}, {});
+    mirror.mirror = true;
+    SkNetClient cl;
+    CHECK(cl.join(where, "JOINER", 1));
+    SkNetSelf self;
+    self.pos = Vec3{40, 0, 0};
+    float t = 0;
+    auto step = [&](int frames) {
+        for (int i = 0; i < frames; ++i, t += 1.0f / 60.0f) {
+            host.update(1.0f / 60.0f);
+            net.update(1.0f / 60.0f);
+            host.events.clear();
+            cl.update(1.0f / 60.0f, self, mirror);
+            mirror.update(1.0f / 60.0f);
+        }
+    };
+    step(60);
+    CHECK(cl.state == SkNetClient::State::Joined && cl.myId == remoteId && cl.myTeam == 1 && net.clients() == 1);
+    // The joiner sees the host's players where the host has them.
+    step(30);
+    CHECK(mirror.players.size() == host.players.size());
+    CHECK(length(mirror.players[size_t(me)].body.position - host.players[size_t(me)].body.position) < 1.0f);
+    // Its state moves its player on the host.
+    CHECK(length(host.players[size_t(remoteId)].body.position - Vec3{40, 0, 0}) < 0.01f);
+    // A hit it lands counts on the host (once, however often it's resent).
+    const float hp0 = host.players[size_t(me)].hp;
+    cl.hit(me, 30.0f, Vec3{});
+    step(30);
+    bool hurtHost = false;  // the host's own player: a HurtLocal for the host's game
+    (void)hp0;
+    host.damage(me, 0.0f, -1, Vec3{});
+    // Damage to the joiner's player reaches the joiner as an event.
+    host.damage(remoteId, 12.0f, me, Vec3{1, 2, 3});
+    net.update(0.0f);
+    host.events.clear();
+    step(30);
+    bool hurt = false;
+    for (const auto& e : cl.events) hurt = hurt || (e.kind == SkEvent::HurtLocal && e.b == remoteId && e.amount == 12.0f);
+    CHECK(hurt);
+    (void)hurtHost;
+    // Its death, reported, is a kill for whoever hit it last.
+    self.alive = false;
+    self.lastAttacker = me;
+    step(30);
+    CHECK(!host.players[size_t(remoteId)].alive && host.players[size_t(me)].kills == 1 && host.teams[0].kills == 1);
+    // ...and the joiner hears about it.
+    bool killMsg = false;
+    for (const auto& e : cl.events) killMsg = killMsg || (e.kind == SkEvent::Kill && e.b == remoteId && e.a == me);
+    CHECK(killMsg);
+    cl.leave();
+    net.stop();
+}
+
 int main() {
     testSkirmish();
+    testSkNet();
     testSoundTable();
     testFxLibrary();
     testFxAttach();

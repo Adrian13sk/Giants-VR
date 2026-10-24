@@ -221,7 +221,14 @@ int main(int argc, char** argv) {
     }
     double updSum = 0, updMax = 0;  // CPU time of GameApp::update (host; relative costs only)
     int updN = 0, updMaxF = -1;
+    // GVR_REALTIME=1: frames paced at 72 Hz of wall time (two harnesses playing over the network).
+    const bool realtime = std::getenv("GVR_REALTIME") != nullptr;
+    const auto pace0 = std::chrono::steady_clock::now();
     for (int f = 0; f < frames; ++f) {
+        if (realtime) {
+            const auto due = pace0 + std::chrono::microseconds(int64_t(f) * 1000000 / 72);
+            while (std::chrono::steady_clock::now() < due) {}
+        }
         if (jetFrom >= 0) in.hand[kRight].primary = f >= jetFrom && f < jetTo;
         if (gripFrom >= 0) in.hand[kRight].squeeze = f >= gripFrom && f < gripTo ? 1.0f : 0.0f;
         if (lgripFrom >= 0) in.hand[kLeft].squeeze = f >= lgripFrom && f < lgripTo ? 1.0f : 0.0f;

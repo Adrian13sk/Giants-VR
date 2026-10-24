@@ -102,6 +102,29 @@ double nowSeconds() {
     return ts.tv_sec + ts.tv_nsec * 1e-9;
 }
 
+// Wi-Fi drops broadcast packets to save power unless an app holds a multicast lock: without it the
+// LAN games' beacons (game/sk_net.h) don't arrive. Held for the app's lifetime (released on exit).
+void acquireMulticastLock(JNIEnv* env, jobject activity) {
+    if (!env || !activity) return;
+    auto clear = [env]() { if (env->ExceptionCheck()) { env->ExceptionClear(); return true; } return false; };
+    jclass ctx = env->FindClass("android/content/Context");
+    if (clear() || !ctx) return;
+    jmethodID getSys = env->GetMethodID(ctx, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+    jstring wifiName = env->NewStringUTF("wifi");
+    jobject wifi = getSys ? env->CallObjectMethod(activity, getSys, wifiName) : nullptr;
+    if (clear() || !wifi) { LOGW("Multicast lock: no Wi-Fi service"); return; }
+    jclass wm = env->GetObjectClass(wifi);
+    jmethodID create = env->GetMethodID(wm, "createMulticastLock", "(Ljava/lang/String;)Landroid/net/wifi/WifiManager$MulticastLock;");
+    jstring tag = env->NewStringUTF("giantsvr");
+    jobject lock = create ? env->CallObjectMethod(wifi, create, tag) : nullptr;
+    if (clear() || !lock) { LOGW("Multicast lock: unavailable"); return; }
+    jmethodID acquire = env->GetMethodID(env->GetObjectClass(lock), "acquire", "()V");
+    if (acquire) env->CallVoidMethod(lock, acquire);
+    if (clear()) { LOGW("Multicast lock: not granted"); return; }
+    env->NewGlobalRef(lock);  // kept: the lock is held while the app runs
+    LOGI("Multicast lock held (LAN games can be found)");
+}
+
 std::string dataDirectory(android_app* app) {
     // App-specific external storage needs no runtime permission:
     // /sdcard/Android/data/<package>/files/Bin  <- user copies the game's Bin folder here.
@@ -115,6 +138,7 @@ void android_main(android_app* app) {
     LOGI("GiantsVR starting (build %s %s)", __DATE__, __TIME__);
     JNIEnv* env = nullptr;
     app->activity->vm->AttachCurrentThread(&env, nullptr);
+    acquireMulticastLock(env, app->activity->clazz);
 
     AppState state;
     app->userData = &state;

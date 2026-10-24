@@ -68,6 +68,11 @@ struct SkPlayer {
     std::string name;
     int team = 0;
     bool bot = true, local = false;
+    bool remote = false;         // a player on another headset (online play): moved by the network
+    // Animation as the network gives it (remote players; and everyone on a joiner's mirror).
+    uint8_t netAnim = 0, netPrev = 0;
+    float netT = 0, netPrevT = 0, netFade = 1;
+    Vec3 netTarget;              // where the host last had it (a joiner's mirror eases toward it)
     PlayerController body;       // bots: driven by the skirmish; the local player: mirrored from the game
     float hp = 100, maxHp = 100;
     bool alive = true;
@@ -94,6 +99,7 @@ struct SkShot {                  // a bot's bolt or arrow
     Vec3 pos, vel;
     float life = 0, damage = 10, gravity = 0;
     SkHero hero = SkHero::Mecc;
+    bool visual = false;         // only drawn (another player's own shot: its hits come separately)
 };
 
 struct SkEvent {
@@ -149,6 +155,12 @@ public:
     // The local player, mirrored each frame (its health is the game's own).
     void setLocal(int id, const Vec3& pos, float yaw, float hp, bool alive);
     void localDied(int id);      // the game's death of the local player (counted as a kill for its attacker)
+    void remoteDied(int id, int killer);  // a remote player's own report of its death
+    void removePlayer(int id);   // gone (a joiner left): out of the game, its flag dropped, no death counted
+    // A joiner's copy: nothing is simulated here (the host's snapshots fill it); shots fly on.
+    bool mirror = false;
+    // Adds a player slot with a given id (a joiner's mirror of the host's players).
+    SkPlayer& mirrorPlayer(int id);
     // Nearest living player of another team to `p` (-1: none) within `range`.
     int nearestEnemy(int team, const Vec3& p, float range, bool needSight) const;
     float heightOf(const SkPlayer& p) const { return p.body.height; }

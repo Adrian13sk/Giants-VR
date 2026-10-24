@@ -324,13 +324,41 @@ void Skirmish::localDied(int id) {
     if (p && p->alive) kill(*p, p->lastAttacker);
 }
 
+void Skirmish::remoteDied(int id, int killer) {
+    SkPlayer* p = player(id);
+    if (!p || !p->alive) return;
+    p->lastAttacker = killer;
+    kill(*p, killer);
+}
+
+void Skirmish::removePlayer(int id) {
+    SkPlayer* p = player(id);
+    if (!p) return;
+    dropFlag(*p);
+    p->alive = false;
+    p->remote = false;
+    p->bot = false;
+    p->deadT = -1e9f;  // (never respawned)
+}
+
+SkPlayer& Skirmish::mirrorPlayer(int id) {
+    while (int(players.size()) <= id) {
+        SkPlayer p;
+        p.id = int(players.size());
+        p.alive = false;
+        p.bot = false;
+        players.push_back(p);
+    }
+    return players[size_t(id)];
+}
+
 void Skirmish::damage(int victim, float amount, int attacker, const Vec3& from) {
     SkPlayer* v = player(victim);
     if (!v || !v->alive || winner >= 0) return;
     const SkPlayer* a = player(attacker);
     if (a && a->id != v->id && a->team == v->team && !rules.friendlyFire) return;
     v->lastAttacker = attacker;
-    if (v->local) {
+    if (v->local || v->remote) {  // its own game applies it (a remote player's: sent over the network)
         SkEvent e;
         e.kind = SkEvent::HurtLocal;
         e.a = attacker;
@@ -546,7 +574,8 @@ void Skirmish::updateShots(float dt) {
         const Vec3 from = s.pos;
         s.vel.y -= s.gravity * dt;
         s.pos = s.pos + s.vel * dt;
-        if (s.pos.y < ground(s.pos) || s.life > 3.0f || !clear(from, s.pos)) { s.life = 1e9f; continue; }
+        if (s.life > 3.0f || (!mirror && (s.pos.y < ground(s.pos) || !clear(from, s.pos)))) { s.life = 1e9f; continue; }
+        if (s.visual || mirror) continue;  // drawn only: its hits are reported by whoever fired it
         // A player within reach of the segment.
         const Vec3 seg = s.pos - from;
         const float L = length(seg);
@@ -654,6 +683,10 @@ void Skirmish::update(float dt) {
     if (dt <= 0) return;
     time += dt;
     routesThisUpdate = 0;
+    if (mirror) {  // a joiner: the host decides; only the shots fly on between snapshots
+        updateShots(dt);
+        return;
+    }
     if (winner >= 0) return;
     for (auto& p : players) {
         p.firing = false;
@@ -662,7 +695,7 @@ void Skirmish::update(float dt) {
             if (p.bot && p.deadT >= rules.respawnSeconds) spawn(p.id);
             continue;
         }
-        if (!p.bot) continue;
+        if (!p.bot) continue;  // the local and remote players move themselves
         p.fireCool -= dt;
         p.think -= dt;
         if (p.think <= 0) {
