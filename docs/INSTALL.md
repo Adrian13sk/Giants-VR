@@ -146,6 +146,11 @@ Options → NEW GAME: choose **REAPER STORY (DELPHI)** with the stick, hold the 
   straight ahead), about one a second. The HUD's fire icon is lit when it's ready.
 - In first person her body isn't drawn (you see the controllers and the sword).
 
+**Delphi's spells** (move-hand trigger): a **tap** throws her fire bolt - or, aimed at a Smartie, a **bubble** that catches
+it and floats it to you. **Hold and release** after about a second: a **fire wall** rolls forward, burning everything in
+its path. In the battles (from Sappho's Fleet on), hold longer (the glow in your hand turns blue): a **tornado** - the
+only thing that brings down an army barracks.
+
 ## Kabuto (Kabuto story)
 Options → NEW GAME: choose **KABUTO STORY** with the stick, hold the trigger 2 s. You are the giant: the world is
 scaled so your eyes are at his height (about 13 m). The HUD and menu stay their normal size.

@@ -403,3 +403,6 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   (2b_2 1.96 → 0.66 ms, kstory4_1 1.20 → 0.66 ms; host x86, relative).
 - Mesa's host GL reports GL_OVR_multiview2, so a one-pass stereo renderer could be checked on the host.
 - **Not device-tested.**
+- Delphi's spells (build d6ef359): rstory2_battle_1 - a tornado destroys the army barracks (objective done, mission
+  complete); fire wall renders and burns; r1_smartiegrab - the bubble catches the Smartie 20 m away and sets it down by
+  Delphi (third person; the harness's first-person controller pose points elsewhere).

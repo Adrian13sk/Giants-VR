@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-24 (build 075a50f: flares, bush pack, Kabuto growth, host performance pass)
+Last updated: 2026-10-24 (build d6ef359: Delphi/Kabuto first-person bodies, Delphi's spells, CPU pass 2)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -29,6 +29,9 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
+**Also done 2026-10-24:** Delphi and Kabuto have first-person bodies with arm IK; Delphi's fire wall, bubble and
+tornado; all 56 missions pass a headless sweep (scripts/mission_sweep.sh).
+
 **Saved-for-later items, done 2026-10-24 (host verified, waiting for device test 26):**
 - Story 2's bush-pack disguise (14386c1).
 - Flares against homing missiles, from any level's Shop (41f2a89).

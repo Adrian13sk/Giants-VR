@@ -1231,3 +1231,19 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Objects under ~0.5° across are culled (1a tower view: 508 → 471 draw calls per eye).
 - Not done, needs the headset: GPU timing; multiview (one pass for both eyes) would halve draw calls but changes the
   swapchain and every shader - not attempted blind.
+
+### 2026-10-24 — First-person bodies for Delphi and Kabuto, CPU pass 2, Delphi's spells (builds 07bbbc8 … d6ef359)
+- **First-person bodies:** Delphi (rp_l0) and Kabuto (kb_l0) get the Meccaryn's treatment - head hidden, eye point from
+  the idle pose, arm IK to the controllers. Chains: Delphi L_shoulder > L_arm01 > L_arm02 > L_arm03 (fingers ordered index
+  to little by distance from the thumb: L_fingers11/10/06/01, R_finger13/01/06/02); Kabuto L_shoulder > L-arm > L_wrist >
+  L_hand (two fingers left, three and a thumb right). The IK chain needs two fingers to orient the hand (ArmChain::valid);
+  without them it silently did nothing. The body's scale now includes the view's world scale, so Kabuto's is giant.
+- **CPU pass 2:** Reaper animation LOD (every frame < 25 m, every 2nd < 60 m, every 4th beyond; ×3 for Kabuto); line of
+  sight re-checked every 0.15–0.25 s. `scripts/mission_sweep.sh` runs all 56 missions: exit 0, no errors; mean update
+  0.34 → 0.27 ms on the host.
+- **Delphi's spells** (from the briefings: fire wall r1_saveyan, bubble r1_turbo, tornado for the barracks): tap = fire
+  bolt or, aimed at a Smartie, a bubble that brings it to her; hold 0.7 s = fire wall (EFX_fire_roll × 7, 3 s, 6 m/s);
+  hold 1.6 s in the battles = tornado (EFX_swirl funnel, 7 s). As Delphi only the tornado damages guard_army_barracks.
+  Harness: rstory2_battle_1 completes with one tornado; the bubble catches the r1_smartiegrab Smartie and sets it down
+  by her. The real spells' numbers are native code (ours).
+- **Not device-tested.**
