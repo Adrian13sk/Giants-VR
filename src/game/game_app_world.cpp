@@ -479,6 +479,7 @@ void GameApp::buildBatches() {
         jetGlowBatch_.add(q, col);
     }
     jetGlowBatch_.upload(renderer_);
+    buildMapBatch();
 }
 
 void GameApp::renderFx() {

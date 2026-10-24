@@ -671,6 +671,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     }
     updatePickups(dt, in);
     updateShop(dt, in);
+    updateMap(dt, in);
     placeCamera(dt, false, &in);
     if (!playerModel_) return;
     if (firstPerson_ && hero_ != Hero::Kabuto) {
@@ -3585,6 +3586,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     }
     renderBurrows(v.eyePosition);
     renderShop();
+    renderMap();
     for (const auto& sp : creatures_.spits) {
         const int k = int(sp.size);
         if (k > 0 && spitBall_[k])

@@ -502,6 +502,26 @@ private:
     void initShop();
     void updateShop(float dt, const InputFrame& in);
     void renderShop();
+    // The VR map (game_app_map.cpp).
+    bool mapOpen_ = false, mapDirty_ = false;
+    ButtonEdge mapEdge_;
+    MeshId mapMesh_ = 0;
+    TextureId dotTex_ = 0;
+    QuadBatch mapDots_;
+    std::vector<Vertex> mapVerts_;
+    std::vector<Vec3> mapBase_;
+    std::vector<uint8_t> explored_;
+    std::string mapWorld_;
+    Vec3 mapMin_, mapMax_, mapOffset_;
+    float mapScale_ = 1, mapOpenT_ = 0, exploreT_ = 0;
+    void mapReset();
+    bool buildMapMesh();
+    void recolourMap();
+    void updateMap(float dt, const InputFrame& in);
+    Mat4 mapTransform() const;
+    Vec3 mapPoint(const Vec3& world, float lift) const;
+    void buildMapBatch();
+    void renderMap();
     int timmyYell_[3] = {-1, -1, -1}, timmyClip_ = 0, timmyPrevClip_ = 0;
     float timmyClipT_ = 0, timmyPrevT_ = 0, timmyIdleT_ = 0, timmyFade_ = 1, timmyYellIn_ = 3, timmyLastTime_ = 0;                       // model-frame nudge of the seat (m)
     int timmyType_ = 583;
