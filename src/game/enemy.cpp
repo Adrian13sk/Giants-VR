@@ -134,6 +134,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
     shooters.clear();
     pokeStarted = pokeFound = false;
     landed.clear();
+    siegeShots.clear();
     for (size_t i = 0; i < enemies.size(); ++i) {
         Enemy& e = enemies[i];
         e.stateTime += dt;
@@ -168,6 +169,18 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
         switch (e.state) {
             case EnemyState::Idle: {
                 if (!playerAlive) e.aware = false;
+                if (e.siege && e.alert <= 0 && e.poke < 0) {
+                    // Firing at a building: bursts as at the player, aimed at the target.
+                    turn(std::atan2(-(e.siegeAt.x - e.pos.x), -(e.siegeAt.z - e.pos.z)));
+                    setClip(e, EnemyClip::Fire, true);
+                    e.fireCooldown -= dt;
+                    if (e.fireCooldown <= 0) {
+                        if (e.burstLeft <= 0) e.burstLeft = params.burstSize;
+                        siegeShots.push_back(int(i));
+                        e.fireCooldown = --e.burstLeft > 0 ? params.fireInterval : params.burstPause;
+                    }
+                    break;
+                }
                 if (e.alert > 0) {
                     // Noticed: stops, turns to the player with the alert scan, then acts.
                     setClip(e, EnemyClip::Alert, true);

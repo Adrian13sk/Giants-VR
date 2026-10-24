@@ -59,6 +59,10 @@ struct Enemy {
     Vec3 vel;               // Falling: knocked off its post (the tower collapsed under it)
     float fallFrom = 0;     // height it fell from
     int postObject = -1;    // the structure it stands on (game layer's world object index)
+    // Besieging (set by the game layer: a raider at a building): while unaware of the player it
+    // stands facing `siegeAt` and fires bursts at it (reported in EnemyDirector::siegeShots).
+    bool siege = false;
+    Vec3 siegeAt;
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
 
@@ -102,6 +106,7 @@ public:
     bool pokeStarted = false, pokeFound = false;  // this frame: a Reaper went to poke the bush / found him
     std::vector<Enemy> enemies;
     std::vector<int> landed;  // this frame: enemies killed by a fall (landed hard)
+    std::vector<int> siegeShots;  // this frame: besieging enemies that fired at their target
 
     int spawn(const Vec3& pos, float yaw);
     // Advances AI. `shooters` receives the indices of enemies that fire a shot this frame.

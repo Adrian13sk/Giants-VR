@@ -3282,6 +3282,16 @@ void GameApp::updateCombat(float dt) {
         enemyFire_.spawnShot(muzzle, dir);
         sfx("rh_sprsh", muzzle, 0.8f, 0.9f + 0.2f * frand());
     }
+    // Raiders firing at a base building (game_app_base.cpp sets Enemy::siege).
+    for (int i : enemies_.siegeShots) {
+        const Enemy& e = enemies_.enemies[size_t(i)];
+        const Quat r = Quat::fromAxisAngle({0, 1, 0}, e.yaw);
+        const Vec3 muzzle = e.pos + Vec3{0, 1.5f, 0} + r.rotate(Vec3{0.3f, 0, -0.6f});
+        Vec3 dir = normalize(e.siegeAt - muzzle);
+        dir = normalize(dir + Vec3{frand() - 0.5f, (frand() - 0.5f) * 0.4f, frand() - 0.5f} * 0.08f);
+        enemyFire_.spawnShot(muzzle, dir);
+        sfx("rh_sprsh", muzzle, 0.6f, 0.9f + 0.2f * frand());
+    }
     enemyFire_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
     // Next wave after the last Reaper has fallen.
     { GVR_PROF("chars"); updateCharacters(dt); }

@@ -1553,3 +1553,7 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Base crew: with a living enemy within 12 m a Smartie drops tools and cowers (sm_cower), and a site with an enemy
   within 15 m stops progressing (smchbaseattack2: "It's hard to work when you're being shot at"). Ours.
 - Mission select gives the rocket launcher for any mission after 1b (the campaign would have).
+- Raiders at a building now besiege it: Enemy::siege (set by the base layer) makes an unaware Reaper stand, face the
+  building and fire its bursts at it (Fire clip, the usual burst cadence, real enemy bolts with sound) instead of
+  idling beside it; the stuck-raider rescue skips besiegers. Harness 5c: raiders "siege 1" at the walls, walls A/B
+  destroyed, Borjoyzee kidnapped. Damage to buildings is still the proximity rate (6 hp/s), not per bolt.

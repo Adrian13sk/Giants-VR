@@ -633,10 +633,11 @@ void GameApp::updateRaids(float dt) {
             LOGI("Raider %u gone (%s)", uid, e ? "dead" : "removed");
             continue;
         }
+        if (e->aware || rd.back || rd.route >= 0) e->siege = false;
         // Stuck (ground too steep for the Reaper AI, or a rock in the way - the army paths cross
         // ridges): after 3 s without progress while marching, it gets past - 10 m on toward its
         // goal, or a step aside if the player is watching from close by (ours).
-        if (!e->aware) {
+        if (!e->aware && !e->siege) {  // (a raider firing at a building stands still on purpose)
             if (length(Vec3{e->pos.x - rd.lastPos.x, 0, e->pos.z - rd.lastPos.z}) > 1.0f) {
                 rd.lastPos = e->pos;
                 rd.stuckT = 0;
@@ -656,8 +657,8 @@ void GameApp::updateRaids(float dt) {
         }
         static const bool trace = std::getenv("GVR_BASE_TRACE") != nullptr;
         if (trace && int(base_.traceT) % 10 == 0 && int(base_.traceT - dt) % 10 != 0)
-            LOGI("raider %u at (%.1f %.1f) home (%.1f %.1f) state %d aware %d route %d next %zu snatch %d back %d", uid, e->pos.x, e->pos.z,
-                 e->home.x, e->home.z, int(e->state), int(e->aware), rd.route, rd.next, int(rd.snatch), int(rd.back));
+            LOGI("raider %u at (%.1f %.1f) home (%.1f %.1f) state %d aware %d route %d next %zu snatch %d back %d siege %d", uid, e->pos.x, e->pos.z,
+                 e->home.x, e->home.z, int(e->state), int(e->aware), rd.route, rd.next, int(rd.snatch), int(rd.back), int(e->siege));
         // Carrying the leader off: back the way it came, to the path's start (the barracks' side).
         if (rd.back) {
             alive.push_back(rd);
@@ -738,11 +739,14 @@ void GameApp::updateRaids(float dt) {
             e->patrolWait = 0;
             e->stateTime = 0;
         }
+        e->siege = false;
         for (auto& b : base_.bldgs) {
             if (b.state != 3 || b.def == 0) continue;
             const Vec3 bp{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
             const Vec3 d{bp.x - e->pos.x, 0, bp.z - e->pos.z};
             if (d.x * d.x + d.z * d.z > 10.0f * 10.0f) continue;
+            e->siege = true;  // stands and fires at it (enemy.cpp)
+            e->siegeAt = bp + Vec3{0, 2.0f, 0};
             b.hp -= 6.0f * dt;
             b.hitT = float(time_);
             if (frand() < dt * 2.0f) {
