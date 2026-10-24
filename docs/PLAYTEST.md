@@ -21,6 +21,9 @@ there; the launcher comes in Story 3's launcher mission (or from a Shop).
 - [ ] Each gun sits right in the hand (grip at the handle, barrel forward) in first and third person; the handgun
       rides on your right thigh while a long gun is out.
 - [ ] The weapon strip at the top lists only what you carry, with ammo counts.
+- [ ] **34. r4a (Delphi)**: right stick forward cycles sword -> bow -> RPG bow -> sniper bow. Grab the string with
+      your left hand, pull back, let go: does the string follow your hand, does the arrow go where the bow points, is
+      the draw distance comfortable? Also the right-trigger draw. Is the bow the right size in your hand?
 
 ## 1. Base building
 **22. 5c "The Battle!" (Meccaryn)**

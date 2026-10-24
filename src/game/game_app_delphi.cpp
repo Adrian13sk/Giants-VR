@@ -211,6 +211,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
         playerHealth_ = std::min(100.0f, playerHealth_ + 6.0f * dt);
         healFlash_ = std::max(healFlash_, 0.15f);
     }
+    updateBow(dt, in);  // her bows (game_app_bow.cpp); with one in hand the sword is put away
     const int gh = rig_.turnHand(), mh = rig_.moveHand();
     for (auto& c : swordCool_) c.second -= dt;
     swordCool_.erase(std::remove_if(swordCool_.begin(), swordCool_.end(), [](const std::pair<int, float>& c) { return c.second <= 0; }),
@@ -222,7 +223,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
     };
     // --- The sword: in the weapon hand (first person: the controller, blade along where it
     // points; third person: Ref_Rhand as the original attaches it).
-    if (swordModel_) {
+    if (swordModel_ && delphiWeapon_ < 0) {
         if (firstPerson_) {
             const ControllerState& c = in.hand[gh];
             if (c.gripPoseValid) {
@@ -286,7 +287,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
     // Third person: the trigger swings - a three-swipe combo, the hit landing a third of the way in.
     const bool trig = in.hand[gh].trigger > 0.6f;
     comboTimer_ = std::max(0.0f, comboTimer_ - dt);
-    if (!firstPerson_ && trig && !swipeTrigWas_ && swipeT_ < 0 && player_.onGround) {
+    if (!firstPerson_ && trig && !swipeTrigWas_ && swipeT_ < 0 && player_.onGround && delphiWeapon_ < 0) {
         comboStep_ = comboTimer_ > 0 ? (comboStep_ + 1) % 3 : 0;
         const PlayerAnim a = PlayerAnim(int(PlayerAnim::Attack1) + comboStep_);
         const float dur = std::max(0.3f, player_.oneShot[int(a)]);

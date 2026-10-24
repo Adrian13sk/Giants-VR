@@ -276,6 +276,32 @@ private:
     float gunCooldown_ = 0;
     void updateAmmoPickups(float dt);
     void renderAmmoPickups();
+    // Delphi's bows (game_app_bow.cpp): weapondefs items 44 bow (rp_bow), 45 RPG bow (rp_bow_rpg), 46 sniper bow
+    // (rp_bow_sniper), handed out in r1_smartiegrab (45) and r4a (44 45 46). Right stick forward switches
+    // sword <-> bows. Draw with the other hand (grab the string and pull) or hold the trigger; let go to shoot.
+    enum { kBowPlain = 0, kBowRpg, kBowSniper, kNumBows };
+    struct Bow {
+        const char* name = "";
+        int item = -1;
+        const RenderModel* model = nullptr;
+        bool have = false;
+        float damage = 2.5f, interval = 1.0f;  // full draw, x the handgun's
+        int ammo = -1, maxAmmo = -1, startAmmo = 0;  // -1: no ammo needed
+    };
+    Bow bows_[kNumBows];
+    int delphiWeapon_ = -1;  // -1 the sword, else a bow
+    bool bowsReady_ = false, bowValid_ = false, bowDrawing_ = false, bowByHand_ = false, bowSwitchArmed_ = true, bowTrigWas_ = false, bowGripWas_ = false;
+    float bowDraw_ = 0, bowCooldown_ = 0, bowScale_ = 0.75f;
+    Mat4 bowXf_ = Mat4::identity();
+    Vec3 bowTips_[2], bowNockRest_, bowNock_, bowFwd_, bowGrip_;
+    QuadBatch bowLines_;
+    bool bowLinesInit_ = false, bowLinesShown_ = false;
+    const RenderModel* arrowModel_ = nullptr;
+    void initBows();
+    bool grantBowItem(uint32_t item);
+    void updateBow(float dt, const InputFrame& in);
+    void buildBowLines();
+    void renderBow();
     // The sniper gun's zoom: its side screen (the model's third part, beside the "screen" node) shows
     // the view down the barrel at 4x, rendered offscreen while the gun is held close to the eye.
     bool scopeWanted_ = false, scopeShown_ = false, scopeInit_ = false;
@@ -298,7 +324,9 @@ private:
     bool switchArmed_ = true;
     float rocketCooldown_ = 0;
     bool rocketTriggerHeld_ = false;
-    struct Rocket { Vec3 pos, vel; float life; int kind = 0; int bounces = 0; };  // kind 0 rocket, 1 Delphi's fire bolt, 2 a SAM's homing missile, 3 a Reaper's bazooka rocket, 4 a shotgun shell, 5 a Millenium bomb, 6 a grenade
+    // kind 0 rocket, 1 Delphi's fire bolt, 2 a SAM's homing missile, 3 a Reaper's bazooka rocket, 4 a shotgun shell,
+    // 5 a Millenium bomb, 6 a grenade, 7 Delphi's RPG-bow arrow. dmg: the direct hit (x the handgun's), 0 = the kind's own.
+    struct Rocket { Vec3 pos, vel; float life; int kind = 0; int bounces = 0; float dmg = 0; };
     // Reaper soldiers' weapons (game_app_rpweapons.cpp): 0 spear gun, 1 bazooka.
     struct RpWeapon { const RenderModel* model = nullptr; Mat4 handleInv = Mat4::identity(), nozzle = Mat4::identity(); };
     RpWeapon rpWeapon_[2];

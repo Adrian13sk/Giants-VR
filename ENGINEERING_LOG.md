@@ -1623,3 +1623,24 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Harness (story3_bunker_3, a Reaper spawned ahead, auto-aim): sniper at 40 m - 1 hit, dead; shotgun at 15 m - one
   direct shell, dead; machine gun at 15 m - dead after 8 hits; handgun - 5 hits. 1c: "Picked up 2 rounds for the
   shotgun (27)". The three new guns render in hand in first person (screenshots checked).
+
+### 2026-10-24 — Delphi's bows (weapondefs items 44-46)
+- Data: items 44 IconRBBow (rp_bow), 45 IconRBRPG (rp_bow_rpg; ammo item 55, 35 max / 25 given), 46 IconRBSniper
+  (rp_bow_sniper; ammo 57, 15 / 8). r1_smartiegrab lists 45, r4a 44 45 46. Weapon records by effect: fxb_bow_rpg 40
+  every 1.3 s with a small blast, fxb_bow_sniper 80 every 1.5 s at 2500. The plain bow has no effect to match: ours
+  30 every 1.0 s. Models: riser at the origin, limbs curving back toward the archer (+Y game) to tips at (0, 2.1,
+  +-3.2) (offline side plot of the triangles); the string is not modelled. Sounds by name: SR_RBW*/RPG*/SBW* (PL pull,
+  SH shot), SR_STORB/STORP/STOSB sword -> bow, SR_BTOSW back. rparrow.gbs is a streak (b_streak2) used for RPG arrows.
+- Ours (game_app_bow.cpp): right stick forward cycles sword -> bows -> sword (the sword is put away). First person:
+  the bow in the turn hand along the controller's aim, ~1 m tall; the move hand's grip within 25 cm of the string
+  starts a draw, pulling back up to 60 cm sets the power (string drawn to the hand, an arrow shaft shown, haptic
+  ticks), letting go shoots from the hand through the riser; that grip doesn't turbo meanwhile. The bow hand's
+  trigger also draws (0.7 s to full; third person always). Power 35-100 % of the record's damage, speed 25-75 m/s
+  (sniper up to 200). RPG arrows are rockets of kind 7 (a direct hit plus a 1.8 m burst, like the shotgun shell).
+  The HUD shows arrows left under the sword icon; Shops' AMMO box refills them (and appears in Delphi's levels).
+  Saved per checkpoint (bowN=<arrows>).
+- Fix found on the way: the bolts of weapon_ only moved in updateWeapon (Meccaryn only); Delphi's update now advances
+  them too.
+- Harness (r4a, a Reaper spawned ahead, auto-aim, trigger draw): bow - 2 arrows, 2 hits, dead; RPG bow at 25 m - one
+  arrow, dead; sniper bow at 25 m - one hit, dead. Renders: third person Delphi holds the bow upright in her right
+  hand; first person the bow in the right hand.

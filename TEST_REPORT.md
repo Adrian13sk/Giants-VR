@@ -589,3 +589,12 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 - Shop ammo (1d): the counter lays out 4 goods (launcher, injection, flares, AMMO); taking the AMMO box was not
   reached by the harness's walk (logic only).
 - **Not device-tested.** Sound names (ME_RSGSH, ME_SPRSH, ME_MCH*, ME_MTR*, ME_GRN*) are guesses from the file names.
+
+## Host verification — Delphi's bows
+- Unit test: save round trip with bows and arrows (unlimited = -1). `build/host/gvr_tests`: all passed.
+- r4a, trigger draw with auto-aim at a spawned Reaper: bow 2/2 hits (killed), RPG bow killed at 25 m with one arrow,
+  sniper bow killed at 25 m with one hit. Hand draw (new harness input `--lgrip-window`): the left hand moved to the
+  string (0.09 m), gripped, the bow hand pushed 0.5 m forward -> "Arrow from the BOW at 76% draw", shot from the hand
+  through the riser. Sweep with every bow and the RPG bow drawn (GVR_BOWS=1 GVR_DELPHI_WEAPON=1): 56/56 exit 0,
+  0 errors, arrows loosed in the 11 Delphi missions. **Not device-tested.**
+- Plain sweeps: on a317ed1 (before the bows) and with the bows: 56/56 exit 0, 0 errors each.

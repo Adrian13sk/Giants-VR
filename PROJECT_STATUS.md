@@ -33,7 +33,8 @@ original Giants data and renders the original worlds in stereo.
 and item tables). The missions now hand out the original's guns: shotgun (1c on, shell pickups in Story 1-2), sniper
 gun (story3_bunker_3), rocket launcher (story3_launcher_5, was 1c - an earlier misreading), Millenium mortar (4a),
 machine gun and grenades (5a; thrown by hand), with damage / rate / ammo from the records; the sniper's side screen
-shows a 4x zoom when raised to the eye. Still to do: launcher ammo, mines.
+shows a 4x zoom when raised to the eye. Delphi gets her bows from the same table (bow, RPG bow, sniper bow; drawn
+by hand in VR). Still to do: launcher ammo, mines, Delphi's homing / power-up bows (not handed out by any mission).
 **Base building v1, 2026-10-24 (host verified, not device-tested):** mission 5c builds the Meccaryn base from the
 game's own template and build animations; Build Pad sign menu touched by hand, Vimp meat store. Next: collision,
 base attacks, pop-up bomb, Delphi's base (r4a).

@@ -64,7 +64,7 @@ void GameApp::openShopAt(const Vec3& centre) {
     shopItems_.clear();
     const int kinds[3] = {hasLauncher_ ? 1 : 0, 1, 2};
     for (int i = 0; i < 3; ++i) shopItems_.push_back({kinds[i], shopAt_, false});
-    if (hero_ == Hero::Mecc) shopItems_.push_back({4, shopAt_, false});
+    if (hero_ != Hero::Kabuto) shopItems_.push_back({4, shopAt_, false});
     LOGI("Shop opened at (%.1f %.1f %.1f)", centre.x, centre.y, centre.z);
 }
 
@@ -113,6 +113,8 @@ void GameApp::updateShop(float dt, const InputFrame& in) {
             for (auto& g : guns_)
                 if (g.have && g.ammo < g.maxAmmo) { g.ammo = g.maxAmmo; any = true; }
             if (grenades_ > 0 && grenades_ < grenadeMax_) { grenades_ = grenadeMax_; any = true; }
+            for (auto& b : bows_)
+                if (b.have && b.maxAmmo > 0 && b.ammo < b.maxAmmo) { b.ammo = b.maxAmmo; any = true; }
             if (!any) continue;  // nothing to fill: it stays for later
             LOGI("Shop: took ammo (guns filled)");
             sfx2D("pu_ammo", 1.0f);
@@ -202,6 +204,7 @@ void GameApp::renderShop() {
         if (!near || !text_.ready()) continue;
         bool ammoFull = true;
         for (const auto& g : guns_) ammoFull = ammoFull && (!g.have || g.ammo >= g.maxAmmo);
+        for (const auto& b : bows_) ammoFull = ammoFull && (!b.have || b.maxAmmo < 0 || b.ammo >= b.maxAmmo);
         const std::string label = it.kind == 4 ? (ammoFull ? "AMMO (FULL)" : "AMMO") : it.kind == 3 ? "POP-UP BOMB" : it.kind == 0 ? "ROCKET LAUNCHER"
                                   : it.kind == 2 ? (flares_ >= kMaxFlares ? "FLARES (FULL)" : "3 FLARES")
                                                  : (syringes_ >= kMaxSyringes ? "INJECTION (FULL)" : "HEALTH INJECTION");

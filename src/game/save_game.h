@@ -16,6 +16,9 @@ struct SaveGame {
     bool guns[4] = {false, false, false, false};
     int ammo[4] = {0, 0, 0, 0};
     int grenades = 0;
+    // Delphi's bows (items 44 bow, 45 RPG bow, 46 sniper bow) and their arrows (-1: unlimited).
+    bool bows[3] = {false, false, false};
+    int arrows[3] = {-1, -1, -1};
 };
 
 bool loadSaveGame(const std::string& path, SaveGame& out);

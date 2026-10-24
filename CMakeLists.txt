@@ -67,6 +67,7 @@ add_library(gvr_core STATIC
   src/game/game_app_rpweapons.cpp
   src/game/game_app_arsenal.cpp
   src/game/game_app_grenade.cpp
+  src/game/game_app_bow.cpp
   src/game/game_app_spells.cpp
   src/game/game_app_tags.cpp
   src/game/game_app_water.cpp

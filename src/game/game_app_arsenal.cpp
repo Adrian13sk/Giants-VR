@@ -127,6 +127,8 @@ void GameApp::initArsenal() {
 
 void GameApp::resetArsenal() {
     for (auto& g : guns_) { g.have = false; g.ammo = 0; }
+    for (auto& b : bows_) { b.have = false; b.ammo = b.maxAmmo < 0 ? -1 : 0; }
+    delphiWeapon_ = -1;
     grenades_ = 0;
     hasLauncher_ = false;
     weaponSel_ = 0;
@@ -134,6 +136,7 @@ void GameApp::resetArsenal() {
 
 void GameApp::grantItem(uint32_t item) {
     if (item == 14 && launcherModel_) { hasLauncher_ = true; return; }
+    if (item >= 44 && item <= 46) { grantBowItem(item); return; }  // Delphi's bows
     if (item == 8 && grenadeModel_) {  // grenades: topped up to what the item comes with
         grenades_ = std::min(grenadeMax_, std::max(grenades_, grenadeGive_));
         return;

@@ -58,6 +58,7 @@ int main(int argc, char** argv) {
     int viewFrames = 0, killShots = 0, killPlayerAt = -1, killCause = 0;
     bool killDemo = false;
     int trigPulse = 0;
+    int lgripFrom = -1, lgripTo = -1;
     float spawnReaper = 0;
     float blastX = 0, blastY = 0, blastH = 1;
     int blastN = 0, blastFrame = -1;
@@ -95,6 +96,7 @@ int main(int argc, char** argv) {
         else if (a == "--grip") gripAmount = std::atof(next());  // both grips 0..1
         else if (a == "--stick-up-window") { stickFrom = std::atoi(next()); stickTo = std::atoi(next()); }  // right stick forward
         else if (a == "--trigger-window") { trigFrom = std::atoi(next()); trigTo = std::atoi(next()); }
+        else if (a == "--lgrip-window") { lgripFrom = std::atoi(next()); lgripTo = std::atoi(next()); }  // left grip held
         else if (a == "--trigger-pulse") trigPulse = std::atoi(next());  // inside the trigger window: pulled for N frames, released for N
         else if (a == "--ltrigger-window") { ltrigFrom = std::atoi(next()); ltrigTo = std::atoi(next()); }  // left trigger
         else if (a == "--y-window") { yFrom = std::atoi(next()); yTo = std::atoi(next()); }  // Y (left secondary)
@@ -222,6 +224,7 @@ int main(int argc, char** argv) {
     for (int f = 0; f < frames; ++f) {
         if (jetFrom >= 0) in.hand[kRight].primary = f >= jetFrom && f < jetTo;
         if (gripFrom >= 0) in.hand[kRight].squeeze = f >= gripFrom && f < gripTo ? 1.0f : 0.0f;
+        if (lgripFrom >= 0) in.hand[kLeft].squeeze = f >= lgripFrom && f < lgripTo ? 1.0f : 0.0f;
         if (stickFrom >= 0) in.hand[kRight].thumbstick.y = f >= stickFrom && f < stickTo ? 1.0f : 0.0f;
         if (trigFrom >= 0) in.hand[kRight].trigger = f >= trigFrom && f < trigTo && (trigPulse <= 0 || ((f - trigFrom) / trigPulse) % 2 == 0) ? 1.0f : 0.0f;
         if (xFrom >= 0) in.hand[kLeft].primary = f >= xFrom && f < xTo;

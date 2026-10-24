@@ -665,6 +665,9 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.viewYaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : camYaw_;
     pi.jet = in.hand[th].primary;              // A
     pi.sprint = in.hand[mh].squeeze > 0.5f;    // move-hand grip
+    if (hero_ == Hero::Delphi && delphiWeapon_ >= 0 && firstPerson_ && (bowDrawing_ || (in.hand[mh].gripPoseValid &&
+        length(rig_.toWorld(in.hand[mh].gripPose).position - bowNockRest_) < 0.3f)))
+        pi.sprint = false;  // that grip is drawing her bowstring, not running
     if (!firstPerson_ && hero_ != Hero::Kabuto) {
         { GVR_PROF("tp aim"); updateThirdPersonAim(in, dt); }
         pi.aiming = tpAiming_;
@@ -874,7 +877,7 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "me_peas1", "me_peas2", "bi_dirt1", "bi_hit1", "bi_hit2", "ex_bdys1", "rh_sprsh", "rh_fsld1",
         "rpman_hit1", "rpman_hit2", "rpman_hit3", "rpman_hit4", "rpman_die1", "rpman_die2", "rpman_die3",
         "rpman_die4", "rpman_die5", "me_shrt1", "me_shrt2", "me_shrt3", "me_jpkst", "me_jpklp", "me_jpken",
-        "me_jpkno", "me_rsgsh", "me_rsgex", "me_sprsh", "me_mchst", "me_mchlp", "me_mchen", "me_outam", "pu_ammo", "me_mtrsh", "me_mtrht", "me_grnth", "me_grnex", "me_fsgr1", "me_fsgr2", "me_hdfl1", "me_hdfl2", "me_sld1", "me_slden",
+        "me_jpkno", "me_rsgsh", "me_rsgex", "me_sprsh", "me_mchst", "me_mchlp", "me_mchen", "me_outam", "pu_ammo", "me_mtrsh", "me_mtrht", "me_grnth", "me_grnex", "sr_rbwpl", "sr_rbwsh", "sr_rpgpl", "sr_rpgsh", "sr_sbwpl", "sr_sbwsh", "sr_storb", "sr_storp", "sr_stosb", "sr_btosw", "me_fsgr1", "me_fsgr2", "me_hdfl1", "me_hdfl2", "me_sld1", "me_slden",
         // Footsteps by surface, the swimming loop.
         "me_fsgr1", "me_fsgr2", "me_fssa1", "me_fssa2", "me_fsst1", "me_fsst2", "me_fswd1", "me_fswd2", "me_fswa1", "me_fswa2", "me_swmlp",
         // Cleaners eating a body.
@@ -1858,7 +1861,7 @@ void GameApp::initMission() {
     // 14 rocket launcher; game_app_arsenal.cpp). Item 3 was read as the launcher until the table was
     // decoded; 1c-2c place mc_pickup_shells, the shotgun's ammo, and Timmy's present at the end of 1b
     // (flk_story1_get_rpg*) is animated with "shotgun" / "Ref_shotgun" nodes.
-    if (m.setup[0] == 2) grantMissionItems(m.items, "mission start");
+    grantMissionItems(m.items, "mission start");  // (Reaper missions: her bows, items 44-46)
     if (std::getenv("GVR_LAUNCHER") && launcherModel_) hasLauncher_ = true;  // test hook
     // The world decides the hero (Reaper story: Delphi); she has no jetpack.
     // The mission's race (setup op 0x0B: 1 Kabuto, 2 Mecc, 3 Reaper) picks the hero - kstory5_5 is
@@ -1868,8 +1871,8 @@ void GameApp::initMission() {
     if (hero_ != Hero::Mecc) player_.jetpackAvailable = false;
     initBase();   // both depend on the hero just chosen (initCharacters may have run them with the last one)
     initPopup();
-    // A Meccaryn level's Shop also sells ammo for the guns he carries (ours).
-    if (shopOn_ && hero_ == Hero::Mecc && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 4; }))
+    // A level's Shop also sells ammo for the guns he carries / her bows' arrows (ours).
+    if (shopOn_ && hero_ != Hero::Kabuto && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 4; }))
         shopItems_.push_back({4, shopAt_, false});
     if (hero_ == Hero::Kabuto) {
         // He comes out of the sea weakened at the start of his story (k1a) and of 2a ("Eat 5
@@ -1889,6 +1892,12 @@ void GameApp::initMission() {
     if (haveRestore_) {  // what he carried at the checkpoint
         if (pendingRestore_.launcher && launcherModel_) hasLauncher_ = true;
         grenades_ = std::max(grenades_, std::min(grenadeMax_, pendingRestore_.grenades));
+        initBows();
+        for (int b = 0; b < kNumBows; ++b)
+            if (pendingRestore_.bows[b] && bows_[b].model) {
+                bows_[b].have = true;
+                if (bows_[b].maxAmmo > 0) bows_[b].ammo = std::max(bows_[b].ammo, std::min(bows_[b].maxAmmo, pendingRestore_.arrows[b]));
+            }
         for (int g = 0; g < kNumGuns; ++g)
             if (pendingRestore_.guns[g] && guns_[g].model) {
                 guns_[g].have = true;
@@ -1974,6 +1983,7 @@ void GameApp::renderShadows() {
     renderShadowMap();
     renderReflection();
     renderScope();
+    buildBowLines();
 }
 
 void GameApp::renderShadows(const EyeRenderInfo& left, const EyeRenderInfo& right) {
@@ -2149,6 +2159,7 @@ void GameApp::writeCheckpoint() {
     g.launcher = hasLauncher_;
     for (int k = 0; k < kNumGuns; ++k) { g.guns[k] = guns_[k].have; g.ammo[k] = guns_[k].ammo; }
     g.grenades = grenades_;
+    for (int k = 0; k < kNumBows; ++k) { g.bows[k] = bows_[k].have; g.arrows[k] = bows_[k].ammo; }
     g.flares = flares_;
     if (writeSaveGame(savePath_, g)) LOGI("Checkpoint saved: %s / %s", g.world.c_str(), g.mission.c_str());
     else LOGW("Checkpoint could not be written to %s", savePath_.c_str());
@@ -3129,18 +3140,18 @@ void GameApp::updateRockets(float dt) {
         if (hit || r.life > 5.0f) {
             if (r.kind == 1) explode(hit ? r.pos + dir * t : r.pos, 2.6f, 75.0f);  // fire bolt: smaller blast
             else if (r.kind == 3) explode(hit ? r.pos + dir * t : r.pos, 3.5f, 55.0f);
-            else if (r.kind == 4) {
-                // Shotgun shell (weapon 6: 40 damage, splash 40): the hit itself like a bullet of that
-                // weight, then a small burst round it.
+            else if (r.kind == 4 || r.kind == 7) {
+                // Shotgun shell (weapon 6: 40 damage, splash 40) or an RPG-bow arrow (fxb_bow_rpg: the
+                // same numbers): the hit itself like a bullet of that weight, then a small burst round it.
                 const Vec3 at = hit ? r.pos + dir * t : r.pos;
                 if (hit && target != -1 && weapon_.onHit) {
-                    hitMul_ = guns_[kGunShotgun].damage;
+                    hitMul_ = r.dmg > 0 ? r.dmg : guns_[kGunShotgun].damage;
                     weapon_.onHit(target, at, dir);
                     hitMul_ = 1.0f;
                 }
                 explode(at, 1.8f, 40.0f, false);
                 blasts_.push_back({at, 1, 0.0f});
-                sfx("me_rsgex", at, 0.9f, 0.95f + 0.1f * frand());
+                sfx(r.kind == 7 ? "me_mslex" : "me_rsgex", at, 0.9f, 0.95f + 0.1f * frand());
             }
             else explode(hit ? r.pos + dir * t : r.pos, 4.0f, 120.0f);
             r.life = 1e9f;
@@ -3845,6 +3856,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (playMode_ && !cut && !dying_) renderJetFx(firstPerson_);
     if (playMode_ && !cut && !dying_) renderBush();
     if (playMode_ && swordValid_ && swordModel_ && !cut && !dying_) drawModel(swordModel_, swordXf_, false);
+    if (!cut) renderBow();
     // Timmy on the back: seen in third person (and in reflections and shadows). In first person he
     // sits right behind your head and the body turns with it, so he'd only ever flicker at the edge
     // of view: not drawn there.
@@ -3872,6 +3884,15 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
                 const float k = 0.35f;
                 drawModel(lbombModel_, Mat4::translation(r.pos) * Mat4::rotation(Quat::fromAxisAngle(normalize(Vec3{1, 0.3f, 0.2f}), r.life * 9.0f)) *
                                            Mat4::scale({k, k, k}) * Mat4::translation((lbombModel_->boundsMin + lbombModel_->boundsMax) * -0.5f), false);
+                continue;
+            }
+            if (r.kind == 7) {  // an RPG-bow arrow: the streak (rparrow) along its flight
+                if (arrowModel_) {
+                    const Vec3 f = normalize(r.vel);
+                    const Quat yawQ = Quat::fromAxisAngle({0, 1, 0}, std::atan2(-f.x, -f.z));
+                    const Quat look = yawQ * Quat::fromAxisAngle({1, 0, 0}, std::asin(std::max(-1.0f, std::min(1.0f, f.y))));
+                    drawModel(arrowModel_, Mat4::translation(r.pos) * Mat4::rotation(look) * Mat4::scale({0.25f, 0.25f, 0.25f}), true, 0.9f);
+                }
                 continue;
             }
             if (r.kind == 4) {  // shotgun shell: a hot slug

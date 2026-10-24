@@ -164,6 +164,11 @@ void GameApp::hudStatus(const HudFrame& f) {
     if (giant) {
     } else if (hero_ == Hero::Delphi) {
         hudRect(kHudSword, f, 0.040f, -0.024f, 0.036f, 0.036f, on);
+        if (delphiWeapon_ >= 0 && bows_[delphiWeapon_].ammo >= 0) {  // a bow in hand: arrows left (no bow icon in the data's HUD set)
+            const int n = bows_[delphiWeapon_].ammo;
+            const uint8_t nc[4] = {255, uint8_t(n > 0 ? 255 : 80), uint8_t(n > 0 ? 255 : 80), 255};
+            hudDigits(f, 0.026f, -0.046f, 0.012f, n, nc);
+        }
         // Her fire bolt where the jetpack gauge would be: lit when ready, dim while it recharges.
         const float ready = boltCooldown_ <= 0 ? 1.0f : 0.0f;
         const uint8_t fire[4] = {255, 255, 255, uint8_t(ready > 0 ? 255 : 90)};

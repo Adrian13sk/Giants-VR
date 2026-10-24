@@ -202,6 +202,12 @@ Options → NEW GAME: choose **REAPER STORY (DELPHI)** with the stick, hold the 
 - **Fire bolt: left trigger** (first person: from your left hand where it points; third person: toward the crosshair or
   straight ahead), about one a second. The HUD's fire icon is lit when it's ready.
 - In first person you see her body and arms (her head is hidden so it doesn't block the view).
+- **Bows** (from the game's data: the **RPG bow** in "Smartie grab", the **bow**, RPG bow and **sniper bow** in
+  Sappho's Fleet): **right stick forward** switches sword → bow → RPG bow → sniper bow → sword. First person:
+  **grab the string with your left hand (grip), pull back and let go** - the arrow flies from your hand through the
+  bow, harder the further you pull (the left grip doesn't turbo while it's on the string). Or hold the **right
+  trigger** to draw and let go. Third person: the right trigger. The plain bow never runs out; RPG arrows (they
+  explode) and sniper arrows are counted under the sword icon; a Shop's AMMO box refills them.
 
 **Delphi's spells** (move-hand trigger): a **tap** throws her fire bolt - or, aimed at a Smartie, a **bubble** that catches
 it and floats it to you. **Hold and release** after about a second: a **fire wall** rolls forward, burning everything in
