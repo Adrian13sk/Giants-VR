@@ -130,15 +130,16 @@ void GameApp::initSkirmish() {
     if (toLower(worldName_).rfind("m_", 0) != 0) return;
     // The teams: each base template (and Kabuto's eat pad) in the map, in the original's team order.
     const ObjectRegistry& reg = assetWorld_->registry();
-    struct BaseAt { SkHero hero; Vec3 pos; };
+    struct BaseAt { SkHero hero; Vec3 pos; float yaw; };
     std::vector<BaseAt> bases;
     std::vector<Vec3> markers;
     for (const auto& o : assetWorld_->world().objects) {
         const std::string n = toLower(reg.modelName(o.type));
         const Vec3 p = giantsToRuntime(o.x, o.y, o.z);
-        if (n == "mecc_base_template_1") bases.push_back({SkHero::Mecc, p});
-        else if (n == "rp_base_template_1") bases.push_back({SkHero::Reaper, p});
-        else if (n == "kabutopad") bases.push_back({SkHero::Kabuto, p});
+        const float yaw = -o.angle * 3.14159265f / 180.0f;
+        if (n == "mecc_base_template_1") bases.push_back({SkHero::Mecc, p, yaw});
+        else if (n == "rp_base_template_1") bases.push_back({SkHero::Reaper, p, yaw});
+        else if (n == "kabutopad") bases.push_back({SkHero::Kabuto, p, yaw});
         else if (n == "marker") markers.push_back(p);
     }
     std::stable_sort(bases.begin(), bases.end(), [](const BaseAt& a, const BaseAt& b) { return int(a.hero) < int(b.hero); });
@@ -165,6 +166,40 @@ void GameApp::initSkirmish() {
     std::vector<Vec3> basePos;
     for (const auto& b : bases) { heroes.push_back(b.hero); basePos.push_back(b.pos); }
     sk_.setup(heroes, basePos, markers);
+    // The sides' bases, standing (the original's "starting base level"; ours: built from the start).
+    skBuildings_.clear();
+    for (size_t bi = 0; bi < bases.size(); ++bi) {
+        const BaseAt& b = bases[bi];
+        if (b.hero == SkHero::Kabuto) continue;
+        Vec3 at = b.pos;
+        float gy;
+        if (w->terrain().heightAt(at.x, at.z, gy)) at.y = gy;
+        const size_t first = skBuildings_.size();
+        const int n = standingBase(b.hero == SkHero::Reaper, Mat4::translation(at) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, b.yaw)), skBuildings_);
+        LOGI("Skirmish: %s base at (%.0f %.0f %.0f), %d buildings", b.hero == SkHero::Reaper ? "Reaper" : "Meccaryn", at.x, at.y, at.z, n);
+        // Routes go round them (not the build pad: it's walked on).
+        for (size_t k = first; k < skBuildings_.size(); ++k) {
+            const SkBuilding& bl = skBuildings_[k];
+            if (bl.pad) {
+                // "The Command Center protects your build pad and your flag holder": the flag stands at the pad.
+                if (bi < sk_.flags.size() && sk_.flags[bi].used) {
+                    const Vec3 pad{bl.xf.m[12], bl.xf.m[13], bl.xf.m[14]};
+                    sk_.flags[bi].home = sk_.flags[bi].pos = pad;
+                    sk_.teams[bi].base = pad;  // (where captures are scored)
+                }
+                continue;
+            }
+            Vec3 mn, mx;
+            if (bl.model) bl.model->posedBounds(mn, mx);
+            else { mn = bl.still->boundsMin; mx = bl.still->boundsMax; }
+            float x0 = 1e9f, z0 = 1e9f, x1 = -1e9f, z1 = -1e9f;
+            for (int c = 0; c < 8; ++c) {
+                const Vec4 q = bl.xf * Vec4{c & 1 ? mx.x : mn.x, c & 2 ? mx.y : mn.y, c & 4 ? mx.z : mn.z, 1.0f};
+                x0 = std::min(x0, q.x); z0 = std::min(z0, q.z); x1 = std::max(x1, q.x); z1 = std::max(z1, q.z);
+            }
+            sk_.nav.block(x0, z0, x1, z1);
+        }
+    }
     // Which team the player is on, how many a side: GVR_SKIRMISH="<team>,<per team>" (default 0, 3).
     int myTeam = 0, perTeam = skPerTeam_;
     if (const char* c = std::getenv("GVR_SKIRMISH")) std::sscanf(c, "%d,%d", &myTeam, &perTeam);
@@ -538,6 +573,17 @@ void GameApp::updateSkirmish(float dt) {
 
 void GameApp::renderSkirmish(bool shadow, const Vec3& eye) {
     if (!skirmish_) return;
+    for (const auto& bl : skBuildings_) {
+        const Vec3 at{bl.xf.m[12], bl.xf.m[13], bl.xf.m[14]};
+        if (length(at - eye) > 400.0f) continue;
+        if (bl.model) {
+            if (shadow) bl.model->renderShadow(renderer_, bl.xf);
+            else bl.model->render(renderer_, bl.xf);
+        } else if (bl.still) {
+            if (shadow) for (const auto& part : bl.still->parts) renderer_.drawShadow(part.mesh, bl.xf);
+            else drawModel(bl.still, bl.xf, false);
+        }
+    }
     for (const auto& p : sk_.players) {
         if (p.local || size_t(p.id) >= skBodies_.size()) continue;
         const SkBody& b = skBodies_[size_t(p.id)];

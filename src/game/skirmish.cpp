@@ -49,6 +49,15 @@ void SkNav::build(float x0, float z0, float x1, float z1, float cell, const std:
             }
 }
 
+void SkNav::block(float bx0, float bz0, float bx1, float bz1) {
+    if (w_ <= 0) return;
+    if (blocked_.size() != size_t(w_) * size_t(h_)) blocked_.assign(size_t(w_) * size_t(h_), 0);
+    const int cx0 = std::max(0, int(std::floor((bx0 - x0_) / cell_))), cx1 = std::min(w_ - 1, int(std::ceil((bx1 - x0_) / cell_)));
+    const int cz0 = std::max(0, int(std::floor((bz0 - z0_) / cell_))), cz1 = std::min(h_ - 1, int(std::ceil((bz1 - z0_) / cell_)));
+    for (int z = cz0; z <= cz1; ++z)
+        for (int x = cx0; x <= cx1; ++x) blocked_[size_t(z) * size_t(w_) + size_t(x)] = 1;
+}
+
 bool SkNav::cellOf(const Vec3& p, int& cx, int& cz) const {
     cx = int(std::lround((p.x - x0_) / cell_));
     cz = int(std::lround((p.z - z0_) / cell_));
@@ -62,6 +71,7 @@ float SkNav::stepCost(int a, int b, int dir, float dist, Profile prof) const {
     const float ha = hgt_[size_t(a)], hb = hgt_[size_t(b)];
     const float dh = hb - ha, s = dh / dist;
     const float up = up_[size_t(a) * 8 + size_t(dir)];  // the steepest metre of it
+    if (!blocked_.empty() && blocked_[size_t(b)]) return -1;  // a building
     const float depth = sea_ - hb;
     float k = 1.0f + 0.5f * std::max(0.0f, s);
     if (depth > 0.8f) {  // water: swimming (the Sea Reaper is at home in it; a Meccaryn swims slowly)

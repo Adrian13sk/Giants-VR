@@ -10,7 +10,7 @@ For each item: works / doesn't / how it feels. A phone photo of anything that lo
 **Main menu -> MULTIPLAYER < WITH COMPUTER PLAYERS | HOST A WI-FI GAME | JOIN A WI-FI GAME >**, then MAP and
 YOUR TEAM (left/right), trigger to start. The original's 12 multiplayer maps: 3-WAY (Meccaryns vs Sea Reapers vs
 Kabuto), MECCARYN (two Meccaryn sides) and REAPER (two Reaper sides). Each side has a base with its flag holder
-(a Smartie with a flag). Take an enemy flag home to your own (while yours is home): a capture. 3 captures or 30
+(a Smartie with a flag) at its base's build pad, among the base's buildings. Take an enemy flag home to your own (while yours is home): a capture. 3 captures or 30
 kills win; then a new round. Dead: back at your base after 5 s. Score panel top left; kills and flag news in the
 middle; team-coloured names over the others when you look at them.
 - **Computer players:** do they find their way (no one stuck for long)? Do they fight sensibly, too well, too badly?

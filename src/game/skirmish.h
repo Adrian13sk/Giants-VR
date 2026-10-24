@@ -32,11 +32,14 @@ public:
     // The search is bounded: past `maxExpand` cells it returns the way to the cell nearest the goal.
     bool path(const Vec3& from, const Vec3& to, Profile prof, std::vector<Vec3>& out, int maxExpand = 4000) const;
     float cell() const { return cell_; }
+    // A building's footprint (world box): no route through it.
+    void block(float x0, float z0, float x1, float z1);
 
 private:
     int w_ = 0, h_ = 0;
     float x0_ = 0, z0_ = 0, cell_ = 6, sea_ = 0;
     std::vector<float> hgt_;
+    std::vector<uint8_t> blocked_;
     std::vector<float> up_;       // per cell and direction (8): the steepest rise along the step, sampled every half metre
     // Search scratch, kept between searches (a stamp per search instead of clearing).
     mutable std::vector<float> g_;

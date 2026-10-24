@@ -1797,3 +1797,10 @@ User: "Do this: Multiplayer, from the original game"; chose "Bots first, then on
   joiner and both logged it; joined through the main menu (found by probe, map loaded, team taken); a joiner that
   quits times out and leaves cleanly. Android: INTERNET / Wi-Fi permissions, multicast lock via JNI; the APK
   compiles. **Not tested between two headsets** (one Quest).
+- **Bases in multiplayer** (the original's "starting base level"; ours: built from the start): each Meccaryn or Reaper
+  side's buildings from its race's template (Mecc_base_template_1.anm / RP_base_template_1.anm, the same layout as
+  5c and r4a), turned by the map's template angle, posed at the end of their build clips, solid, routed round. No
+  walls or gates (a closed ring would shut the side's own flag in; the original opens its gates for its side - not
+  done). The flag holder stands at the build pad ("The Command Center protects your build pad and your flag
+  holder"); captures are scored there. 5 minutes on six maps: 2-10 kills each, flags taken on four, no captures
+  (carriers die on the long way home), 0 errors.

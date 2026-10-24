@@ -118,6 +118,66 @@ bool baseMission(const std::string& mission, bool reaper) {
 }
 }  // namespace
 
+// A finished base for a skirmish side (game_app_skirmish.cpp): the race's template buildings standing
+// at `at` (its position and yaw), solid. No walls or gates: a closed ring would shut the side's own
+// flag holder in (the original opens gates for its side - not done here; ours).
+int GameApp::standingBase(bool reaper, const Mat4& at, std::vector<SkBuilding>& out) {
+    if (!assetWorld_) return 0;
+    const BldgDef* defs = reaper ? kReaper : kMecc;
+    const int n = reaper ? int(sizeof(kReaper) / sizeof(kReaper[0])) : int(sizeof(kMecc) / sizeof(kMecc[0]));
+    const AssetFS& fs = assetWorld_->fs();
+    std::vector<uint8_t> b;
+    AnmAnimation tmpl;
+    if (!fs.read(reaper ? "RP_base_template_1.anm" : "Mecc_base_template_1.anm", b) || !parseAnm(b.data(), b.size(), tmpl)) return 0;
+    std::vector<Mat4> nodes;
+    tmpl.evaluate(0.0f, nodes);
+    ModelCache* mc = assetWorld_->models();
+    int placed = 0;
+    for (int d = 0; d < n; ++d) {
+        const std::string key = defs[d].key;
+        if (key.find("wall") != std::string::npos || key.find("gate") != std::string::npos) continue;
+        std::string slots = defs[d].slot;
+        size_t s0 = 0;
+        while (s0 <= slots.size()) {
+            const size_t s1 = std::min(slots.find('|', s0), slots.size());
+            const std::string sn = toLower(slots.substr(s0, s1 - s0));
+            s0 = s1 + 1;
+            int node = -1;
+            for (size_t i = 0; i < tmpl.nodes.size() && i < nodes.size(); ++i)
+                if (toLower(tmpl.nodes[i].name) == sn) node = int(i);
+            if (node < 0) continue;
+            SkBuilding bl;
+            bl.pad = d == 0;
+            bl.xf = at * gameMatrixToRuntime(nodes[size_t(node)]);
+            float gy;
+            if (assetWorld_->terrain().heightAt(bl.xf.m[12], bl.xf.m[14], gy)) bl.xf.m[13] = gy;
+            auto sm = std::make_unique<SkinnedModel>();
+            if (fs.exists(std::string(defs[d].model) + ".skn") && sm->load(fs, *mc, renderer_, defs[d].model, defs[d].anim)) {
+                sm->pose(renderer_, sm->animDuration() * 0.999f);  // built: the end of its build clip
+                bl.model = std::move(sm);
+            } else {
+                bl.still = mc->get(std::string(defs[d].model) + ".gbs", defs[d].anim, true);
+            }
+            if (!bl.model && !bl.still) continue;
+            // Solid: its collision mesh (<model>_coll), else its model.
+            const RenderModel* coll = mc->get(std::string(defs[d].model) + "_coll.gbs", "", false);
+            if (!coll || coll->collisionTris.empty()) coll = mc->get(std::string(defs[d].model) + ".gbs", "", false);
+            if (coll && !coll->collisionTris.empty()) {
+                std::vector<Vec3> tris;
+                tris.reserve(coll->collisionTris.size());
+                for (const Vec3& v : coll->collisionTris) {
+                    const Vec4 q = bl.xf * Vec4{v.x, v.y, v.z, 1.0f};
+                    tris.push_back({q.x, q.y, q.z});
+                }
+                assetWorld_->collisionMutable().addObject(tris);
+            }
+            out.push_back(std::move(bl));
+            ++placed;
+        }
+    }
+    return placed;
+}
+
 void GameApp::initBase() {
     base_ = Base{};
     enemies_.params.patrolSpeed = EnemyParams{}.patrolSpeed;  // the base missions raise it (below)

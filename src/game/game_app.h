@@ -932,6 +932,9 @@ private:  // the mission placed enemies: no test waves
     float skLostT_ = 0;
     int skPrevWinner_ = -1;
     bool skAddBody(int id);        // the model of a player, by its team's hero
+    struct SkBuilding { std::unique_ptr<SkinnedModel> model; const RenderModel* still = nullptr; Mat4 xf = Mat4::identity(); bool pad = false; };
+    std::vector<SkBuilding> skBuildings_;  // the sides' bases, standing (game_app_base.cpp standingBase)
+    int standingBase(bool reaper, const Mat4& at, std::vector<SkBuilding>& out);
     int skAddRemote(const std::string& name, int team);
     void skOwnShots();             // the local player's new shots, for the others to see
     void skHandleEvent(const SkEvent& e);
