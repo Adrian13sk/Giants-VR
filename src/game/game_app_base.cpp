@@ -140,6 +140,18 @@ void GameApp::initBase() {
          base_.dropAt.y, base_.dropAt.z);
 }
 
+// A kind's state over all its sites: 0 not ordered, 1 building, 3 all complete.
+int GameApp::baseKindState(int d) const {
+    bool any = false, all = true, ordered = false;
+    for (const auto& b : base_.bldgs) {
+        if (b.def != d) continue;
+        any = true;
+        all = all && b.state == 3;
+        ordered = ordered || b.state != 0;
+    }
+    return !any ? 3 : all ? 3 : ordered ? 1 : 0;
+}
+
 // The kinds the menu offers: each not-yet-started building once (all slots of a wall together).
 std::vector<int> GameApp::baseOffers() const {
     std::vector<int> v;
@@ -172,7 +184,8 @@ void GameApp::orderBuilding(int d) {
 
 void GameApp::updateBase(float dt, const InputFrame& in) {
     if (!base_.on || !playMode_) return;
-    // Test hook: GVR_BASE_ORDER=all orders everything at the start (with the meat it needs).
+    // Test hooks: GVR_BASE_FOOD=n stocks the store; GVR_BASE_ORDER=all orders everything at the start.
+    if (const char* f = std::getenv("GVR_BASE_FOOD"); f && base_.traceT == 0.0f) base_.food = std::atoi(f);
     if (const char* o = std::getenv("GVR_BASE_ORDER"); o && !base_.autoOrdered) {
         base_.autoOrdered = true;
         if (std::string(o) == "all")
@@ -200,7 +213,7 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         if (b.state != 1) continue;
         if (busy >= 2) break;  // two crews of three
         ++busy;
-        b.progress = std::min(1.0f, b.progress + dt / std::max(1.0f, kDefs[b.def].seconds));
+        b.progress = std::min(1.0f, b.progress + dt * base_.speed / std::max(1.0f, kDefs[b.def].seconds));
         b.fxT -= dt;
         if (b.fxT <= 0) {
             b.fxT = 0.35f + 0.3f * frand();
@@ -209,9 +222,40 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         }
         if (b.progress >= 1.0f) {
             b.state = 3;
+            // Solid once standing: the building's own collision mesh (<model>_coll), else its model.
+            ModelCache* mc = assetWorld_->models();
+            const RenderModel* coll = mc->get(std::string(kDefs[b.def].model) + "_coll.gbs", "", false);
+            if (!coll || coll->collisionTris.empty()) coll = mc->get(std::string(kDefs[b.def].model) + ".gbs", "", false);
+            if (coll && !coll->collisionTris.empty()) {
+                std::vector<Vec3> tris;
+                tris.reserve(coll->collisionTris.size());
+                for (const Vec3& v : coll->collisionTris) {
+                    const Vec4 q = b.xf * Vec4{v.x, v.y, v.z, 1.0f};
+                    tris.push_back({q.x, q.y, q.z});
+                }
+                b.collision = assetWorld_->collisionMutable().addObject(tris);
+                Vec3 mn = tris[0], mx = tris[0];
+                for (const Vec3& t : tris) { mn = Vec3{std::min(mn.x, t.x), std::min(mn.y, t.y), std::min(mn.z, t.z)}; mx = Vec3{std::max(mx.x, t.x), std::max(mx.y, t.y), std::max(mx.z, t.z)}; }
+                LOGI("Base: %s solid (%zu triangles, box (%.1f %.1f %.1f)-(%.1f %.1f %.1f), site (%.1f %.1f %.1f))", kDefs[b.def].label,
+                     tris.size() / 3, mn.x, mn.y, mn.z, mx.x, mx.y, mx.z, b.xf.m[12], b.xf.m[13], b.xf.m[14]);
+            }
             bool allOfKind = true;
             for (const auto& o : base_.bldgs) allOfKind = allOfKind && (o.def != b.def || o.state == 3);
             if (allOfKind) {
+                // What a finished building gives (ours, after the game's descriptions): the Giftshop
+                // "is full of weapons and other nifty stuff" - the shop counter opens in it; the
+                // Workshop is "where your Smarties go for tools" - they build faster from then on.
+                if (std::string(kDefs[b.def].key) == "giftshop1") {
+                    // The counter stands at its front (toward the base's middle): the building is solid.
+                    const Vec3 site{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
+                    Vec3 dir = base_.centre - site;
+                    dir.y = 0;
+                    Vec3 at = site + normalize(dir) * std::min(8.0f, length(dir) * 0.5f);
+                    float gy;
+                    if (assetWorld_->terrain().heightAt(at.x, at.z, gy)) at.y = gy;
+                    openShopAt(at);
+                }
+                if (std::string(kDefs[b.def].key) == "mcworkshop") base_.speed = 1.5f;
                 timmyLine_ = std::string(kDefs[b.def].label) + " - COMPLETED!";
                 timmyLineT_ = 3.5f;
                 sfx2D("pu_hlth", 0.9f, 0.8f);
@@ -244,11 +288,15 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
     base_.onPad = onPad;
     base_.items.clear();
     if (!onPad) return;
-    const std::vector<int> offers = baseOffers();
-    const float n = float(offers.size());
+    // Every kind keeps its place (ordered ones show their state), so signs never slide under the hand.
+    std::vector<int> offers;
+    for (int d = 1; d < kNumDefs; ++d) offers.push_back(d);
+    // Within arm's reach without stepping: up to four per row, two rows, 0.8 m out.
     for (size_t i = 0; i < offers.size(); ++i) {
-        const float a = base_.menuYaw + (float(i) - 0.5f * (n - 1.0f)) * 0.42f;
-        base_.items.push_back({offers[i], base_.menuAt + Vec3{-std::sin(a) * 1.4f, 1.2f, -std::cos(a) * 1.4f}});
+        const size_t row = i / 4, col = i % 4;
+        const float inRow = float(std::min<size_t>(4, offers.size() - row * 4));
+        const float a = base_.menuYaw + (float(col) - 0.5f * (inRow - 1.0f)) * 0.55f;
+        base_.items.push_back({offers[i], base_.menuAt + Vec3{-std::sin(a) * 0.8f, row == 0 ? 1.35f : 1.0f, -std::cos(a) * 0.8f}});
     }
     base_.touchCool = std::max(0.0f, base_.touchCool - dt);
     if (base_.touchCool > 0) return;
@@ -258,8 +306,8 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         if (in.hand[h].gripPoseValid) hands[nh++] = rig_.toWorld(in.hand[h].gripPose).position;
     for (const auto& it : base_.items) {
         bool touch = false;
-        for (int k = 0; k < nh; ++k) touch = touch || length(hands[k] - it.pos) < 0.22f;
-        if (!touch) continue;
+        for (int k = 0; k < nh; ++k) touch = touch || length(hands[k] - it.pos) < 0.16f;
+        if (!touch || baseKindState(it.def) != 0) continue;
         base_.touchCool = 0.8f;
         orderBuilding(it.def);
         break;
@@ -276,13 +324,6 @@ void GameApp::renderBase(const Vec3& eye) {
         const float d = b.model->animDuration(0);
         b.model->pose(renderer_, d > 0 ? std::min(d, b.progress * d) : 0.0f);
         b.model->render(renderer_, b.xf);
-        static const bool trace = std::getenv("GVR_BASE_TRACE") != nullptr;
-        if (trace && (b.def == 1 || b.def == 2) && std::fmod(float(time_), 2.0f) < 0.014f) {
-            Vec3 mn, mx;
-            b.model->posedBounds(mn, mx);
-            LOGI("base-trace %s state %d progress %.2f dur %.2f bounds (%.1f %.1f %.1f)-(%.1f %.1f %.1f)", kDefs[b.def].label, b.state,
-                 b.progress, d, mn.x, mn.y, mn.z, mx.x, mx.y, mx.z);
-        }
     }
     if (base_.firepit) {
         const float d = base_.firepit->animDuration(0);
@@ -293,9 +334,9 @@ void GameApp::renderBase(const Vec3& eye) {
     if (!text_.ready()) return;
     const Pose head = rig_.toWorld(lastInput_.head);
     const Quat face = Quat::fromAxisAngle({0, 1, 0}, yawOf(head.orientation));
-    auto label = [&](const Vec3& at, const std::string& s, const Vec4& col, float size) {
+    auto label = [&](const Vec3& at, const std::string& s, const Vec4& col, float size, float wrap = 20.0f) {
         float w = 0, h = 0;
-        const MeshId tm = text_.mesh(s, size, 20.0f, &w, &h);
+        const MeshId tm = text_.mesh(s, size, wrap, &w, &h);
         if (!tm) return;
         const Mat4 xf = Mat4::translation(at) * Mat4::rotation(face);
         text_.drawPanel(xf, w + 0.06f, h + 0.03f, {0, 0, 0, 0.5f}, true);
@@ -320,17 +361,19 @@ void GameApp::renderBase(const Vec3& eye) {
     // The menu: a card per building you can order, at arm's length round the pad.
     for (const auto& it : base_.items) {
         const BldgDef& d = kDefs[it.def];
-        const bool afford = base_.food >= d.meat;
+        const int st = baseKindState(it.def);
+        const bool afford = st == 0 && base_.food >= d.meat;
         char s[64];
-        std::snprintf(s, sizeof s, "%s - %d MEAT", d.label, d.meat);
+        if (st == 0) std::snprintf(s, sizeof s, "%s: %d MEAT", d.label, d.meat);
+        else std::snprintf(s, sizeof s, "%s: %s", d.label, st == 3 ? "COMPLETED!" : "BUILDING...");
         const float bob = 0.03f * std::sin(float(time_) * 2.0f + it.pos.x);
-        label(it.pos + Vec3{0, bob, 0}, s, afford ? Vec4{0.6f, 1.0f, 0.6f, 1.0f} : Vec4{0.75f, 0.75f, 0.75f, 1.0f}, 0.07f);
+        label(it.pos + Vec3{0, bob, 0}, s, afford ? Vec4{0.6f, 1.0f, 0.6f, 1.0f} : Vec4{0.75f, 0.75f, 0.75f, 1.0f}, 0.045f, 0.3f);
     }
     if (base_.onPad) {
         char s[64];
         std::snprintf(s, sizeof s, "VIMP MEAT STORE %d   SMARTIES %d   TOUCH A SIGN TO BUILD", base_.food, kWorkers);
-        label(base_.menuAt + Vec3{-std::sin(base_.menuYaw) * 1.6f, 1.75f, -std::cos(base_.menuYaw) * 1.6f}, s, {0.6f, 0.9f, 1.0f, 1.0f},
-              0.06f);
+        label(base_.menuAt + Vec3{-std::sin(base_.menuYaw) * 1.2f, 1.8f, -std::cos(base_.menuYaw) * 1.2f}, s, {0.6f, 0.9f, 1.0f, 1.0f},
+              0.05f);
     }
 }
 

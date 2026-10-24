@@ -1405,3 +1405,14 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Pitfall: the harness's `--free` camera turns play mode off after the first frame, so nothing in updatePlayMode runs;
   use `--at`/`--look-at` without `--free` to watch gameplay systems.
 - Not yet: building collision, base attacks, stone upgrades, the pop-up bomb, Delphi's base (xx_reaper_base.gzp).
+
+### 2026-10-24 — Base building v1.1
+- Harness hand test (`--hand-path` to a sign on the pad): the touch orders it. Found that the menu re-laid itself out
+  after an order, sliding the next sign under the still-raised hand (it ordered a second building 0.8 s later): every
+  kind now keeps its place and shows BUILDING... / COMPLETED!. Signs moved within arm's reach (0.8 m, two rows of four,
+  0.55 rad apart) with wrapped text; the old 1.4 m ring needed a step forward.
+- Finished buildings are solid: their own `<model>_coll` meshes placed with the site transform (Pub 1007 tris, box
+  around the site; Workshop 238 tris).
+- Giftshop finished -> the existing shop counter opens at its front (toward the base middle); Workshop finished ->
+  building 1.5x faster (ours, after bldgdescr "where your Smarties go for tools"). Harness 50 s with everything
+  ordered: Pub, Workshop, shop opened, Giftshop, Party House, "Base: complete", Wood Gate.

@@ -523,3 +523,5 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
   Workshop 25% after 5 s (two crews); "WORKSHOP - COMPLETED!" on screen at ~20 s; aerial view shows the gate and walls
   rising on the basin's rim. Plain 5c, 4a and r4a runs: exit 0, no errors.
 - The hand-touch menu is untested (the harness has no hand path to the signs yet). **Not device-tested.**
+- v1.1 (harness): hand path to the WORKSHOP sign orders exactly one building; collision boxes enclose their sites;
+  50 s run reaches "Base: complete" and opens the Giftshop's counter. Not device-tested.

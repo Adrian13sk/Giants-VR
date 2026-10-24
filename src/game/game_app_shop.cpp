@@ -49,6 +49,20 @@ void GameApp::initShop() {
     LOGI("Shop at (%.1f %.1f %.1f): %zu items, health pool %.0f", shopAt_.x, shopAt_.y, shopAt_.z, shopItems_.size(), shopPool_);
 }
 
+// A shop opened during play (the base's Giftshop, game_app_base.cpp): same counter and pool.
+void GameApp::openShopAt(const Vec3& centre) {
+    shopCentres_.push_back(centre);
+    if (shopOn_) return;
+    shopOn_ = true;
+    shopAt_ = shopCentre_ = centre;
+    shopPool_ = kPoolStore;
+    shopAnchored_ = false;
+    shopItems_.clear();
+    const int kinds[3] = {hasLauncher_ ? 1 : 0, 1, 2};
+    for (int i = 0; i < 3; ++i) shopItems_.push_back({kinds[i], shopAt_, false});
+    LOGI("Shop opened at (%.1f %.1f %.1f)", centre.x, centre.y, centre.z);
+}
+
 void GameApp::updateShop(float dt, const InputFrame& in) {
     if (!shopOn_ || !playMode_ || dying_) return;
     bool inside = false;
