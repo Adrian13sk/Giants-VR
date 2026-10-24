@@ -555,4 +555,5 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 
 ## Host verification — base leader / kidnapping
 - 5c: leader placed at the template's borjoyzee node; snatcher kidnaps him and carries him back along its army path.
-- Loss -> restart: pending a long harness run. Freeing him by killing the carrier: logic only. **Not device-tested.**
+- Loss -> restart (22000-frame harness run): kidnapped -> carried off -> mission failed -> restarting -> Loading
+  5c_securebase -> loaded. Freeing him by killing the carrier: logic only. **Not device-tested.**

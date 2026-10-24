@@ -1502,4 +1502,5 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   reset per mission). Stuck raiders (the paths cross ridges our AI can't climb, rocks) get past after 3 s: 10 m on,
   or a step aside if the player is within 30 m.
 - Harness 5c: BORJOYZEE kidnapped by the snatcher, carried back along path 8 (indices 10 -> 8 ...), walls destroyed
-  by the others. r4a: Yan placed, snatcher on its way. The loss/restart: long run pending.
+  by the others. r4a: Yan placed, snatcher on its way. Long run (22000 frames): carried off -> mission failed -> 5c reloaded from
+  its briefing.
