@@ -458,3 +458,33 @@ upright and correct, results pulled). 5/5 tests done, 0 errors logged, no crashe
 - Memory: 223-237 MB resident (peak 255 MB).
 - The app's GPU timer queries returned garbage on the Quest's driver (now filtered); the runner reads VrApi instead.
 - The phone log buffer had been overwritten by system chatter (only the last seconds kept); the runner now sets 16 MB.
+
+## Automated device run 2 (GPU experiments) — 2026-10-24, user's Quest 2, build 07e197c, `devtest.ps1 -Set experiments`
+15/15 done, 0 errors. fps and frame time from the app (perf window 4-22 s, screenshot stalls left out); App GPU time,
+GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR = fixed foveated rendering.
+
+| Scene / setting | fps | frame p95 ms | slow frames | App GPU ms | GPU load |
+|---|---|---|---|---|---|
+| Kabuto k1a walk, FFR off | 67.7 | 22.4 | 72 | 12.88 | 0.93 |
+| ... FFR low | 71.8 | 14.2 | 0 | 11.85 | 0.94 |
+| ... FFR medium | 71.8 | 14.2 | 0 | 11.05 | 0.87 |
+| ... FFR high | 71.8 | 14.2 | 0 | 10.32 | 0.82 |
+| ... shadows off | 69.7 | 15.4 | 8 | 11.49 | 0.89 |
+| ... shadow map 1024 | 67.8 | 22.5 | 69 | 12.68 | 0.93 |
+| ... reflections off | 69.4 | 15.7 | 4 | 12.59 | 0.95 |
+| 1a village, FFR off | 70.8 | 15.0 | 9 | 12.14 | 0.95 |
+| ... FFR medium | 71.8 | 14.2 | 0 | 10.72 | 0.83 |
+| ... FFR high | 71.8 | 14.2 | 0 | 9.86 | 0.80 |
+| ... shadows off | 71.8 | 14.2 | 0 | 10.30 | 0.83 |
+| ... reflections off | 71.0 | 14.5 | 3 | 11.99 | 0.92 |
+| 1c flight, FFR off | 68.5 | 16.1 | 46 | 12.82 | 0.91 |
+| ... FFR medium | 71.7 | 14.1 | 1 | 10.58 | 0.83 |
+| ... reflections off | 69.7 | 15.5 | 7 | 12.22 | 0.92 |
+
+- **Conclusions:** foveation is the big win (medium: -1.4 to -2.2 ms GPU, 72 fps everywhere measured). The shadow pass
+  costs 1.4-1.8 ms but not because of its resolution (1024 = 2048): it's the extra draw of the scene. Reflections cost
+  ~0.2-0.6 ms. Decision: FFR medium by default, selectable in Options.
+- Also seen: the first 3-4 s after a mission loads run 33-45 fps with App GPU up to 23 ms (warm-up: uploads / first
+  use). Not yet investigated.
+- With the plausibility filter the app's own GPU timer gives believable numbers on some frames (e.g. 8-13 ms), but it
+  times only part of the frame; VrApi's App time is the reference.

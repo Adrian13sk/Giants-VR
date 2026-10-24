@@ -85,6 +85,9 @@ public:
 
     // Play mode: you control the original Meccaryn (third person by default). Otherwise the
     // free camera (stick locomotion, Y = fly/noclip) is active. B toggles at runtime.
+    // Fixed foveated rendering level the player chose (the platform layer applies it; -1 = leave alone).
+    int foveationWanted() const { return foveationOverride_ >= 0 ? foveationOverride_ : settings_.foveation; }
+    void setFoveationOverride(int level) { foveationOverride_ = level; }
     bool playMode() const { return playMode_; }
     void setPlayMode(bool on, const InputFrame& in);
     bool firstPerson() const { return firstPerson_; }
@@ -428,6 +431,7 @@ private:
     std::vector<Objective> objectives_;
     size_t objectivesDone_ = 0;
     bool missionComplete_ = false;
+    int foveationOverride_ = -1;  // test runs (GVR_FFR) pin it
     bool advanceDone_ = false;  // the step to the next mission has started
     // Loading / briefing screen between missions: fade to black, the mission's title and objectives
     // (GText <mission>, MO_<mission>), load behind it, continue on its own.

@@ -15,6 +15,7 @@ struct UserSettings {
     bool subtitles = true;
     bool showFps = false;    // frame-rate counter at the top of the view
     bool dayNight = true;    // false: always day
+    int foveation = 2;       // fixed foveated rendering 0 off .. 3 high (2: measured on the Quest 2 to hold 72 fps)
     float hudScale() const { return hudSize == 0 ? 0.8f : (hudSize == 2 ? 1.3f : 1.0f); }
 };
 

@@ -1320,3 +1320,11 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   GVR_SHADOW_SIZE=n, GVR_REFLECT=0; devtest/experiments: 15 runs (k1a walk x 7 configs, village x 5, flight x 3).
   The runner (-Set experiments) now records the VrApi lines (vrapi.txt) and summarises fps / App GPU ms / GPU load.
 - Screenshot frames (read-back stalls) are left out of the statistics (flagged in frames.csv).
+
+### 2026-10-24 — Foveated rendering on by default (this build)
+- From automated run 2 (TEST_REPORT): FFR medium takes 1.4-2.2 ms off the GPU and holds 72 fps in the Kabuto walk,
+  village and flight scenes that dropped to 62-68 without it. Shadow map size made no difference; the shadow pass's
+  cost is the scene draw (a later target: cull shadow casters harder). Reflections are cheap.
+- UserSettings.foveation (0-3, default 2, settings.txt `foveation=`), Options row FOVEATED RENDERING; the Android loop
+  applies changes through XrApp::setFoveation; GVR_FFR pins a level in test runs (experiment baselines now pin 0).
+- Not yet looked at: the 3-4 s of 33-45 fps right after a mission loads.

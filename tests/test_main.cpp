@@ -1372,11 +1372,12 @@ static void testSaveGame() {
     std::remove(path.c_str());
     CHECK(!loadSaveGame(path, c));
     UserSettings us;
-    us.turn = 3; us.leftHanded = true; us.thirdPerson = true; us.hudSize = 2; us.volume = 4; us.music = 0; us.subtitles = false;
+    us.turn = 3; us.leftHanded = true; us.thirdPerson = true; us.hudSize = 2; us.volume = 4; us.music = 0; us.subtitles = false; us.foveation = 3;
     CHECK(writeSettings(path, us));
     UserSettings ul;
     CHECK(loadSettings(path, ul) && ul.turn == 3 && ul.leftHanded && ul.thirdPerson && ul.hudSize == 2 && ul.volume == 4 &&
-          ul.music == 0 && !ul.subtitles && near(ul.hudScale(), 1.3f, 1e-6f));
+          ul.music == 0 && !ul.subtitles && ul.foveation == 3 && near(ul.hudScale(), 1.3f, 1e-6f));
+    CHECK(UserSettings{}.foveation == 2);  // an old settings file without the key: medium
     std::remove(path.c_str());
     std::printf("save game / settings ok\n");
 }

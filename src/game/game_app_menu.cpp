@@ -12,7 +12,7 @@
 namespace gvr {
 
 namespace {
-enum MenuRow { kRowResume, kRowTurn, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowDay, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowTurn, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowFov, kRowDay, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -74,6 +74,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowMusic: s.music = std::max(0, std::min(10, s.music + dx)); changed = true; break;
             case kRowSubs: s.subtitles = !s.subtitles; changed = true; break;
             case kRowFps: s.showFps = !s.showFps; changed = true; break;
+            case kRowFov: s.foveation = std::max(0, std::min(3, s.foveation + dx)); changed = true; break;
             case kRowDay: s.dayNight = !s.dayNight; changed = true; break;
             case kRowNewGame: menuCampaign_ = (menuCampaign_ + dx + 3) % 3; haptics_.push_back({kRight, 0.3f, 0.03f}); break;
             default: break;
@@ -124,6 +125,7 @@ void GameApp::renderMenu() {
     const UserSettings& s = settings_;
     static const char* turns[] = {"SNAP 30", "SNAP 45", "SMOOTH, SLOW", "SMOOTH, FAST"};
     static const char* huds[] = {"SMALL", "NORMAL", "LARGE"};
+    static const char* fovs[] = {"OFF (SHARPEST)", "LOW", "MEDIUM", "HIGH (FASTEST)"};
     char vol[32], mus[32];
     std::snprintf(vol, sizeof vol, "%d%%", s.volume * 10);
     std::snprintf(mus, sizeof mus, "%d%%", s.music * 10);
@@ -139,6 +141,7 @@ void GameApp::renderMenu() {
         {"MUSIC", mus},
         {"SUBTITLES", s.subtitles ? "ON" : "OFF"},
         {"FRAME RATE", s.showFps ? "SHOWN" : "HIDDEN"},
+        {"FOVEATED RENDERING", fovs[s.foveation]},
         {"DAY AND NIGHT", s.dayNight ? "CYCLE" : "ALWAYS DAY"},
         {"NEW GAME", newGame},
     };

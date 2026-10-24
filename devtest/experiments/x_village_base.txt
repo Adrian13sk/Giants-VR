@@ -11,3 +11,4 @@ duration 24
 perf 4 22
 turn 0.6 0 6 20
 shot 22 view
+env GVR_FFR 0

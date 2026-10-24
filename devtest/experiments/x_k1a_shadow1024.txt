@@ -10,3 +10,4 @@ perf 4 22
 move 0 1 4 20
 shot 22 view
 env GVR_SHADOW_SIZE 1024
+env GVR_FFR 0

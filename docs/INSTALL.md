@@ -130,6 +130,9 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   trigger 2 s), or in the free camera hold X for 3 s.
 - **Options** are kept in `settings.txt` next to `save.txt`. FRAME RATE: SHOWN puts a frame-rate counter at the top
   left of the view (green at 70+; please note it for the performance pass).
+- **FOVEATED RENDERING** (Options): the edges of each eye are drawn at lower resolution, which you mostly can't see
+  but saves a lot of graphics work. MEDIUM (the default) held 72 fps in every measured scene; OFF is the sharpest
+  but drops to 62-68 fps with Kabuto walking or in flight; HIGH is the fastest.
 - **Day and night:** a 20-minute cycle (about 12 minutes of day, warm dusk and dawn, a short moonlit night with stars).
   Options → DAY AND NIGHT → ALWAYS DAY turns it off.
 - **Rumble:** hits (stronger on the side they come from), the jetpack (a kick at take-off, a hum while it fires,

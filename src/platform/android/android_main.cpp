@@ -6,6 +6,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
@@ -144,9 +145,10 @@ void android_main(android_app* app) {
         ok = ok && game.init(dataDir);
     }
     if (!ok) LOGE("Initialisation failed; see log above. Exiting.");
-    // Fixed foveated rendering: GVR_FFR=0..3 (a test hook for now; d = dynamic).
+    // Fixed foveated rendering: the Options setting (default medium); GVR_FFR=0..3 pins it in test runs.
     if (ok)
-        if (const char* f = std::getenv("GVR_FFR")) xr.setFoveation(std::atoi(f), std::strchr(f, 'd') != nullptr);
+        if (const char* f = std::getenv("GVR_FFR")) game.setFoveationOverride(std::max(0, std::min(3, std::atoi(f))));
+    int foveationApplied = -1;
 
     // Audio: AAudio stream -> software mixer with the original sound effects.
     gvr::AAudioOutput audioOut;
@@ -212,6 +214,10 @@ void android_main(android_app* app) {
         if (!xr.focused()) {
             // Not focused (system menu / guardian): keep rendering, ignore gameplay input.
             for (auto& h : frame.input.hand) { h.thumbstick = {}; h.trigger = h.squeeze = 0; }
+        }
+        if (game.foveationWanted() != foveationApplied) {  // changed in the menu (or first frame)
+            foveationApplied = game.foveationWanted();
+            xr.setFoveation(foveationApplied, false);
         }
         if (autotest.active()) autotest.beginFrame(game, xr, frame, now);
         const double u0 = nowSeconds();

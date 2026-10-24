@@ -10,3 +10,4 @@ perf 4 22
 hold a 4 9
 move 0 1 4 20
 shot 8 air
+env GVR_FFR 0
