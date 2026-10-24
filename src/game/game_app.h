@@ -645,6 +645,24 @@ private:  // the mission placed enemies: no test waves
     std::vector<std::pair<int, float>> swordCool_;  // target -> seconds until it can be hit again
     int comboStep_ = 0;
     float comboTimer_ = 0, swipeT_ = -1, boltCooldown_ = 0;
+    // Delphi's spells (game_app_spells.cpp): fire wall, bubble, tornado.
+    struct FireWall { std::vector<Vec3> seg; Vec3 dir; float age = 0; };
+    struct Tornado { Vec3 pos, dir; float age = 0, tick = 0; };
+    struct Bubble { Vec3 pos; int target = -1; float age = 0; bool caught = false; };
+    std::vector<FireWall> fireWalls_;
+    std::vector<Tornado> tornadoes_;
+    std::vector<Bubble> bubbles_;
+    const RenderModel* fireRoll_ = nullptr;
+    const RenderModel* swirl_ = nullptr;
+    std::unique_ptr<SkinnedModel> bubbleModel_;
+    float spellCharge_ = 0;
+    bool spellReady_ = false, tornadoHitting_ = false;
+    bool tornadoOwned() const;
+    void initSpells();
+    bool smartieInAim(const Vec3& from, const Vec3& dir, int& index) const;
+    bool updateSpells(float dt, bool trig, const Vec3& from, const Vec3& dir, bool aimOk);
+    void stepSpells(float dt);
+    void renderSpells();
     float hitMul_ = 1.0f;  // damage multiplier for weapon_.onHit (sword strikes)
     static Hero heroForWorld(const std::string& world);
     void setHero(Hero h);

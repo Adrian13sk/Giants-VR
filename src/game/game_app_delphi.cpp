@@ -329,38 +329,40 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
     // person: from her left hand toward the crosshair or straight ahead).
     boltCooldown_ -= dt;
     const bool boltTrig = in.hand[mh].trigger > 0.6f;
-    if (boltTrig && !boltTrigWas_ && boltCooldown_ <= 0) {
-        Vec3 from, dir;
-        bool ok = false;
-        if (firstPerson_) {
-            const ControllerState& c = in.hand[mh];
-            if (c.aimPoseValid) {
-                const Pose aim = rig_.toWorld(c.aimPose);
-                dir = aim.orientation.rotate(Vec3{0, 0, -1});
-                from = aim.position + dir * 0.25f;
-                ok = true;
-            }
-        } else {
-            Mat4 ref;
-            if (playerModel_->nodeWorld("ref_lhand", ref)) {
-                const Vec4 p = bodyXf_ * Vec4{-ref.m[12] * gGameUnitsToMeters, ref.m[14] * gGameUnitsToMeters, ref.m[13] * gGameUnitsToMeters, 1};
-                from = {p.x, p.y, p.z};
-                dir = tpAiming_ ? normalize(aimTarget_ - from) : Quat::fromAxisAngle({0, 1, 0}, player_.yaw).rotate(normalize(Vec3{0, 0.05f, -1}));
-                ok = true;
-                if (player_.onGround && swipeT_ < 0) player_.startAction(PlayerAnim::Cast, std::max(0.3f, player_.oneShot[int(PlayerAnim::Cast)] * 0.6f));
-            }
+    // Where her casting hand aims (first person: that hand where it points; third person: from her
+    // left hand toward the crosshair or straight ahead).
+    Vec3 from, dir;
+    bool ok = false;
+    if (firstPerson_) {
+        const ControllerState& c = in.hand[mh];
+        if (c.aimPoseValid) {
+            const Pose aim = rig_.toWorld(c.aimPose);
+            dir = aim.orientation.rotate(Vec3{0, 0, -1});
+            from = aim.position + dir * 0.25f;
+            ok = true;
         }
-        if (ok) {
-            Rocket r;
-            r.pos = from;
-            r.vel = dir * 28.0f;
-            r.life = 0;
-            r.kind = 1;
-            rockets_.push_back(r);
-            boltCooldown_ = 1.0f;
-            sfx("sr_spfsh", from, 1.0f);
-            haptics_.push_back({mh, 0.6f, 0.08f});
+    } else {
+        Mat4 ref;
+        if (playerModel_->nodeWorld("ref_lhand", ref)) {
+            const Vec4 p = bodyXf_ * Vec4{-ref.m[12] * gGameUnitsToMeters, ref.m[14] * gGameUnitsToMeters, ref.m[13] * gGameUnitsToMeters, 1};
+            from = {p.x, p.y, p.z};
+            dir = tpAiming_ ? normalize(aimTarget_ - from) : Quat::fromAxisAngle({0, 1, 0}, player_.yaw).rotate(normalize(Vec3{0, 0.05f, -1}));
+            ok = true;
         }
+    }
+    // A held trigger charges a spell (game_app_spells.cpp); a tap released is the fire bolt.
+    const bool consumed = updateSpells(dt, boltTrig, from, dir, ok);
+    if (!consumed && !boltTrig && boltTrigWas_ && boltCooldown_ <= 0 && ok) {
+        if (!firstPerson_ && player_.onGround && swipeT_ < 0) player_.startAction(PlayerAnim::Cast, std::max(0.3f, player_.oneShot[int(PlayerAnim::Cast)] * 0.6f));
+        Rocket r;
+        r.pos = from;
+        r.vel = dir * 28.0f;
+        r.life = 0;
+        r.kind = 1;
+        rockets_.push_back(r);
+        boltCooldown_ = 1.0f;
+        sfx("sr_spfsh", from, 1.0f);
+        haptics_.push_back({mh, 0.6f, 0.08f});
     }
     boltTrigWas_ = boltTrig;
 }
