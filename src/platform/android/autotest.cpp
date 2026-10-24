@@ -117,7 +117,8 @@ void AutoTest::beginFrame(GameApp& game, XrApp& xr, XrFrameContext& frame, doubl
         script_.inputAt(0.0f, in);
         game.update(0.0f, in);  // consume the automatic spawn
         game.setFirstPerson(script_.firstPerson);
-        if (script_.hasAt) {
+        if (script_.briefing) game.debugReloadWithBriefing(in);
+        else if (script_.hasAt) {
             const float yaw = script_.startYaw();
             if (game.playMode()) game.teleportPlayer(giantsToRuntime(script_.atX, script_.atY, 0.0f), yaw);
             game.update(0.0f, in);

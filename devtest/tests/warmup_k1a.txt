@@ -1,0 +1,13 @@
+# The first seconds after a mission loads (the warm-up behind the briefing): Kabuto's k1a,
+# reloaded through the loading screen; the briefing ends ~6.6 s in.
+name warmup_k1a
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE none
+env GVR_GOD 1
+briefing
+view first
+duration 16
+perf 7 12
+shot 3 briefing
+shot 8 start

@@ -1963,7 +1963,9 @@ void GameApp::renderShadowMap() {
     if (quality_ >= 3) { renderer_.setShadowsActive(false); return; }
     if (!shadowsOn_ || !assetWorld_ || !assetWorld_->loaded()) { renderer_.setShadowsActive(false); return; }
     const Vec3 centre = playMode_ ? player_.position : rig_.worldFromTracking.position;
-    const float half = 24.0f;  // 48 m square around the player, ~2.3 cm texels at 2048
+    // 48 m square around the Meccaryn (~2.3 cm texels at 2048); wider for a bigger hero (Kabuto:
+    // ~140 m, so the trees a few of his steps away still cast shadows; texel size cost nothing on the Quest).
+    const float half = 24.0f * std::sqrt(std::max(1.0f, heroScale_));
     renderer_.beginShadowPass(renderer_.sunShadowMatrix(centre, half));
     assetWorld_->renderShadowCasters(renderer_, centre, half * 1.5f);
     const bool cut = cutsceneActive();
@@ -2249,6 +2251,10 @@ void GameApp::renderSunRays() {
     dp.tint = {env.sunColor.x * k, env.sunColor.y * k, env.sunColor.z * k * 0.85f, 1.0f};
     renderer_.draw(sunRaysMesh_, Mat4::translation(eye + toSun * dist) * basis * Mat4::rotation(Quat::fromAxisAngle({0, 0, 1}, float(time_) * 0.02f)) *
                                      Mat4::scale({dist, dist, dist}), dp);
+}
+
+void GameApp::debugReloadWithBriefing(const InputFrame& in) {
+    if (assetWorld_) beginLoading(assetWorld_->missionName(), in);
 }
 
 void GameApp::beginLoading(const std::string& mission, const InputFrame& in, bool load) {

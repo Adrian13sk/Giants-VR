@@ -43,6 +43,7 @@ bool TestScript::parse(const std::string& text, std::string& error) {
         else if (cmd == "aim") ok = bool(ss >> aimYawDeg >> aimPitchDeg);
         else if (cmd == "duration") ok = bool(ss >> duration) && duration > 0;
         else if (cmd == "perf") ok = bool(ss >> perfFrom >> perfTo);
+        else if (cmd == "briefing") briefing = true;
         else if (cmd == "move" || cmd == "turn") {
             Span s;
             s.what = cmd;

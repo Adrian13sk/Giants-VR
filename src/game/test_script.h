@@ -21,6 +21,7 @@
 //   aim <yawDeg> <pitchDeg>          right controller direction (default 0, -17.2)
 //   blast <gx> <gy> <h> <n> <t>      n rocket blasts at a point (as --blast-at)
 //   shot <t> <label>                 left-eye screenshot at t
+//   briefing                         reload the mission through the loading screen + briefing first
 #pragma once
 
 #include <string>
@@ -44,6 +45,7 @@ public:
     float atX = 0, atY = 0, lookX = 0, lookY = 0;
     float pitchDeg = -8.6f, aimYawDeg = 0.0f, aimPitchDeg = -17.2f;
     float duration = 20.0f, perfFrom = 3.0f, perfTo = -1.0f;  // perfTo < 0: the end
+    bool briefing = false;  // start through the loading screen and briefing (as the game does); `at` is ignored
 
     struct Span {
         std::string what;  // "move", "turn", a button name, "hand_r", "hand_l"

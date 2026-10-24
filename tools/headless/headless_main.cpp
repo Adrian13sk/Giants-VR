@@ -191,6 +191,7 @@ int main(int argc, char** argv) {
         else app.rig().teleportHead(in, giantsToRuntime(atX, atY, 0.0f), yaw);
         app.update(0.0f, in);  // ground following sets the height
     }
+    if (useScript && script.briefing) app.debugReloadWithBriefing(in);
     in.hand[kRight].trigger = triggerAmount;
     in.hand[kLeft].thumbstickClick = holdBrief;
     if (killDemo) {
