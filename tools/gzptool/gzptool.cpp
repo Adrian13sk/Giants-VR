@@ -434,6 +434,30 @@ static int cmdSkinCheck(const char* dir, const char* base, const char* anim) {
     return exact > 0 ? 0 : 1;
 }
 
+// Every object a world places (op 42), by name with counts, and each one's position (game units).
+static int cmdWorldObjs(const char* dir, const char* world, bool all) {
+    AssetFS fs;
+    fs.mountAllArchives(dir);
+    fs.mountDirectory(dir);
+    std::vector<uint8_t> d;
+    if (!fs.read(std::string("w_") + world + ".bin", d)) { std::printf("w_%s.bin not found\n", world); return 1; }
+    gvr::WorldDefinition w;
+    std::string err;
+    if (!gvr::parseWorldBin(d.data(), d.size(), w, &err)) { std::printf("parse: %s\n", err.c_str()); return 1; }
+    ObjectRegistry reg;
+    reg.build(dir);
+    std::map<std::string, int> counts;
+    for (const auto& o : w.objects) {
+        const std::string n = reg.modelName(o.type);
+        counts[n.empty() ? "type " + std::to_string(o.type) : n]++;
+        if (all) std::printf("%5u %-24s %9.1f %9.1f %8.1f  %6.1f\n", o.type, n.c_str(), o.x, o.y, o.z, o.angle);
+    }
+    std::printf("%s: %zu objects, terrain %s, %zu scenarios\n", world, w.objects.size(), w.terrainName.c_str(), w.scenarios.size());
+    for (const auto& sc : w.scenarios) std::printf("  scenario kind %u %s\n", sc.kind, sc.name.c_str());
+    for (const auto& kv : counts) std::printf("  %4d %s\n", kv.second, kv.first.c_str());
+    return 0;
+}
+
 static int cmdType(const char* dir, int n, char** ids) {
     gvr::ObjectRegistry reg;
     reg.build(dir);
@@ -527,6 +551,7 @@ int main(int argc, char** argv) {
     if (argc >= 4 && !std::strcmp(argv[1], "anminfo")) return cmdAnmInfo(argv[2], argc - 3, argv + 3);
     if (argc >= 4 && !std::strcmp(argv[1], "mission")) return cmdMission(argv[2], argv[3]);
     if (argc >= 4 && !std::strcmp(argv[1], "type")) return cmdType(argv[2], argc - 3, argv + 3);
+    if (argc >= 4 && !std::strcmp(argv[1], "worldobjs")) return cmdWorldObjs(argv[2], argv[3], argc >= 5 && !std::strcmp(argv[4], "all"));
     if (argc >= 4 && !std::strcmp(argv[1], "flick")) return cmdFlick(argv[2], argc - 3, argv + 3);
     if (argc >= 5 && !std::strcmp(argv[1], "skincheck")) return cmdSkinCheck(argv[2], argv[3], argv[4]);
     if (argc >= 3 && !std::strcmp(argv[1], "list")) return cmdList(argv[2]);

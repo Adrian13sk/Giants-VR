@@ -11,6 +11,7 @@
 #include "core/log.h"
 #include "game/input_state.h"
 #include "game/player.h"
+#include "game/skirmish.h"
 #include "game/weapon.h"
 #include "assets/weapondefs.h"
 #include "assets/fx_defs.h"
@@ -894,6 +895,38 @@ private:  // the mission placed enemies: no test waves
     // (game_app_delphi.cpp)
     enum class Hero { Mecc, Delphi, Kabuto };
     Hero hero_ = Hero::Mecc;
+    void heroBody(Hero h, PlayerController& pc, float& scale, float& lift) const;
+    // Skirmish (game_app_skirmish.cpp): the original's multiplayer maps (w_M_*) against computer players.
+    struct SkBody {
+        std::unique_ptr<SkinnedModel> model;
+        int clip[int(PlayerAnim::Count)] = {};
+        int die = -1;
+        Hero hero = Hero::Mecc;
+        float lift = 0;
+        Mat4 xf = Mat4::identity();
+        bool handValid = false;
+        Vec3 hand;
+    };
+    Skirmish sk_;
+    std::vector<SkBody> skBodies_;  // per skirmish player (no model for the local player)
+    bool skirmish_ = false;
+    int skLocal_ = -1;
+    std::unique_ptr<SkinnedModel> skHolder_[3];  // the flag holders (smborjoyzee_l0)
+    int skHolderClip_[3][3] = {};                // per holder: idle, carried by a Meccaryn, by a Reaper
+    const RenderModel* skFlag_[3] = {};
+    const RenderModel* skBow_ = nullptr;
+    float skAnimT_ = 0, skBannerT_ = 0, skRoundT_ = 0;
+    std::string skBanner_;
+    static constexpr int kBotTarget = 3000;  // weapon target ids for skirmish players (id = target - this)
+    void initSkirmish();
+    void updateSkirmish(float dt);
+    void renderSkirmish(bool shadow, const Vec3& eye);
+    void renderSkirmishHud();
+    bool skirmishRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& target) const;
+    void skirmishBlast(const Vec3& at, float radius, float damage);
+    void skirmishHit(int id, float amount, const Vec3& at, const Vec3& dir);
+    std::string skName(int id) const;
+    std::string skText(const char* key, const char* fallback) const;
     std::unique_ptr<SkinnedModel> meccMain_, meccSpare_, delphiModel_;
     int meccClip_[int(PlayerAnim::Count)] = {}, delphiClip_[int(PlayerAnim::Count)] = {};
     float meccOneShot_[int(PlayerAnim::Count)] = {}, delphiOneShot_[int(PlayerAnim::Count)] = {};
@@ -1039,6 +1072,8 @@ private:  // the mission placed enemies: no test waves
     int titleMissionSel_ = 0;
     void startChosenMission(const InputFrame& in);
     int titleRow_ = 0, titleCampaign_ = 0;
+    int titleSkMap_ = 0, titleSkTeam_ = 0;  // MULTIPLAYER: the map and the team chosen
+    int skWantTeam_ = -1, skPerTeam_ = 3;   // a skirmish started from the menu (-1: GVR_SKIRMISH / defaults)
     float titleRepeat_ = 0, titleHold_ = 0, titleT_ = 0, titleYaw_ = 0;
     Vec3 titleEye_;
     const RenderModel* logoModel_ = nullptr;

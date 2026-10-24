@@ -15,7 +15,23 @@
 namespace gvr {
 
 namespace {
-enum TitleRow { kTitleContinue, kTitleNewGame, kTitleMission, kTitleOptions, kTitleRowCount };
+enum TitleRow { kTitleContinue, kTitleNewGame, kTitleMission, kTitleSkirmish, kTitleSkTeam, kTitleOptions, kTitleRowCount };
+// The original's multiplayer maps (w_M_*), played against computer players (game_app_skirmish.cpp).
+const char* const kSkMaps[12] = {"M_3WAY_L1", "M_3WAY_L2", "M_3WAY_L3", "M_3WAY_Lw1", "M_Mecc_L1", "M_Mecc_L2",
+                                 "M_Mecc_L3", "M_Mecc_Lw1", "M_Reaper_L1", "M_Reaper_L2", "M_Reaper_L3", "M_Reaper_Lw1"};
+std::string skMapLabel(int i) {
+    const std::string m = kSkMaps[i];
+    const std::string kind = m.find("3WAY") != std::string::npos ? "3-WAY" : (m.find("Mecc") != std::string::npos ? "MECCARYN" : "REAPER");
+    return kind + " " + (m.back() == '1' && m[m.size() - 2] == 'w' ? std::string("W1") : std::string(1, m.back()));
+}
+int skTeams(int map) { return std::string(kSkMaps[map]).find("3WAY") != std::string::npos ? 3 : 2; }
+std::string skTeamLabel(int map, int team) {
+    static const char* names[3] = {"BLUE", "GREEN", "RED"};
+    const std::string m = kSkMaps[map];
+    const char* race = m.find("3WAY") != std::string::npos ? (team == 0 ? "MECCARYN" : (team == 1 ? "SEA REAPER" : "KABUTO"))
+                                                           : (m.find("Mecc") != std::string::npos ? "MECCARYN" : "SEA REAPER");
+    return std::string(names[team % 3]) + " (" + race + ")";
+}
 // Where the original's menu camera rests (flk_intro_island_2, camera01 and its target, game
 // units): above the sea off the island, looking up at the logo.
 constexpr float kCamGame[3] = {-3231.0f, 4058.0f, 374.0f};
@@ -132,6 +148,14 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
         sfx2D("ph_selct", 0.6f, 1.2f);
         titleHold_ = 0;
     }
+    if (dx != 0 && (titleRow_ == kTitleSkirmish || titleRow_ == kTitleSkTeam)) {
+        if (titleRow_ == kTitleSkirmish) titleSkMap_ = (titleSkMap_ + dx + 12) % 12;
+        else titleSkTeam_ = (titleSkTeam_ + dx + skTeams(titleSkMap_)) % skTeams(titleSkMap_);
+        titleSkTeam_ = std::min(titleSkTeam_, skTeams(titleSkMap_) - 1);
+        haptics_.push_back({kRight, 0.3f, 0.03f});
+        sfx2D("ph_selct", 0.6f, 1.2f);
+        titleHold_ = 0;
+    }
     if (dx != 0 && titleRow_ == kTitleNewGame) {
         titleCampaign_ = (titleCampaign_ + dx + 3) % 3;
         haptics_.push_back({kRight, 0.3f, 0.03f});
@@ -159,6 +183,19 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
             if (titleRow_ == kTitleContinue && !titleWorld_.empty()) startFromTitle(titleWorld_, titleMission_, true, in);
             else if (titleRow_ == kTitleNewGame) startFromTitle(kStoryWorld[titleCampaign_], std::string(), false, in);
             else if (missionRow) startChosenMission(in);
+            else if (titleRow_ == kTitleSkirmish || titleRow_ == kTitleSkTeam) {
+                // A skirmish doesn't touch the campaign's checkpoint.
+                skWantTeam_ = titleSkTeam_;
+                title_ = false;
+                haveRestore_ = false;
+                firstBriefDone_ = true;
+                setPlayMode(true, in);
+                beginLoading(std::string(), in);
+                load_.world = kSkMaps[titleSkMap_];
+                load_.worldMission.clear();
+                load_.title = load_.world;
+                LOGI("Main menu: multiplayer %s, team %d", kSkMaps[titleSkMap_], titleSkTeam_);
+            }
             else if (titleRow_ == kTitleOptions) openMenu(in);
         }
     }
@@ -212,7 +249,9 @@ void GameApp::renderTitle() {
         ms = titleHold_ > 0.05f && titleRow_ == kTitleMission ? "HOLD... " + std::to_string(int(std::ceil(1.5f - titleHold_)))
                                                               : "MISSION:  < " + std::to_string(titleMissionSel_ + 1) + ". " + (t.empty() ? wm.second : t) + " >";
     }
-    const std::string rows[kTitleRowCount] = {cont, ng, ms, "OPTIONS"};
+    const std::string sk = "MULTIPLAYER:  < " + skMapLabel(titleSkMap_) + " >";
+    const std::string skt = "   YOUR TEAM:  < " + skTeamLabel(titleSkMap_, titleSkTeam_) + " >";
+    const std::string rows[kTitleRowCount] = {cont, ng, ms, sk, skt, "OPTIONS"};
     float tw, th;
     for (int i = 0; i < kTitleRowCount; ++i) {
         const float y = 0.5f * h - 0.08f - rowH * (0.5f + float(i));

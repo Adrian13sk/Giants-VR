@@ -71,6 +71,8 @@ add_library(gvr_core STATIC
   src/game/game_app_mine.cpp
   src/game/game_app_bow.cpp
   src/game/fx_player.cpp
+  src/game/skirmish.cpp
+  src/game/game_app_skirmish.cpp
   src/game/game_app_datafx.cpp
   src/game/game_app_spells.cpp
   src/game/game_app_tags.cpp

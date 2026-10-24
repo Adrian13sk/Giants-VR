@@ -2,6 +2,7 @@
 // (the user's tracking space scaled up to his eye height), punches, stomps, eating and roaring.
 // Same class; see game_app.h ("Kabuto").
 #include "game/game_app.h"
+#include "game/hero_clips.h"
 
 #include <algorithm>
 #include <cmath>
@@ -29,14 +30,8 @@ bool GameApp::loadKabuto() {
     if (!assetWorld_) return false;
     auto m = std::make_unique<SkinnedModel>();
     if (!m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "kb_l0", "kb_stand.anm")) return false;
-    // His clips for each PlayerAnim (no jetpack: he jumps; Inject = eating, Attack1/2 = right and
-    // left punches, Attack3 = the stomp, Cast = the roar).
-    static const char* clips[int(PlayerAnim::Count)] = {
-        "kb_stand.anm",     "kb_walk.anm",       "kb_jump_up_loop.anm", "kb_stand.anm",   "kb_land_light.anm",
-        "kb_side_r.anm",    "kb_slide.anm",      "kb_run_jump_loop.anm", "kb_jump_up_loop.anm", "kb_jump_up_loop.anm",
-        "kb_jump_up_loop.anm", "kb_land.anm",    "kb_fall.anm",         "kb_eat_small.anm", "kb_mud_walk.anm",
-        "kb_run1.anm",      "kb_punch.anm",      "kb_punch_lft.anm",    "kb_stomp.anm",   "kb_roar.anm",
-        "kb_throw.anm"};
+    // His clips for each PlayerAnim (hero_clips.h).
+    const char* const* clips = kKabutoClips;
     for (int i = 1; i < int(PlayerAnim::Count); ++i) kabutoClip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
     kabutoClip_[0] = 0;
     for (PlayerAnim a : {PlayerAnim::Land, PlayerAnim::LandHard, PlayerAnim::Inject, PlayerAnim::Attack1, PlayerAnim::Attack2,
@@ -252,6 +247,13 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
             const float y = std::max(c.pos.y, std::min(c.pos.y + c.bossH, at.y));
             if (length(Vec3{c.pos.x, y, c.pos.z} - at) < r + c.bossR) { hitBoss(int(i), 30.0f * mul, at, dir); any = true; }
         }
+        // Skirmish players.
+        if (skirmish_)
+            for (const auto& o : sk_.players) {
+                if (!o.alive || o.local || !sk_.enemies(o.id, skLocal_)) continue;
+                const Vec3 c = o.body.position + Vec3{0, 0.5f * o.body.height, 0};
+                if (length(c - at) < r + o.body.radius + 0.5f) { hitMul_ = mul; weapon_.onHit(kBotTarget + o.id, c, dir); hitMul_ = 1.0f; any = true; }
+            }
         // Smarties (village folk): squashed.
         auto& vs = villagers_.villagers;
         for (size_t i = 0; i < vs.size();) {

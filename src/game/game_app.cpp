@@ -1,4 +1,5 @@
 #include "game/game_app.h"
+#include "game/hero_clips.h"
 
 #include "core/log.h"
 #include "core/prof.h"
@@ -111,11 +112,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         auto m = std::make_unique<SkinnedModel>();
         if (!m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, base, "mc_stand.anm")) return nullptr;
         {
-            const char* clips[] = {"mc_stand.anm", "mc_run.anm", "mc_hover.anm", "mc_hover.anm", "mc_land_soft.anm", "mc_sidestep.anm",
-                                   "mc_skid.anm", "mc_thrust.anm", "mc_fly_left.anm", "mc_fly_right.anm", "mc_hover_back.anm",
-                                   "mc_land_hard.anm", "mc_fly_cycle.anm", "mc_health_pup.anm", "mc_hover.anm", "mc_run.anm",
-                                   "mc_stand.anm", "mc_stand.anm", "mc_stand.anm", "mc_stand.anm", "mc_throw_stuff.anm"};
-            static_assert(sizeof(clips) / sizeof(clips[0]) == size_t(PlayerAnim::Count), "a clip per PlayerAnim");
+            const char* const* clips = kMeccClips;
             for (int i = 1; i < int(PlayerAnim::Count); ++i) clip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
             if (first) {
                 for (int i = 0; i < int(PlayerAnim::Count); ++i) LOGI("Player clip %d %s: %.2f s", i, clips[i], m->animDuration(clip_[i]));
@@ -336,6 +333,12 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     int iv = -1;
                     if (vimpRay(o, d, maxD, tv, iv) && (!he || tv < te)) { he = true; te = tv; ne = d * -1.0f; ie = kVimpTarget + iv; }
                 }
+                // Skirmish players.
+                {
+                    float ts = maxD;
+                    int is = -1;
+                    if (skirmishRay(o, d, maxD, ts, is) && (!he || ts < te)) { he = true; te = ts; ne = d * -1.0f; ie = is; }
+                }
                 // Mission-target characters without AI (Offspring, Charger).
                 {
                     float tb2 = maxD;
@@ -409,6 +412,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 if (target >= kNestTarget) {
                     damageNest(target - kNestTarget, 25.0f * hm);
                     haptics_.push_back({rig_.turnHand(), 0.5f, 0.05f});
+                    return;
+                }
+                if (target >= kBotTarget && target < kBotTarget + 1000) {
+                    skirmishHit(target - kBotTarget, 25.0f * hm, p, shotDir);
                     return;
                 }
                 if (target >= kCreatureTarget) {
@@ -1897,6 +1904,7 @@ void GameApp::initMission() {
     initKabutoPowers();
     initThrows();
     if (hero_ == Hero::Kabuto) kbAdren_ = kbGrow_ >= 0.999f ? 1.0f : 0.0f;  // at full size he comes in ready
+    initSkirmish();  // a multiplayer map (w_M_*): teams and computer players
     if (title_) return;  // the main menu's scene: no checkpoint
     if (haveRestore_) {  // what he carried at the checkpoint
         if (pendingRestore_.launcher && launcherModel_) {
@@ -2035,6 +2043,7 @@ void GameApp::renderShadowMap() {
             enemyPool_[size_t(e.slot)]->renderShadow(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
                                                                     Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
     renderReaperWeapons(true, centre, half * 1.4f);
+    renderSkirmish(true, centre);
     // The player's own body (whole, also in first person) and Timmy on his back.
     if (playMode_ && playerModel_ && !cut && !playerGibbed_) playerModel_->renderShadowFull(renderer_, bodyXf_);
     if (playMode_ && timmyOn_ && !cut) timmy_->renderShadow(renderer_, timmyXf_);
@@ -2403,7 +2412,8 @@ void GameApp::updateLoading(float dt, const InputFrame& in) {
                         if (!load_.worldMission.empty() && toLower(m) == toLower(load_.worldMission)) load_.mission = m;
                     missionText(load_.mission, load_.title, load_.brief);
                 }
-                if (!load_.mission.empty()) loadMission(load_.mission);
+                // A world without missions (the multiplayer maps) is still set up (its scenery, a skirmish).
+                if (!load_.mission.empty() || (assetWorld_ && assetWorld_->missions().empty())) loadMission(load_.mission);
                 load_.phase = LoadPhase::Brief;
                 load_.t = 0;
             }
@@ -2455,7 +2465,8 @@ void GameApp::renderLoading() {
 
 void GameApp::loadMission(const std::string& name) {
     AssetWorld* w = assetWorld_.get();
-    if (!w || !w->selectMission(name)) { LOGW("Mission %s unavailable", name.c_str()); return; }
+    // (An empty name: a world without missions, already placed by switchWorld.)
+    if (!w || (name.empty() ? !w->missions().empty() : !w->selectMission(name))) { LOGW("Mission %s unavailable", name.c_str()); return; }
     chars_.clear();
     creatures_.creatures.clear();
     creatures_.spits.clear();
@@ -2914,6 +2925,7 @@ void GameApp::startDeath() {
         sfx2D(hero_ == Hero::Kabuto ? (frand() < 0.5f ? "ka_deth1" : "ka_deth2") : "me_shrt3", 1.0f, 0.85f);
         if (deathCause_ != DeathCause::Drowned) blood_.pool(player_.position, 1.4f);
     }
+    if (skirmish_) sk_.localDied(skLocal_);
     static const char* const kCause[] = {"shot", "bitten", "eaten in the water", "blown apart", "fell"};
     LOGI("Player died (%s)", kCause[int(deathCause_)]);
 }
@@ -2950,7 +2962,8 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
         firstPerson_ = deathWasFp_;
         piranhaAttack_ = false;
         waterTime_ = 0;
-        teleportPlayer(assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
+        if (skirmish_) teleportPlayer(sk_.spawnPoint(skLocal_), player_.yaw);  // at his team's base
+        else teleportPlayer(assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
         respawnFade_ = 1.0f;
         LOGI("Player respawned");
     }
@@ -2979,6 +2992,7 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int
         bleed(enemies_.enemies[i].pos + Vec3{0, 1.0f, 0}, normalize(enemies_.enemies[i].pos - at + Vec3{0, 0.5f, 0}), killed, 1.0f);
         if (killed) blood_.pool(enemies_.enemies[i].pos, 1.3f);
     }
+    skirmishBlast(at, radius, damage);
     enemies_.alertNear(at, 30.0f);
     // Bodies near the blast are torn apart.
     for (auto& e : enemies_.enemies)
@@ -3411,6 +3425,7 @@ void GameApp::updateCombat(float dt) {
 
     { GVR_PROF("enemies"); enemies_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, shooters_); }
     bushEvents();
+    { GVR_PROF("skirmish"); updateSkirmish(dt); }
     // Model slots follow the enemies (the director removes sunk corpses).
     std::fill(slotUsed_.begin(), slotUsed_.end(), 0);
     for (auto& e : enemies_.enemies)
@@ -3500,7 +3515,7 @@ void GameApp::updateCombat(float dt) {
         sfx("me_hdfl1", e.pos, 1.0f, 0.8f);
     }
     { GVR_PROF("mission"); updateMission(dt); }
-    if (enemies_.aliveCount() == 0 && !missionHostiles_ && objectives_.empty()) {
+    if (enemies_.aliveCount() == 0 && !missionHostiles_ && objectives_.empty() && !skirmish_) {
         waveTimer_ += dt;
         if (waveTimer_ > 8.0f) { waveTimer_ = 0; spawnWave(); }
     } else {
@@ -3792,10 +3807,13 @@ void GameApp::update(float dt, const InputFrame& in) {
         return;
     }
     if (needSpawn_ && in.headValid) {
-        rig_.teleportHead(in, assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
+        // A skirmish starts at the player's team's base (facing the way initSkirmish turned him).
+        const Vec3 sp = skirmish_ ? sk_.spawnPoint(skLocal_) : assetWorld_->spawnPoint();
+        const float sy = skirmish_ ? player_.yaw : assetWorld_->spawnYaw();
+        rig_.teleportHead(in, sp, sy);
         if (playMode_) {
-            teleportPlayer(assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
-            if (!missionHostiles_ && objectives_.empty()) spawnWave();  // test waves only where the mission has no enemies or goals
+            teleportPlayer(sp, sy);
+            if (!missionHostiles_ && objectives_.empty() && !skirmish_) spawnWave();  // test waves only where the mission has no enemies or goals
             // The mission's opening cutscene (op 0x15), e.g. Baz's lander drop in 1a.
             const MissionData& m = assetWorld_->mission();
             // Test hook (headless): GVR_CUTSCENE=<first shot> plays that cutscene instead; "none" skips it.
@@ -4010,6 +4028,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     renderPopup();
     renderGrenades();
     renderMines();
+    renderSkirmish(false, v.eyePosition);
     renderSpells();
     renderKabutoPowers(v.eyePosition);
     renderThrows();
@@ -4176,6 +4195,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     else if (playMode_) renderHud();
     if (playMode_ && !cut) renderTags();
     if (playMode_ && !cut) renderTimmyLine();
+    if (playMode_ && !cut) renderSkirmishHud();
     if (playMode_ && !cut) renderRaceHud();
     if (briefHeld_ && !cut && playMode_) renderBriefOverlay();
     if (menuOpen_ && !cut) renderMenu();

@@ -16,6 +16,7 @@
 #include "assets/weapondefs.h"
 #include "assets/fx_defs.h"
 #include "game/fx_player.h"
+#include "game/skirmish.h"
 #include "scene/model_cache.h"
 #include "core/math.h"
 #include "game/test_script.h"
@@ -1599,7 +1600,55 @@ static void testFxAttach() {
     CHECK(h2 != 0 && fx.particles.empty());
 }
 
+static void testSkirmish() {
+    // Two Meccaryn teams on flat ground, bases 200 m apart, no walls.
+    Skirmish sk;
+    sk.groundAt = [](float, float) { return 0.0f; };
+    std::vector<Vec3> markers;
+    for (int k = 0; k < 4; ++k) { markers.push_back({-100.0f + 5.0f * float(k), 0, 10}); markers.push_back({100.0f + 5.0f * float(k), 0, 10}); }
+    markers.push_back({0, 0, 500});  // far from both: not a spawn
+    sk.setup({SkHero::Mecc, SkHero::Mecc}, {{-100, 0, 0}, {100, 0, 0}}, markers);
+    CHECK(sk.teams.size() == 2 && sk.teams[0].spawns.size() == 4 && sk.teams[1].spawns.size() == 4 && sk.teams[0].name == "Blue");
+    PlayerController proto;
+    for (int k = 0; k < 3; ++k) { sk.addPlayer("b" + std::to_string(k), 0, true, false, proto); sk.addPlayer("g" + std::to_string(k), 1, true, false, proto); }
+    CHECK(sk.players.size() == 6 && sk.players[0].role == SkPlayer::Attack && sk.players[2].role == SkPlayer::Defend);
+    CHECK(length(sk.players[0].body.position - Vec3{-100, 0, 0}) < 30.0f);
+    // A capture by hand: a Blue player carrying Green's flag home.
+    SkPlayer& b0 = sk.players[0];
+    sk.flags[1].carrier = b0.id;
+    sk.flags[1].atHome = false;
+    b0.carrying = 1;
+    b0.body.position = sk.teams[0].base;
+    sk.events.clear();
+    sk.update(0.016f);
+    bool captured = false;
+    for (const auto& e : sk.events) captured = captured || (e.kind == SkEvent::FlagCaptured && e.a == b0.id && e.team == 1);
+    CHECK(captured && sk.teams[0].captures == 1 && sk.flags[1].atHome && b0.carrying < 0);
+    // Killing a carrier drops the flag where he fell; his own team's touch returns it.
+    SkPlayer& g0 = sk.players[1];
+    g0.body.position = Vec3{0, 0, 0};
+    sk.flags[0].carrier = g0.id;
+    sk.flags[0].atHome = false;
+    g0.carrying = 0;
+    sk.damage(g0.id, 500.0f, b0.id, Vec3{});
+    CHECK(!g0.alive && sk.flags[0].carrier < 0 && !sk.flags[0].atHome && b0.kills == 1 && sk.teams[0].kills == 1);
+    // Friendly fire is off: a mate's shot does nothing.
+    const float hp = sk.players[2].hp;
+    sk.damage(sk.players[2].id, 50.0f, b0.id, Vec3{});
+    CHECK(sk.players[2].hp == hp);
+    // Played out: the bots fight and run for flags; someone wins within 20 minutes of game time.
+    sk.rules.captureLimit = 3;
+    sk.rules.killLimit = 20;
+    for (int i = 0; i < 72 * 1200 && sk.winner < 0; ++i) { sk.update(1.0f / 72.0f); sk.events.clear(); }
+    int kills = 0;
+    for (const auto& p : sk.players) kills += p.kills;
+    CHECK(sk.winner >= 0 && kills > 0);
+    std::printf("skirmish: winner %s after %.0f s, captures %d-%d, kills %d-%d\n", sk.teams[size_t(std::max(0, sk.winner))].name.c_str(), sk.time,
+                sk.teams[0].captures, sk.teams[1].captures, sk.teams[0].kills, sk.teams[1].kills);
+}
+
 int main() {
+    testSkirmish();
     testSoundTable();
     testFxLibrary();
     testFxAttach();

@@ -298,3 +298,19 @@ settings (typically 25, 100, 0, d, 0, d). Cross-checks: fx.bin's sound ids land 
 me_mslex, bullet hits bi_hit1/2, the Millenium bomb's bounce me_mtrht), and weapondefs' key 56 pairs are
 {ground, water} impact sounds (1536 bi_dirt1 / 1539 bi_watr1 for bullets; 1549 ex_dirts, 1550 ex_dirtl for
 blasts). Parser: ObjectRegistry::addSoundTable; `gzptool fx` prints the names.
+
+## Multiplayer data (2026-10-24) — V (what the files hold), P (how the original used it)
+- 12 multiplayer worlds `w_M_*.bin/.gzp/.abx`, no `wm_` mission files: M_3WAY_L1/L2/L3/Lw1 (one
+  mecc_base_template_1, one rp_base_template_1, one kabutopad: Meccaryns vs Reapers vs Kabuto), M_Mecc_L1/L2/L3/Lw1
+  (two mecc_base_template_1), M_Reaper_L1/L2/L3/Lw1 (two rp_base_template_1). Each has `marker` objects (type 679, 14-63
+  per map; on M_Mecc_L1 they cluster round each base and the villages between) and 1-5 sm_hatch_l0. All load and render
+  in the harness (`gzptool worldobjs <Bin> <World> [all]` lists them).
+- GTextEnglish.bin's multiplayer strings: teams 1 Blue/Mecc, 2 Green/Reaper, 3 Red/Kabuto; kills/deaths
+  ("Kills: %d   Deaths: %d"), team and individual score limits, flag captures ("%s has captured %s!", returned,
+  taken), base options ("first team to complete a base wins", "first to destroy a base wins", starting base level),
+  a capture-prevention timer at the start, team damage on/off, TCP host IP/port and join. Kabuto: "Stand on your EAT
+  PAD while you eat the flag-Smartie!"; the Comm Center building "protects your build pad and your flag holder".
+- Flag assets: the flag holder is a Smartie, smborjoyzee_l0 (type 584, class 18) with Smborjoyzee_flag / _flag_idle1 /
+  _flag_kidnap / _flag_fly (carried by a Meccaryn) / _flag_fly_rp (by a Reaper); flags sm_flag1/2/3 (types 952-954,
+  animated sm_flag.anm), base_flag_red/blue (835/836), Mcflag (+ Mcflag_flap.anm), kabutopad (1334, kabutopad.anm).
+  How the original's game logic used them is native code (not decoded).

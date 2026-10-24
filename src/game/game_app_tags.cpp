@@ -74,11 +74,19 @@ void GameApp::renderTags() {
     std::vector<Tag> cand;
     const Vec4 smartieCol{1.0f, 0.78f, 0.16f, 1.0f};  // the game's Smartie chat colour (ffc220)
     const Vec4 enemyCol{1.0f, 0.42f, 0.32f, 1.0f}, bossCol{1.0f, 0.62f, 0.2f, 1.0f}, beastCol{0.75f, 0.95f, 0.7f, 1.0f};
-    auto consider = [&](uint64_t id, const Vec3& top, const std::string& label, const Vec4& col) {
+    auto consider = [&](uint64_t id, const Vec3& top, const std::string& label, const Vec4& col, float range = 45.0f) {
         const float d = length(top - eye);
-        if (d > 45.0f || d < 0.4f) return;
+        if (d > range || d < 0.4f) return;
         cand.push_back({id, top, label, col, d});
     };
+    // Skirmish players, in their team's colour (who's who on a map of identical Meccaryns), further out.
+    if (skirmish_)
+        for (const auto& p : sk_.players) {
+            if (p.local || !p.alive) continue;
+            static const Vec4 teamCol[3] = {{0.45f, 0.65f, 1.0f, 1.0f}, {0.45f, 1.0f, 0.45f, 1.0f}, {1.0f, 0.4f, 0.3f, 1.0f}};
+            consider(7000000u + uint64_t(p.id), p.body.position + Vec3{0, p.body.height + 0.35f, 0},
+                     p.name + (p.carrying >= 0 ? " (FLAG)" : ""), teamCol[p.team % 3], 90.0f);
+        }
     for (const auto& ci : chars_) {
         if (ci.rescue < 0 || !ci.visible) continue;
         const SmartieState st = rescue_.smarties[size_t(ci.rescue)].state;

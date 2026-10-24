@@ -1,6 +1,7 @@
 // GameApp: Delphi, the Sea Reaper (the Reaper story's hero) - her model and clips, her sword and
 // her fire bolt. Same class; see game_app.h ("Playable heroes").
 #include "game/game_app.h"
+#include "game/hero_clips.h"
 
 #include <algorithm>
 #include <cmath>
@@ -32,13 +33,8 @@ bool GameApp::loadDelphi() {
     if (!assetWorld_) return false;
     auto m = std::make_unique<SkinnedModel>();
     if (!m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "rp_l0", "rp_stand.anm")) return false;
-    // Her clips for each PlayerAnim (no jetpack: jumps, falls, swims, turbo, sword swipes, spell).
-    static const char* clips[int(PlayerAnim::Count)] = {
-        "rp_stand.anm",     "rp_run.anm",        "rp_jump_cycle.anm", "rp_swim_treadwater.anm", "rp_land.anm",
-        "rp_side_r.anm",    "rp_slide.anm",      "rp_runjump_cycle.anm", "rp_jump_cycle.anm",   "rp_jump_cycle.anm",
-        "rp_jump_cycle.anm", "rp_land_hard.anm", "rp_fall.anm",       "rp_spell.anm",           "rp_swim_breast.anm",
-        "rp_turbo.anm",     "rp_swipe_1.anm",    "rp_swipe_2.anm",    "rp_swipe_3.anm",         "rp_spell_arm_bolt.anm",
-        "rp_spell_arm_bolt.anm"};
+    // Her clips for each PlayerAnim (hero_clips.h).
+    const char* const* clips = kDelphiClips;
     for (int i = 1; i < int(PlayerAnim::Count); ++i) delphiClip_[i] = std::max(0, m->addAnimation(assetWorld_->fs(), clips[i]));
     delphiClip_[0] = 0;
     {
@@ -99,6 +95,68 @@ bool GameApp::loadDelphi() {
     return true;
 }
 
+// The body of a hero (movement, size, one-shot clip lengths) on a controller: the player's when the
+// hero changes, a skirmish bot's. Kabuto's needs loadKabuto (his size comes from his model).
+void GameApp::heroBody(Hero h, PlayerController& pc, float& scale, float& lift) const {
+    PlayerParams p = meccParams_;
+    pc.swimSpeed = 2.4f;
+    pc.floatDepth = 1.35f;
+    pc.radius = 0.35f;
+    pc.height = kMeccHeightD;
+    pc.stepUp = 0.45f;
+    pc.jetpackAvailable = true;
+    scale = 1.0f;
+    lift = 0.0f;
+    const float* shots = meccOneShot_;
+    if (h == Hero::Delphi) {
+        shots = delphiOneShot_;
+        p.jumper = true;
+        p.runSpeed = 5.5f;
+        p.sprintFactor = 1.9f;    // turbo
+        p.strideSpeed = 2.8f;
+        p.jumpSpeed = 10.0f;
+        p.stunSpeed = 22.0f;      // agile: lands bigger drops
+        p.hardLandSpeed = 9.0f;
+        pc.swimSpeed = 4.2f;      // a Sea Reaper swims fast
+        pc.jetpackAvailable = false;
+    } else if (h == Hero::Kabuto) {
+        // Kabuto: about 15 Meccaryns tall. Walk and run speeds from his clips' foot travel
+        // (kb_walk ~8.7 m/s, kb_run1 ~13 m/s); heavier gravity so his jumps don't float.
+        shots = kabutoOneShot_;
+        const float H = std::max(kMeccHeightD, kabutoEye_ / 0.9f);
+        scale = H / kMeccHeightD;
+        lift = kabutoFeet_;
+        p.jumper = true;
+        p.runSpeed = 8.7f;
+        p.strideSpeed = 8.7f;
+        p.turboStride = 13.0f;
+        p.sprintFactor = 1.55f;
+        p.strafeStride = 6.0f;
+        p.maxPlayback = 1.8f;
+        p.turnRate = 3.0f;
+        p.gravity = 30.0f;
+        p.jumpSpeed = 24.0f;      // ~10 m up
+        p.airControl = 10.0f;
+        p.stunSpeed = 1e9f;       // a giant takes no fall damage
+        p.hardLandSpeed = 26.0f;
+        p.stepDown = 0.6f * scale;
+        p.maxStepUp = 0.6f * scale;
+        p.slideMaxSpeed = 18.0f;
+        pc.radius = 0.11f * H;
+        pc.height = H;
+        pc.stepUp = 0.3f * scale;
+        pc.floatDepth = 0.7f * H;  // he wades; deeper water than that and he swims (badly)
+        pc.swimSpeed = 4.0f;
+        pc.jetpackAvailable = false;
+    }
+    std::copy(shots, shots + int(PlayerAnim::Count), std::begin(pc.oneShot));
+    if (h != Hero::Mecc) {
+        if (shots[int(PlayerAnim::LandHard)] > 0.3f) p.stunSeconds = shots[int(PlayerAnim::LandHard)];
+        if (shots[int(PlayerAnim::Land)] > 0.2f) p.landSeconds = shots[int(PlayerAnim::Land)];
+    }
+    pc.params = p;
+}
+
 void GameApp::setHero(Hero h) {
     if (!meccParamsSaved_) {
         meccParams_ = player_.params;
@@ -116,20 +174,10 @@ void GameApp::setHero(Hero h) {
         case Hero::Delphi: delphiModel_ = std::move(playerModel_); break;
         case Hero::Kabuto: kabutoModel_ = std::move(playerModel_); break;
     }
-    // Defaults (the Meccaryn's), then the new hero's differences.
-    PlayerParams p = meccParams_;
-    player_.swimSpeed = 2.4f;
-    player_.floatDepth = 1.35f;
-    player_.radius = 0.35f;
-    player_.height = kMeccHeightD;
-    player_.stepUp = 0.45f;
-    heroScale_ = 1.0f;
-    heroLift_ = 0.0f;
     swordValid_ = false;
     gunValid_ = false;
     tpAiming_ = false;
     const int* clips = meccClip_;
-    const float* shots = meccOneShot_;
     if (!meccEyeSaved_) { meccEye_ = eyeModel_; meccEyeFromHead_ = eyeFromHead_; meccEyeSaved_ = true; }
     // The first-person eye point of the body worn.
     eyeModel_ = h == Hero::Delphi ? delphiEye_ : (h == Hero::Kabuto ? kabutoEyeModel_ : meccEye_);
@@ -141,55 +189,17 @@ void GameApp::setHero(Hero h) {
     } else if (h == Hero::Delphi) {
         playerModel_ = std::move(delphiModel_);
         clips = delphiClip_;
-        shots = delphiOneShot_;
-        p.jumper = true;
-        p.runSpeed = 5.5f;
-        p.sprintFactor = 1.9f;    // turbo
-        p.strideSpeed = 2.8f;
-        p.jumpSpeed = 10.0f;
-        p.stunSpeed = 22.0f;      // agile: lands bigger drops
-        p.hardLandSpeed = 9.0f;
-        player_.swimSpeed = 4.2f;  // a Sea Reaper swims fast
-        player_.jetpackAvailable = false;
     } else {
-        // Kabuto: about 15 Meccaryns tall. Walk and run speeds from his clips' foot travel
-        // (kb_walk ~8.7 m/s, kb_run1 ~13 m/s); heavier gravity so his jumps don't float.
         playerModel_ = std::move(kabutoModel_);
         clips = kabutoClip_;
-        shots = kabutoOneShot_;
-        const float H = std::max(kMeccHeightD, kabutoEye_ / 0.9f);
-        heroScale_ = H / kMeccHeightD;
-        heroLift_ = kabutoFeet_;
-        p.jumper = true;
-        p.runSpeed = 8.7f;
-        p.strideSpeed = 8.7f;
-        p.turboStride = 13.0f;
-        p.sprintFactor = 1.55f;
-        p.strafeStride = 6.0f;
-        p.maxPlayback = 1.8f;
-        p.turnRate = 3.0f;
-        p.gravity = 30.0f;
-        p.jumpSpeed = 24.0f;      // ~10 m up
-        p.airControl = 10.0f;
-        p.stunSpeed = 1e9f;       // a giant takes no fall damage
-        p.hardLandSpeed = 26.0f;
-        p.stepDown = 0.6f * heroScale_;
-        p.maxStepUp = 0.6f * heroScale_;
-        p.slideMaxSpeed = 18.0f;
-        player_.radius = 0.11f * H;
-        player_.height = H;
-        player_.stepUp = 0.3f * heroScale_;
-        player_.floatDepth = 0.7f * H;  // he wades; deeper water than that and he swims (badly)
-        player_.swimSpeed = 4.0f;
-        player_.jetpackAvailable = false;
     }
     std::copy(clips, clips + int(PlayerAnim::Count), std::begin(clip_));
-    std::copy(shots, shots + int(PlayerAnim::Count), std::begin(player_.oneShot));
-    if (h != Hero::Mecc) {
-        if (shots[int(PlayerAnim::LandHard)] > 0.3f) p.stunSeconds = shots[int(PlayerAnim::LandHard)];
-        if (shots[int(PlayerAnim::Land)] > 0.2f) p.landSeconds = shots[int(PlayerAnim::Land)];
+    {
+        const bool jet = player_.jetpackAvailable;  // the Meccaryn's is the mission's to give
+        heroBody(h, player_, heroScale_, heroLift_);
+        if (h == Hero::Mecc) player_.jetpackAvailable = jet;
     }
-    player_.params = p;
+    const PlayerParams p = player_.params;
     std::copy(std::begin(heroDeath_[int(h)]), std::end(heroDeath_[int(h)]), std::begin(deathClip_));
     hero_ = h;
     if (h == Hero::Kabuto) {
@@ -328,6 +338,10 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
                 const Vimp& v = vimps_.vimps[i];
                 if (v.state != VimpState::Dead && inArc(v.pos, 3.6f)) strike(kVimpTarget + int(i), v.pos + Vec3{0, 2.0f, 0}, fwd, mul);
             }
+            if (skirmish_)
+                for (const auto& p : sk_.players)
+                    if (p.alive && !p.local && sk_.enemies(p.id, skLocal_) && inArc(p.body.position, 2.6f + p.body.radius))
+                        strike(kBotTarget + p.id, p.body.position + Vec3{0, 0.6f * std::min(p.body.height, 2.0f), 0}, fwd, mul);
         }
         if (swipeT_ > dur || !player_.inAction()) swipeT_ = -1;
     }
