@@ -25,9 +25,10 @@
 namespace gvr {
 
 namespace {
-enum CrewClip { kStand = 0, kWalk, kHammer, kSaw, kDig, kSpell, kHatch, kSit, kCelebrate, kCrewClips };
+enum CrewClip { kStand = 0, kWalk, kHammer, kSaw, kDig, kSpell, kHatch, kSit, kCelebrate, kCower, kCrewClips };
 const char* kCrewAnims[kCrewClips] = {"sm_stand.anm",   "sm_run_with_materials.anm", "sm_hammer_use.anm", "sm_saw_use.anm", "sm_dig.anm",
-                                      "sm_spell_builds.anm", "sm_hatch_exit.anm",     "sm_sit.anm",        "sm_celebrate.anm"};
+                                      "sm_spell_builds.anm", "sm_hatch_exit.anm",     "sm_sit.anm",        "sm_celebrate.anm",
+                                      "sm_cower.anm"};
 constexpr int kStartCrew = 3;
 constexpr int kPerHatch = 3;
 constexpr int kPerSite = 2;
@@ -156,6 +157,14 @@ void GameApp::updateCrew(float dt) {
             timmyLineT_ = 2.5f;
         }
         int want;
+        // A Reaper close by: down tools and cower ("It's hard to work when you're being shot at - HELP!").
+        bool threat = false;
+        for (const auto& e : enemies_.enemies)
+            if (e.state != EnemyState::Dead && length(Vec3{e.pos.x - w.pos.x, 0, e.pos.z - w.pos.z}) < 12.0f) { threat = true; break; }
+        if (threat) {
+            if (w.clip != kCower) { w.clip = kCower; w.clipT = 0; }
+            continue;
+        }
         if (w.site >= 0) {
             const Mat4& x = base_.bldgs[size_t(w.site)].xf;
             w.yaw = std::atan2(-(x.m[12] - w.pos.x), -(x.m[14] - w.pos.z));  // face the building

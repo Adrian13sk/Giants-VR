@@ -1542,3 +1542,14 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   on a lost race before it runs again (harness: rstory3_1_jetski_r_win plays, 4 actors).
 - Base buildings are CPU-skinned: re-posed only while their pose changes (standing buildings were re-skinned for
   every eye every frame).
+
+### 2026-10-24 — Campaign soak test; crew cowers under attack; mission select launcher
+- Soak (harness, one process, GVR_GOD, mission completed every 2000 frames): 1a -> ... -> end, all 54 transitions
+  through 18 worlds, 0 errors. Resident memory 174 MB at 1b -> 436 MB at the end: flat within a world, +10-30 MB at
+  each world switch (models/textures of the new world cached; the cache isn't emptied between worlds; on the host's
+  software GL this includes texture memory). Not a problem for normal play (one story at a time), but worth watching
+  on the headset in a long session; evicting the model cache on a world switch would need every cached pointer the
+  game keeps (weapons, effects) re-fetched.
+- Base crew: with a living enemy within 12 m a Smartie drops tools and cowers (sm_cower), and a site with an enemy
+  within 15 m stops progressing (smchbaseattack2: "It's hard to work when you're being shot at"). Ours.
+- Mission select gives the rocket launcher for any mission after 1b (the campaign would have).

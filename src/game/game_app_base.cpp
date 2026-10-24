@@ -409,6 +409,11 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         if (b.state != 1) continue;
         if (busy >= crews) break;  // two Smarties per building going up (game_app_basecrew.cpp)
         ++busy;
+        // Work stops while Reapers are at the site (the crew cowers).
+        bool threat = false;
+        for (const auto& e : enemies_.enemies)
+            if (e.state != EnemyState::Dead && length(Vec3{e.pos.x - b.xf.m[12], 0, e.pos.z - b.xf.m[14]}) < 15.0f) { threat = true; break; }
+        if (threat) continue;
         b.progress = std::min(1.0f, b.progress + dt * base_.speed / std::max(1.0f, kDefs[b.def].seconds));
         b.fxT -= dt;
         if (b.fxT <= 0) {
