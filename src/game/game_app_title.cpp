@@ -2,6 +2,8 @@
 // ("Main menu").
 #include "game/game_app.h"
 
+#include <cstdlib>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -13,7 +15,7 @@
 namespace gvr {
 
 namespace {
-enum TitleRow { kTitleContinue, kTitleNewGame, kTitleOptions, kTitleRowCount };
+enum TitleRow { kTitleContinue, kTitleNewGame, kTitleMission, kTitleOptions, kTitleRowCount };
 // Where the original's menu camera rests (flk_intro_island_2, camera01 and its target, game
 // units): above the sea off the island, looking up at the logo.
 constexpr float kCamGame[3] = {-3231.0f, 4058.0f, 374.0f};
@@ -44,6 +46,15 @@ void GameApp::enterTitle() {
     titleEye_ = cam;
     titleYaw_ = std::atan2(-(tgt.x - cam.x), -(tgt.z - cam.z));
     if (assetWorld_ && assetWorld_->models()) logoModel_ = assetWorld_->models()->get("Giants_logo_3D.gbs");
+    // Mission select (ours): every mission of the three stories in campaign order; starts at the
+    // checkpoint's mission when there is one.
+    if (assetWorld_ && titleMissions_.empty()) titleMissions_ = assetWorld_->campaignMissions();
+    titleMissionSel_ = 0;
+    for (size_t i = 0; i < titleMissions_.size(); ++i)
+        if (toLower(titleMissions_[i].second) == toLower(titleMission_)) titleMissionSel_ = int(i);
+    LOGI("Main menu: %zu missions to choose from", titleMissions_.size());
+    if (std::getenv("GVR_LIST_MISSIONS"))
+        for (size_t i = 0; i < titleMissions_.size(); ++i) LOGI("  mission %zu: %s / %s", i + 1, titleMissions_[i].first.c_str(), titleMissions_[i].second.c_str());
     LOGI("Main menu (%s), continue: %s", logoModel_ ? "logo" : "no logo", titleWorld_.empty() ? "none" : titleWorld_.c_str());
 }
 
@@ -100,6 +111,13 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
         sfx2D("ph_selct", 0.4f);
         titleHold_ = 0;
     }
+    if (dx != 0 && titleRow_ == kTitleMission && !titleMissions_.empty()) {
+        const int n = int(titleMissions_.size());
+        titleMissionSel_ = (titleMissionSel_ + dx + n) % n;
+        haptics_.push_back({kRight, 0.3f, 0.03f});
+        sfx2D("ph_selct", 0.6f, 1.2f);
+        titleHold_ = 0;
+    }
     if (dx != 0 && titleRow_ == kTitleNewGame) {
         titleCampaign_ = (titleCampaign_ + dx + 3) % 3;
         haptics_.push_back({kRight, 0.3f, 0.03f});
@@ -108,12 +126,18 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
     }
     // A or either trigger: select. A new game over an existing checkpoint is held 1.5 s.
     const bool act = in.hand[1].primary || in.hand[0].trigger > 0.6f || in.hand[1].trigger > 0.6f;
-    if (titleRow_ == kTitleNewGame && act && !titleWorld_.empty()) {
+    const bool missionRow = titleRow_ == kTitleMission && !titleMissions_.empty();
+    if ((titleRow_ == kTitleNewGame || missionRow) && act && !titleWorld_.empty()) {
         titleHold_ += dt;
         if (titleHold_ > 1.5f) {
             haptics_.push_back({kLeft, 1.0f, 0.3f});
             haptics_.push_back({kRight, 1.0f, 0.3f});
-            startFromTitle(kStoryWorld[titleCampaign_], std::string(), false, in);
+            if (missionRow) {
+                const auto& wm = titleMissions_[size_t(titleMissionSel_)];
+                startFromTitle(wm.first, wm.second, false, in);
+            } else {
+                startFromTitle(kStoryWorld[titleCampaign_], std::string(), false, in);
+            }
         }
     } else {
         titleHold_ = 0;
@@ -121,6 +145,7 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
             haptics_.push_back({kRight, 0.6f, 0.08f});
             if (titleRow_ == kTitleContinue && !titleWorld_.empty()) startFromTitle(titleWorld_, titleMission_, true, in);
             else if (titleRow_ == kTitleNewGame) startFromTitle(kStoryWorld[titleCampaign_], std::string(), false, in);
+            else if (missionRow) startFromTitle(titleMissions_[size_t(titleMissionSel_)].first, titleMissions_[size_t(titleMissionSel_)].second, false, in);
             else if (titleRow_ == kTitleOptions) openMenu(in);
         }
     }
@@ -156,7 +181,7 @@ void GameApp::renderTitle() {
     const Vec3 base = titleEye_ + r.rotate(Vec3{0, -0.55f, -1.5f});
     const Quat tilt = r * Quat::fromAxisAngle({1, 0, 0}, 0.32f);  // tipped back toward the eyes
     const Mat4 panel = Mat4::translation(base) * Mat4::rotation(tilt);
-    const float w = 1.05f, rowH = 0.11f, h = rowH * 3 + 0.16f;
+    const float w = 1.05f, rowH = 0.11f, h = rowH * float(kTitleRowCount) + 0.16f;
     text_.drawPanel(panel, w, h, {0, 0, 0, 0.72f});
     std::string cont = "CONTINUE";
     if (!titleWorld_.empty()) {
@@ -165,12 +190,20 @@ void GameApp::renderTitle() {
         cont += "  -  " + (t.empty() ? titleMission_ : t);
     }
     const std::string story = kStoryName[titleCampaign_];
-    const std::string ng = titleHold_ > 0.05f ? "HOLD... " + std::to_string(int(std::ceil(1.5f - titleHold_))) : "NEW GAME:  < " + story + " >";
-    const std::string rows[kTitleRowCount] = {cont, ng, "OPTIONS"};
+    const std::string ng = titleHold_ > 0.05f && titleRow_ == kTitleNewGame ? "HOLD... " + std::to_string(int(std::ceil(1.5f - titleHold_))) : "NEW GAME:  < " + story + " >";
+    std::string ms = "MISSION: (none)";
+    if (!titleMissions_.empty()) {
+        const auto& wm = titleMissions_[size_t(titleMissionSel_)];
+        std::string t, b;
+        missionText(wm.second, t, b);
+        ms = titleHold_ > 0.05f && titleRow_ == kTitleMission ? "HOLD... " + std::to_string(int(std::ceil(1.5f - titleHold_)))
+                                                              : "MISSION:  < " + std::to_string(titleMissionSel_ + 1) + ". " + (t.empty() ? wm.second : t) + " >";
+    }
+    const std::string rows[kTitleRowCount] = {cont, ng, ms, "OPTIONS"};
     float tw, th;
     for (int i = 0; i < kTitleRowCount; ++i) {
         const float y = 0.5f * h - 0.08f - rowH * (0.5f + float(i));
-        const bool usable = i != kTitleContinue || !titleWorld_.empty();
+        const bool usable = (i != kTitleContinue || !titleWorld_.empty()) && (i != kTitleMission || !titleMissions_.empty());
         const bool sel = i == titleRow_;
         if (sel) text_.drawPanel(panel * Mat4::translation({0, y, 0.002f}), w - 0.06f, rowH * 0.9f, {0.25f, 0.55f, 0.25f, 0.6f});
         const Vec4 col = !usable ? Vec4{0.45f, 0.45f, 0.45f, 1} : (sel ? Vec4{1, 1, 0.8f, 1} : Vec4{0.85f, 0.85f, 0.85f, 1});

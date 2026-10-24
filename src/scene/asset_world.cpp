@@ -375,6 +375,22 @@ std::string AssetWorld::nextStoryWorld(const std::string& world) {
     return {};
 }
 
+std::vector<std::pair<std::string, std::string>> AssetWorld::campaignMissions() const {
+    static const char* worlds[] = {"Story1",  "Story2", "Story3",         "Story4",         "Story5",         "the_end", "Rstory1", "Rstory2",
+                                   "Rstory3_race_1", "Rstory3_race_2", "Rstory3_race_3", "Rstory4", "Rstory5", "Kstory1", "Kstory2",
+                                   "Kstory3", "Kstory4", "Kstory5"};
+    std::vector<std::pair<std::string, std::string>> out;
+    for (const char* w : worlds) {
+        std::vector<uint8_t> bytes;
+        WorldDefinition def;
+        if (!fs_.read(std::string("w_") + w + ".bin", bytes) || !parseWorldBin(bytes.data(), bytes.size(), def)) continue;
+        for (const auto& sc : def.scenarios)
+            if (sc.kind == 2 && fs_.exists("wm_" + sc.name + ".bin")) out.push_back({w, sc.name});
+        if (std::string(w) == "the_end" && fs_.exists("wm_end.bin") && (out.empty() || out.back().second != "end")) out.push_back({w, "end"});
+    }
+    return out;
+}
+
 bool AssetWorld::switchWorld(const std::string& name) {
     if (!renderer_) return false;
     Renderer& r = *renderer_;

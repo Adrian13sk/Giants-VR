@@ -875,6 +875,8 @@ private:  // the mission placed enemies: no test waves
     // loading art) / OPTIONS.
     bool titleWanted_ = false, title_ = false, titleViewSet_ = false, titleActHeld_ = true, titleFirst_ = true;
     std::string titleWorld_, titleMission_;   // the checkpoint CONTINUE goes to ("" none)
+    std::vector<std::pair<std::string, std::string>> titleMissions_;  // main menu mission select: (world, mission)
+    int titleMissionSel_ = 0;
     int titleRow_ = 0, titleCampaign_ = 0;
     float titleRepeat_ = 0, titleHold_ = 0, titleT_ = 0, titleYaw_ = 0;
     Vec3 titleEye_;

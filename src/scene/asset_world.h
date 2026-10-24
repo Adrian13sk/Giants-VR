@@ -90,6 +90,10 @@ public:
     const std::string& worldName() const { return worldName_; }
     // The world that follows `world` in the Meccaryn story (Story1 -> Story2 ... -> the_end), or empty.
     static std::string nextStoryWorld(const std::string& world);
+    // Every chapter's missions in campaign order (Meccaryn, Reaper, Kabuto, the end), as (world,
+    // mission): read from each world's scenario list (op 92) without loading the world. For the
+    // main menu's mission select.
+    std::vector<std::pair<std::string, std::string>> campaignMissions() const;
     // The world this one's scenario list continues to (op 92 kind 3: Story5 -> rstory1, Rstory5 ->
     // kstory1, Kstory5 -> the_end); empty if none.
     std::string nextWorld() const;

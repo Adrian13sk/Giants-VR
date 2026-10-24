@@ -1523,3 +1523,11 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   marker (36/36), rstory5 its marker (33 vs 3), rstory2 moves off its marker (25: a cliff over water) to the paths'
   middle (32). The soul drop-off is pulled in toward the middle when its slot lies on a rock more than 2 m above/below
   (rstory2: 18.6 m -> level). Renders: rstory2 now a plateau with the Reaper buildings; rstory5 a basin.
+
+### 2026-10-24 — Mission select, play-test checklist
+- Main menu MISSION row (ours): all 55 missions of the three stories in campaign order, read from each world's
+  scenario list without loading the world (AssetWorld::campaignMissions); left/right to choose, trigger (1.5 s hold
+  over a checkpoint) starts it like NEW GAME. Harness: menu shows "7. THE WIFE"; selecting loads Story2 /
+  2b_2_returnwife. GVR_LIST_MISSIONS logs the list.
+- docs/PLAYTEST.md: a checklist for the user's headset session (base missions first). INSTALL.md: stale statements
+  fixed (Story 2 objectives, Delphi's first-person body, Sonaks/bosses), mission select documented.

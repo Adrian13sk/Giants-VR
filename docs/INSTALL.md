@@ -137,8 +137,8 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   Options → DAY AND NIGHT → ALWAYS DAY turns it off.
 - **Rumble:** hits (stronger on the side they come from), the jetpack (a kick at take-off, a hum while it fires,
   harder on turbo), landings, and a heartbeat below 30 health.
-- **Story:** finishing 1d now continues into Story 2 (2a). Story 2's objectives aren't implemented yet (2a can't be
-  completed).
+- **Story:** finishing a chapter's last mission continues into the next chapter (Story 1 -> 2 -> ... -> the Reaper and
+  Kabuto stories). Every mission has its objectives from the game's data.
 
 ## Base building (Story 5, "The Battle!" - mission 5c)
 - The base is laid out round Borjoyzee from the game's own base template: Build Pad, meat drop-off and fire pit
@@ -184,7 +184,7 @@ Options → NEW GAME: choose **REAPER STORY (DELPHI)** with the stick, hold the 
   person - **right trigger**: a three-swipe combo, the third hits hardest.
 - **Fire bolt: left trigger** (first person: from your left hand where it points; third person: toward the crosshair or
   straight ahead), about one a second. The HUD's fire icon is lit when it's ready.
-- In first person her body isn't drawn (you see the controllers and the sword).
+- In first person you see her body and arms (her head is hidden so it doesn't block the view).
 
 **Delphi's spells** (move-hand trigger): a **tap** throws her fire bolt - or, aimed at a Smartie, a **bubble** that catches
 it and floats it to you. **Hold and release** after about a second: a **fire wall** rolls forward, burning everything in
@@ -228,6 +228,9 @@ The game now starts at the main menu: night over the intro island with the GIANT
 - **CONTINUE** goes back to your last checkpoint (the mission's name is shown).
 - **NEW GAME**: pick the story with the stick left/right (its loading art shows beside the menu). If you have a
   checkpoint, hold the trigger 1.5 s, because a new game replaces it.
+- **MISSION**: jump straight to any mission (left/right through all 55 in campaign order: 1-23 Meccaryn, 24-39
+  Reaper, 40-55 Kabuto), trigger to start it. Like NEW GAME it replaces your checkpoint, so with one it needs a 1.5 s
+  hold. See docs/PLAYTEST.md for what to look at in each.
 - **OPTIONS**: the usual options. The left menu button opens them too.
 - Loading screens show the original art of the story's race next to the mission briefing.
 - Delphi regains health while swimming in deep water, as her briefing says.
@@ -238,8 +241,7 @@ The game now starts at the main menu: night over the intro island with the GIANT
   floating marker.
 - **Destroy missions:** barracks, prisons, doors and launcher bases named by a mission now take damage and collapse
   (rockets work best).
-- **Sonak groups:** the guards appear round them; kill the guards. The Sonak itself isn't in yet.
-- **Bosses:** the Offspring in 4b and the Charger in 5a can be shot down, but they don't attack yet.
+- **Sonak groups, bosses:** see "Bosses, Sonaks, SAMs" below.
 
 ## Reaperski (Delphi)
 - **Getting on:** walk into a moored Reaperski. In races you start on one.
