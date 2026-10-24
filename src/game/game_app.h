@@ -607,6 +607,7 @@ private:
     void initCrew();
     void updateCrew(float dt);
     void renderCrew(const Vec3& eye, bool shadow);
+    void poseCrew();
     int crewCount() const;
     int crewSites() const;
     void initLeader();

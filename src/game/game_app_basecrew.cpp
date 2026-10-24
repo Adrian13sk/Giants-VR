@@ -236,7 +236,9 @@ void GameApp::updateLeader(float dt) {
     }
 }
 
-void GameApp::renderCrew(const Vec3& eye, bool shadow) {
+// Posed once a frame (from updateBase), drawn for each eye.
+void GameApp::poseCrew() {
+    const Vec3 eye = player_.position;
     if (base_.leader && length(base_.leaderPos - eye) < 150.0f) {
         const bool carried = base_.carrier != 0;
         const Vec3 g{base_.leaderHome.x - base_.leaderPos.x, 0, base_.leaderHome.z - base_.leaderPos.z};
@@ -245,14 +247,23 @@ void GameApp::renderCrew(const Vec3& eye, bool shadow) {
         const int clip = std::max(0, base_.leaderClip[carried ? 1 : walking ? 2 : waving ? 3 : 0]);
         const float d = base_.leader->animDuration(clip);
         base_.leader->poseBlend(renderer_, clip, d > 0 ? std::fmod(base_.leaderT, d) : 0.0f, clip, 0.0f, 0.0f);
+    }
+    for (auto& w : base_.crew) {
+        if (length(w.pos - eye) > 120.0f) continue;
+        const int clip = std::max(0, base_.crewClip[w.clip]);
+        const float d = w.model->animDuration(clip);
+        w.model->poseBlend(renderer_, clip, d > 0 ? std::fmod(w.clipT, d) : 0.0f, clip, 0.0f, 0.0f);
+    }
+}
+
+void GameApp::renderCrew(const Vec3& eye, bool shadow) {
+    if (base_.leader && length(base_.leaderPos - eye) < 150.0f) {
+        const bool carried = base_.carrier != 0;
         base_.leader->render(renderer_, Mat4::translation(base_.leaderPos + Vec3{0, carried ? 0.0f : base_.leaderLift, 0}) *
                                             Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, base_.leaderYaw)));
     }
     for (auto& w : base_.crew) {
-        if (length(w.pos - eye) > (shadow ? 60.0f : 120.0f)) continue;
-        const int clip = std::max(0, base_.crewClip[w.clip]);
-        const float d = w.model->animDuration(clip);
-        if (!shadow) w.model->poseBlend(renderer_, clip, d > 0 ? std::fmod(w.clipT, d) : 0.0f, clip, 0.0f, 0.0f);
+        if (length(w.pos - eye) > (shadow ? 60.0f : 120.0f) || length(w.pos - player_.position) > 120.0f) continue;
         const Mat4 xf = Mat4::translation(w.pos + Vec3{0, w.lift, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, w.yaw));
         if (shadow) w.model->renderShadow(renderer_, xf);
         else w.model->render(renderer_, xf);

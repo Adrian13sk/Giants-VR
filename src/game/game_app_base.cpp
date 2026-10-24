@@ -402,6 +402,7 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
             if (b.state == 1) LOGI("base-trace t=%.0f %s progress %.2f", base_.traceT, bldgLabel(b.def, b.level), b.progress);
     base_.traceT += dt;
     updateCrew(dt);
+    poseCrew();
     int busy = 0;
     const int crews = crewSites();
     for (auto& b : base_.bldgs) {
