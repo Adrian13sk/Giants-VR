@@ -1202,3 +1202,21 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - **VR map** (Y): a holographic island table, live markers, circling objective dots with beams, fog of war (90 m).
   Vertex colours are given gamma-corrected (the eye buffers are sRGB).
 - **Not device-tested.**
+
+### 2026-10-24 — The saved-for-later items: flares, bush pack, Kabuto growing (builds 41f2a89, 14386c1, 3886e95)
+- **Delivery of d982b4b** to the PC was verified by sha256 (the computer was offline at first; the files were also sent in
+  the conversation).
+- **Flares** (2b briefing: "throw homing missiles off your trail by using FLARES, found in the Shop"): the guard_shop
+  exists in Story 2, 3 and 4 too (4a has two), so every level with one gets the counter, now with 3 flares (max 6).
+  Move-hand trigger throws one (ME_FLARE, st_mec_flare on the HUD); it burns 5 s; a SAM missile within 120 m homes on
+  it. Harness 2b: a missile bursts 2.7 m from the player without a flare, 5.9 m away with one (no damage).
+  The original's efx_flare model is a small green smoke card, not used.
+- **Bush pack** (2b on): the original assets are all there - MCbush (in / idle / shake / out), mc_bush_* body clips,
+  rpman_poke_bush (6.6 s) and rpman_bush.wav, st_mec_bush. Fourth weapon-strip item. No jetpack or weapon, 2 m/s,
+  drains the jetpack (16 s a tank). Reapers (enemy.cpp `playerHidden`): unaware ones walk up and poke a bush within
+  3.5 m, or a moving one in front within 9 m, and find the player if he's still within 2.6 m; engaged ones lose him
+  after 3 s beyond 8 m. Harness 2b: shot at 10 m without the bush; never noticed in it standing still; walking past,
+  the Reaper goes to poke and finds nothing.
+- **Kabuto grows** (k2a briefing: "Eat 5 Smarties to reach full strength and size"): starts k1a and k2a at 60 %
+  (our reading), +8 % a Smartie, +5 % a Vimp, +3 % anything else, eased; height, eye, reach, speeds, jump, steps follow.
+- **Not device-tested.**

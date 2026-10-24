@@ -85,7 +85,14 @@ Shots and blasts nearby wake them. Small ones can latch onto your legs for a few
 glowing on the ground: walk over it to heal (orange a little, blue a lot). Look at a Smartie or a creature (or go near)
 to see its name.
 
-**The Shop (1d):** walk into the rusty bunker: the rocket launcher (if you don't have it) and injections float in front
+**Bush pack (Story 2 from 2b):** push the right stick forward to cycle the weapon strip to the bush. You crouch in a
+bush: no flying, no shooting, slow; it uses up jetpack fuel. Reapers that haven't spotted you won't, unless you're right
+next to one or move in front of it - then it walks over and pokes the bush. Cycle back to the gun to come out.
+
+**Kabuto** starts his first levels weakened at 60% size; each Smartie he eats makes him bigger (Vimps and others a
+little), up to full size.
+
+**The Shop (1d, and levels in Stories 2-4 that have one; it also sells flares):** walk into the rusty bunker: the rocket launcher (if you don't have it) and injections float in front
 of you - walk into one or reach for it to take it (once each per level). Stand in the glowing pool to heal until it runs dry. Bodies stay where
 they fall until the Cleaners come to eat them; shoot a body to burst it or tear it apart.
 
@@ -106,6 +113,7 @@ moves him too.
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
 | **Y** | **Map**: a holographic table of the island in front of you (dark until you've been there); Y again closes it | Debug fly/noclip on/off (strong buzz = on) |
 | X | Health injection (FP: into the left hand, push into the chest; TP: inject) | Tap: next mission. Hold 3 s: **new game** (forgets the checkpoint, back to 1a) |
+| **Left trigger** | **Flare** (once you have some from a Shop): thrown up off the jetpack; homing missiles go for it | — |
 | **Menu button (left)** | **Options** (game paused): turning, main hand, first/third person, HUD size, volume, music, subtitles, new game. Stick up/down to choose, left/right to change; trigger or A on RESUME | same |
 | **Left stick click (hold)** | **Mission briefing** over the world while held (title, objectives, progress) | Toggle the engineering test geometry |
 | Long-press Oculus button | System recentre | same |

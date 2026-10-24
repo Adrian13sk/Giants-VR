@@ -90,6 +90,7 @@ public:
     bool firstPerson() const { return firstPerson_; }
     void setFirstPerson(bool on) { firstPerson_ = on; }
     PlayerController& player() { return player_; }
+    const AssetWorld* assetWorld() const { return assetWorld_.get(); }  // (profiling)
     void teleportPlayer(const Vec3& p, float yaw);
     size_t weaponShots() const { return weapon_.shotsFired(); }
     size_t weaponHits() const { return weapon_.hits(); }
@@ -509,6 +510,7 @@ private:
     int flares_ = 0;
     struct Flare { Vec3 pos, vel; float age; };
     std::vector<Flare> flareList_;
+    uint32_t enemyPoseTick_ = 0;
     ButtonEdge flareEdge_;
     float flareFlash_ = 0;
     void updateFlares(float dt, const InputFrame& in);

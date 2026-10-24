@@ -120,7 +120,7 @@ void GameApp::updateVillagers(float dt) {
     for (const auto& v : villagers_.villagers) {
         if (v.slot < 0) continue;
         const float d = length(v.pos - player_.position);
-        if (d > 70.0f) continue;
+        if (d > 70.0f || (d > 25.0f && ((enemyPoseTick_ + uint32_t(v.slot)) & 1))) continue;  // beyond 25 m: every other frame
         const int clip = villagerClip_[int(v.clip)];
         villagerModels_[size_t(v.slot)]->poseBlend(renderer_, clip, v.clipTime, clip, v.clipTime, 0.0f);
     }

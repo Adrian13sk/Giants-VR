@@ -34,6 +34,9 @@ public:
     const AssetFS& fs() const { return fs_; }
     ModelCache* models() { return cache_.get(); }
     const Terrain& terrain() const { return terrain_; }
+    // Last render(): world objects drawn and their parts (draw calls), for profiling.
+    uint32_t statObjects() const { return statObjects_; }
+    uint32_t statParts() const { return statParts_; }
     Vec3 spawnPoint() const { return spawn_; }
     float spawnYaw() const { return spawnYaw_; }
     const WorldDefinition& world() const { return world_; }
@@ -162,6 +165,7 @@ private:
     std::string status_;
     WorldDefinition world_;
     Terrain terrain_;
+    uint32_t statObjects_ = 0, statParts_ = 0;
     bool hasTerrain_ = false;
     MeshId seaMesh_ = 0;
     MeshId skyMesh_ = 0;

@@ -672,6 +672,7 @@ void AssetWorld::update(float dt) {
 }
 
 void AssetWorld::render(Renderer& r, bool reflection) {
+    statObjects_ = statParts_ = 0;
     if (skyMesh_) {
         DrawParams sp;
         sp.texture = skyTexture_;
@@ -691,11 +692,14 @@ void AssetWorld::render(Renderer& r, bool reflection) {
         // Cull objects outside the view frustum or fully fogged out. The reflection skips what
         // can't show in it: anything entirely under water, small things far away.
         const float dist = length(o.centre - eye) - o.radius;
-        if (dist > maxDist || !r.sphereVisible(o.centre, o.radius) ||
+        // Small things far off (under ~0.5 degrees across: a few pixels in the headset, fogged) aren't drawn.
+        if (dist > maxDist || !r.sphereVisible(o.centre, o.radius) || o.radius < dist * 0.0045f ||
             (reflection && (o.centre.y + o.radius < r.environment().seaLevel || o.radius < dist * 0.012f))) {
             r.countCulled();
             continue;
         }
+        statObjects_++;
+        statParts_ += uint32_t(o.model->parts.size());
         for (size_t pi = 0; pi < o.model->parts.size(); ++pi) {
             const auto& part = o.model->parts[pi];
             DrawParams dp;

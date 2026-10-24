@@ -383,3 +383,13 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - Smoke runs Story1, Rstory1, Kstory1, Story2 (300 frames, firing, Y): no errors.
 - **APK:** build 8515055, 3854835 bytes, sha256 e8e9dcf6d3ae3f47….
 - **Not device-tested.**
+
+## Host verification — flares, bush pack, Kabuto growth (builds 41f2a89, 14386c1, 3886e95)
+- `gvr_tests`: all pass.
+- **Harness:**
+  - 2b, hovering by a SAM: missile bursts 2.7 m from the player (health 96); with a flare thrown it bursts 5.9 m away
+    (health 100).
+  - 2b, Reaper at 10 m: no bush, shot (health 94); in the bush standing still, not noticed in 10 s (health 100); walking
+    past in the bush, the Reaper goes to poke it and finds nothing.
+  - Kstory1 (k1a): Kabuto starts at 60 %; render at 60 % and 100 %.
+- **Not device-tested.**

@@ -1,6 +1,7 @@
 #include "game/game_app.h"
 
 #include "core/log.h"
+#include "core/prof.h"
 #include "scene/asset_world.h"
 #include "audio/mixer.h"
 #include "audio/music.h"
@@ -12,6 +13,7 @@
 #include "scene/skinned_model.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <cstdio>
@@ -594,6 +596,7 @@ void GameApp::placeCamera(float dt, bool snap, const InputFrame* in) {
 }
 
 void GameApp::updatePlayMode(float dt, const InputFrame& in) {
+    GVR_PROF("playmode (all)");
     const int mh = rig_.moveHand(), th = rig_.turnHand();
     if (viewEdge_.pressed(in.hand[th].thumbstickClick)) {
         firstPerson_ = !firstPerson_;
@@ -630,22 +633,22 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         LOGI("Player model: %s jetpack", playerHasJet_ ? "with" : "without");
     }
     updateHeroScale();
-    followHead(dt, in);
+    { GVR_PROF("follow head"); followHead(dt, in); }
     briefHeld_ = in.hand[mh].thumbstickClick;  // hold the move stick down: the mission briefing
     renderer_.environment().pointLightColor = Vec3{0, 0, 0};  // the jetpack's light (updateJetFx) is off unless lit
     if (dying_) {
         updateDeath(dt, in);
         updateCombat(dt);
-        updateAudio(dt);
+        { GVR_PROF("audio"); updateAudio(dt); }
         return;
     }
-    updateJetskiWorld(dt, in);
+    { GVR_PROF("jetski world"); updateJetskiWorld(dt, in); }
     if (riding_) {  // on the Reaperski: its own handling (game_app_jetski.cpp)
         swordValid_ = gunValid_ = false;
         updateRiding(dt, in);
-        updateFeel(dt, in);
+        { GVR_PROF("feel"); updateFeel(dt, in); }
         updateCombat(dt);
-        updateAudio(dt);
+        { GVR_PROF("audio"); updateAudio(dt); }
         return;
     }
     PlayerInput pi;
@@ -654,7 +657,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.jet = in.hand[th].primary;              // A
     pi.sprint = in.hand[mh].squeeze > 0.5f;    // move-hand grip
     if (!firstPerson_ && hero_ != Hero::Kabuto) {
-        updateThirdPersonAim(in, dt);
+        { GVR_PROF("tp aim"); updateThirdPersonAim(in, dt); }
         pi.aiming = tpAiming_;
         const Vec3 d = aimTarget_ - player_.position;
         pi.aimYaw = std::atan2(-d.x, -d.z);
@@ -662,7 +665,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         tpAiming_ = false;
     }
     updateBush(dt, pi);
-    player_.update(dt, pi);
+    { GVR_PROF("player"); player_.update(dt, pi); }
     if (const char* t = std::getenv("GVR_PLAYER_TURN")) player_.yaw = camYaw_ + std::atof(t) * kPi / 180.0f;  // test hook: side views
     // Hard landings hurt (the original: damage and a 2 s stun; a rocket under him prevents it).
     const float impact = player_.takeImpact();
@@ -677,14 +680,14 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         sfx2D("me_jpkno", 0.9f);
         LOGI("Jetpack burnt dry: overheated");
     }
-    updatePickups(dt, in);
+    { GVR_PROF("pickups"); updatePickups(dt, in); }
     updateShop(dt, in);
-    updateMap(dt, in);
+    { GVR_PROF("map"); updateMap(dt, in); }
     updateFlares(dt, in);
-    placeCamera(dt, false, &in);
+    { GVR_PROF("camera"); placeCamera(dt, false, &in); }
     if (!playerModel_) return;
     if (firstPerson_ && hero_ != Hero::Kabuto) {
-        poseFirstPersonBody(in);
+        { GVR_PROF("fp body"); poseFirstPersonBody(in); }
         if (syringeOut_) armTargets_[rig_.moveHand()].squeeze = 1.0f;  // the hand closes on the syringe
     } else {
         bodyXf_ = Mat4::translation(player_.position + Vec3{0, heroLift_, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
@@ -711,6 +714,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     playerModel_->setHideEnabled(firstPerson_);
     int bushClip = 0;
     float bushT = 0;
+    const auto poseT0 = std::chrono::steady_clock::now();
     if (!firstPerson_ && bushBodyClip(bushClip, bushT)) {
         // Crouched in the bush pack (third person; in first person the body stays as it is).
         const float d = playerModel_->animDuration(bushClip);
@@ -721,18 +725,19 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         playerModel_->poseBlend(renderer_, clip_[int(player_.prevAnim())], player_.prevAnimTime(),
                                 clip_[int(player_.anim())], player_.animTime(), player_.fadeWeight());
     }
+    if (profEnabled()) profAdd("pose player", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - poseT0).count());
     eyeNow_ = playerModel_->hiddenCentroid() + eyeFromHead_;
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
-    updateTimmy();
+    { GVR_PROF("timmy"); updateTimmy(); }
     updateSmartieLines(dt);
-    updateJetFx(dt);
+    { GVR_PROF("jetfx"); updateJetFx(dt); }
     if (hero_ == Hero::Delphi) updateDelphi(dt, in);
     else if (hero_ == Hero::Kabuto) updateKabuto(dt, in);
-    else updateWeapon(dt, in);
-    updateFeel(dt, in);
-    updateRescue(dt, in);
+    else { GVR_PROF("weapon"); updateWeapon(dt, in); }
+    { GVR_PROF("feel"); updateFeel(dt, in); }
+    { GVR_PROF("rescue"); updateRescue(dt, in); }
     updateCombat(dt);
-    updateAudio(dt);
+    { GVR_PROF("audio"); updateAudio(dt); }
 }
 
 void GameApp::updateRescue(float dt, const InputFrame& in) {
@@ -1303,6 +1308,10 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initVimps(w, mc);
     initDestruction(w, mc);
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
+    // The VR map's island model is built now, behind the loading screen (it took ~5 ms on the host
+    // when built on the first frame of play).
+    if (worldName_ != mapWorld_) mapReset();
+    buildMapMesh();
 }
 
 void GameApp::spawnGore(const Vec3& pos, const Vec3& dir, float scale) {
@@ -1616,7 +1625,8 @@ void GameApp::renderGore() {
 }
 
 void GameApp::updateCharacters(float dt) {
-    creatures_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, creatureEvents_);
+    GVR_PROF("chars (all)");
+    { GVR_PROF("creatures ai"); creatures_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, creatureEvents_); }
     for (const auto& e : creatureEvents_) {
         creatureSound(e);
         burrowEvent(e);
@@ -3108,14 +3118,15 @@ void GameApp::updateSchools(float dt) {
 }
 
 void GameApp::updateCombat(float dt) {
-    updateRockets(dt);
-    updateNests(dt);
+    GVR_PROF("combat (all)");
+    { GVR_PROF("rockets"); updateRockets(dt); }
+    { GVR_PROF("nests"); updateNests(dt); }
     // Water: entering it splashes; swimming leaves rings. Piranhas live in all deep water (the 1b
     // briefing warns of them): after a moment there they gather round and bite; leaving deep water
     // (shallows, the shore, the jetpack) sends them away. Rates and damage ours.
     const bool swim = playMode_ && player_.swimming();
     if (swim && !wasSwimming_) waterSplash(player_.position, 1.2f, 2);
-    updateWaterFlow(dt);
+    { GVR_PROF("waterflow"); updateWaterFlow(dt); }
     wasSwimming_ = swim;
     for (auto& f : waterFx_) f.age += dt;
     waterFx_.erase(std::remove_if(waterFx_.begin(), waterFx_.end(), [](const WaterFx& f) { return f.age > 2.0f; }), waterFx_.end());
@@ -3157,14 +3168,14 @@ void GameApp::updateCombat(float dt) {
         for (const auto& c : creatures_.creatures) ripple(c.pos, c.speed > 0.3f && c.state != CreatureState::Dead, 1.2f * c.scale);
         for (const auto& e : enemies_.enemies) ripple(e.pos, e.state == EnemyState::Advance, 1.6f);
     }
-    updateSchools(dt);
+    { GVR_PROF("schools"); updateSchools(dt); }
     // Health regenerates after 4 s without damage.
     sinceDamage_ += dt;
     if (sinceDamage_ > 4.0f && !dying_) playerHealth_ = std::min(100.0f, playerHealth_ + 12.0f * dt);
     respawnFade_ = std::max(0.0f, respawnFade_ - dt * 1.2f);
     damageFlash_ = std::max(0.0f, damageFlash_ - dt * 3.0f);
 
-    enemies_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, shooters_);
+    { GVR_PROF("enemies"); enemies_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, shooters_); }
     bushEvents();
     // Model slots follow the enemies (the director removes sunk corpses).
     std::fill(slotUsed_.begin(), slotUsed_.end(), 0);
@@ -3174,8 +3185,14 @@ void GameApp::updateCombat(float dt) {
         if (e.slot < 0)
             for (size_t k = 0; k < slotUsed_.size(); ++k)
                 if (!slotUsed_[k]) { e.slot = int(k); slotUsed_[k] = 1; slotLift_[k] = enemyFootOffset_; break; }
+    // Skinning is the costly part: Reapers too far to make out (the giant sees further) keep their
+    // last pose; mid-distance ones are re-posed every other frame.
+    const float poseFar = hero_ == Hero::Kabuto ? 400.0f : 130.0f;
+    ++enemyPoseTick_;
     for (auto& e : enemies_.enemies) {
         if (e.slot < 0) continue;
+        const float pd = length(e.pos - player_.position);
+        if (pd > poseFar || (pd > poseFar * 0.45f && ((enemyPoseTick_ + e.slot) & 1))) continue;
         SkinnedModel& m = *enemyPool_[size_t(e.slot)];
         m.poseBlend(renderer_, int(e.prevClip), e.prevTime, int(e.clip), e.clipTime, e.fadeWeight(enemies_.params.crossfade));
         // Ground contact from the actual pose: the lowest point (planted foot, or the body lying
@@ -3203,15 +3220,15 @@ void GameApp::updateCombat(float dt) {
     }
     enemyFire_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
     // Next wave after the last Reaper has fallen.
-    updateCharacters(dt);
-    updateGore(dt);
-    updateDestruction(dt);
-    updateBurn();
-    updateVillagers(dt);
-    updateVimps(dt);
-    updateBosses(dt);
-    updateSams(dt);
-    updateFx(dt);
+    { GVR_PROF("chars"); updateCharacters(dt); }
+    { GVR_PROF("gore"); updateGore(dt); }
+    { GVR_PROF("destruction"); updateDestruction(dt); }
+    { GVR_PROF("burn"); updateBurn(); }
+    { GVR_PROF("villagers"); updateVillagers(dt); }
+    { GVR_PROF("vimps"); updateVimps(dt); }
+    { GVR_PROF("bosses"); updateBosses(dt); }
+    { GVR_PROF("sams"); updateSams(dt); }
+    { GVR_PROF("fx"); updateFx(dt); }
     // Sentries killed by their fall.
     for (int i : enemies_.landed) {
         const Enemy& e = enemies_.enemies[size_t(i)];
@@ -3220,7 +3237,7 @@ void GameApp::updateCombat(float dt) {
         bleed(e.pos + Vec3{0, 0.4f, 0}, Vec3{0, 1, 0}, true, 1.0f);
         sfx("me_hdfl1", e.pos, 1.0f, 0.8f);
     }
-    updateMission(dt);
+    { GVR_PROF("mission"); updateMission(dt); }
     if (enemies_.aliveCount() == 0 && !missionHostiles_ && objectives_.empty()) {
         waveTimer_ += dt;
         if (waveTimer_ > 8.0f) { waveTimer_ = 0; spawnWave(); }
@@ -3428,10 +3445,11 @@ void GameApp::poseFirstPersonBody(const InputFrame& in) {
 bool GameApp::hasOriginalAssets() const { return assetWorld_ && assetWorld_->loaded(); }
 
 void GameApp::update(float dt, const InputFrame& in) {
+    GVR_PROF("update (all)");
     time_ += dt;
     if (dt > 1e-4f) fpsSmooth_ += (1.0f / dt - fpsSmooth_) * std::min(1.0f, dt * 2.0f);
     updateQuality(dt);
-    updateSun(dt);
+    { GVR_PROF("sun"); updateSun(dt); }
     updateHeroScale();  // Kabuto's giant scale only in play (not loading, cutscenes, free camera)
     // Story progression: once a mission is complete and its outro has played, the screen fades to
     // the loading / briefing screen (as the original goes through its mission briefing), the next
@@ -3559,7 +3577,7 @@ void GameApp::update(float dt, const InputFrame& in) {
         }
         rig_.update(dt, in);
     }
-    if (assetWorld_) assetWorld_->update(dt);
+    { GVR_PROF("world"); if (assetWorld_) assetWorld_->update(dt); }
 
     // Haptic confirmation on trigger press (free camera only; in play mode the trigger fires).
     for (int h = 0; h < 2; ++h)

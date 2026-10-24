@@ -15,6 +15,7 @@ set(GVR_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 # Portable core: renderer, asset formats, scene, gameplay. No platform or VR dependencies.
 # ------------------------------------------------------------------------------------------
 add_library(gvr_core STATIC
+  src/core/prof.cpp
   src/render/renderer.cpp
   src/assets/gzp.cpp
   src/assets/gbs.cpp

@@ -8,6 +8,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <cstdio>
 
@@ -18,6 +19,8 @@
 
 #include "assets/image.h"
 #include "core/log.h"
+#include "core/prof.h"
+#include "scene/asset_world.h"
 #include "game/game_app.h"
 #include "scene/model_cache.h"
 #include "render/gl.h"
@@ -173,6 +176,8 @@ int main(int argc, char** argv) {
         app.debugShootCorpses(killShots);
         app.debugDumpBlood();
     }
+    double updSum = 0, updMax = 0;  // CPU time of GameApp::update (host; relative costs only)
+    int updN = 0, updMaxF = -1;
     for (int f = 0; f < frames; ++f) {
         if (jetFrom >= 0) in.hand[kRight].primary = f >= jetFrom && f < jetTo;
         if (gripFrom >= 0) in.hand[kRight].squeeze = f >= gripFrom && f < gripTo ? 1.0f : 0.0f;
@@ -212,7 +217,10 @@ int main(int argc, char** argv) {
             for (int b = 0; b < blastN; ++b) app.debugBlast(blastX, blastY, blastH);
             LOGI("blast x%d: %zu objects destroyed", blastN, app.destroyedCount());
         }
+        const auto u0 = std::chrono::steady_clock::now();
         app.update(1.0f / 72.0f, in);
+        const double ums = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - u0).count();
+        if (f >= 30) { updSum += ums; ++updN; if (ums > updMax) { updMax = ums; updMaxF = f; } }
         if (std::getenv("GVR_PLAYER_TRACE") && f % 12 == 0) {
             const auto& p = app.player();
             LOGI("trace f%d player (%.2f %.2f %.2f) game (%.0f %.0f) ground %d swim %d anim %d", f, p.position.x, p.position.y, p.position.z,
@@ -298,6 +306,8 @@ int main(int argc, char** argv) {
         return 4;
     }
 
+    gvr::profReport();
+    if (updN > 0) LOGI("update: %.2f ms average, %.2f ms worst (frame %d) over %d frames", updSum / updN, updMax, updMaxF, updN);
     // Quest 2-like asymmetric FOVs (radians), mirrored between eyes; IPD 64 mm.
     const float ipd = 0.064f;
     std::vector<uint8_t> sbs(size_t(w) * 2 * h * 4);
@@ -321,7 +331,8 @@ int main(int argc, char** argv) {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         app.renderer().resetStats();
         app.renderEye(ei);
-        LOGI("eye %d: %u draw calls", eye, app.renderer().drawCallsThisFrame());
+        LOGI("eye %d: %u draw calls (world objects %u, %u parts)", eye, app.renderer().drawCallsThisFrame(),
+             app.assetWorld() ? app.assetWorld()->statObjects() : 0u, app.assetWorld() ? app.assetWorld()->statParts() : 0u);
         glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, eyePx.data());
         if (!checkGl("readback")) return 5;
         for (int y = 0; y < h; ++y)
