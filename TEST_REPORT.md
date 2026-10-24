@@ -497,3 +497,12 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
   Delphi and the Meccaryn checked in the same pose: arms normal.
 - Dry run of devtest/tests/warmup_k1a.txt: reload through the loading screen and briefing, play resumes.
 - **Not device-tested.**
+
+## Host verification — cutscene fades and show/hide, adaptive quality (builds aeb1645 and this build)
+- `gvr_tests`: all pass, incl. the new flick show/hide test.
+- Harness traces: story1_start_1 fades in from black over 2.0 s (op 0x1F); story1_start_12 holds to 12.67 s while it
+  fades to black, and play fades in from there; story1_jetpack_6 renders one Timmy before frame 61 (standing) and one
+  after (on Baz's back).
+- Host frame pacing is fixed (1/72 s), so the adaptive-quality change shows no messages there (as intended).
+- **Not device-tested.**
+- Sweep after the cutscene / quality changes: 56/56 exit 0, no errors.

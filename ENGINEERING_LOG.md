@@ -1355,3 +1355,8 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   trace: story1_start_1 fades in over 2.0 s from black; story1_start_12 fades out to black before play.
 - Cutscene actor show/hide (ops 0x0B/0x0C): story1_jetpack_6 showed two Timmys at once (standing, and riding on
   Baz's back); now the rider appears and the standing one goes at frame 61 (harness renders at 0.3 s and 1.7 s).
+- Looked at a large leafy slab beside the camera in story1_jetpack_6: it is the hatch actor (sm_hatch_l0, its own
+  2-bone tree Box01). Probably the open trapdoor lid standing next to the shot camera, outside the original's narrow
+  field of view but inside the headset's; left as is (a hypothesis, not confirmed).
+- op 0x26 {f32}: 500 in the jetpack shots (close-ups at the hatch), 1000 in jetpack_5, 20000 in the Tel shots, 40000-50000
+  in the hatch/save shots - a per-shot distance (clip or fog range?); not used.

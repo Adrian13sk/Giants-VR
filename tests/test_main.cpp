@@ -6,6 +6,7 @@
 #include <cstring>
 #include <vector>
 
+#include "assets/flick.h"
 #include "assets/gbs.h"
 #include "assets/gzp.h"
 #include "assets/gti.h"
@@ -1382,6 +1383,15 @@ static void testSaveGame() {
     std::printf("save game / settings ok\n");
 }
 
+static void testFlickVisibility() {
+    FlickShot s;
+    s.visibility.push_back({0.0f, 6, false});  // story1_jetpack_6: the rider hidden at the start
+    s.visibility.push_back({0.87f, 6, true});  // shown when he climbs on
+    s.visibility.push_back({0.87f, 2, false}); // the standing Timmy goes
+    CHECK(!s.actorShownAt(6, 0.0f) && !s.actorShownAt(6, 0.5f) && s.actorShownAt(6, 1.0f));
+    CHECK(s.actorShownAt(2, 0.5f) && !s.actorShownAt(2, 1.0f) && s.actorShownAt(3, 1.0f));
+}
+
 static void testTestScript() {
     TestScript ts;
     std::string err;
@@ -1410,6 +1420,7 @@ static void testTestScript() {
 
 int main() {
     testTestScript();
+    testFlickVisibility();
     testGameText();
     testRescue();
     testGore();

@@ -25,6 +25,8 @@ Mat4 gameMatrixToRuntime(const Mat4& m) {
 bool CutscenePlayer::start(const std::string& firstShot) {
     shotsPlayed_ = 0;
     streamStarted_.clear();
+    shot_ = FlickShot{};  // no fade state from a previous cutscene
+    t_ = 0;
     active_ = true;
     active_ = loadShot(firstShot);
     return active_;
