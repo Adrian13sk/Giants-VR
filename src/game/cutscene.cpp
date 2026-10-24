@@ -386,6 +386,22 @@ void CutscenePlayer::render() {
     for (const auto& a : actors_) {
         if (!a.visible || !shot_.actorShownAt(a.info.index, t_ + 1e-3f)) continue;
         if (a.skinned) {
+            // An actor right at the shot camera (closer than 1 m) was outside the original's narrow
+            // view but fills a headset's (story1_jetpack_6's hatch lid): leave it out.
+            Vec3 mn, mx;
+            a.skinned->posedBounds(mn, mx);
+            Vec3 wmn{1e9f, 1e9f, 1e9f}, wmx{-1e9f, -1e9f, -1e9f};
+            for (int k = 0; k < 8; ++k) {
+                const Vec4 c = a.xf * Vec4{k & 1 ? mx.x : mn.x, k & 2 ? mx.y : mn.y, k & 4 ? mx.z : mn.z, 1.0f};
+                wmn = {std::min(wmn.x, c.x), std::min(wmn.y, c.y), std::min(wmn.z, c.z)};
+                wmx = {std::max(wmx.x, c.x), std::max(wmx.y, c.y), std::max(wmx.z, c.z)};
+            }
+            const Vec3 e = r_.currentView().eyePosition;
+            const Vec3 q{std::max(wmn.x, std::min(e.x, wmx.x)), std::max(wmn.y, std::min(e.y, wmx.y)), std::max(wmn.z, std::min(e.z, wmx.z))};
+            if (length(q - e) < 1.0f) {
+                if (!a.nearLogged) { a.nearLogged = true; LOGI("Cutscene %s: %s at the camera, not drawn", shotName_.c_str(), a.info.node.c_str()); }
+                continue;
+            }
             a.skinned->render(r_, a.xf);
         } else if (a.model) {
             for (const auto& part : a.model->parts) {

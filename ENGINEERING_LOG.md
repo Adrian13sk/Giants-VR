@@ -1360,3 +1360,5 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   field of view but inside the headset's; left as is (a hypothesis, not confirmed).
 - op 0x26 {f32}: 500 in the jetpack shots (close-ups at the hatch), 1000 in jetpack_5, 20000 in the Tel shots, 40000-50000
   in the hatch/save shots - a per-shot distance (clip or fog range?); not used.
+- Cutscene actors closer than 1 m to the shot camera are not drawn (logged once): story1_jetpack_6's hatch lid filled a
+  third of the view. Only checkable on the harness's final frame; the rule can only hide what the camera is inside of.

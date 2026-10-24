@@ -70,6 +70,7 @@ private:
         std::string parentNode, align;  // carrier bone; own node aligned to it ("ref_handle")
         Mat4 xf = Mat4::identity();  // runtime transform this frame
         bool visible = true;
+        mutable bool nearLogged = false;
         bool fixed = false;  // placed in the world (op 0x20): xf set once
         float groundOffset = 0;  // ground-following actors: vertical correction for this shot (m)
         bool grounded = false;   // groundOffset applies (otherwise only sunk feet are lifted)
