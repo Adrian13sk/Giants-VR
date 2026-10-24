@@ -3895,8 +3895,9 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
                 }
                 continue;
             }
-            if (r.kind == 4) {  // shotgun shell: a hot slug
-                if (boltModel_) drawModel(boltModel_, Mat4::translation(r.pos) * Mat4::scale({1.6f, 1.6f, 1.6f}), true, 0.9f);
+            if (r.kind == 4) {  // shotgun shell (MC_shotgun_shell, nose first) with a hot glow
+                if (shellModel_) drawModel(shellModel_, Mat4::translation(r.pos) * Mat4::rotation(rotationBetween({0, 0, -1}, r.vel)) * Mat4::scale({0.6f, 0.6f, 0.6f}), false);
+                if (boltModel_) drawModel(boltModel_, Mat4::translation(r.pos) * Mat4::scale({1.0f, 1.0f, 1.0f}), true, 0.7f);
                 continue;
             }
             // The rocket model points along -Y (game) = -Z (runtime): orient it along its flight.
@@ -4017,9 +4018,18 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     // flight with a short fading trail.
     for (const auto& p : weapon_.projectiles()) {
         const Quat r = rotationBetween({0, 0, -1}, p.vel);
+        if (p.style == 2 && sniperShotModel_) {  // the sniper's round: its own model, stretched along its flight
+            drawModel(sniperShotModel_, Mat4::translation(p.pos) * Mat4::rotation(r) * Mat4::scale({0.6f, 0.6f, 2.5f}), true, 1.0f);
+            continue;
+        }
+        if (p.style == 3 && arrowModel_) {  // an arrow: the rparrow streak
+            drawModel(arrowModel_, Mat4::translation(p.pos) * Mat4::rotation(r) * Mat4::scale({0.2f, 0.2f, 0.2f}), true, 0.9f);
+            continue;
+        }
         const Vec3 back = normalize(p.vel) * -0.22f;
+        const bool mg = p.style == 1;  // machine-gun tracers: smaller and hotter
         for (int i = 0; i < 3; ++i) {
-            const float s = 0.32f - 0.07f * float(i);
+            const float s = (0.32f - 0.07f * float(i)) * (mg ? 0.7f : 1.0f);
             if (p.travelled < 0.22f * float(i)) break;  // no trail behind the muzzle
             const float a = 2.6f - 0.8f * float(i);
             for (const auto& part : boltModel_ ? boltModel_->parts : std::vector<RenderModel::Part>{}) {
@@ -4029,7 +4039,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
                 dp.unlit = true;
                 dp.depthWrite = false;
                 dp.doubleSided = true;
-                dp.tint = {1.0f * a, 0.35f * a, 0.75f * a, 1.0f};
+                dp.tint = mg ? Vec4{1.0f * a, 0.7f * a, 0.25f * a, 1.0f} : Vec4{1.0f * a, 0.35f * a, 0.75f * a, 1.0f};
                 renderer_.draw(part.mesh, Mat4::translation(p.pos + back * float(i)) * Mat4::rotation(r) * Mat4::scale({s, s, s}), dp);
             }
         }
@@ -4054,7 +4064,10 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     }
     for (const auto& e : weapon_.effects()) {
         const float k = e.progress();
-        if (e.kind == WeaponEffect::Muzzle)
+        if (e.kind == WeaponEffect::Muzzle && e.style == 2 && sniperFlashModel_)
+            drawModel(sniperFlashModel_, Mat4::translation(e.pos) * Mat4::rotation(rotationBetween({0, 0, -1}, e.dir)) *
+                                             Mat4::scale(Vec3{1, 1, 1} * (0.5f + 0.4f * k)), true, 1.0f - k);
+        else if (e.kind == WeaponEffect::Muzzle)
             drawModel(muzzleModel_, Mat4::translation(e.pos) * Mat4::rotation(rotationBetween({0, 0, -1}, e.dir)) *
                                         Mat4::scale(Vec3{1, 1, 1} * (0.25f + 0.15f * k)), true, 1.0f - k);
         else  // impact flash: billboard toward the viewer

@@ -22,7 +22,7 @@ bool WeaponSystem::update(float dt, bool triggerHeld, const Vec3& muzzle, const 
         int target = -1;
         if (raycast && raycast(p.pos, dir, len, t, n, target)) {
             const Vec3 hp = p.pos + dir * t;
-            effects_.push_back({WeaponEffect::Impact, hp + n * 0.05f, n, 0.0f, 0.25f});
+            effects_.push_back({WeaponEffect::Impact, hp + n * 0.05f, n, 0.0f, 0.25f, p.style});
             p.life = -1.0f;
             ++hits_;
             lastHitDist_ = p.travelled + t;
@@ -47,8 +47,8 @@ bool WeaponSystem::update(float dt, bool triggerHeld, const Vec3& muzzle, const 
 
 void WeaponSystem::spawnShot(const Vec3& muzzle, const Vec3& forward) {
     const Vec3 f = normalize(forward);
-    projectiles_.push_back({muzzle, f * projectileSpeed, range / projectileSpeed, 0.0f, shotDamage});
-    effects_.push_back({WeaponEffect::Muzzle, muzzle, f, 0.0f, 0.07f});
+    projectiles_.push_back({muzzle, f * projectileSpeed, range / projectileSpeed, 0.0f, shotDamage, shotStyle});
+    if (shotStyle != 3) effects_.push_back({WeaponEffect::Muzzle, muzzle, f, 0.0f, shotStyle == 2 ? 0.12f : 0.07f, shotStyle});  // no flash off a bow
     ++shots_;
 }
 

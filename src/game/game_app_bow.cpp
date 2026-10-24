@@ -213,7 +213,9 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
         weapon_.shotDamage = bow.damage * power;
         weapon_.projectileSpeed = delphiWeapon_ == kBowSniper ? 40.0f + 160.0f * draw : 25.0f + 50.0f * draw;
         weapon_.range = delphiWeapon_ == kBowSniper ? 600.0f : 250.0f;
+        weapon_.shotStyle = 3;
         weapon_.spawnShot(from, dir);
+        weapon_.shotStyle = 0;
         weapon_.shotDamage = 1.0f;
         weapon_.projectileSpeed = 70.0f;
         weapon_.range = 250.0f;

@@ -114,6 +114,9 @@ void GameApp::initArsenal() {
     }
     shellsModel_ = mc->get("mc_pickup_shells.gbs", "", /*dynamicLit=*/true);
     lbombModel_ = mc->get("mc_lbomb.gbs", "MC_lbomb_spin2.anm", /*dynamicLit=*/true);
+    sniperShotModel_ = mc->get("mc_sniper_bullit.gbs");   // the sniper's round (its weapon's projectile type 793)
+    sniperFlashModel_ = mc->get("EFX_sniper_flash.gbs");  // and its muzzle flash
+    shellModel_ = mc->get("MC_shotgun_shell.gbs", "", /*dynamicLit=*/true);  // the shotgun's (type 1114)
     grenadeModel_ = mc->get("MC_grenade_L0.gbs", "", /*dynamicLit=*/true);
     if (const ItemDef* it = defs ? weaponDefs_.item(8) : nullptr) {  // IconGrenade: most carried, given
         if (it->maxAmmo > 0) grenadeMax_ = it->maxAmmo;
@@ -247,6 +250,7 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
     weapon_.projectileSpeed = std::max(70.0f, gun.speed);
     weapon_.range = gun.range;
     weapon_.shotDamage = gun.damage;
+    weapon_.shotStyle = g == kGunSniper ? 2 : 1;
     const bool want = valid && gun.ammo > 0 && (g == kGunMachine ? trigger : pull);
     if (weapon_.update(dt, want, muzzle, fwd)) {
         --gun.ammo;
@@ -271,6 +275,7 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
     weapon_.projectileSpeed = 70.0f;
     weapon_.range = 250.0f;
     weapon_.shotDamage = 1.0f;
+    weapon_.shotStyle = 0;
     return true;
 }
 

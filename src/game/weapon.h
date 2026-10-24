@@ -14,12 +14,14 @@ struct Projectile {
     float life = 0;
     float travelled = 0;
     float damage = 1.0f;  // x the handgun's hit (the gun that fired it)
+    int style = 0;        // how it looks (the game draws it): 0 handgun bolt, 1 machine gun, 2 sniper, 3 arrow
 };
 
 struct WeaponEffect {
     enum Kind { Muzzle, Impact } kind;
     Vec3 pos, dir;   // dir: muzzle forward / impact surface normal
     float age = 0, duration = 0;
+    int style = 0;   // the shot's style (Projectile::style)
     float progress() const { return duration > 0 ? age / duration : 1.0f; }
 };
 
@@ -29,6 +31,7 @@ public:
     float fireInterval = 0.2f;      // s between shots while the trigger is held
     float range = 250.0f;           // m
     float shotDamage = 1.0f;        // damage of the shots fired from now on (x the handgun's)
+    int shotStyle = 0;              // and their look (Projectile::style)
     // Hit test along a segment: origin, unit dir, max distance -> hit distance, normal and
     // target id (-1 = world geometry, >= 0 or other negatives = characters, caller-defined).
     std::function<bool(const Vec3&, const Vec3&, float, float&, Vec3&, int&)> raycast;

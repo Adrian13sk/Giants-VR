@@ -271,6 +271,9 @@ private:
     std::vector<AmmoPickup> ammoPickups_;
     const RenderModel* shellsModel_ = nullptr;
     const RenderModel* lbombModel_ = nullptr;  // the mortar's Millenium bomb (mc_lbomb)
+    const RenderModel* sniperShotModel_ = nullptr;
+    const RenderModel* sniperFlashModel_ = nullptr;
+    const RenderModel* shellModel_ = nullptr;
     bool gunTriggerHeld_ = false;
     uint32_t mgLoop_ = 0;  // the machine gun's firing loop
     float gunCooldown_ = 0;

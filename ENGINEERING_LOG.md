@@ -1646,3 +1646,7 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   hand; first person the bow in the right hand.
 - Limits from the item table where it gives them: health injections at most 3 carried (item 0; was 5, ours) and one
   handed out by item 0 (5a, kstory5_5); flares at most 5 (item 64; was 6). Heal amount and drop rate stay ours.
+- Shots look like the original's where the data names their projectile: the sniper's round is mc_sniper_bullit (its
+  record's projectile type 793) with the EFX_sniper_flash muzzle flash; the shotgun shell is MC_shotgun_shell (type
+  1114) nose first with a glow; machine-gun tracers are smaller and orange; arrows are the rparrow streak, with no
+  flash off the bow. (WeaponSystem::shotStyle / Projectile::style.)
