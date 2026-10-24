@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-24 (automated runs 1-2 on the Quest; foveated rendering medium by default after measurement)
+Last updated: 2026-10-24 (FFR medium default; warm-up behind the briefing; shadow LOD; Kabuto FP eye; next automated run pending)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.

@@ -488,3 +488,12 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
   use). Not yet investigated.
 - With the plausibility filter the app's own GPU timer gives believable numbers on some frames (e.g. 8-13 ms), but it
   times only part of the frame; VrApi's App time is the reference.
+
+## Host verification — warm-up, shadow LOD, Kabuto FP eye (builds 26301db-aa9d266 and this build)
+- `gvr_tests`: all pass (settings round-trip now covers `foveation`; the test-script parser accepts `briefing`).
+- Briefing frame renders the briefing (the warm-up view is cleared behind it); the warm-up runs once per frame.
+- Village render with the 1-tap far shadows: shadows present, no visible change at the harness resolution.
+- Kabuto first person with the right hand pushed 50 cm forward: eye offsets 0.2 / 1.2 / 2.0 m compared; 2.0 adopted.
+  Delphi and the Meccaryn checked in the same pose: arms normal.
+- Dry run of devtest/tests/warmup_k1a.txt: reload through the loading screen and briefing, play resumes.
+- **Not device-tested.**
