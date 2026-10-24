@@ -1247,3 +1247,21 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   Harness: rstory2_battle_1 completes with one tornado; the bubble catches the r1_smartiegrab Smartie and sets it down
   by her. The real spells' numbers are native code (ours).
 - **Not device-tested.**
+
+### 2026-10-24 — Kabuto's story powers and the magnifying glass (builds 31f0064, this build)
+- **Gates by size** (giantwall1/2/3): only fall to a Kabuto of 70 % / 85 % / full size + adrenaline; growth starts are
+  k1a 50 %, k1b 65 %, k2a 80 % (our reading of the briefings' "weakened"). Harness: k1a's gate holds at 50 % and falls
+  at 75 % (800 hp, 30 blasts).
+- **Adrenaline**: a gauge that fills at full size; both grips when full = 10 s of ×2.5 damage, bigger quakes, red light.
+- **Offspring**: hold Y 0.6 s to lay an egg (offspring_egg_l0); an offspring_l0 hatches and hunts within 120 m, eating
+  and growing (up to four). Harness kstory4_1: one Offspring kills four Reapers and grows 0.63 → 0.89.
+- **Magnifying glass** (kstory3_3 / kstory4_1 briefings): destroying mag_crystal leaves mag_crystal_shard (2.4 × 3.5 m)
+  where it stood; walking over it takes it. Held, the turn hand's trigger raycasts (weapon_.raycast) from the lens (FP:
+  the right controller's aim; TP: chest-forward, tilted down) up to 3× his height: a fire cone, a warm point light and
+  scorch smoke where it lands; every 0.25 s 60 hp to an object or a 1.5× weapon hit to a creature. giantwall4 (the
+  crystal gate) takes damage only from the beam. Harness kstory3_3: blasts leave the gate standing; the beam brings it
+  down in ~3 s from three sides and the mission completes; the shard is picked up after smashing the crystal.
+- **Fix — push-out launch:** a deep overlap with a structure (spawned or squeezed into one) was resolved in one frame
+  and its displacement became the velocity (dx/dt): Kabuto was flung ~200 m in a second near kstory3's gate. The
+  velocity after a push-out is now capped at what it was before. Applies to every hero.
+- **Not device-tested.**

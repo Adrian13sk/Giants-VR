@@ -712,6 +712,13 @@ private:  // the mission placed enemies: no test waves
     bool layOffspring();
     void updateKabutoPowers(float dt, const InputFrame& in);
     void renderKabutoPowers(const Vec3& eye);
+    // The magnifying glass (kstory3_3, kstory4_1).
+    bool kbShardOn_ = false, kbHasGlass_ = false, kbGlassAvail_ = false, kbBeaming_ = false;
+    Vec3 kbShardAt_, kbGlassAt_, kbGlassDir_{0, 0, -1};
+    float kbBeamT_ = 0, glassSize_ = 1;
+    const RenderModel* glassModel_ = nullptr;
+    void kabutoObjectDestroyed(const std::string& name, const Vec3& at);
+    void updateGlass(float dt, const InputFrame& in);
     float heroLift_ = 0.0f;      // m: the current hero's model lift
     struct KabutoState {
         float punchT = -1, stompT = -1, eatT = -1, roarT = -1, roarCool = 0, stepT = 0;

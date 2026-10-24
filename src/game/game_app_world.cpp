@@ -230,6 +230,7 @@ void GameApp::updateDestruction(float dt) {
                     if (c.model) c.model->pose(renderer_, 0.0f);
                     collapses_.push_back(std::move(c));
                 }
+                kabutoObjectDestroyed(obj.name, d.base);
                 LOGI("Destroyed: %s (%s)", obj.name.c_str(),
                      d.kind == DestructKind::Tree ? "tree" : d.kind == DestructKind::Rock ? "rock" : d.kind == DestructKind::House ? "house" : "tower");
                 break;

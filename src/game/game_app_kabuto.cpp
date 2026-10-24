@@ -260,7 +260,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
     // --- The turn hand's trigger: a punch (third person; alternating right and left).
     const bool trig[2] = {in.hand[0].trigger > 0.6f, in.hand[1].trigger > 0.6f};
     const bool busy = player_.inAction() || k.punchT >= 0 || k.stompT >= 0 || k.eatT >= 0;
-    if (!firstPerson_ && trig[gh] && !k.trigWas[gh] && !busy && player_.onGround) {
+    if (!firstPerson_ && trig[gh] && !k.trigWas[gh] && !busy && player_.onGround && !kbHasGlass_) {  // (with the glass: it burns)
         k.punchLeft = !k.punchLeft;
         const PlayerAnim a = k.punchLeft ? PlayerAnim::Attack2 : PlayerAnim::Attack1;
         player_.startAction(a, std::max(0.3f, player_.oneShot[int(a)]));

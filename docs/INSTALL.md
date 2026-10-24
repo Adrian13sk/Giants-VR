@@ -89,8 +89,8 @@ to see its name.
 bush: no flying, no shooting, slow; it uses up jetpack fuel. Reapers that haven't spotted you won't, unless you're right
 next to one or move in front of it - then it walks over and pokes the bush. Cycle back to the gun to come out.
 
-**Kabuto** starts his first levels weakened at 60% size; each Smartie he eats makes him bigger (Vimps and others a
-little), up to full size.
+**Kabuto** starts his first levels weakened (half size in the first, then 65% and 80%); each Smartie he eats makes
+him bigger (Vimps and others a little), up to full size.
 
 **The Shop (1d, and levels in Stories 2-4 that have one; it also sells flares):** walk into the rusty bunker: the rocket launcher (if you don't have it) and injections float in front
 of you - walk into one or reach for it to take it (once each per level). Stand in the glowing pool to heal until it runs dry. Bodies stay where
@@ -163,8 +163,17 @@ scaled so your eyes are at his height (about 13 m). The HUD and menu stay their 
   to heal.
 - **Y**: roar, which knocks Reapers back.
 - Trees and Smartie houses smaller than him are trampled when you walk into them. Smarties run from you.
-- In first person his body isn't drawn (you see the controllers). The Kabuto missions' objectives aren't implemented
-  yet, so you can roam and fight but not complete them.
+- **Y held** (0.6 s): lay an egg. An Offspring hatches and hunts nearby Reapers, Vimps and Smarties for you, growing as
+  it eats (up to four at a time; the HUD shows how many).
+- **Both grips** when the adrenaline gauge (where the jetpack gauge would be) is full: 10 seconds of fury - a red glow,
+  much harder hits and bigger ground pounds. It fills slowly once he's full size.
+- **Giant walls:** the first only falls once he's grown to about 70% size, the second at 85%, the third at full size and
+  under adrenaline. A message tells you when he's too small.
+- **The magnifying glass** (the crystal levels): smash the GIANT CRYSTAL, walk over the glass it leaves and he picks it
+  up. Hold the **right trigger** to focus the sun through it - in first person it burns wherever your right hand
+  points, in third person in front of him. It sets enemies alight and is the only thing that burns through the
+  CRYSTAL GATE.
+- In first person you see his arms and hands following the controllers.
 
 ## Main menu
 The game now starts at the main menu: night over the intro island with the GIANTS logo in the sky.

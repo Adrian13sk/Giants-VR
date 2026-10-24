@@ -406,3 +406,14 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 - Delphi's spells (build d6ef359): rstory2_battle_1 - a tornado destroys the army barracks (objective done, mission
   complete); fire wall renders and burns; r1_smartiegrab - the bubble catches the Smartie 20 m away and sets it down by
   Delphi (third person; the harness's first-person controller pose points elsewhere).
+
+## Host verification — Kabuto's powers and magnifying glass (builds 31f0064, this build)
+- `gvr_tests`: all pass.
+- kstory3_3: 20 rocket blasts on mag_crystal destroy it; Kabuto walking forward takes the glass. 40 blasts on
+  giantwall4 destroy nothing; with the glass (GVR_GLASS=1) the beam destroys it from the west, east and north in about
+  3 s and the mission completes. Rendered first and third person (light on the gate, scorch smoke).
+- kstory4_1: the crystal and the gate are found; same code path.
+- Push-out fix: Kabuto spawned against kstory3's gate stays within 1 m over 60 frames (was flung 217 m).
+- k1a gates and kstory4_1 Offspring: see ENGINEERING_LOG.
+- **Not device-tested.**
+- Sweep (this build): all 56 missions exit 0, no errors; mean update 0.29 ms (run alongside an APK build).

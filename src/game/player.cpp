@@ -211,7 +211,15 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         const float dx = position.x - before.x, dz = position.z - before.z;
         speedNow = std::sqrt(dx * dx + dz * dz) / dt;
         if (speedNow < 1e-3f) { velocity.x = velocity.z = 0; }
-        else { velocity.x = dx / dt; velocity.z = dz / dt; }
+        else {
+            // Never faster than he was going: a push out of a deep overlap (spawned or squeezed
+            // into a structure) is a correction, not a launch (it flung Kabuto 200 m in a second).
+            const float before2 = std::sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+            const float k = speedNow > before2 ? before2 / speedNow : 1.0f;
+            velocity.x = dx / dt * k;
+            velocity.z = dz / dt * k;
+            speedNow = std::min(speedNow, std::max(before2, speed));
+        }
     }
 
     bool objectGround = false, waterGround = false;

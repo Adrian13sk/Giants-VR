@@ -10,6 +10,11 @@
 //   darling little creatures to destroy enemies ... they'll grow big and strong"): holding Y lays
 //   an egg (offspring_egg_l0) that hatches an Offspring (offspring_l0 and its clips, OF_ sounds) which
 //   hunts the nearest Reaper, creature, Vimp or evil Smartie, eats it and grows.
+// - The MAGNIFYING GLASS (kstory3_3, kstory4_1: "Smash the GIANT CRYSTAL to get a MAGNIFYING GLASS. Use
+//   the MAGNIFYING GLASS to burn through the CRYSTAL GATE ... fry your enemies from a distance"):
+//   smashing mag_crystal leaves mag_crystal_shard; walking up to it he takes it; held in the turn
+//   hand, that hand's trigger focuses a burning beam where it points. The crystal gate (giantwall4)
+//   only gives way to the beam.
 #include "game/game_app.h"
 
 #include <algorithm>
@@ -27,7 +32,6 @@ namespace gvr {
 namespace {
 constexpr float kAdrenTime = 10.0f;
 constexpr int kMaxOffspring = 4;
-constexpr int kCreatureTargetO = 1000;  // as game_app.cpp's kCreatureTarget
 }  // namespace
 
 float GameApp::gateNeed(int item, bool* needsAdren) const {
@@ -41,6 +45,7 @@ float GameApp::gateNeed(int item, bool* needsAdren) const {
     if (k == 1) return 0.7f;
     if (k == 2) return 0.85f;
     if (k == 3) { if (needsAdren) *needsAdren = true; return 1.0f; }
+    if (k == 4 && kbGlassAvail_) return 2.0f;  // the crystal gate: only the beam (2 = a marker, see kabutoMayDamage)
     return 0.0f;
 }
 
@@ -48,6 +53,15 @@ bool GameApp::kabutoMayDamage(int item) {
     bool adren = false;
     const float need = gateNeed(item, &adren);
     if (need <= 0.0f) return true;
+    if (need > 1.5f) {  // the crystal gate
+        if (kbBeaming_) return true;
+        if (kbGateMsgT_ <= 0) {
+            kbGateMsgT_ = 3.0f;
+            timmyLine_ = kbHasGlass_ ? "BURN IT WITH THE MAGNIFYING GLASS (RIGHT TRIGGER)" : "THE CRYSTAL GATE WON'T BREAK - SMASH THE GIANT CRYSTAL FOR ITS GLASS";
+            timmyLineT_ = 3.0f;
+        }
+        return false;
+    }
     const bool ok = kbGrow_ >= need - 1e-3f && (!adren || kbAdrenT_ > 0);
     if (!ok && kbGateMsgT_ <= 0) {
         kbGateMsgT_ = 3.0f;
@@ -72,6 +86,24 @@ bool GameApp::offspringMission() const {
 }
 
 void GameApp::initKabutoPowers() {
+    kbHasGlass_ = kbShardOn_ = false;
+    kbGlassAvail_ = false;
+    if (hero_ == Hero::Kabuto && assetWorld_) {
+        for (const auto& o : assetWorld_->worldObjects())
+            if (o.name == "mag_crystal" || o.name == "giantwall4") {
+                kbGlassAvail_ = kbGlassAvail_ || o.name == "mag_crystal";
+                LOGI("Kabuto: %s at game (%.0f %.0f)", o.name.c_str(), -o.centre.x / 0.2f, o.centre.z / 0.2f);
+            }
+        if (kbGlassAvail_ && !glassModel_) {
+            glassModel_ = assetWorld_->models()->get("mag_crystal_shard.gbs", "", true);
+            if (glassModel_) {
+                glassSize_ = std::max(0.1f, length(glassModel_->boundsMax - glassModel_->boundsMin));
+                const Vec3 e = glassModel_->boundsMax - glassModel_->boundsMin;
+                LOGI("Magnifying glass shard: %.1f x %.1f x %.1f m", e.x, e.y, e.z);
+            }
+        }
+    }
+    if (kbGlassAvail_ && std::getenv("GVR_GLASS")) kbHasGlass_ = true;  // test hook: start holding the glass
     kbAdren_ = 0;
     kbAdrenT_ = -1;
     kbOffspringCharges_ = 0;
@@ -283,7 +315,105 @@ void GameApp::updateKabutoPowers(float dt, const InputFrame& in) {
     }
 }
 
+namespace {
+Quat upTo(const Vec3& d) {  // the rotation taking +Y onto d
+    const Vec3 a = cross(Vec3{0, 1, 0}, d);
+    const float l = length(a);
+    if (l < 1e-4f) return d.y > 0 ? Quat{} : Quat::fromAxisAngle({1, 0, 0}, 3.14159265f);
+    return Quat::fromAxisAngle(a * (1.0f / l), std::atan2(l, d.y));
+}
+}  // namespace
+
+void GameApp::kabutoObjectDestroyed(const std::string& name, const Vec3& at) {
+    if (hero_ != Hero::Kabuto || name != "mag_crystal") return;
+    kbShardOn_ = true;
+    kbShardAt_ = at;
+    if (player_.groundHeight) kbShardAt_.y = player_.groundHeight(at.x, at.z);
+    LOGI("The giant crystal shatters: a magnifying glass lies at (%.0f %.0f)", at.x, at.z);
+}
+
+void GameApp::updateGlass(float dt, const InputFrame& in) {
+    kbBeaming_ = false;
+    if (hero_ != Hero::Kabuto) return;
+    const float H = player_.height;
+    if (kbShardOn_ && !kbHasGlass_) {
+        const Vec3 d = kbShardAt_ - player_.position;
+        if (d.x * d.x + d.z * d.z < (0.35f * H) * (0.35f * H)) {
+            kbHasGlass_ = true;
+            kbShardOn_ = false;
+            timmyLine_ = "MAGNIFYING GLASS: POINT YOUR RIGHT HAND, HOLD THE TRIGGER TO BURN";
+            timmyLineT_ = 4.0f;
+            sfx2D("ka_grab", 1.0f);
+            LOGI("Kabuto takes the magnifying glass");
+        }
+    }
+    if (!kbHasGlass_) return;
+    const int gh = rig_.turnHand();
+    const ControllerState& c = in.hand[gh];
+    // Where the glass is: in the turn hand (first person) or held out in front (third person).
+    if (firstPerson_ && c.gripPoseValid) {
+        const Pose g = rig_.toWorld(c.gripPose);
+        const Pose a = c.aimPoseValid ? rig_.toWorld(c.aimPose) : g;
+        kbGlassAt_ = g.position + a.orientation.rotate(Vec3{0, 0.03f * H, -0.15f * H});
+        kbGlassDir_ = a.orientation.rotate(Vec3{0, 0, -1});
+    } else {
+        const Vec3 fwd{-std::sin(player_.yaw), 0, -std::cos(player_.yaw)};
+        kbGlassAt_ = player_.position + fwd * (0.3f * H) + Vec3{0, 0.55f * H, 0};
+        kbGlassDir_ = normalize(fwd + Vec3{0, -0.35f, 0});
+    }
+    if (c.trigger < 0.6f || !weapon_.raycast) { kbBeamT_ = 0; return; }
+    // The sun through the glass: a burning point where it lands.
+    float t;
+    Vec3 n;
+    int target = -1;
+    const float maxD = 3.0f * H;
+    const bool hit = weapon_.raycast(kbGlassAt_, kbGlassDir_, maxD, t, n, target);
+    const Vec3 spot = kbGlassAt_ + kbGlassDir_ * (hit ? t : maxD);
+    static const bool trace = std::getenv("GVR_GLASS") != nullptr;
+    if (trace && int(time_) != int(time_ - dt))
+        LOGI("glass trace: H %.1f from (%.0f %.0f %.0f) dir (%.2f %.2f %.2f) hit %d t %.1f target %d", H, kbGlassAt_.x, kbGlassAt_.y, kbGlassAt_.z,
+             kbGlassDir_.x, kbGlassDir_.y, kbGlassDir_.z, int(hit), t, target);
+    // The focused light: a bright cone narrowing from the lens to the burning point.
+    for (int k = 0; k < 8; ++k) {
+        const float f = (float(k) + frand()) / 8.0f;
+        smokePuff(FxTex::Fire, kbGlassAt_ + (spot - kbGlassAt_) * f, Vec3{0, 0.3f, 0}, 0.03f * H * (1.0f - 0.8f * f), 0.0f, 0.06f, 0.9f, 0.0f);
+    }
+    if (!hit) return;
+    smokePuff(FxTex::Fire, spot, Vec3{0, 2.0f, 0}, 0.06f * H, 0.02f * H, 0.3f, 1.0f, 1.0f);
+    {
+        EnvironmentParams& env = renderer_.environment();
+        env.pointLightPos = spot - kbGlassDir_ * (0.05f * H);
+        env.pointLightColor = Vec3{1.8f, 1.2f, 0.5f} * (0.85f + 0.15f * frand());
+        env.pointLightRadius = 0.5f * H;
+    }
+    if (frand() < dt * 10.0f) smokePuff(FxTex::SmokeBlack, spot, Vec3{0, 3.0f, 0}, 0.03f * H, 0.12f * H, 2.0f, 0.5f, 1.0f);
+    kbBeamT_ += dt;
+    if (kbBeamT_ < 0.25f) return;
+    kbBeamT_ = 0;
+    sfx("ex_woods", spot, 0.5f, 1.6f);
+    haptics_.push_back({gh, 0.3f, 0.05f});
+    kbBeaming_ = true;
+    if (target >= kObjectTarget) damageObject(target - kObjectTarget, 60.0f, true, kbGlassAt_);
+    else if (target >= 0 && weapon_.onHit) { hitMul_ = 1.5f; weapon_.onHit(target, spot, kbGlassDir_); hitMul_ = 1.0f; }
+    kbBeaming_ = false;
+}
+
 void GameApp::renderKabutoPowers(const Vec3& eye) {
+    if (glassModel_ && (kbShardOn_ || kbHasGlass_) && hero_ == Hero::Kabuto) {
+        // The shard as the data has it (about 3.5 m across) on the ground; in his hand, a lens
+        // about an eighth of his height, edge-on to where it points.
+        const Vec3 c = (glassModel_->boundsMin + glassModel_->boundsMax) * 0.5f;
+        if (kbShardOn_) {
+            drawModel(glassModel_, Mat4::translation(kbShardAt_ + Vec3{0, c.y - glassModel_->boundsMin.y, 0}) *
+                                       Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, float(time_) * 0.6f)) * Mat4::translation(c * -1.0f), false);
+            // A glint so he can find it.
+            if (frand() < 0.3f) smokePuff(FxTex::Fire, kbShardAt_ + Vec3{0, glassSize_ * 0.6f, 0}, Vec3{0, 0.5f, 0}, 0.4f, 0.1f, 0.25f, 0.6f, 0.0f);
+        } else if (!dying_) {
+            const float k = 0.2f * player_.height / glassSize_;
+            drawModel(glassModel_, Mat4::translation(kbGlassAt_) * Mat4::rotation(upTo(kbGlassDir_ * -1.0f))  /* its face (+Y) toward him */ * Mat4::scale(Vec3{k, k, k}) *
+                                       Mat4::translation(c * -1.0f), false);
+        }
+    }
     for (auto& o : offspring_) {
         if (!o.alive || length(o.pos - eye) > 600.0f) continue;
         if (o.hatch < 1.2f) {
