@@ -22,11 +22,12 @@ public:
     // spaces. Returns 0 if unavailable. *width / *height receive the block size.
     MeshId mesh(const std::string& text, float lineHeight, float maxWidth, float* width = nullptr,
                 float* height = nullptr);
-    void draw(MeshId m, const Mat4& xf, const Vec4& color = {1, 1, 1, 1});
+    // depth: hidden behind the world (name tags) instead of drawn over everything.
+    void draw(MeshId m, const Mat4& xf, const Vec4& color = {1, 1, 1, 1}, bool depth = false);
     // A flat panel (w x h metres, centred) behind text, for readability.
-    void drawPanel(const Mat4& xf, float w, float h, const Vec4& color);
+    void drawPanel(const Mat4& xf, float w, float h, const Vec4& color, bool depth = false);
     // A picture on a flat panel (w x h metres, centred), drawn over everything like the panel.
-    void drawImage(const Mat4& xf, float w, float h, TextureId tex, const Vec4& color = {1, 1, 1, 1});
+    void drawImage(const Mat4& xf, float w, float h, TextureId tex, const Vec4& color = {1, 1, 1, 1}, bool depth = false);
     // Glyph count found in the font (63 expected); for tests/logs.
     size_t glyphCount() const { return glyphs_.size(); }
     // Measures glyph extents in an RGBA font image (exposed for tests).

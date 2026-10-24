@@ -702,6 +702,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     eyeNow_ = playerModel_->hiddenCentroid() + eyeFromHead_;
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     updateTimmy();
+    updateSmartieLines(dt);
     updateJetFx(dt);
     if (hero_ == Hero::Delphi) updateDelphi(dt, in);
     else if (hero_ == Hero::Kabuto) updateKabuto(dt, in);
@@ -768,6 +769,8 @@ void GameApp::updateRescue(float dt, const InputFrame& in) {
                 char n[16];
                 std::snprintf(n, sizeof n, "gsm%02d_1", rescueLine_);
                 sfx(n, e.pos, 1.0f);
+                std::snprintf(n, sizeof n, "smchpickup%d", 1 + int(frand() * 3.99f));  // "Sure, I'll work for you."
+                smartieSay(smartieName(uint32_t(e.index) + 1000u), n);
                 break;
             }
             case SmartieEvent::Released:
@@ -778,6 +781,8 @@ void GameApp::updateRescue(float dt, const InputFrame& in) {
                 char n[16];
                 std::snprintf(n, sizeof n, "gsm%02d_2", rescueLine_ ? rescueLine_ : 1);
                 sfx(n, e.pos, 1.0f);
+                std::snprintf(n, sizeof n, "smchdropoff%d", 1 + int(frand() * 3.99f));
+                smartieSay(smartieName(uint32_t(e.index) + 1000u), n);
                 haptics_.push_back({kLeft, 0.3f, 0.05f});
                 haptics_.push_back({kRight, 0.3f, 0.05f});
                 completeObjective(s.objective);
@@ -2000,7 +2005,6 @@ void GameApp::updateTimmy() {
                Mat4::translation(cPos * -1.0f);
     timmyOn_ = true;
     timmyChatCooldown_ = std::max(0.0f, timmyChatCooldown_ - dt);
-    timmyLineT_ = std::max(0.0f, timmyLineT_ - dt);
     if (!timmyGreeted_ && timmyIdleT_ > 2.0f) { timmyGreeted_ = true; timmySay("smchpickup2", true); }  // "I've hopped on!"
     if (recentKills_ > 0) {
         if (frand() < 0.5f) timmySay("smchride2");  // "You're one cool geezer!"
@@ -3713,6 +3717,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     beginUiFrame(eye);  // the HUD, menu and hands at human scale (Kabuto)
     if (cut) renderCutscene();
     else if (playMode_) renderHud();
+    if (playMode_ && !cut) renderTags();
     if (playMode_ && !cut) renderTimmyLine();
     if (playMode_ && !cut) renderRaceHud();
     if (briefHeld_ && !cut && playMode_) renderBriefOverlay();

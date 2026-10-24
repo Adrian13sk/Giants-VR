@@ -161,7 +161,7 @@ MeshId TextRenderer::mesh(const std::string& textIn, float lineHeight, float max
     return it->second.mesh;
 }
 
-void TextRenderer::draw(MeshId m, const Mat4& xf, const Vec4& color) {
+void TextRenderer::draw(MeshId m, const Mat4& xf, const Vec4& color, bool depth) {
     if (!m || !r_) return;
     DrawParams dp;
     dp.texture = texture_;
@@ -169,15 +169,15 @@ void TextRenderer::draw(MeshId m, const Mat4& xf, const Vec4& color) {
     dp.unlit = true;
     dp.noFog = true;
     dp.depthWrite = false;
-    dp.depthTest = false;
+    dp.depthTest = depth;
     dp.doubleSided = true;
     dp.tint = color;
     r_->draw(m, xf, dp);
 }
 
-void TextRenderer::drawPanel(const Mat4& xf, float w, float h, const Vec4& color) { drawImage(xf, w, h, white_, color); }
+void TextRenderer::drawPanel(const Mat4& xf, float w, float h, const Vec4& color, bool depth) { drawImage(xf, w, h, white_, color, depth); }
 
-void TextRenderer::drawImage(const Mat4& xf, float w, float h, TextureId tex, const Vec4& color) {
+void TextRenderer::drawImage(const Mat4& xf, float w, float h, TextureId tex, const Vec4& color, bool depth) {
     if (!quad_ || !r_) return;
     DrawParams dp;
     dp.texture = tex ? tex : white_;
@@ -185,7 +185,7 @@ void TextRenderer::drawImage(const Mat4& xf, float w, float h, TextureId tex, co
     dp.unlit = true;
     dp.noFog = true;
     dp.depthWrite = false;
-    dp.depthTest = false;
+    dp.depthTest = depth;
     dp.doubleSided = true;
     dp.tint = color;
     r_->draw(quad_, xf * Mat4::scale({w, h, 1}), dp);

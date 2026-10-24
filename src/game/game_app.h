@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "core/log.h"
@@ -484,6 +485,14 @@ private:
     int recentKills_ = 0;
     void timmySay(const char* key, bool force = false);
     void renderTimmyLine();
+    // Name tags and Smartie lines (game_app_tags.cpp).
+    std::unordered_map<uint64_t, float> tagAlpha_;
+    float rideLineT_ = 10.0f;
+    double tagTime_ = 0;
+    std::string smartieName(uint32_t seed) const;
+    void smartieSay(const std::string& name, const char* key);
+    void updateSmartieLines(float dt);
+    void renderTags();
     int timmyYell_[3] = {-1, -1, -1}, timmyClip_ = 0, timmyPrevClip_ = 0;
     float timmyClipT_ = 0, timmyPrevT_ = 0, timmyIdleT_ = 0, timmyFade_ = 1, timmyYellIn_ = 3, timmyLastTime_ = 0;                       // model-frame nudge of the seat (m)
     int timmyType_ = 583;
