@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstdio>
+#include <cstring>
 #include <dirent.h>
 
 namespace gvr {
@@ -2423,7 +2424,18 @@ void GameApp::loadMission(const std::string& name) {
     initCharacters(w, w->models());
     initMission();
     needSpawn_ = true;  // to the mission's start marker; its opening cutscene follows
-    LOGI("Mission %s loaded", name.c_str());
+    {
+        // Resident memory after each load (Linux/Android): a leak across mission loads would show
+        // as steady growth here - the Quest closes apps that grow too large.
+        long rssKb = -1;
+        if (FILE* f = std::fopen("/proc/self/status", "r")) {
+            char line[256];
+            while (std::fgets(line, sizeof line, f))
+                if (std::strncmp(line, "VmRSS:", 6) == 0) { rssKb = std::atol(line + 6); break; }
+            std::fclose(f);
+        }
+        LOGI("Mission %s loaded (resident memory %ld MB)", name.c_str(), rssKb >= 0 ? rssKb / 1024 : -1L);
+    }
 }
 
 void GameApp::completeObjective(int index) {
