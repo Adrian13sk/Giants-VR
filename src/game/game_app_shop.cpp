@@ -28,30 +28,35 @@ void GameApp::initShop() {
     shopItems_.clear();
     shopInside_ = false;
     shopPool_ = 0;
+    shopCentres_.clear();
     if (!assetWorld_) return;
+    // Every guard_shop of the level (4a has two); one counter per level, at whichever is entered first.
     for (const auto& o : assetWorld_->worldObjects()) {
         if (o.name != "guard_shop") continue;
-        shopAt_ = o.centre;
+        Vec3 c = o.centre;
         float gy;
-        if (assetWorld_->terrain().heightAt(shopAt_.x, shopAt_.z, gy)) shopAt_.y = gy;
-        shopCentre_ = shopAt_;
-        shopOn_ = true;
-        break;
+        if (assetWorld_->terrain().heightAt(c.x, c.z, gy)) c.y = gy;
+        shopCentres_.push_back(c);
     }
+    shopOn_ = !shopCentres_.empty();
+    if (shopOn_) shopAt_ = shopCentre_ = shopCentres_.front();
     if (!shopOn_) return;
     shopPool_ = kPoolStore;
     shopAnchored_ = false;
     // The goods (item 0 the launcher, if not owned yet); placed when the player first walks in.
-    const int kinds[3] = {hasLauncher_ ? 1 : 0, 1, 1};
+    const int kinds[3] = {hasLauncher_ ? 1 : 0, 1, 2};  // launcher (or an injection), an injection, flares
     for (int i = 0; i < 3; ++i) shopItems_.push_back({kinds[i], shopAt_, false});
     LOGI("Shop at (%.1f %.1f %.1f): %zu items, health pool %.0f", shopAt_.x, shopAt_.y, shopAt_.z, shopItems_.size(), shopPool_);
 }
 
 void GameApp::updateShop(float dt, const InputFrame& in) {
     if (!shopOn_ || !playMode_ || dying_) return;
-    const Vec3 d = player_.position - (shopAnchored_ ? shopCentre_ : shopAt_);
-    const float flat = std::sqrt(d.x * d.x + d.z * d.z);
-    const bool inside = flat < kShopRadius && std::fabs(d.y) < 4.0f;
+    bool inside = false;
+    for (const Vec3& c : shopCentres_) {
+        if (shopAnchored_ && length(c - shopCentre_) > 0.1f) continue;  // the counter is open at another one
+        const Vec3 d = player_.position - c;
+        if (std::sqrt(d.x * d.x + d.z * d.z) < kShopRadius && std::fabs(d.y) < 4.0f) { inside = true; shopCentre_ = c; }
+    }
     if (inside && !shopAnchored_) {
         // The interior is cramped: the counter opens where the player stands on first walking
         // in - the goods in an arc at arm's length ahead, the pool under his feet.
@@ -86,6 +91,10 @@ void GameApp::updateShop(float dt, const InputFrame& in) {
             hasLauncher_ = true;
             weaponHudT_ = 0;
             LOGI("Shop: took the rocket launcher");
+        } else if (it.kind == 2) {
+            if (flares_ >= kMaxFlares) continue;
+            flares_ = std::min(kMaxFlares, flares_ + 3);
+            LOGI("Shop: took flares (%d)", flares_);
         } else {
             if (syringes_ >= kMaxSyringes) continue;  // no room: it stays for later
             ++syringes_;
@@ -136,15 +145,23 @@ void GameApp::renderShop() {
     if (!shopAnchored_) return;
     for (const auto& it : shopItems_) {
         if (it.taken) continue;
-        const RenderModel* m = it.kind == 0 ? launcherModel_ : syringeModel_;
+        if (it.kind == 2) {
+            // Flares: the HUD's flare icon as a glowing card, facing the player.
+            const Mat4 xf = Mat4::translation(it.pos + Vec3{0, 0.06f * std::sin(t * 2.0f + it.pos.x), 0}) *
+                            Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, yawOf(head.orientation)));
+            text_.drawImage(xf, 0.32f, 0.32f, hudTex_[kHudFlare], {1, 1, 1, 1}, true);
+        }
+        const RenderModel* m = it.kind == 0 ? launcherModel_ : (it.kind == 2 ? nullptr : syringeModel_);
         const float bob = 0.06f * std::sin(t * 2.0f + it.pos.x);
         const float s = it.kind == 0 ? 1.0f : 2.0f;  // the syringe is small
         if (m)
             drawModel(m, Mat4::translation(it.pos + Vec3{0, bob, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.8f)) *
                              Mat4::scale(Vec3{s, s, s}),
-                      false);
+                      it.kind == 2);  // the flare glows
         if (!near || !text_.ready()) continue;
-        const std::string label = it.kind == 0 ? "ROCKET LAUNCHER" : (syringes_ >= kMaxSyringes ? "INJECTION (FULL)" : "HEALTH INJECTION");
+        const std::string label = it.kind == 0 ? "ROCKET LAUNCHER"
+                                  : it.kind == 2 ? (flares_ >= kMaxFlares ? "FLARES (FULL)" : "3 FLARES")
+                                                 : (syringes_ >= kMaxSyringes ? "INJECTION (FULL)" : "HEALTH INJECTION");
         float w = 0, h = 0;
         const MeshId tm = text_.mesh(label, 0.1f, 20.0f, &w, &h);
         if (!tm) continue;

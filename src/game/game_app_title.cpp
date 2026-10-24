@@ -54,6 +54,7 @@ void GameApp::startFromTitle(const std::string& world, const std::string& missio
     if (!restore) {
         if (!savePath_.empty()) std::remove(savePath_.c_str());
         syringes_ = 0;
+        flares_ = 0;
         hasLauncher_ = false;
         weaponSel_ = 0;
     }

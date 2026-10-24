@@ -99,6 +99,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             LOGI("New game (menu): %s", world.c_str());
             if (!savePath_.empty()) std::remove(savePath_.c_str());
             syringes_ = 0;
+            flares_ = 0;
             hasLauncher_ = false;
             weaponSel_ = 0;
             if (!playMode_) setPlayMode(true, in);

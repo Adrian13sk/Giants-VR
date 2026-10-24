@@ -672,6 +672,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updatePickups(dt, in);
     updateShop(dt, in);
     updateMap(dt, in);
+    updateFlares(dt, in);
     placeCamera(dt, false, &in);
     if (!playerModel_) return;
     if (firstPerson_ && hero_ != Hero::Kabuto) {
@@ -1821,6 +1822,7 @@ void GameApp::initMission() {
     if (title_) return;  // the main menu's scene: no checkpoint
     if (haveRestore_) {  // what he carried at the checkpoint
         if (pendingRestore_.launcher && launcherModel_) hasLauncher_ = true;
+        flares_ = std::max(0, std::min(kMaxFlares, pendingRestore_.flares));
         syringes_ = std::max(syringes_, std::min(kMaxSyringes, pendingRestore_.syringes));
         haveRestore_ = false;
     }
@@ -2068,6 +2070,7 @@ void GameApp::writeCheckpoint() {
     g.mission = assetWorld_->missionName();
     g.syringes = syringes_;
     g.launcher = hasLauncher_;
+    g.flares = flares_;
     if (writeSaveGame(savePath_, g)) LOGI("Checkpoint saved: %s / %s", g.world.c_str(), g.mission.c_str());
     else LOGW("Checkpoint could not be written to %s", savePath_.c_str());
 }
@@ -2915,7 +2918,10 @@ void GameApp::updateRockets(float dt) {
         if (r.kind == 2) {
             // A SAM's homing missile: turns toward the player (limited rate), bursts close to him,
             // on the ground or when its fuel runs out.
-            const Vec3 chest = player_.position + Vec3{0, 0.5f * player_.height, 0};
+            // A burning flare in reach draws it off the player.
+            Vec3 chest = player_.position + Vec3{0, 0.5f * player_.height, 0};
+            Vec3 flare;
+            if (flareTarget(r.pos, flare)) chest = flare;
             const Vec3 to = chest - r.pos;
             const float dist = length(to);
             const float sp = length(r.vel);
@@ -2928,6 +2934,7 @@ void GameApp::updateRockets(float dt) {
             float g = -1e9f;
             const bool ground = assetWorld_ && assetWorld_->terrain().heightAt(r.pos.x, r.pos.z, g) && r.pos.y < g + 0.3f;
             if (dist < 3.0f || ground || r.pos.y < 0.0f || r.life > 9.0f || dying_) {
+                LOGI("SAM missile bursts %.1f m from the player", length(r.pos - (player_.position + Vec3{0, 0.5f * player_.height, 0})));
                 explode(r.pos, 3.5f, 60.0f);
                 r.life = 1e9f;
                 continue;
@@ -3503,6 +3510,7 @@ void GameApp::update(float dt, const InputFrame& in) {
             LOGI("New game: back to Story1");
             if (!savePath_.empty()) std::remove(savePath_.c_str());
             syringes_ = 0;
+            flares_ = 0;
             hasLauncher_ = false;
             weaponSel_ = 0;
             setPlayMode(true, in);

@@ -502,6 +502,17 @@ private:
     void initShop();
     void updateShop(float dt, const InputFrame& in);
     void renderShop();
+    std::vector<Vec3> shopCentres_;
+    // Flares (game_app_flare.cpp): bought at the Shop, thrown off the pack with the move-hand
+    // trigger; a SAM's homing missile goes for a burning flare instead of the player.
+    static constexpr int kMaxFlares = 6;
+    int flares_ = 0;
+    struct Flare { Vec3 pos, vel; float age; };
+    std::vector<Flare> flareList_;
+    ButtonEdge flareEdge_;
+    float flareFlash_ = 0;
+    void updateFlares(float dt, const InputFrame& in);
+    bool flareTarget(const Vec3& from, Vec3& out) const;
     // The VR map (game_app_map.cpp).
     bool mapOpen_ = false, mapDirty_ = false;
     ButtonEdge mapEdge_;
@@ -791,7 +802,7 @@ private:  // the mission placed enemies: no test waves
     // (FP: over the move-hand wrist; TP: head-locked, lower left); the weapon strip that pops up on
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
-                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudNumbers, kHudMarks, kHudLayers };
+                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudNumbers, kHudMarks, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     float digitU_[11] = {}, digitU0_[10] = {}, digitU1_[10] = {};

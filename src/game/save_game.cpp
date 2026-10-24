@@ -22,6 +22,7 @@ bool loadSaveGame(const std::string& path, SaveGame& out) {
         else if (k == "mission") s.mission = v;
         else if (k == "syringes") s.syringes = std::atoi(v.c_str());
         else if (k == "launcher") s.launcher = v == "1";
+        else if (k == "flares") s.flares = std::atoi(v.c_str());
     }
     if (!versionOk || s.world.empty() || s.mission.empty()) return false;
     out = s;
@@ -34,7 +35,7 @@ bool writeSaveGame(const std::string& path, const SaveGame& s) {
         std::ofstream f(tmp, std::ios::trunc);
         if (!f) return false;
         f << "version=1\nworld=" << s.world << "\nmission=" << s.mission << "\nsyringes=" << s.syringes
-          << "\nlauncher=" << (s.launcher ? 1 : 0) << "\n";
+          << "\nlauncher=" << (s.launcher ? 1 : 0) << "\nflares=" << s.flares << "\n";
         if (!f.good()) return false;
     }
     return std::rename(tmp.c_str(), path.c_str()) == 0;

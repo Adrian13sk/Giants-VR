@@ -11,6 +11,7 @@ struct SaveGame {
     std::string world, mission;
     int syringes = 0;
     bool launcher = false;
+    int flares = 0;
 };
 
 bool loadSaveGame(const std::string& path, SaveGame& out);
