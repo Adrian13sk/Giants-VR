@@ -1368,3 +1368,19 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   Staged the first 50 (Kstory1_Delphi_changes, Kstory5_End, kabuto_fight): all parse; kstory1_delphi_changes_1 plays
   in the harness (6 actors, props, subtitles). They use ops not seen in Story 1 (0x2A, 0x2F, 0x31, 0x33, 0x35).
   Next: stage the other 415 and run every cutscene in the harness.
+
+### 2026-10-24 — All 545 cutscene shots checked; cutscene effects; carried weapons in hand (build 97241e5+)
+- Staged the remaining 415 flk shots from the PC (the 4 foreign-language text/voice packs left out). All 545 parse with
+  our reader (gzptool flick: 545/545 with a director). Python op census in FORMATS.md.
+- **op 0x27 = effect on an actor node** {slot, fxName, mode, actor, node}: 208 uses in 72 shots (fx_shotgun_flk,
+  fx_stone_explode_*, fx_sm_glow_sapho, fxb_splash, fx_flick_millenium_spear/bazooka ...). Parsed into
+  FlickShot::effects and fired at the node's world position during play; the effect definitions themselves aren't
+  decoded, so each family gets a stand-in from our particles (dust bursts, flame + smoke, coloured glow, spray, blood;
+  unknown "test3" draws nothing). IMPLEMENTED, BUILD VERIFIED, harness-checked on Rstory1_fire_4a.
+- **Bug found and fixed:** static (.gbs) props carried by cutscene actors ignored their alignment node (op 3's
+  `ref_handle`), so the guards' spears and bazookas in Rstory1_fire_4a floated upside down over their heads. The
+  prop's .anm reference nodes are now read at rest and the handle is aligned to the hand (harness render: weapons held
+  and fired into the air with flashes at the tips). Story 1 skinned props (Baz's gun) unchanged.
+- Every mission's opening cutscene (33 missions) played in the harness for 5 s: all exit 0, no errors. k1b_portal
+  names `kstory1b`, which doesn't exist in the data (not on the PC either) - it is skipped as before. The two Rstory3
+  race missions need the race world in the harness (`--world Rstory3_race_1`), then play.

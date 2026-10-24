@@ -506,3 +506,14 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 - Host frame pacing is fixed (1/72 s), so the adaptive-quality change shows no messages there (as intended).
 - **Not device-tested.**
 - Sweep after the cutscene / quality changes: 56/56 exit 0, no errors.
+
+## Host verification — all cutscene shots, cutscene effects, carried props (build 97241e5, APK dcf9c896…)
+- `gzptool flick` over all 545 flk shots: 545 parse with a director, 0 failures.
+- `gvr_tests`: all pass, incl. the new op 0x27 parser test.
+- Harness, Rstory1_fire_4a at 7.6 s: 4 effects fired at the weapons' ref_nozzle (log `cut-fx`), flame/smoke visible at
+  the spear tips; spears and bazookas now in the guards' hands (before: floating upside down above their heads).
+- Harness, story1_jetpack_6: Baz's gun still in his hand (skinned-prop path unchanged).
+- Harness, every mission's opening cutscene (33 missions, 360 frames each): all exit 0, no `[E]` lines;
+  kstory1b (k1b_portal) absent from the data and skipped.
+- Mission sweep not re-run for this change (it plays with GVR_CUTSCENE=none, so cutscene code isn't exercised).
+- **Not device-tested.**
