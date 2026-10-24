@@ -256,7 +256,7 @@ void AutoTest::writeResults() {
     r << buf;
     if (game_)
         r << "mission_complete " << (game_->missionComplete() ? 1 : 0) << "\nplayer_health " << int(game_->playerHealth())
-          << "\nreapers_alive " << game_->enemiesAlive() << "\n";
+          << "\nreapers_alive " << game_->enemiesAlive() << "\neffects_quality_level " << game_->effectsQuality() << " (0 = full)\n";
     std::snprintf(buf, sizeof(buf), "draws mean %.0f max %.0f\nmemory_kb rss %ld peak %ld\n", mean(draws), percentile(draws, 1.0f),
                   procStatusKb("VmRSS:"), procStatusKb("VmHWM:"));
     r << buf;

@@ -72,6 +72,7 @@ public:
     void debugCompleteMission() { missionComplete_ = true; }  // test hook (harness --complete-at)
     // Test hook: reload the current mission through the loading screen and briefing.
     void debugReloadWithBriefing(const InputFrame& in);
+    int effectsQuality() const { return quality_; }  // adaptive fallback level (0 = full effects)
     void debugSetVimpMeat(int n) { vimpMeat_ = n; }  // test hook (harness --vimp-meat)
     void update(float dt, const InputFrame& input);
     void renderEye(const EyeRenderInfo& eye);

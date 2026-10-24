@@ -121,7 +121,7 @@ foreach ($script in $scripts) {
 
     $res = Join-Path $dest 'autotest_out\result.txt'
     $fps = ''
-    if (Test-Path $res) { $fps = ((Get-Content $res) | Where-Object { $_ -match '^(fps|gpu_ms|slow_frames)' }) -join '; ' }
+    if (Test-Path $res) { $fps = ((Get-Content $res) | Where-Object { $_ -match '^(fps|slow_frames|effects_quality_level)' }) -join '; ' }
     # The system's own once-a-second performance line (VrApi) for the app: GPU time and load.
     $log = @(Get-Content (Join-Path $dest 'logcat.txt'))
     $appPid = 'none'
