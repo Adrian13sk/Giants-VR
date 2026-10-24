@@ -175,8 +175,9 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
 ## Pop-up bomb (Meccaryn: story3_prison_7, and 5c once the base is complete)
 - **Right stick forward** cycles the weapon strip to the bomb (it appears in your hand). **Right trigger** sets it
   down in front of you; it beeps for 5 s (faster at the end), pops up and blows - get clear (about 14 m).
-- As the briefings say, only the bomb breaks the **prison gates** in story3_prison_7 and the **army barracks** in 5c.
-  Reg gives you one at the start of story3_prison_7; that level's Shop has an extra one.
+- As the briefings say, only the bomb breaks the **prison gates** in story3_prison_7, the **Torture Square gate** in
+  4a and the **army barracks** in 5c. Reg gives you one at the start of story3_prison_7; the Shops in prison_7 and
+  4a sell them.
 
 ## Delphi (Reaper story)
 Options → NEW GAME: choose **REAPER STORY (DELPHI)** with the stick, hold the trigger 2 s. Delphi has no jetpack:

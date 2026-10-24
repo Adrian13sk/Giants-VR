@@ -37,6 +37,8 @@ bool GameApp::popupOnlyTarget(int item) const {
     const std::string m = toLower(assetWorld_->missionName());
     if (m.rfind("story3_prison_7", 0) == 0) return name == "bw_prison";
     if (m.rfind("5c", 0) == 0) return name == "guard_army_barracks";
+    // 4a: "Destroy the TORTURE SQUARE GATE with a POP-UP BOMB. Only the POP-UP BOMB can destroy this gate."
+    if (m.rfind("4a", 0) == 0) return name == "story4_door";
     return false;
 }
 

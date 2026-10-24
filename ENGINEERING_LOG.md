@@ -1568,3 +1568,12 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   cutscene prop fix); shots leave from its Ref_nozzle. One in four (by uid) carries the bazooka: instead of bursts it
   fires a slow rocket (22 m/s, smoke trail) every 3.5 s that bursts on impact or within 1.6 m of the player
   (radius 3.5 m, 55). Weapons cast shadows. Harness: a 2b Reaper holds the spear gun across his body.
+
+### 2026-10-24 — 4a needs the pop-up bomb too; item readings from briefings
+- 4a's briefing: "Destroy the TORTURE SQUARE GATE with a POP-UP BOMB. Only the POP-UP BOMB can destroy this gate.
+  Need a POP-UP BOMB? You can get one in a Shop." Its target is story4_door (class 101, trig 2): now bomb-only, and
+  4a's Shops offer the bomb. Harness: 40 rocket blasts at the door -> intact; bomb -> "Destroyed: story4_door",
+  mission complete.
+- Briefings name the weapons behind more item numbers: story3_bunker_3 (items 1 3 6) "Your new SNIPER GUN ... zoom
+  in"; 4a (1 7) "Try out your MILLENIUM GUN"; so 6 = sniper gun, 7 = Millenium gun (not implemented yet).
+  The pop-up bomb is now granted from item 10 (prison_7's list) rather than by mission name.

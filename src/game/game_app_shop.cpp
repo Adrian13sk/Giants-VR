@@ -46,8 +46,10 @@ void GameApp::initShop() {
     // The goods (item 0 the launcher, if not owned yet); placed when the player first walks in.
     const int kinds[3] = {hasLauncher_ ? 1 : 0, 1, 2};  // launcher (or an injection), an injection, flares
     for (int i = 0; i < 3; ++i) shopItems_.push_back({kinds[i], shopAt_, false});
-    // story3_prison_7: "Check the Shop for an extra POP-UP BOMB if you need one".
-    if (hero_ == Hero::Mecc && toLower(assetWorld_->missionName()).rfind("story3_prison_7", 0) == 0) shopItems_.push_back({3, shopAt_, false});
+    // story3_prison_7: "Check the Shop for an extra POP-UP BOMB if you need one"; 4a: "Need a POP-UP BOMB?
+    // You can get one in a Shop."
+    const std::string mn = toLower(assetWorld_->missionName());
+    if (hero_ == Hero::Mecc && (mn.rfind("story3_prison_7", 0) == 0 || mn.rfind("4a", 0) == 0)) shopItems_.push_back({3, shopAt_, false});
     LOGI("Shop at (%.1f %.1f %.1f): %zu items, health pool %.0f", shopAt_.x, shopAt_.y, shopAt_.z, shopItems_.size(), shopPool_);
 }
 
