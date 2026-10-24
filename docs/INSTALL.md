@@ -78,7 +78,15 @@ and hurt you the closer they burst (up to 40 at point blank, nothing beyond 4 m)
 destroyed (rockets work best) and char and smoulder as they take damage; a sentry rides his tower down when it collapses. When you die you see your body (fallen, gone under in the water, or blown
 apart), then the screen fades and you start again at the mission's start.
 
-Deep water floats you (no diving) and the piranhas come after a moment; get out or jetpack away. Bodies stay where
+Deep water floats you (no diving) and the piranhas come after a moment; get out or jetpack away.
+
+**Rippers** mostly lie buried: the ground ahead bursts with dirt as one tunnels at you, then it springs out and bites.
+Shots and blasts nearby wake them. Small ones can latch onto your legs for a few seconds. Dead Rippers leave their spit
+glowing on the ground: walk over it to heal (orange a little, blue a lot). Look at a Smartie or a creature (or go near)
+to see its name.
+
+**The Shop (1d):** walk into the rusty bunker: the rocket launcher (if you don't have it) and injections float in front
+of you - walk into one or reach for it to take it (once each per level). Stand in the glowing pool to heal until it runs dry. Bodies stay where
 they fall until the Cleaners come to eat them; shoot a body to burst it or tear it apart.
 
 You start as the **Meccaryn in first person**: his body is under you, his arms follow your
@@ -93,10 +101,10 @@ moves him too.
 | Right stick left/right | Snap turn 30° | Snap turn 30° |
 | Right stick forward | Switch gun ↔ rocket launcher (once you have it: from 1c on, Timmy's "present" at the end of 1b); shows the weapon strip | — |
 | **Right trigger** | **Fire**: gun (hold for auto-fire, 5 shots/s) or rocket launcher (one rocket per pull, 1 s reload, splash damage; keep your distance) | Haptic test pulse |
-| **A** (hold) | **Jetpack**: lifts you; steer with the left stick only while it fires (otherwise you drift and fall). Fuel lasts ~8 s and refills only on the ground; burn it dry and it overheats until partly refilled | — |
+| **A** (hold) | **Jetpack**: lifts you; steer with the left stick only while it fires (otherwise you drift and fall). Fuel lasts ~8 s and refills only on the ground; burn it dry and it overheats until partly refilled. **Dry in the air, keep holding A**: it sputters and brakes your fall so you land safely | — |
 | Right stick click | First ↔ third person (third: camera behind him) | — |
 | **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
-| Y | — | Debug fly/noclip on/off (strong buzz = on) |
+| **Y** | **Map**: a holographic table of the island in front of you (dark until you've been there); Y again closes it | Debug fly/noclip on/off (strong buzz = on) |
 | X | Health injection (FP: into the left hand, push into the chest; TP: inject) | Tap: next mission. Hold 3 s: **new game** (forgets the checkpoint, back to 1a) |
 | **Menu button (left)** | **Options** (game paused): turning, main hand, first/third person, HUD size, volume, music, subtitles, new game. Stick up/down to choose, left/right to change; trigger or A on RESUME | same |
 | **Left stick click (hold)** | **Mission briefing** over the world while held (title, objectives, progress) | Toggle the engineering test geometry |

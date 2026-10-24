@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-23 (build 6e3a8cb: bosses fight back, Sonaks, SAM turrets)
+Last updated: 2026-10-24 (build 8515055: burrowing Rippers, jetpack plasma, water, name tags, Timmy's tower, Shop, VR map)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -35,15 +35,15 @@ original Giants data and renders the original worlds in stereo.
 - Kabuto growing from eating.
 - The performance pass, which needs device frame-rate numbers (Options → Frame rate).
 
-**In progress (user list, 2026-10-23 16:45):**
+**Done (user list, 2026-10-23 16:45; host verified, build 8515055, waiting for device test 26):**
 - Rippers burrowing, mini Rippers, latching, faster spit, spit health drops.
 - Building health bars and the collapse frame drop.
-- VR map.
+- VR map (Y).
 - Timmy fighting on his tower.
 - Jetpack plasma and the out-of-fuel sputter.
 - Piranha gore.
 - Name tags and Smartie lines.
-- Shop and health pool.
+- Shop and health pool (1d).
 - Water interaction.
 - HUD injection number.
 - TP weapons attached to the hands.

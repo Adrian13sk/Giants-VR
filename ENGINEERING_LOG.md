@@ -1168,3 +1168,37 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   - 2b: a hovering Meccaryn is hit by a SAM missile 2 s after launch.
   - Story1 render byte-identical.
 - **Not device-tested.**
+
+### 2026-10-24 — The 16:45 list: burrowing Rippers, jetpack, water, tags, Timmy, Shop, VR map (builds 63c9816 … 8515055)
+- **Earlier the same list** (committed 2026-10-23): building health bars, the collapse frame drop (fx culling), readable
+  injection count (measured digit spans), third-person weapons following the hand, pink player bolts / white Reaper bolts.
+- **Rippers burrow** (creature.cpp states Buried / Tunnel / Emerge / Dive / Latched; the clips are the original's:
+  rip_buried_idle, rip_popup_1, rip_dive, rip_attack_mecc - their root moves the body 2.3 m underground, so the model
+  keeps its standing height for them).
+  - 90 % of mission Rippers start buried (GVR_BURIED for tests). They come up when the player is within 24 m (any side)
+    or a shot / blast lands near (disturb), tunnel at him (8.5 m/s; large ones 0.4x), burst out 2.8 m away biting.
+  - Out of the player's reach or sight for 8 s they dig back in; not in water; buried ones can't be shot.
+  - Dirt thrown up ahead of a tunnelling one, rumble (BI_DIRT1); on bursting out dust, Dirt1 chunks, EX_DIRTL/S and a
+    hole: the original Mound model is a low rim round a dark hole (b_mound.tga) - used as the pothole with its open clip.
+  - Small nests (all five in 1a are 0.81 m) breed mini Rippers (type 229 at 0.55 scale). Small Rippers may latch onto
+    the player's legs (3–6 s, 3 dps) and jump off.
+  - Spit 2.4 + 1.5 s cooldown at 21 m/s. Dead Rippers leave their spit: orange +15 health, blue +40.
+- **Jetpack:** the original thrust models (mcthrust2, MCthrust_nitro, mcthrust star) at the pack's Ref_Thrust node,
+  blue plasma particles, a ground glow and dust. New renderer point light (one, from the game) gives the blue light on
+  the body, hands and ground - what shows the jetpack in first person. Dry in the air with the button held: falls at
+  most 4 m/s and loses forward speed (no fall damage); the flame flickers, smoke coughs, sputter sounds.
+- **Water:** efx_splash's clip only carries 22 debris reference points (the mesh doesn't move) - so the crown is
+  animated by us (open, leap, fall back) with drops (b_drip) and spray (EFX_splash). Shots ending under the surface
+  splash where they went in (BI_WATR1). Spray, drops and a ring wake at the legs wading or swimming. Piranha bites:
+  blood spurting, red clouds, KA_BITE (pitched up) and squelches.
+- **Name tags:** Smartie names from GTextEnglish's name syllables (smnamesyla/b/c, 4 each: Bor/Mul/Lum/Hal +
+  fiz/munz/bolzt/der + zee/burg/stein/sun). Shown when within 5 m or looked at; enemies by kind. Picked-up Smarties say
+  smchpickup / smchride / smchdropoff lines as subtitles with their name.
+- **Timmy (1a):** keeps his data height on the tower deck (2.4 m up) and loops timmy_swing_jetpack; Rippers within
+  18 m of him stay above ground.
+- **Shop:** guard_shop (class 102) is a world object in 1d (game 3430, -524). Its interior is cramped, so the counter
+  opens where the player first walks in: launcher (if not owned) and injections at arm's length, once per level; a
+  health pool (150 points, 25/s, never refills). Ours: the original shop's menu and stock are not decoded.
+- **VR map** (Y): a holographic island table, live markers, circling objective dots with beams, fog of war (90 m).
+  Vertex colours are given gamma-corrected (the eye buffers are sRGB).
+- **Not device-tested.**

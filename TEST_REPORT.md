@@ -368,3 +368,18 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   - A SAM missile hits a hovering player.
   - Story1 render byte-identical.
 - **Not device-tested.**
+
+## Host verification — the 16:45 list (build 8515055)
+- `gvr_tests`: all pass (new: burrowing - buried can't be hit, tunnels and emerges biting within 10 s, large tunnels
+  slower, stays put far away, stops at the shore, small ones latch and jump off; dry jetpack held lands soft, released
+  lands hard).
+- **Harness (Story1):**
+  - 1a: buried Rippers tunnel (dust plume) and burst out 2.6 m from the player; holes and orange spit drops left.
+  - 1a nests: mini Rippers hatch, latch on (t 11.4 s) and jump off (15.4 s).
+  - 1a: Timmy animates on the tower deck; tags show over a looked-at Ripper.
+  - 1b: wading spray, shot splash with ring, piranha frenzy; the jetpack plasma and ground light in both views.
+  - 1d: entering the shop opens the counter; standing in the pool heals 40 → 100.
+  - VR map opens with Y (fogged and all-explored renders).
+  - Smoke runs Story1, Rstory1, Kstory1, Story2 (300 frames, firing, Y): no errors.
+- **APK:** build 8515055, 3854835 bytes, sha256 e8e9dcf6d3ae3f47….
+- **Not device-tested.**
