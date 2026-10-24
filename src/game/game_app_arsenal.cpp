@@ -113,6 +113,12 @@ void GameApp::initArsenal() {
             LOGW("Gun %s: model or reference nodes missing - not available", gun.name);
     }
     shellsModel_ = mc->get("mc_pickup_shells.gbs", "", /*dynamicLit=*/true);
+    if (const ItemDef* it = defs ? weaponDefs_.item(14) : nullptr) {  // IconMissile: the launcher's rockets
+        if (it->maxAmmo > 0) launcherMax_ = it->maxAmmo;
+        if (it->ammoPerPickup > 0) launcherGive_ = it->ammoPerPickup;
+        if (const ItemDef* am = it->ammoItem >= 0 ? weaponDefs_.item(it->ammoItem) : nullptr)
+            if (am->ammoPerPickup > 0) launcherPickup_ = am->ammoPerPickup;
+    }
     lbombModel_ = mc->get("mc_lbomb.gbs", "MC_lbomb_spin2.anm", /*dynamicLit=*/true);
     sniperShotModel_ = mc->get("mc_sniper_bullit.gbs");   // the sniper's round (its weapon's projectile type 793)
     sniperFlashModel_ = mc->get("EFX_sniper_flash.gbs");  // and its muzzle flash
@@ -126,6 +132,7 @@ void GameApp::initArsenal() {
         for (auto& g : guns_)
             if (g.model) { g.have = true; g.ammo = g.maxAmmo; }
     if (std::getenv("GVR_ARSENAL") && grenadeModel_) grenades_ = grenadeMax_;
+    if (std::getenv("GVR_ARSENAL") && launcherModel_) { hasLauncher_ = true; launcherAmmo_ = launcherMax_; }
 }
 
 void GameApp::dropHeldWeaponState() {
@@ -136,18 +143,27 @@ void GameApp::dropHeldWeaponState() {
     gunTriggerHeld_ = grenCocked_ = false;
 }
 
+void GameApp::giveLauncher(const char* why) {
+    if (!launcherModel_) return;
+    hasLauncher_ = true;
+    launcherAmmo_ = std::min(launcherMax_, std::max(launcherAmmo_, launcherGive_));
+    LOGI("Rocket launcher (%s): %d rockets", why, launcherAmmo_);
+}
+
 void GameApp::resetArsenal() {
+    launcherAmmo_ = 0;
     for (auto& g : guns_) { g.have = false; g.ammo = 0; }
     for (auto& b : bows_) { b.have = false; b.ammo = b.maxAmmo < 0 ? -1 : 0; }
     delphiWeapon_ = -1;
     grenades_ = 0;
+    mines_ = 0;
     hasLauncher_ = false;
     weaponSel_ = 0;
 }
 
 void GameApp::grantItem(uint32_t item) {
-    if (item == 14 && launcherModel_) { hasLauncher_ = true; return; }
-    if (item >= 44 && item <= 46) { grantBowItem(item); return; }  // Delphi's bows
+    if (item == 14 && launcherModel_) { giveLauncher("item 14"); return; }
+    if (item >= 44 && item <= 48) { grantBowItem(item); return; }  // Delphi's bows
     if (item == 0) { syringes_ = std::min(kMaxSyringes, std::max(syringes_, 1)); return; }  // IconHealthSyringe: 1 given (5a, kstory5_5)
     if (item == 8 && grenadeModel_) {  // grenades: topped up to what the item comes with
         grenades_ = std::min(grenadeMax_, std::max(grenades_, grenadeGive_));
@@ -185,6 +201,7 @@ bool GameApp::weaponOwned(int sel) const {
         case 2: return hasBush();
         case 3: return popupBombs_ > 0;
         case 8: return grenades_ > 0 && grenadeModel_;
+        case 9: return mines_ > 0 && mineModel_;
         default: {
             const int g = gunOfSel(sel);
             return g >= 0 && guns_[g].have && guns_[g].model;
@@ -318,6 +335,11 @@ void GameApp::updateAmmoPickups(float dt) {
             return am && am->ammoPerPickup > 0 ? am->ammoPerPickup : fallback;
         };
         bool took = false;
+        if (hero_ == Hero::Mecc && hasLauncher_ && launcherAmmo_ < launcherMax_ && feeds(14)) {
+            launcherAmmo_ = std::min(launcherMax_, launcherAmmo_ + launcherPickup_);
+            took = true;
+            LOGI("Picked up %d rockets (%d)", launcherPickup_, launcherAmmo_);
+        }
         if (hero_ == Hero::Mecc)
             for (auto& g : guns_)
                 if (!took && g.have && g.ammo < g.maxAmmo && feeds(g.item)) {

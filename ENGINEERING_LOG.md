@@ -1689,3 +1689,23 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   fx.bin entries), rocket / grenade / Millenium bomb / shotgun / pop-up explosions. Harness: the rocket explosion
   shows a very large flash (fx 08: 10 -> 200 units, i.e. 40 m, for 0.1 s) and debris riding the sphere's points;
   whether that matches the original is for a headset look. Projectile ops (0x24) are not played yet.
+
+### 2026-10-24 — Launcher rockets, mines, Delphi's homing and power-up bows
+- Rocket launcher ammo from weapondefs: item 14 IconMissile carries 12 and comes with 8; its ammo item 40 gives 3
+  per mc_pickup_rockets (type 801; no mission places one, so Shops' AMMO box is the refill). Empty = click.
+  Checkpoints save the rockets; a save from before (launcher=1, no count) restores 8.
+- Mines (item 9 IconMine, mc_mine, 5 carried / 5 at a time; weapon 13's blast 55 over (.., 30, 50)). No mission
+  hands them out: every Meccaryn Shop (and the base's Giftshop) sells MINES (ours, after its "full of weapons").
+  weaponSel_ 9: the trigger sets one down 1.3 m ahead; armed after 2 s (me_minlk), a red light every 0.5 s with a
+  soft me_minml tick (fx.bin FXB_Flasher: FXB_redlight every 0.5, those sounds); a Reaper, Ripper or Vimp within
+  2 m sets it off (3.6 m, 160 - ours, so a foe on it dies; FX_EXPLOSION_MINE / me_minex). Harness: a Reaper 3 m
+  ahead of the hero, mine set 1.3 m ahead -> "Mine went off", Reaper dead.
+- Delphi's homing bow (item 47, rp_bow_homing; 10 / 6 arrows; record fx_homing 50 every 1.5 s) and power-up bow (48,
+  rp_bow_powerup; 10 / 3; record fxb_bow_screamer 50 every 1.5 s, key 7 = 8 read as an 8-arrow fan - ours fires 5
+  at 0.6x each). No mission hands them out: the Spellshop sells them - Spellshop 1 the homing bow (with AMMO and
+  an injection), Spellshop 2 adds the power-up bow (ours, after "spells and weapons made just for you" / "more
+  spells and weapons"). Homing arrows (rocket kind 8) turn toward the nearest living foe within 60 degrees and
+  80 m and strike it within 1 m (direct hit + the RPG arrow's small burst). Sounds SR_HBW* / SR_PBW*, switching
+  SR_STOHB / SR_STOPB. Harness r4a: homing arrows shot 12 degrees off a Reaper 20 m away lock on and kill it; the
+  power-up fan kills one 12 m ahead.
+- Not done: Delphi's mine (item 63 rp_mine) - she has no weapon slot for it yet.

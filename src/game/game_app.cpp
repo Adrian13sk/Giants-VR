@@ -697,6 +697,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateBase(dt, in);
     updatePopup(dt, in);
     updateGrenades(dt, in);
+    updateMines(dt, in);
     { GVR_PROF("map"); updateMap(dt, in); }
     updateFlares(dt, in);
     { GVR_PROF("camera"); placeCamera(dt, false, &in); }
@@ -877,7 +878,7 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "me_peas1", "me_peas2", "bi_dirt1", "bi_hit1", "bi_hit2", "ex_bdys1", "rh_sprsh", "rh_fsld1",
         "rpman_hit1", "rpman_hit2", "rpman_hit3", "rpman_hit4", "rpman_die1", "rpman_die2", "rpman_die3",
         "rpman_die4", "rpman_die5", "me_shrt1", "me_shrt2", "me_shrt3", "me_jpkst", "me_jpklp", "me_jpken",
-        "me_jpkno", "me_rsgsh", "me_rsgex", "me_sprsh", "me_mchst", "me_mchlp", "me_mchen", "me_outam", "pu_ammo", "me_mtrsh", "me_mtrht", "me_grnth", "me_grnex", "sr_rbwpl", "sr_rbwsh", "sr_rpgpl", "sr_rpgsh", "sr_sbwpl", "sr_sbwsh", "sr_storb", "sr_storp", "sr_stosb", "sr_btosw", "me_fsgr1", "me_fsgr2", "me_hdfl1", "me_hdfl2", "me_sld1", "me_slden",
+        "me_jpkno", "me_rsgsh", "me_rsgex", "me_sprsh", "me_mchst", "me_mchlp", "me_mchen", "me_outam", "pu_ammo", "me_mtrsh", "me_mtrht", "me_grnth", "me_grnex", "me_minth", "me_minlk", "me_minml", "me_minex", "sr_hbwpl", "sr_hbwsh", "sr_pbwpl", "sr_pbwsh", "sr_stohb", "sr_stopb", "sr_rbwpl", "sr_rbwsh", "sr_rpgpl", "sr_rpgsh", "sr_sbwpl", "sr_sbwsh", "sr_storb", "sr_storp", "sr_stosb", "sr_btosw", "me_fsgr1", "me_fsgr2", "me_hdfl1", "me_hdfl2", "me_sld1", "me_slden",
         // Footsteps by surface, the swimming loop.
         "me_fsgr1", "me_fsgr2", "me_fssa1", "me_fssa2", "me_fsst1", "me_fsst2", "me_fswd1", "me_fswd2", "me_fswa1", "me_fswa2", "me_swmlp",
         // Cleaners eating a body.
@@ -1322,6 +1323,8 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initShop();
     initBase();
     initPopup();
+    initArsenal();
+    initMines();
     initVillagers(w, mc);
     initVimps(w, mc);
     initDestruction(w, mc);
@@ -1863,7 +1866,7 @@ void GameApp::initMission() {
     // decoded; 1c-2c place mc_pickup_shells, the shotgun's ammo, and Timmy's present at the end of 1b
     // (flk_story1_get_rpg*) is animated with "shotgun" / "Ref_shotgun" nodes.
     grantMissionItems(m.items, "mission start");  // (Reaper missions: her bows, items 44-46)
-    if (std::getenv("GVR_LAUNCHER") && launcherModel_) hasLauncher_ = true;  // test hook
+    if (std::getenv("GVR_LAUNCHER") && launcherModel_) { hasLauncher_ = true; launcherAmmo_ = launcherMax_; }  // test hook
     // The world decides the hero (Reaper story: Delphi); she has no jetpack.
     // The mission's race (setup op 0x0B: 1 Kabuto, 2 Mecc, 3 Reaper) picks the hero - kstory5_5 is
     // played as the Meccaryn; the world name decides where the data gives none.
@@ -1875,6 +1878,8 @@ void GameApp::initMission() {
     // A level's Shop also sells ammo for the guns he carries / her bows' arrows (ours).
     if (shopOn_ && hero_ != Hero::Kabuto && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 4; }))
         shopItems_.push_back({4, shopAt_, false});
+    if (shopOn_ && hero_ == Hero::Mecc && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 5; }))
+        shopItems_.push_back({5, shopAt_, false});  // mines (no mission hands them out; ours)
     if (hero_ == Hero::Kabuto) {
         // He comes out of the sea weakened at the start of his story (k1a) and of 2a ("Eat 5
         // Smarties to reach full strength and size"); full size elsewhere. Our reading.
@@ -1891,8 +1896,12 @@ void GameApp::initMission() {
     }
     if (title_) return;  // the main menu's scene: no checkpoint
     if (haveRestore_) {  // what he carried at the checkpoint
-        if (pendingRestore_.launcher && launcherModel_) hasLauncher_ = true;
+        if (pendingRestore_.launcher && launcherModel_) {
+            hasLauncher_ = true;
+            launcherAmmo_ = std::max(launcherAmmo_, std::min(launcherMax_, pendingRestore_.rockets < 0 ? launcherGive_ : pendingRestore_.rockets));
+        }
         grenades_ = std::max(grenades_, std::min(grenadeMax_, pendingRestore_.grenades));
+        mines_ = std::max(mines_, std::min(minesMax_, pendingRestore_.mines));
         initBows();
         for (int b = 0; b < kNumBows; ++b)
             if (pendingRestore_.bows[b] && bows_[b].model) {
@@ -2160,8 +2169,10 @@ void GameApp::writeCheckpoint() {
     g.mission = assetWorld_->missionName();
     g.syringes = syringes_;
     g.launcher = hasLauncher_;
+    g.rockets = launcherAmmo_;
     for (int k = 0; k < kNumGuns; ++k) { g.guns[k] = guns_[k].have; g.ammo[k] = guns_[k].ammo; }
     g.grenades = grenades_;
+    g.mines = mines_;
     for (int k = 0; k < kNumBows; ++k) { g.bows[k] = bows_[k].have; g.arrows[k] = bows_[k].ammo; }
     g.flares = flares_;
     if (writeSaveGame(savePath_, g)) LOGI("Checkpoint saved: %s / %s", g.world.c_str(), g.mission.c_str());
@@ -3134,6 +3145,44 @@ void GameApp::updateRockets(float dt) {
             r.pos += r.vel * dt;
             continue;
         }
+        if (r.kind == 8) {
+            // Delphi's homing arrow: turns (limited rate) toward the nearest living foe within 60 degrees of
+            // its flight and 80 m; a faint green trail.
+            const float sp = length(r.vel);
+            Vec3 f = r.vel * (1.0f / std::max(1e-3f, sp));
+            Vec3 best;
+            float bestD = 80.0f;
+            int bestId = -1;
+            auto consider = [&](const Vec3& p, int id) {
+                const Vec3 to = p - r.pos;
+                const float d = length(to);
+                if (d < bestD && dot(to * (1.0f / std::max(1e-3f, d)), f) > 0.5f) { bestD = d; best = p; bestId = id; }
+            };
+            for (size_t i = 0; i < enemies_.enemies.size(); ++i)
+                if (enemies_.enemies[i].state != EnemyState::Dead) consider(enemies_.enemies[i].pos + Vec3{0, 1.1f, 0}, int(i));
+            for (size_t i = 0; i < creatures_.creatures.size(); ++i)
+                if (creatures_.creatures[i].state != CreatureState::Dead)
+                    consider(creatures_.creatures[i].pos + Vec3{0, 0.5f * creatures_.creatures[i].scale, 0}, kCreatureTarget + int(i));
+            for (size_t i = 0; i < vimps_.vimps.size(); ++i)
+                if (vimps_.vimps[i].state != VimpState::Dead) consider(vimps_.vimps[i].pos + Vec3{0, 2.0f, 0}, kVimpTarget + int(i));
+            if (bestD < 1.0f && bestId >= 0 && weapon_.onHit) {
+                // Close enough: it strikes the foe it was chasing (and bursts).
+                hitMul_ = r.dmg;
+                weapon_.onHit(bestId, best, f);
+                hitMul_ = 1.0f;
+                explode(best, 1.8f, 40.0f, false, 1);
+                sfx("me_mslex", best, 0.9f, 1.1f);
+                r.life = 1e9f;
+                continue;
+            }
+            if (bestD < 80.0f) {
+                if (r.bounces == 0) { r.bounces = 1; LOGI("Homing arrow locked on a foe %.0f m away", bestD); }
+                const Vec3 want = normalize(best - r.pos);
+                f = normalize(f + (want - f) * std::min(1.0f, 8.0f * dt));
+                r.vel = f * sp;
+            }
+            if (frand() < dt * 20.0f) smokePuff(FxTex::FireGreen, r.pos, Vec3{0, 0.1f, 0}, 0.12f, 0.3f, 0.4f, 0.6f, 0.0f);
+        }
         if (r.kind == 3) {
             // A Reaper's bazooka rocket: smoke trail; bursts near the player as well as on what it hits.
             if (frand() < dt * 25.0f) smokePuff(FxTex::SmokeGrey, r.pos, Vec3{0, 0.3f, 0}, 0.25f, 1.2f, 1.0f, 0.45f, 0.1f);
@@ -3157,7 +3206,7 @@ void GameApp::updateRockets(float dt) {
         if (hit || r.life > 5.0f) {
             if (r.kind == 1) explode(hit ? r.pos + dir * t : r.pos, 2.6f, 75.0f);  // fire bolt: smaller blast
             else if (r.kind == 3) explode(hit ? r.pos + dir * t : r.pos, 3.5f, 55.0f);
-            else if (r.kind == 4 || r.kind == 7) {
+            else if (r.kind == 4 || r.kind == 7 || r.kind == 8) {
                 // Shotgun shell (weapon 6: 40 damage, splash 40) or an RPG-bow arrow (fxb_bow_rpg: the
                 // same numbers): the hit itself like a bullet of that weight, then a small burst round it.
                 const Vec3 at = hit ? r.pos + dir * t : r.pos;
@@ -3169,7 +3218,7 @@ void GameApp::updateRockets(float dt) {
                 explode(at, 1.8f, 40.0f, false, 1);
                 if (!playDataFx("fx_Explosion_shotgun", at)) {  // weapon 6's / the RPG bow's impact effect
                     blasts_.push_back({at, 1, 0.0f});
-                    sfx(r.kind == 7 ? "me_mslex" : "me_rsgex", at, 0.9f, 0.95f + 0.1f * frand());
+                    sfx(r.kind == 4 ? "me_rsgex" : "me_mslex", at, 0.9f, 0.95f + 0.1f * frand());
                 }
             }
             else {
@@ -3485,12 +3534,16 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         switchArmed_ = false;
         // Handgun -> shotgun -> machine gun -> sniper gun -> mortar -> grenades -> launcher -> bush pack ->
         // pop-up bomb, skipping what he doesn't carry.
-        static const int kOrder[9] = {0, 4, 5, 6, 7, 8, 1, 2, 3};
+        static const int kOrder[10] = {0, 4, 5, 6, 7, 8, 9, 1, 2, 3};
         int at = 0;
-        while (at < 9 && kOrder[at] != weaponSel_) ++at;
-        for (int k = 1; k <= 9; ++k) {
-            const int next = kOrder[(at + k) % 9];
+        while (at < 10 && kOrder[at] != weaponSel_) ++at;
+        for (int k = 1; k <= 10; ++k) {
+            const int next = kOrder[(at + k) % 10];
             if (weaponOwned(next)) { weaponSel_ = next; break; }
+        }
+        if (weaponSel_ == 9) {
+            timmyLine_ = "MINES (" + std::to_string(mines_) + ") - TRIGGER TO SET ONE DOWN";
+            timmyLineT_ = 3.0f;
         }
         if (weaponSel_ == 8) {
             timmyLine_ = "GRENADES (" + std::to_string(grenades_) + ") - HOLD THE TRIGGER, THROW, LET GO";
@@ -3515,7 +3568,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     weaponsTicked_ = true;
     scopeWanted_ = false;
     bowValid_ = bowLinesShown_ = bowDrawing_ = false;  // (a Reaper mission's bow)
-    if (weaponSel_ == 2 || weaponSel_ == 3 || weaponSel_ == 8) {
+    if (weaponSel_ == 2 || weaponSel_ == 3 || weaponSel_ == 8 || weaponSel_ == 9) {
         // In the bush / holding a bomb or grenade: no gun in hand (its bolts still fly).
         gunValid_ = false;
         weapon_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
@@ -3604,7 +3657,12 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     if (launcher) {
         // One rocket per pull, 1 s to reload. The gun's bolts still fly (update with no trigger).
         weapon_.update(dt, false, muzzle, fwd);
-        if (trigger && gunValid_ && rocketCooldown_ <= 0 && !rocketTriggerHeld_) {
+        if (trigger && !rocketTriggerHeld_ && launcherAmmo_ <= 0) {
+            sfx2D("me_outam", 0.8f);  // no rockets left
+            haptics_.push_back({gh, 0.2f, 0.03f});
+        }
+        if (trigger && gunValid_ && rocketCooldown_ <= 0 && !rocketTriggerHeld_ && launcherAmmo_ > 0) {
+            --launcherAmmo_;
             rockets_.push_back({muzzle, fwd * 32.0f, 0.0f});
             rocketCooldown_ = 1.0f;
             haptics_.push_back({gh, 0.9f, 0.12f});
@@ -3916,7 +3974,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
                                            Mat4::scale({k, k, k}) * Mat4::translation((lbombModel_->boundsMin + lbombModel_->boundsMax) * -0.5f), false);
                 continue;
             }
-            if (r.kind == 7) {  // an RPG-bow arrow: the streak (rparrow) along its flight
+            if (r.kind == 7 || r.kind == 8) {  // an RPG-bow / homing arrow: the streak (rparrow) along its flight
                 if (arrowModel_) {
                     const Vec3 f = normalize(r.vel);
                     const Quat yawQ = Quat::fromAxisAngle({0, 1, 0}, std::atan2(-f.x, -f.z));
@@ -3946,6 +4004,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     renderBase(v.eyePosition);
     renderPopup();
     renderGrenades();
+    renderMines();
     renderSpells();
     renderKabutoPowers(v.eyePosition);
     renderThrows();

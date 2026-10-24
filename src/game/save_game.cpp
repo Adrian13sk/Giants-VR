@@ -25,7 +25,9 @@ bool loadSaveGame(const std::string& path, SaveGame& out) {
         else if (k == "launcher") s.launcher = v == "1";
         else if (k == "flares") s.flares = std::atoi(v.c_str());
         else if (k == "grenades") s.grenades = std::max(0, std::atoi(v.c_str()));
-        else if (k.size() == 4 && k.compare(0, 3, "bow") == 0 && k[3] >= '0' && k[3] <= '2') {
+        else if (k == "rockets") s.rockets = std::max(0, std::atoi(v.c_str()));
+        else if (k == "mines") s.mines = std::max(0, std::atoi(v.c_str()));
+        else if (k.size() == 4 && k.compare(0, 3, "bow") == 0 && k[3] >= '0' && k[3] <= '4') {
             const int b = k[3] - '0';
             s.bows[b] = true;
             s.arrows[b] = std::max(-1, std::atoi(v.c_str()));
@@ -50,7 +52,9 @@ bool writeSaveGame(const std::string& path, const SaveGame& s) {
           << "\nlauncher=" << (s.launcher ? 1 : 0) << "\nflares=" << s.flares << "\n";
         // gunN=<ammo> for each gun carried (absent = not carried).
         if (s.grenades > 0) f << "grenades=" << s.grenades << "\n";
-        for (int b = 0; b < 3; ++b)
+        if (s.launcher && s.rockets >= 0) f << "rockets=" << s.rockets << "\n";
+        if (s.mines > 0) f << "mines=" << s.mines << "\n";
+        for (int b = 0; b < 5; ++b)
             if (s.bows[b]) f << "bow" << b << "=" << std::max(-1, s.arrows[b]) << "\n";
         for (int g = 0; g < 4; ++g)
             if (s.guns[g]) f << "gun" << g << "=" << std::max(0, s.ammo[g]) << "\n";

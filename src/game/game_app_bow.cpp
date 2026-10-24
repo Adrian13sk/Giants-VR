@@ -25,10 +25,16 @@ namespace gvr {
 
 namespace {
 struct BowSpec { const char* name; int item; const char* gbs; const char* fx; float dmg, interval; const char* pull; const char* shot; const char* draw; };
-const BowSpec kBows[3] = {
+const BowSpec kBows[5] = {
     {"BOW", 44, "rp_bow.gbs", nullptr, 30.0f, 1.0f, "sr_rbwpl", "sr_rbwsh", "sr_storb"},
     {"RPG BOW", 45, "rp_bow_rpg.gbs", "fxb_bow_rpg", 40.0f, 1.3f, "sr_rpgpl", "sr_rpgsh", "sr_storp"},
     {"SNIPER BOW", 46, "rp_bow_sniper.gbs", "fxb_bow_sniper", 80.0f, 1.5f, "sr_sbwpl", "sr_sbwsh", "sr_stosb"},
+    // Items 47 IconRBHoming (rp_bow_homing; ammo 56) and 48 IconRBPowerup (rp_bow_powerup; ammo 58). No mission
+    // hands them out; the Spellshop does ("spells and weapons made just for you", ours: game_app_shop.cpp).
+    // Their records by effect: fx_homing (50 every 1.5 s), fxb_bow_screamer (50 every 1.5 s, key 7 = 8: read
+    // as the power-up bow's 8-arrow fan - ours spreads 5).
+    {"HOMING BOW", 47, "rp_bow_homing.gbs", "fx_homing", 50.0f, 1.5f, "sr_hbwpl", "sr_hbwsh", "sr_stohb"},
+    {"POWER-UP BOW", 48, "rp_bow_powerup.gbs", "fxb_bow_screamer", 50.0f, 1.5f, "sr_pbwpl", "sr_pbwsh", "sr_stopb"},
 };
 }  // namespace
 
@@ -59,8 +65,9 @@ void GameApp::initBows() {
                 bow.startAmmo = it->ammoPerPickup > 0 ? it->ammoPerPickup : 10;
             }
         } else if (b != kBowPlain) {
-            bow.maxAmmo = b == kBowRpg ? 35 : 15;
-            bow.startAmmo = b == kBowRpg ? 25 : 8;
+            const int mx[5] = {-1, 35, 15, 10, 10}, st[5] = {0, 25, 8, 6, 3};
+            bow.maxAmmo = mx[b];
+            bow.startAmmo = st[b];
         }
         if (bow.maxAmmo < 0) bow.ammo = -1;
         LOGI("Bow %s: %s, %.2f x handgun damage at full draw, every %.1f s, arrows %s", bow.name, bow.model ? "ok" : "missing", bow.damage,
@@ -209,6 +216,20 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
     if (delphiWeapon_ == kBowRpg) {
         Rocket r{from, dir * (25.0f + 35.0f * draw), 0.0f, 7, 0, bow.damage * power};
         rockets_.push_back(r);
+    } else if (delphiWeapon_ == kBowHoming) {
+        // A homing arrow (kind 8): turns toward the nearest foe ahead of it (updateRockets).
+        Rocket r{from, dir * (20.0f + 25.0f * draw), 0.0f, 8, 0, bow.damage * power};
+        rockets_.push_back(r);
+    } else if (delphiWeapon_ == kBowPowerup) {
+        // A fan of five arrows, each a little lighter.
+        const Vec3 side = normalize(cross(dir, Vec3{0, 1, 0}));
+        weapon_.shotDamage = bow.damage * power * 0.6f;
+        weapon_.projectileSpeed = 25.0f + 50.0f * draw;
+        weapon_.shotStyle = 3;
+        for (int k = -2; k <= 2; ++k) weapon_.spawnShot(from, normalize(dir + side * (0.07f * float(k))));
+        weapon_.shotStyle = 0;
+        weapon_.shotDamage = 1.0f;
+        weapon_.projectileSpeed = 70.0f;
     } else {
         weapon_.shotDamage = bow.damage * power;
         weapon_.projectileSpeed = delphiWeapon_ == kBowSniper ? 40.0f + 160.0f * draw : 25.0f + 50.0f * draw;

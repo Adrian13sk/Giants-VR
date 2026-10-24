@@ -613,3 +613,12 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
   the mortar and a rocket explosion every 3 s: clean. **Looks unverified against the original.**
 - Sweeps on fb0b21d: with the original effects forced on (GVR_DATA_FX=1, a grenade explosion every 3 s in front of
   the hero, rockets fired): 56/56 exit 0, 0 errors (effects played in 52); plain: 56/56 exit 0, 0 errors.
+
+## Host verification — launcher rockets, mines, homing / power-up bows
+- Save round trip extended (rockets, mines, bows 3-4): passed.
+- Launcher with 12 rockets fired 31 times: exactly 12 rockets left the tube. Mine: set, armed, set off by a Reaper
+  3 m ahead (dead); rendered at the hero's feet with its red light. Homing bow 12 degrees off a Reaper 20 m away:
+  locked, struck, dead. Power-up bow at 12 m: dead.
+- Sweeps: plain 56/56, every weapon carried with mines set everywhere (GVR_WEAPON=9) 56/56 (mines set in the 25
+  Meccaryn missions), launcher + homing bow 56/56 - all exit 0, 0 errors. AddressSanitizer/UBSan runs of the mine
+  and homing-bow tests: clean. **Not device-tested.**

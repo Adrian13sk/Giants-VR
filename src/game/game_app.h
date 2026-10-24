@@ -235,8 +235,11 @@ private:
     Vec3 launcherHandle_{0.0f, 3.85f, -0.45f}, launcherMuzzle_{0.0f, -4.58f, 0.03f};
     const RenderModel* rocketModel_ = nullptr;
     bool hasLauncher_ = false;
+    // Its rockets (weapondefs item 14: 12 carried, 8 with it; ammo item 40, 3 per mc_pickup_rockets).
+    int launcherAmmo_ = 0, launcherMax_ = 12, launcherGive_ = 8, launcherPickup_ = 3;
+    void giveLauncher(const char* why);
     // weaponSel_: 0 handgun, 1 launcher, 2 bush pack, 3 pop-up bomb, 4 shotgun, 5 machine gun, 6 sniper,
-    // 7 Millenium mortar, 8 grenades.
+    // 7 Millenium mortar, 8 grenades, 9 mines.
     int weaponSel_ = 0;
     // The Meccaryn's other guns (game_app_arsenal.cpp), from weapondefs.bin: the items the missions
     // hand out (3 shotgun from 1c, 5 machine gun, 6 sniper gun from story3_bunker_3, 7 the Millenium
@@ -289,7 +292,7 @@ private:
     // Delphi's bows (game_app_bow.cpp): weapondefs items 44 bow (rp_bow), 45 RPG bow (rp_bow_rpg), 46 sniper bow
     // (rp_bow_sniper), handed out in r1_smartiegrab (45) and r4a (44 45 46). Right stick forward switches
     // sword <-> bows. Draw with the other hand (grab the string and pull) or hold the trigger; let go to shoot.
-    enum { kBowPlain = 0, kBowRpg, kBowSniper, kNumBows };
+    enum { kBowPlain = 0, kBowRpg, kBowSniper, kBowHoming, kBowPowerup, kNumBows };
     struct Bow {
         const char* name = "";
         int item = -1;
@@ -331,6 +334,15 @@ private:
     bool grenHandValid_ = false, grenCocked_ = false;
     void updateGrenades(float dt, const InputFrame& in);
     void renderGrenades();
+    // Mines (item 9; game_app_mine.cpp), weaponSel_ 9: set down, armed after 2 s, set off by foes.
+    int mines_ = 0, minesMax_ = 5, minesGive_ = 5;
+    const RenderModel* mineModel_ = nullptr;
+    struct PlacedMine { Vec3 pos; float yaw; float t; bool armed; };
+    std::vector<PlacedMine> placedMines_;
+    bool mineTrigWas_ = false;
+    void initMines();
+    void updateMines(float dt, const InputFrame& in);
+    void renderMines();
     bool switchArmed_ = true;
     float rocketCooldown_ = 0;
     bool rocketTriggerHeld_ = false;
@@ -631,7 +643,7 @@ private:
     void updateSmartieLines(float dt);
     void renderTags();
     // The Shop (game_app_shop.cpp).
-    struct ShopItem { int kind; Vec3 pos; bool taken; };  // kind 0 rocket launcher, 1 health injection, 2 flares, 3 pop-up bomb, 4 ammo
+    struct ShopItem { int kind; Vec3 pos; bool taken; };  // kind 0 rocket launcher, 1 health injection, 2 flares, 3 pop-up bomb, 4 ammo, 5 mines, 6 homing bow, 7 power-up bow
     std::vector<ShopItem> shopItems_;
     Vec3 shopAt_, shopCentre_;
     bool shopOn_ = false, shopInside_ = false, shopAnchored_ = false;
@@ -1136,7 +1148,7 @@ private:  // the mission placed enemies: no test waves
     // (FP: over the move-hand wrist; TP: head-locked, lower left); the weapon strip that pops up on
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
-                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudLayers };
+                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudMine, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     float digitU_[11] = {}, digitU0_[10] = {}, digitU1_[10] = {};

@@ -182,6 +182,10 @@ Options → **EFFECTS: ORIGINAL (TEST)** plays explosions and cutscene effects f
   bunker mission, **rocket launcher** from Story 3's launcher mission (or a Shop), **Millenium mortar** from 4a,
   **machine gun** and **grenades** from 5a. You keep them from mission to mission (the checkpoint saves them and their
   ammo).
+- **Rocket launcher:** now counts its rockets (8 with it, 12 at most); the Shop's AMMO box refills them.
+- **Mines:** buy them at a Shop (5 at a time). Pick MINES on the strip, trigger sets one down in front of you; after
+  2 s its red light blinks and the first Reaper, Ripper or Vimp to step close sets it off. Yours don't go off
+  under you - but don't stand next to one when it blows.
 - **Grenades:** pick them on the strip; one sits in your right hand. Hold the trigger, swing your arm and let go - it
   flies as fast as you threw it, bounces and blows up 2.5 s later (or when it hits someone). Let go without swinging
   and it is lobbed a few metres ahead.

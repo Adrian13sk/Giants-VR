@@ -18,6 +18,10 @@ there; the launcher comes in Story 3's launcher mission (or from a Shop).
 - [ ] **5a**: the machine gun - hold the trigger; a firing loop sound while held.
 - [ ] **5a**: **grenades** - hold the trigger, swing and let go. Does it go where you threw it, about as far as you'd
       expect? Too weak / too strong? (Letting go without a swing lobs it a few metres.)
+- [ ] Rocket launcher: the count under its icon goes down; at 0 a click; the Shop's AMMO box refills it.
+- [ ] Mines (from a Shop): set one down, wait for the red blink, lure a Reaper onto it.
+- [ ] Delphi (r4a / the Reaper battles): build the Spellshop - it sells the homing bow (do the arrows curve onto
+      enemies?); upgrade it for the power-up bow (a fan of 5 arrows).
 - [ ] Each gun sits right in the hand (grip at the handle, barrel forward) in first and third person; the handgun
       rides on your right thigh while a long gun is out.
 - [ ] The weapon strip at the top lists only what you carry, with ammo counts.

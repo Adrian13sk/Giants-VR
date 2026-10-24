@@ -453,7 +453,12 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
                     // "Even more weapons are available in this upgraded Gift Shop!": a pop-up bomb joins the counter.
                     shopItems_.push_back({3, shopAt_, false});
                     if (!shopInside_) shopAnchored_ = false;  // laid out afresh on the next visit
-                } else if (std::string(kDefs[b.def].key) == "giftshop1") {
+                } else if (std::string(kDefs[b.def].key) == "spellshop1" && b.level > 0 && shopOn_) {
+                    // "More spells and weapons in the upgraded Spell Shop": the power-up bow joins (ours).
+                    initBows();
+                    if (!bows_[kBowPowerup].have) shopItems_.push_back({7, shopAt_, false});
+                    if (!shopInside_) shopAnchored_ = false;
+                } else if (std::string(kDefs[b.def].key) == "giftshop1" || std::string(kDefs[b.def].key) == "spellshop1") {
                     // The counter stands at its front (toward the base's middle): the building is solid.
                     const Vec3 site{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
                     Vec3 dir = base_.centre - site;

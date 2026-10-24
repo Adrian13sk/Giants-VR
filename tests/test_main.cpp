@@ -1368,11 +1368,16 @@ static void testSaveGame() {
     a.bows[0] = true;  // the plain bow: unlimited arrows
     a.bows[2] = true;
     a.arrows[2] = 5;
+    a.bows[4] = true;  // the power-up bow
+    a.arrows[4] = 2;
+    a.rockets = 7;
+    a.mines = 3;
     CHECK(writeSaveGame(path, a));
     SaveGame b;
     CHECK(loadSaveGame(path, b) && b.world == a.world && b.mission == a.mission && b.syringes == 4 && b.launcher);
     CHECK(b.guns[0] && b.ammo[0] == 17 && !b.guns[1] && b.guns[2] && b.ammo[2] == 0);
     CHECK(b.bows[0] && b.arrows[0] == -1 && !b.bows[1] && b.bows[2] && b.arrows[2] == 5);
+    CHECK(b.bows[4] && b.arrows[4] == 2 && !b.bows[3] && b.rockets == 7 && b.mines == 3);
     {  // a damaged / foreign file is not a save
         FILE* f = std::fopen(path.c_str(), "w");
         std::fputs("world=Story1\n", f);
