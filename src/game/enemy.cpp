@@ -132,6 +132,7 @@ bool EnemyDirector::damage(int i, float amount, bool blast) {
 
 void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::vector<int>& shooters) {
     shooters.clear();
+    pokeStarted = pokeFound = false;
     landed.clear();
     for (size_t i = 0; i < enemies.size(); ++i) {
         Enemy& e = enemies[i];
@@ -146,7 +147,17 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
         // Engaged (aware) Reapers keep track of the player within sight range; an unaware one
         // must see him: in front, with a clear line, or hear him close by.
         const Vec3 eyeP = e.pos + Vec3{0, 1.6f, 0}, chest = player + Vec3{0, 1.2f, 0};
-        const bool sees = playerAlive && dist < params.sightRange && (e.aware || dist < params.hearRange || lineOfSight(eyeP, chest));
+        bool sees = playerAlive && dist < params.sightRange && (e.aware || dist < params.hearRange || lineOfSight(eyeP, chest));
+        if (playerHidden && e.aware && e.state != EnemyState::Dead) {
+            // Engaged, but the player has gone into his bush: lost after a while unless close.
+            e.lost = dist > 8.0f ? e.lost + dt : 0.0f;
+            if (e.lost > 3.0f) {
+                e.aware = false;
+                e.lost = 0;
+                if (e.state == EnemyState::Advance || e.state == EnemyState::Fire) { e.state = EnemyState::Idle; e.stateTime = 0; e.alert = 0; }
+            }
+            sees = sees && dist <= 8.0f;
+        }
         switch (e.state) {
             case EnemyState::Idle: {
                 if (!playerAlive) e.aware = false;
@@ -158,8 +169,46 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     if (e.alert <= 0) { e.state = EnemyState::Advance; e.stateTime = 0; }
                     break;
                 }
+                if (e.poke >= 0) {
+                    // A suspicious bush: walks up to it, pokes it (the clip), and finds the player
+                    // if he is still there when the poke lands.
+                    e.poke += dt;
+                    if (!playerHidden || !playerAlive) { e.poke = -1; break; }
+                    if (dist > 1.6f && e.poke < 6.0f) {
+                        setClip(e, EnemyClip::Walk, true);
+                        turn(faceYaw);
+                        tryMove(e, Vec3{-std::sin(e.yaw), 0, -std::cos(e.yaw)} * (params.patrolSpeed * dt));
+                        break;
+                    }
+                    turn(faceYaw);
+                    setClip(e, EnemyClip::Poke, false);
+                    if (e.clipTime >= clipDuration[int(EnemyClip::Poke)] * 0.55f) {
+                        e.poke = -1;
+                        if (dist < 2.6f) {
+                            e.aware = true;
+                            e.alert = 0.2f;
+                            pokeFound = true;
+                        } else {
+                            setClip(e, EnemyClip::Idle, true);
+                        }
+                    }
+                    break;
+                }
                 e.lookTimer -= dt;
-                if (playerAlive && e.lookTimer <= 0) {
+                if (playerAlive && playerHidden && e.aware && dist < 8.0f) {
+                    e.alert = 0.2f;  // knows he's there: comes for him
+                    break;
+                }
+                if (playerAlive && e.lookTimer <= 0 && playerHidden && !e.aware) {
+                    // Hidden: only a bush close by (or one moving about) catches its eye.
+                    e.lookTimer = 0.3f;
+                    const bool front = std::fabs(angleDelta(e.yaw, faceYaw)) < params.noticeAngle;
+                    if (dist < 3.5f || (playerMoving && front && dist < 9.0f)) {
+                        e.poke = 0;
+                        pokeStarted = true;
+                    }
+                }
+                if (playerAlive && e.lookTimer <= 0 && !playerHidden) {
                     e.lookTimer = 0.2f + float(nextRand() % 100) * 0.001f;
                     const bool front = std::fabs(angleDelta(e.yaw, faceYaw)) < params.noticeAngle;
                     if (e.aware ? dist < params.sightRange

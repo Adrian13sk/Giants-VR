@@ -16,7 +16,7 @@
 
 namespace gvr {
 
-enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, FallCycle, FallLand, Count };
+enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, FallCycle, FallLand, Poke, Count };
 enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead, Falling };
 
 struct Enemy {
@@ -52,6 +52,8 @@ struct Enemy {
     float alert = 0;        // > 0: has noticed the player, turning to him before it acts
     float lookTimer = 0;
     bool aware = false;
+    float poke = -1;        // >= 0: walking up to / poking a suspicious bush (s)
+    float lost = 0;         // s an aware Reaper has had the hidden player out of sight
     Vec3 vel;               // Falling: knocked off its post (the tower collapsed under it)
     float fallFrom = 0;     // height it fell from
     int postObject = -1;    // the structure it stands on (game layer's world object index)
@@ -90,7 +92,12 @@ public:
     EnemyParams params;
     std::function<float(float, float)> groundHeight;
     const CollisionWorld* collision = nullptr;
-    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    // The player hidden in his bush pack (2b): an unaware Reaper only finds him by walking up and
+    // poking the bush (rpman_poke_bush); an engaged one loses him when he's far enough.
+    bool playerHidden = false;
+    bool playerMoving = false;  // a moving bush draws the eye from further
+    bool pokeStarted = false, pokeFound = false;  // this frame: a Reaper went to poke the bush / found him
     std::vector<Enemy> enemies;
     std::vector<int> landed;  // this frame: enemies killed by a fall (landed hard)
 

@@ -512,6 +512,17 @@ private:
     ButtonEdge flareEdge_;
     float flareFlash_ = 0;
     void updateFlares(float dt, const InputFrame& in);
+    // The bush pack (game_app_bush.cpp): weapon strip item 3 (weaponSel_ 2).
+    std::unique_ptr<SkinnedModel> bushModel_;
+    int bushIn_ = 0, bushOut_ = 0, bushShake_ = 0, bushClip_[4] = {};
+    float bushScale_ = 1, bushT_ = 0, bushOutT_ = -1;
+    bool bushOn_ = false;
+    bool hasBush() const;
+    void initBush();
+    void updateBush(float dt, PlayerInput& pi);
+    void bushEvents();
+    bool bushBodyClip(int& clip, float& t) const;
+    void renderBush();
     bool flareTarget(const Vec3& from, Vec3& out) const;
     // The VR map (game_app_map.cpp).
     bool mapOpen_ = false, mapDirty_ = false;
@@ -802,7 +813,7 @@ private:  // the mission placed enemies: no test waves
     // (FP: over the move-hand wrist; TP: head-locked, lower left); the weapon strip that pops up on
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
-                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudNumbers, kHudMarks, kHudLayers };
+                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     float digitU_[11] = {}, digitU0_[10] = {}, digitU1_[10] = {};

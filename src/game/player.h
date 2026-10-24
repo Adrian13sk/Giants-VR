@@ -5,6 +5,8 @@
 // and an animation state machine with cross-fades. Rendering reads the animation outputs.
 #pragma once
 
+#include <algorithm>
+
 #include <functional>
 
 #include "core/math.h"
@@ -107,6 +109,7 @@ public:
     float fadeWeight() const;  // weight of the CURRENT clip (1 = fully current)
     float horizontalSpeed() const;
     float fuel() const { return fuel_ / params.fuelSeconds; }  // 0..1
+    void drainFuel(float tanks) { fuel_ = std::max(0.0f, fuel_ - tanks * params.fuelSeconds); }  // the bush pack draws on it
     bool sliding() const { return sliding_; }
     bool thrusting() const { return thrusting_; }
     bool sputtering() const { return sputtering_; }  // dry, held in the air: braking the fall

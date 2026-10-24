@@ -22,8 +22,8 @@ void GameApp::initHud(ModelCache* mc) {
     // Layer -> texture (drawn in layer order, over everything).
     const char* names[kHudLayers] = {nullptr,          "st_mec_hbar",    "st_mec_fuel",     "st_mec_energy",
                                      "st_mec_jetpack", "st_mec_wpslot",  "st_mec_gun",      "st_mec_launcher",
-                                     "st_rp_sword",    "st_rp_firewall", "st_mec_syringe",  "st_vimpmeat",     "st_mec_flare",   "st_mec_numbers", nullptr};
-    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 24, 48};
+                                     "st_rp_sword",    "st_rp_firewall", "st_mec_syringe",  "st_vimpmeat",     "st_mec_flare",   "st_mec_bush",    "st_mec_numbers", nullptr};
+    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 24, 48};
     for (int k = 0; k < kHudLayers; ++k) {
         hudTex_[k] = names[k] ? mc->texture(names[k]) : whiteTex_;
         if (!hudTex_[k]) hudTex_[k] = whiteTex_;
@@ -156,7 +156,7 @@ void GameApp::hudStatus(const HudFrame& f) {
         hudRect(kHudFire, f, -0.002f, 0.0f, 0.03f, 0.03f, fire);
     } else {
         const bool launcher = weaponSel_ == 1 && launcherModel_;
-        hudRect(launcher ? kHudLauncher : kHudGun, f, 0.040f, -0.024f, 0.036f, 0.036f, on);
+        hudRect(weaponSel_ == 2 ? kHudBush : (launcher ? kHudLauncher : kHudGun), f, 0.040f, -0.024f, 0.036f, 0.036f, on);
     }
     // Mission objectives along the top: one pip each, gold when done.
     const size_t n = objectives_.size();
@@ -185,7 +185,7 @@ void GameApp::hudWeaponStrip() {
     const uint8_t back[4] = {0, 0, 0, uint8_t(120 * a)}, strip[4] = {255, 255, 255, uint8_t(255 * a)};
     hudRect(kHudPlate, f, 0, 0, W + 0.01f, H + 0.01f, back);
     hudRect(kHudWpSlot, f, 0, 0, W, H, strip);
-    const int sel = weaponSel_ == 1 && launcherModel_ ? 1 : 0;
+    const int sel = weaponSel_ == 2 ? 3 : (weaponSel_ == 1 && launcherModel_ ? 1 : 0);
     const float popK = 1.0f + 0.35f * std::max(0.0f, 1.0f - t / 0.3f);
     for (int i = 0; i < 4; ++i) {
         const float cx = -0.5f * W + (float(i) + 0.5f) * (W / 4.0f);
@@ -194,6 +194,7 @@ void GameApp::hudWeaponStrip() {
         if (i == 0) { layer = kHudGun; owned = true; }
         if (i == 1) { layer = kHudLauncher; owned = hasLauncher_; }
         if (i == 2) { layer = kHudSyringe; owned = syringes_ > 0; }
+        if (i == 3) { layer = kHudBush; owned = hasBush(); }
         if (layer < 0 || !owned) continue;
         const bool chosen = i == sel;
         if (chosen) {

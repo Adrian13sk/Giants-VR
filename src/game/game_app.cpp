@@ -123,6 +123,12 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             const int dieB = m->addAnimation(assetWorld_->fs(), "mc_drowning_die.anm");
             const int dieC = m->addAnimation(assetWorld_->fs(), "mc_land_dead.anm");
             if (first) { deathClip_[0] = dieA; deathClip_[1] = dieB; deathClip_[2] = dieC; }
+            // The bush pack (2b on): crouching into it, in it, shuffling, out.
+            const char* bush[4] = {"mc_bush_in.anm", "mc_bush_idle.anm", "Mc_bush_walk.anm", "mc_bush_out.anm"};
+            for (int k = 0; k < 4; ++k) {
+                const int bi = m->addAnimation(assetWorld_->fs(), bush[k]);
+                if (first) bushClip_[k] = bi;
+            }
             // Eye point from the idle pose: at the front of the face (-Z), so looking down shows
             // the chest and arms instead of the inside of the collar armour.
             m->pose(renderer_, 0.0f);
@@ -233,6 +239,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             ModelCache* mc = assetWorld_->models();
             gunModel_ = mc->get("mc_gun_l0.gbs", "", /*dynamicLit=*/true);
             initJetFx();
+            initBush();
             {
                 // Grip and muzzle points from the weapons' reference nodes (game units, model frame).
                 auto ref = [&](const char* anm, const char* node, Vec3& out) {
@@ -463,7 +470,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                                     "rpman_hit_med.anm", "rpman_hit_med2.anm", "rpman_hit_med_die.anm",
                                     "rpman_hit_spin_die.anm", "rpman_hit_gut_die.anm", "rpman_bzka_run.anm",
                                     "rpman_bzka_walk_scan.anm", "rpman_standing_alert_scan.anm", "rpman_hit_blowup.anm",
-                                    "rpman_hit_fall_cycle.anm", "rpman_hit_fall_land.anm"};
+                                    "rpman_hit_fall_cycle.anm", "rpman_hit_fall_land.anm", "rpman_poke_bush.anm"};
             int poolSize = 6;
             {
                 int missionReapers = 0;
@@ -654,6 +661,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     } else {
         tpAiming_ = false;
     }
+    updateBush(dt, pi);
     player_.update(dt, pi);
     if (const char* t = std::getenv("GVR_PLAYER_TURN")) player_.yaw = camYaw_ + std::atof(t) * kPi / 180.0f;  // test hook: side views
     // Hard landings hurt (the original: damage and a 2 s stun; a rocket under him prevents it).
@@ -700,8 +708,18 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         }
     }
     playerModel_->setHideEnabled(firstPerson_);
-    playerModel_->poseBlend(renderer_, clip_[int(player_.prevAnim())], player_.prevAnimTime(),
-                            clip_[int(player_.anim())], player_.animTime(), player_.fadeWeight());
+    int bushClip = 0;
+    float bushT = 0;
+    if (!firstPerson_ && bushBodyClip(bushClip, bushT)) {
+        // Crouched in the bush pack (third person; in first person the body stays as it is).
+        const float d = playerModel_->animDuration(bushClip);
+        const bool once = bushClip == bushClip_[0] || bushClip == bushClip_[3];
+        const float tt = once ? std::min(bushT, d * 0.999f) : std::fmod(bushT, std::max(0.1f, d));
+        playerModel_->poseBlend(renderer_, bushClip, tt, bushClip, tt, 0.0f);
+    } else {
+        playerModel_->poseBlend(renderer_, clip_[int(player_.prevAnim())], player_.prevAnimTime(),
+                                clip_[int(player_.anim())], player_.animTime(), player_.fadeWeight());
+    }
     eyeNow_ = playerModel_->hiddenCentroid() + eyeFromHead_;
     if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
     updateTimmy();
@@ -3136,6 +3154,7 @@ void GameApp::updateCombat(float dt) {
     damageFlash_ = std::max(0.0f, damageFlash_ - dt * 3.0f);
 
     enemies_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, shooters_);
+    bushEvents();
     // Model slots follow the enemies (the director removes sunk corpses).
     std::fill(slotUsed_.begin(), slotUsed_.end(), 0);
     for (auto& e : enemies_.enemies)
@@ -3227,12 +3246,17 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         // The weapon strip drops in either way (showing what is carried); with only the gun
         // there is nothing to switch to.
         switchArmed_ = false;
-        if (hasLauncher_) weaponSel_ = 1 - weaponSel_;
+        // Gun -> launcher (once he has it) -> bush pack (from 2b) -> gun.
+        for (int k = 0; k < 3; ++k) {
+            weaponSel_ = (weaponSel_ + 1) % 3;
+            if (weaponSel_ == 0 || (weaponSel_ == 1 && hasLauncher_) || (weaponSel_ == 2 && hasBush())) break;
+        }
         weaponHudT_ = 0;
         sfx2D("ph_selct", 0.7f);
         haptics_.push_back({gh, 0.5f, 0.06f});
-        LOGI("Weapon: %s", weaponSel_ ? "rocket launcher" : "gun");
+        LOGI("Weapon: %s", weaponSel_ == 2 ? "bush pack" : (weaponSel_ ? "rocket launcher" : "gun"));
     }
+    if (weaponSel_ == 2) { gunValid_ = false; return; }  // in the bush: no weapon in hand
     const bool launcher = weaponSel_ == 1 && launcherModel_;
     const RenderModel* held = launcher ? launcherModel_ : gunModel_;
     // Handle / muzzle in each model's GAME frame (forward -Y, up +Z): the launcher is a
@@ -3568,6 +3592,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
     if (playMode_ && playerModel_ && !cut && !playerGibbed_ && !(firstPerson_ && hero_ != Hero::Mecc)) playerModel_->render(renderer_, bodyXf_);
     if (playMode_ && !cut && !dying_) renderJetFx(firstPerson_);
+    if (playMode_ && !cut && !dying_) renderBush();
     if (playMode_ && swordValid_ && swordModel_ && !cut && !dying_) drawModel(swordModel_, swordXf_, false);
     // Timmy on the back: seen in third person (and in reflections and shadows). In first person he
     // sits right behind your head and the body turns with it, so he'd only ever flicker at the edge
