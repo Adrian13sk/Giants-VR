@@ -988,6 +988,12 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     size_t reapers = 0, rippers = 0, ambient = 0;
     bool raceMission = false;
     for (const auto& o : w->mission().objects) raceMission |= toLower(reg.modelName(o.type)) == "buoy_spline";
+    // 1a: Timmy is up on his tower fending off the Rippers round it (user's description of the
+    // original): his jetpack-swinging clip, and those Rippers stay above ground, besieging it.
+    const bool timmyTower = toLower(w->missionName()) == "1a_1_timmy" && w->fs().exists("timmy_swing_jetpack.anm");
+    Vec3 timmyAt{0, -1e6f, 0};
+    for (const auto& ch : w->characters())
+        if (toLower(ch.model).rfind("smtimmy", 0) == 0) timmyAt = ch.position;
     for (const auto& ch : w->characters()) {
         if (ch.objectClass == 51 && raceMission && (ch.group == 11 || ch.group == 12)) continue;  // race riders / starter (game_app_jetski.cpp)
         if (ch.objectClass == 51) {  // Reaper grunt: the Reaper AI, at its mission position
@@ -1010,6 +1016,10 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         // Meccaryn's one-handed hang clip, with that hand on the point.
         const bool hanging = !ch.hold.empty() && toLower(ch.model).rfind("mc_", 0) == 0 && w->fs().exists("mc_hang_onehand_yell.anm");
         if (hanging) idle = "mc_hang_onehand_yell.anm";
+        if (timmyTower && toLower(ch.model).rfind("smtimmy", 0) == 0) {
+            idle = "timmy_swing_jetpack.anm";
+            LOGI("Timmy fends off the Rippers from his tower (timmy_swing_jetpack)");
+        }
         auto m = std::make_unique<SkinnedModel>();
         if (idle.empty() || !m->load(w->fs(), *mc, renderer_, ch.model, idle)) continue;
         CharacterInst ci;
@@ -1086,7 +1096,8 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             // mound, and come up when they feel the player or a shot lands near (GVR_BURIED sets
             // the share for tests).
             static const float buried = std::getenv("GVR_BURIED") ? float(std::atof(std::getenv("GVR_BURIED"))) : 0.9f;
-            if (frand() < buried) creatures_.bury(idx);
+            const bool besieging = length(Vec3{ch.position.x - timmyAt.x, 0, ch.position.z - timmyAt.z}) < 18.0f;
+            if (frand() < buried && !besieging) creatures_.bury(idx);
             if (ch.trigger == 2) {
                 ci.objective = int(objectives_.size());
                 objectives_.push_back({2, ch.position, ch.position});

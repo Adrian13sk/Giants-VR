@@ -563,7 +563,9 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
             const ObjectType* t = registry_.type(p.type);
             Vec3 pos = giantsToRuntime(p.x, p.y, p.z);
             float gy;
-            if (!p.posted && hasTerrain_ && terrain_.heightAt(pos.x, pos.z, gy)) pos.y = gy;
+            // Timmy stays where the data puts him when that's up on something (1a: his tower's deck).
+            const bool raised = toLower(name).rfind("smtimmy", 0) == 0 && hasTerrain_ && terrain_.heightAt(pos.x, pos.z, gy) && pos.y > gy + 1.0f;
+            if (!p.posted && !raised && hasTerrain_ && terrain_.heightAt(pos.x, pos.z, gy)) pos.y = gy;
             // A sentry stands on the highest walkable surface of its structure (the tower's
             // platform, below the roof tip the bounds give).
             characters_.push_back({p.type, name, t ? t->objectClass : -1, pos, p.yaw * kPi / 180.0f, p.scale, p.trigger, p.posted,
