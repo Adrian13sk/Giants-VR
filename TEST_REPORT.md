@@ -536,3 +536,7 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
   completed, "Base: complete"; render shows the Reaper buildings round a flat clearing. Vimp herds spawn on Rstory4.
 - r4a, 5c, rstory2_battle_1, k1a plain runs: exit 0, no errors. Tornado gating by the base: logic only, untested.
   **Not device-tested.**
+
+## Host verification — base raids
+- 5c and r4a with everything ordered and GVR_RAID_SOON: raiders spawn, march, wreck a building (destroyed), the next
+  raid follows; Smartie lines shown. Rebuilding a wrecked building: logic only, untested. **Not device-tested.**

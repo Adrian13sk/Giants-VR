@@ -536,6 +536,13 @@ private:
         bool on = false, complete = false, onPad = false, autoOrdered = false, reaper = false;
         Vec3 centre, padAt, dropAt, menuAt;
         float menuYaw = 0, touchCool = 0, traceT = 0, speed = 1.0f;
+        // Raids (ours): Reapers sent from the enemy barracks' side to wreck the buildings.
+        float raidT = -1;         // s until the next raid (< 0: not started)
+        int raids = 0;
+        std::vector<uint32_t> raiders;  // enemy uids
+        Vec3 raidFrom;
+        bool haveRaidFrom = false;
+        float attackSayT = 0;
         int food = 0;  // Vimp meat in the store
         struct Bldg {
             int def = 0;
@@ -545,6 +552,8 @@ private:
             std::unique_ptr<SkinnedModel> model;
             const RenderModel* still = nullptr;  // models without a skin
             int collision = -1;
+            float hp = 0, maxHp = 0;  // once standing: raiders wear it down (ours)
+            float hitT = -1e9f;       // last damage time (sign shows its health a while)
         };
         std::vector<Bldg> bldgs;
         struct Item { int def; Vec3 pos; };
@@ -560,6 +569,7 @@ private:
     std::vector<int> baseOffers() const;
     int baseKindState(int def) const;
     void orderBuilding(int def);
+    void updateRaids(float dt);
     void updateShop(float dt, const InputFrame& in);
     void renderShop();
     std::vector<Vec3> shopCentres_;

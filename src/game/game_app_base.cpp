@@ -263,11 +263,14 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         }
         if (b.progress >= 1.0f) {
             b.state = 3;
+            b.maxHp = b.hp = kDefs[b.def].core ? 400.0f : 250.0f;
             // Solid once standing: the building's own collision mesh (<model>_coll), else its model.
             ModelCache* mc = assetWorld_->models();
             const RenderModel* coll = mc->get(std::string(kDefs[b.def].model) + "_coll.gbs", "", false);
             if (!coll || coll->collisionTris.empty()) coll = mc->get(std::string(kDefs[b.def].model) + ".gbs", "", false);
-            if (coll && !coll->collisionTris.empty()) {
+            if (b.collision >= 0) {
+                assetWorld_->collisionMutable().setEnabled(b.collision, true);  // rebuilt after a raid
+            } else if (coll && !coll->collisionTris.empty()) {
                 std::vector<Vec3> tris;
                 tris.reserve(coll->collisionTris.size());
                 for (const Vec3& v : coll->collisionTris) {
@@ -304,6 +307,7 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
             }
         }
     }
+    updateRaids(dt);
     if (!base_.complete) {
         bool all = true;
         for (const auto& b : base_.bldgs) all = all && (!kDefs[b.def].core || b.state == 3);
@@ -360,6 +364,115 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
     }
 }
 
+// Raids (ours; the game's own lines: smchbaseattack1-4 "Help! Our base is under attack!",
+// basehintpubdestroyed "Can't build - Repair the Pub!!!"). Once something stands, every 80 s while
+// the enemy army barracks stands, a few Reapers appear 45-60 m out on the barracks' side and march on
+// the base; near a standing building they wreck it (6 hp/s each) unless the player draws them off.
+// A wrecked building falls back to its site and can be ordered again.
+void GameApp::updateRaids(float dt) {
+    if (!assetWorld_ || enemyPool_.empty() || std::getenv("GVR_NO_RAIDS")) return;
+    // The barracks: where the raids come from, and while it stands they keep coming.
+    bool barracks = false;
+    for (const auto& d : destruct_.items) {
+        if (d.object < 0 || size_t(d.object) >= assetWorld_->worldObjects().size()) continue;
+        if (assetWorld_->worldObjects()[size_t(d.object)].name != "guard_army_barracks") continue;
+        if (!base_.haveRaidFrom) { base_.raidFrom = d.base; base_.haveRaidFrom = true; }
+        barracks = barracks || d.alive();
+    }
+    bool standing = false;
+    for (const auto& b : base_.bldgs) standing = standing || (b.def != 0 && b.state == 3);
+    if (base_.raidT < 0) {
+        if (standing) base_.raidT = std::getenv("GVR_RAID_SOON") ? 2.0f : 60.0f;  // the first a minute after the first building
+    } else if (barracks || !base_.haveRaidFrom) {
+        base_.raidT -= dt;
+        if (base_.raidT <= 0 && standing) {
+            base_.raidT = 80.0f;
+            ++base_.raids;
+            Vec3 dir = base_.haveRaidFrom ? base_.raidFrom - base_.centre : Vec3{frand() - 0.5f, 0, frand() - 0.5f};
+            dir.y = 0;
+            dir = normalize(dir + Vec3{1e-3f, 0, 0});
+            const int n = 2 + std::min(2, base_.raids / 2);
+            int placed = 0;
+            for (int attempt = 0; attempt < 30 && placed < n; ++attempt) {
+                const float side = (frand() - 0.5f) * 0.8f;
+                const Vec3 d2{dir.x * std::cos(side) - dir.z * std::sin(side), 0, dir.x * std::sin(side) + dir.z * std::cos(side)};
+                const Vec3 p = base_.centre + d2 * (45.0f + frand() * 15.0f);
+                float h;
+                if (!assetWorld_->terrain().heightAt(p.x, p.z, h) || h < player_.seaLevel - 0.8f) continue;  // wading depth at most (Delphi's base sits in a lagoon)
+                const int ei = enemies_.spawn(Vec3{p.x, h, p.z}, std::atan2(d2.x, d2.z));
+                if (ei < 0) continue;
+                Enemy& e = enemies_.enemies[size_t(ei)];
+                e.home = base_.centre;  // retargeted below to a standing building
+                base_.raiders.push_back(e.uid);
+                ++placed;
+            }
+            LOGI("Base raid %d: %d Reapers", base_.raids, placed);
+        }
+    }
+    // March the raiders on the base (the patrol walk, kept going) and let them wreck what they reach.
+    base_.attackSayT = std::max(0.0f, base_.attackSayT - dt);
+    std::vector<uint32_t> alive;
+    for (uint32_t uid : base_.raiders) {
+        Enemy* e = nullptr;
+        for (auto& c : enemies_.enemies) if (c.uid == uid) e = &c;
+        if (!e || e->state == EnemyState::Dead || e->remove) continue;
+        alive.push_back(uid);
+        static const bool trace = std::getenv("GVR_BASE_TRACE") != nullptr;
+        if (trace && int(base_.traceT) % 10 == 0 && int(base_.traceT - dt) % 10 != 0)
+            LOGI("raider %u at (%.1f %.1f) home (%.1f %.1f) state %d aware %d", uid, e->pos.x, e->pos.z, e->home.x, e->home.z, int(e->state), int(e->aware));
+        if (e->aware) continue;  // fighting the player
+        // Head for a standing building (the nearest to the raider); the base's middle if none.
+        {
+            float best = 1e18f;
+            Vec3 tgt = base_.centre;
+            for (const auto& b : base_.bldgs) {
+                if (b.state != 3 || b.def == 0) continue;
+                const Vec3 bp{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
+                const float d2 = (bp.x - e->pos.x) * (bp.x - e->pos.x) + (bp.z - e->pos.z) * (bp.z - e->pos.z);
+                if (d2 < best) { best = d2; tgt = bp; }
+            }
+            e->home = tgt;
+        }
+        const Vec3 g{e->home.x - e->pos.x, 0, e->home.z - e->pos.z};
+        if (g.x * g.x + g.z * g.z > 6.0f * 6.0f) {
+            e->patrolTo = e->home;
+            e->patrolWait = 0;
+            e->stateTime = 0;
+        }
+        for (auto& b : base_.bldgs) {
+            if (b.state != 3 || b.def == 0) continue;
+            const Vec3 bp{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
+            const Vec3 d{bp.x - e->pos.x, 0, bp.z - e->pos.z};
+            if (d.x * d.x + d.z * d.z > 10.0f * 10.0f) continue;
+            b.hp -= 6.0f * dt;
+            b.hitT = float(time_);
+            if (frand() < dt * 2.0f) {
+                smokePuff(FxTex::Fire, bp + Vec3{(frand() - 0.5f) * 4, 1.0f + frand() * 3, (frand() - 0.5f) * 4}, Vec3{0, 1, 0}, 0.6f, 1.6f, 0.6f, 0.9f, 0.4f);
+                smokePuff(FxTex::SmokeBlack, bp + Vec3{(frand() - 0.5f) * 4, 2.0f + frand() * 3, (frand() - 0.5f) * 4}, Vec3{0, 1.2f, 0}, 1.0f, 3.5f, 2.5f, 0.6f, 0.3f);
+            }
+            if (base_.attackSayT <= 0) {
+                base_.attackSayT = 12.0f;
+                static const char* lines[] = {"smchbaseattack1", "smchbaseattack2", "smchbaseattack3", "smchbaseattack4"};
+                static int line = 0;
+                smartieSay(base_.reaper ? "YAN" : "BORJOYZEE", lines[line++ % 4]);
+            }
+            if (b.hp <= 0) {
+                b.state = 0;
+                b.progress = 0;
+                b.hp = 0;
+                if (b.collision >= 0) assetWorld_->collisionMutable().setEnabled(b.collision, false);
+                dustBurst(bp, 6.0f, 20);
+                explode(bp + Vec3{0, 2, 0}, 3.0f, 0.0f, true);  // the noise and flash, no damage
+                timmyLine_ = std::string(kDefs[b.def].label) + " DESTROYED! REBUILD IT ON THE BUILD PAD.";
+                timmyLineT_ = 4.0f;
+                LOGI("Base: %s destroyed by raiders", kDefs[b.def].label);
+            }
+            break;
+        }
+    }
+    base_.raiders.swap(alive);
+}
+
 void GameApp::renderBase(const Vec3& eye) {
     if (!base_.on) return;
     if (length(eye - base_.centre) > 260.0f) return;
@@ -394,6 +507,12 @@ void GameApp::renderBase(const Vec3& eye) {
         char s[64];
         std::snprintf(s, sizeof s, "%s  BUILDING... %d%%", kDefs[b.def].label, int(b.progress * 100.0f));
         label(Vec3{b.xf.m[12], b.xf.m[13] + 6.0f, b.xf.m[14]}, s, {1.0f, 0.85f, 0.3f, 1.0f}, 0.35f);
+    }
+    for (const auto& b : base_.bldgs) {
+        if (b.state != 3 || float(time_) - b.hitT > 6.0f || length(eye - Vec3{b.xf.m[12], b.xf.m[13], b.xf.m[14]}) > 80.0f) continue;
+        char s[64];
+        std::snprintf(s, sizeof s, "%s UNDER ATTACK %d%%", kDefs[b.def].label, int(100.0f * b.hp / std::max(1.0f, b.maxHp)));
+        label(Vec3{b.xf.m[12], b.xf.m[13] + 6.0f, b.xf.m[14]}, s, {1.0f, 0.35f, 0.25f, 1.0f}, 0.35f);
     }
     if (length(eye - base_.dropAt) < 40.0f) {
         char s[64];

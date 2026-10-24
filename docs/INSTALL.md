@@ -154,7 +154,11 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   Spell School, Spellshop, Party House (these four complete the base), Shield Generator, Reaper Gate, Forcefields.
   Vimps now roam that island: their **souls** go to the **SOUL DROP-OFF**. As the briefing says, the **TORNADO** spell
   comes once the base is complete (in r4a only; the later battles have it from the start, as before).
-- Not yet: enemies attacking the base, stone upgrades.
+- **Raids:** a minute after your first building stands, and then every 80 s while the enemy army barracks stands, a
+  few Reapers march on the base from the barracks' side. Near a building they wreck it (it burns; a red
+  "UNDER ATTACK" sign shows its health; Borjoyzee / Yan call for help). Kill them or draw them off. A wrecked
+  building falls back to its site: order it again on the Build Pad. Destroying the barracks stops the raids.
+- Not yet: stone / second-level upgrades.
 
 ## Pop-up bomb (Meccaryn: story3_prison_7, and 5c once the base is complete)
 - **Right stick forward** cycles the weapon strip to the bomb (it appears in your hand). **Right trigger** sets it

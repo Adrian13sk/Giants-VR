@@ -1445,3 +1445,15 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   hero; initBase/initPopup now also run right after setHero.
 - Harness r4a with everything ordered: all four core buildings solid and completed, "Base: complete". r4a, 5c,
   rstory2_battle_1, k1a: no errors.
+
+### 2026-10-24 — Base raids
+- Data: 5c and r4a carry hundreds of `army_spline` points (paths from the enemy army barracks; not decoded into
+  routes yet), the Smarties' base-attack lines (smchbaseattack1-4) and basehint*destroyed. The original raid logic is
+  native code. Ours: once a building stands (first raid after 60 s, then every 80 s while guard_army_barracks stands),
+  2-4 Reapers spawn 45-60 m from the base on the barracks' side and walk (their patrol walk, kept going) to the
+  nearest standing building; within 10 m each wrecks it at 6 hp/s (core buildings 400 hp, others 250), with fire and
+  black smoke and a red health sign. At 0 it collapses back to an empty site (collision off, can be re-ordered;
+  rebuilding re-enables its collision). Raiders that notice the player fight him as usual.
+- Harness: 5c - raid 1 (2 Reapers) marched in, Borjoyzee's lines, PARTY HOUSE destroyed, raid 2 (3 Reapers).
+  r4a - first attempt placed 0 raiders: its base stands in a lagoon (ground 0.3 m below sea level), so spawn points
+  now accept wading depth; then raid, Yan's four lines, SPELL SCHOOL destroyed. Test hooks: GVR_RAID_SOON, GVR_NO_RAIDS.
