@@ -192,6 +192,8 @@ One file per shot; shots chain into a cutscene through the "next shot" name.
     shot (intro_island_1, story1_start_1, save_sm_1, save_sm_11) begins `{0,0}{1,2}` - snap to black, fade in over
     2 s - and every last shot ends `{0,2}` / `{0,0.5}` / `{0,1}` at its final wait (fade out). Some put two pairs at
     the same moment (`{0,0}{1,2}{0,0}{1,0.25}`); we use the first pair.
+  - op 0x0B / 0x0C `{actorIndex}`: show / hide an actor at that moment (V: story1_jetpack_6 hides Timmy-on-Baz's-back
+    (actor 6) at the start, then at frame 61 shows him and hides the standing Timmy (actor 2) - the climb onto the back).
   - op 9 `{frames}`: wait. The waits of a shot add up to its director length at 70 frames/s (story1_hatch_dilemma:
     91 + 70 + 210 = 371 frames = 5.3 s). Provisional rate.
   - op 0x2C `{nameOff}`: start a stream at that point (after the preceding waits). The streams are files in

@@ -382,7 +382,7 @@ void CutscenePlayer::updateProps(float t) {
 void CutscenePlayer::render() {
     if (!active_) return;
     for (const auto& a : actors_) {
-        if (!a.visible) continue;
+        if (!a.visible || !shot_.actorShownAt(a.info.index, t_ + 1e-3f)) continue;
         if (a.skinned) {
             a.skinned->render(r_, a.xf);
         } else if (a.model) {

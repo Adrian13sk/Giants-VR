@@ -1353,3 +1353,5 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   player's blackout follows them (carried across shots; shots without fades keep our 0.25 s dip), a last shot is held
   until its fade-out completes (story1_start_12: 12.0 -> 12.67 s), and the game fades back in from there. Harness
   trace: story1_start_1 fades in over 2.0 s from black; story1_start_12 fades out to black before play.
+- Cutscene actor show/hide (ops 0x0B/0x0C): story1_jetpack_6 showed two Timmys at once (standing, and riding on
+  Baz's back); now the rider appears and the standing one goes at frame 61 (harness renders at 0.3 s and 1.7 s).

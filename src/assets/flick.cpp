@@ -97,6 +97,10 @@ bool parseFlick(const uint8_t* d, size_t n, FlickShot& out, std::string* error) 
                 break;
             }
             case 0x34: if (out.stream.empty()) out.stream = cstr(d, n, word(0)); break;
+            case 0x0B:
+            case 0x0C:
+                out.visibility.push_back({waited, int(word(0)), op == 0x0B});
+                break;
             case 0x1F:
                 if (nw >= 2) {
                     float lv, sec;

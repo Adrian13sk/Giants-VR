@@ -57,6 +57,17 @@ struct FlickShot {
     // only the first pair at a moment is used (the second presumably drives another channel).
     struct Fade { float time, level, seconds; };
     std::vector<Fade> fades;
+    // op 0x0B {actor} show / op 0x0C {actor} hide, at the time of the preceding waits
+    // (story1_jetpack_6: Timmy-on-Baz's-back hidden at the start, shown and the standing Timmy
+    // hidden at frame 61 - he climbs on).
+    struct Visibility { float time; int actor; bool show; };
+    std::vector<Visibility> visibility;
+    bool actorShownAt(int actor, float t) const {
+        bool v = true;
+        for (const auto& e : visibility)
+            if (e.actor == actor && e.time <= t) v = e.show;
+        return v;
+    }
     float duration() const { return hasDirector ? director.durationSeconds() : 0.0f; }
 };
 
