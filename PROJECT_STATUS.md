@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-24 (all 545 cutscene shots parse; cutscene effects (op 0x27); carried weapons held in cutscenes; APK 97241e5 delivered; next automated run pending)
+Last updated: 2026-10-24 (all 545 cutscene shots parse; cutscene effects (op 0x27); carried weapons held in cutscenes; APK 89f3fd7 with base building v1 delivered; next automated run pending)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -29,6 +29,9 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
+**Base building v1, 2026-10-24 (host verified, not device-tested):** mission 5c builds the Meccaryn base from the
+game's own template and build animations; Build Pad sign menu touched by hand, Vimp meat store. Next: collision,
+base attacks, pop-up bomb, Delphi's base (r4a).
 **Cutscenes, 2026-10-24 (host verified, not device-tested):** all 545 shots from the user's data parse; every
 mission's opening cutscene (33) plays in the harness without errors; effects on actor nodes (op 0x27) show with
 stand-in particles; weapons carried by cutscene actors are held in the hand instead of floating over the head.
