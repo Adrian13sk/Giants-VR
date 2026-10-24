@@ -561,3 +561,7 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 ## Host verification — outros and HUD
 - Outro cutscenes: 20/20 play (harness, 300 frames each), no errors; 36 missions name none.
 - Pop-up bomb strip cell: rendered with icon and count (story3_prison_7). Not device-tested.
+
+## Host verification — Reaper battle bases
+- rstory2_battle_1 / rstory5_battle_2: base, crew (3 + 5 hatches), Yan, army paths (7 / 12 lead to the base), raids
+  spawn; renders checked. 5c and r4a placements unchanged. Not device-tested.

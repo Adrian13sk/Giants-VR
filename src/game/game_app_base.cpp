@@ -110,7 +110,11 @@ constexpr float kDropRadius = 3.5f;    // m: the meat drop-off
 
 bool baseMission(const std::string& mission, bool reaper) {
     if (const char* f = std::getenv("GVR_BASE")) return *f == '1';
-    return toLower(mission).rfind(reaper ? "r4a" : "5c", 0) == 0;
+    // The missions whose briefings say "BUILD A BASE": 5c (Meccaryn); r4a and the Reaper battles
+    // rstory2_battle_1 / rstory5_battle_2 (Delphi).
+    const std::string m = toLower(mission);
+    if (!reaper) return m.rfind("5c", 0) == 0;
+    return m.rfind("r4a", 0) == 0 || m.rfind("rstory2_battle", 0) == 0 || m.rfind("rstory5_battle", 0) == 0;
 }
 }  // namespace
 
@@ -150,11 +154,59 @@ void GameApp::initBase() {
             found = true;
             break;
         }
-    for (const auto& o : md.objects)
-        if (!found && toLower(reg.modelName(o.type)) == "marker") {
-            base_.centre = giantsToRuntime(o.x, o.y, o.z);
-            found = true;
+    if (!found) {
+        // No Borjoyzee (the Reaper missions): candidates are the mission's marker and the middle
+        // of where its army paths end (they end round the base: 5c's ring Borjoyzee, r4a's its
+        // marker). Pick the one with the most open, dry, level ground within 45 m - rstory2's
+        // marker sits against a cliff over water, its paths end 130 m south (ours).
+        std::vector<Vec3> cands;
+        for (const auto& o : md.objects)
+            if (toLower(reg.modelName(o.type)) == "marker") cands.push_back(giantsToRuntime(o.x, o.y, o.z));
+        std::vector<std::pair<int, std::vector<Vec3>>> paths;
+        for (const auto& o : md.objects) {
+            if (toLower(reg.modelName(o.type)) != "army_spline") continue;
+            auto it = std::find_if(paths.begin(), paths.end(), [&](const auto& pp) { return pp.first == o.group; });
+            if (it == paths.end()) { paths.push_back({o.group, {}}); it = paths.end() - 1; }
+            it->second.push_back(giantsToRuntime(o.x, o.y, o.z));
         }
+        if (!paths.empty()) {
+            // The ends' middle, ignoring outliers (paths that end by the barracks): the median end
+            // and the mean of the ends within 250 m of it.
+            std::vector<Vec3> ends;
+            for (const auto& pp : paths) ends.push_back(pp.second.back());
+            std::vector<float> xs, zs;
+            for (const auto& e : ends) { xs.push_back(e.x); zs.push_back(e.z); }
+            std::nth_element(xs.begin(), xs.begin() + long(xs.size() / 2), xs.end());
+            std::nth_element(zs.begin(), zs.begin() + long(zs.size() / 2), zs.end());
+            const Vec3 med{xs[xs.size() / 2], 0, zs[zs.size() / 2]};
+            Vec3 sum;
+            int n = 0;
+            for (const auto& e : ends)
+                if (length(Vec3{e.x - med.x, 0, e.z - med.z}) < 250.0f) { sum = sum + e; ++n; }
+            if (n) cands.push_back(sum * (1.0f / float(n)));
+        }
+        const Terrain& terr = assetWorld_->terrain();
+        auto score = [&](const Vec3& c) {
+            float h0;
+            if (!terr.heightAt(c.x, c.z, h0) || h0 < player_.seaLevel - 0.5f) return -1;
+            int good = 0;
+            for (int r = 1; r <= 3; ++r)
+                for (int a = 0; a < 12; ++a) {
+                    const float ang = float(a) * 0.5236f, rad = 15.0f * float(r);
+                    float h;
+                    if (terr.heightAt(c.x + std::cos(ang) * rad, c.z + std::sin(ang) * rad, h) && h > player_.seaLevel - 0.5f &&
+                        std::fabs(h - h0) < 3.0f)
+                        ++good;
+                }
+            return good;
+        };
+        int best = -2;
+        for (const auto& c : cands) {
+            const int sc = score(c);
+            LOGI("Base: centre candidate (%.1f %.1f) open ground %d/36", c.x, c.z, sc);
+            if (sc > best) { best = sc; base_.centre = c; found = true; }
+        }
+    }
     if (!found) base_.centre = assetWorld_->spawnPoint();
     float gy;
     if (assetWorld_->terrain().heightAt(base_.centre.x, base_.centre.z, gy)) base_.centre.y = gy;
@@ -204,6 +256,16 @@ void GameApp::initBase() {
     }
     base_.dropAt = Vec3{base_.dropXf.m[12], base_.dropXf.m[13], base_.dropXf.m[14]};
     if (assetWorld_->terrain().heightAt(base_.dropAt.x, base_.dropAt.z, gy)) base_.dropAt.y = base_.dropXf.m[13] = gy;
+    // The drop-off has to be walkable to (Delphi can't fly): if its slot lies on a rock well above
+    // or below the base's middle, it moves in toward the middle until the ground is level with it (ours).
+    for (int k = 0; k < 20 && std::fabs(base_.dropAt.y - base_.centre.y) > 2.0f; ++k) {
+        base_.dropAt = base_.dropAt + (Vec3{base_.centre.x, base_.dropAt.y, base_.centre.z} - base_.dropAt) * 0.12f;
+        if (assetWorld_->terrain().heightAt(base_.dropAt.x, base_.dropAt.z, gy)) base_.dropAt.y = gy;
+        base_.dropXf.m[12] = base_.dropAt.x;
+        base_.dropXf.m[13] = base_.dropAt.y;
+        base_.dropXf.m[14] = base_.dropAt.z;
+        if (base_.reaper) base_.firepitXf = base_.dropXf;
+    }
     base_.padAt = Vec3{base_.bldgs.front().xf.m[12], base_.bldgs.front().xf.m[13], base_.bldgs.front().xf.m[14]};
     base_.on = true;
     // Raiders march briskly in the base missions (the walk at 1.1 m/s took minutes along the army paths).

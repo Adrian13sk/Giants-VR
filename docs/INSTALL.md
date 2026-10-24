@@ -157,10 +157,11 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
 - Finished buildings are solid. The **Giftshop** opens a shop counter in front of it (launcher, injections, flares,
   health pool); after the **Workshop** the Smarties build 1.5x faster.
 - Pub + Workshop + Giftshop + Party House = "BASE COMPLETE!" and the Smarties give you a **POP-UP BOMB**.
-- **Delphi's base (Reaper mission r4a "Sappho's Fleet")** works the same way with the Reaper buildings: Persuader,
+- **Delphi's base (Reaper missions r4a "Sappho's Fleet", rstory2_battle_1 and rstory5_battle_2 - their briefings
+  all say BUILD A BASE)** works the same way with the Reaper buildings: Persuader,
   Spell School, Spellshop, Party House (these four complete the base), Shield Generator, Reaper Gate, Forcefields.
   Vimps now roam that island: their **souls** go to the **SOUL DROP-OFF**. As the briefing says, the **TORNADO** spell
-  comes once the base is complete (in r4a only; the later battles have it from the start, as before).
+  comes once the base is complete.
 - **Raids:** a minute after your first building stands, and then every 80 s while the enemy army barracks stands, a
   few Reapers march on the base along the level's own army paths from the barracks. Near a building they wreck it (it burns; a red
   "UNDER ATTACK" sign shows its health; Borjoyzee / Yan call for help). Kill them or draw them off. A wrecked

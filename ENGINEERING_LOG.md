@@ -1513,3 +1513,13 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   the .skn first.
 - Pop-up bomb on the HUD: the game's own icon st_mec_pop (w_menus.gzp) in a fifth cell right of the weapon strip with
   the count, highlighted when chosen; also shown as the held-weapon icon. Harness render checked.
+
+### 2026-10-24 — Bases in the two Reaper battles
+- rstory2_battle_1 and rstory5_battle_2 have r4a's briefing (gather Smarties and Vimp souls, BUILD A BASE, the
+  tornado after it, protect Yan) and data (5 hatches, 18 army paths, army barracks): base building, raids, the
+  workforce, Yan and the tornado gating now run there too; Vimps roam Rstory2/Rstory5.
+- Base centre without Borjoyzee is now chosen between the mission's marker and the middle of the army paths' ends
+  (median, then the mean of ends within 250 m), by open dry level ground within 45 m (36 samples): r4a keeps its
+  marker (36/36), rstory5 its marker (33 vs 3), rstory2 moves off its marker (25: a cliff over water) to the paths'
+  middle (32). The soul drop-off is pulled in toward the middle when its slot lies on a rock more than 2 m above/below
+  (rstory2: 18.6 m -> level). Renders: rstory2 now a plateau with the Reaper buildings; rstory5 a basin.
