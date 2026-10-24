@@ -724,7 +724,7 @@ private:
     std::vector<Vec3> shopCentres_;
     // Flares (game_app_flare.cpp): bought at the Shop, thrown off the pack with the move-hand
     // trigger; a SAM's homing missile goes for a burning flare instead of the player.
-    static constexpr int kMaxFlares = 6;
+    static constexpr int kMaxFlares = 5;  // weapondefs item 64 IconFlare: 5 carried, 3 at a time (was 6, ours)
     int flares_ = 0;
     struct Flare { Vec3 pos, vel; float age; };
     std::vector<Flare> flareList_;
@@ -1147,7 +1147,7 @@ private:  // the mission placed enemies: no test waves
     float pickupScale_ = 1.0f, syringeScale_ = 1.0f;
     Vec3 syringeAxis_{0, 0, -1}, syringeCentre_;  // model frame: needle direction, centre
     int syringes_ = 0;
-    static constexpr int kMaxSyringes = 5;
+    static constexpr int kMaxSyringes = 3;  // weapondefs item 0 IconHealthSyringe: 3 carried (was 5, ours)
     static constexpr float kSyringeHeal = 50.0f;
     bool syringeOut_ = false;   // FP: one in the move hand
     float syringeOutT_ = 0;

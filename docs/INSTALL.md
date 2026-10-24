@@ -69,7 +69,7 @@ Red flash = you were hit; a red wedge around the middle of the view points to wh
 you trail smoke. Switching weapons drops the weapon strip in at the top of the view.
 
 **Health injections:** green syringes float over the ground in some missions (1c, 1d...) and some Reapers drop one.
-Walk over one to take it (up to 5). First person: press **X** to take one into your left hand, then **push it into
+Walk over one to take it (up to 3, the game's own limit). First person: press **X** to take one into your left hand, then **push it into
 your chest**; it heals 50 over a second (green flash). Press X again to put it away. Third person: **X** plays the
 Meccaryn's injection animation and heals.
 

@@ -137,6 +137,7 @@ void GameApp::resetArsenal() {
 void GameApp::grantItem(uint32_t item) {
     if (item == 14 && launcherModel_) { hasLauncher_ = true; return; }
     if (item >= 44 && item <= 46) { grantBowItem(item); return; }  // Delphi's bows
+    if (item == 0) { syringes_ = std::min(kMaxSyringes, std::max(syringes_, 1)); return; }  // IconHealthSyringe: 1 given (5a, kstory5_5)
     if (item == 8 && grenadeModel_) {  // grenades: topped up to what the item comes with
         grenades_ = std::min(grenadeMax_, std::max(grenades_, grenadeGive_));
         return;

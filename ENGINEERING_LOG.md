@@ -1644,3 +1644,5 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Harness (r4a, a Reaper spawned ahead, auto-aim, trigger draw): bow - 2 arrows, 2 hits, dead; RPG bow at 25 m - one
   arrow, dead; sniper bow at 25 m - one hit, dead. Renders: third person Delphi holds the bow upright in her right
   hand; first person the bow in the right hand.
+- Limits from the item table where it gives them: health injections at most 3 carried (item 0; was 5, ours) and one
+  handed out by item 0 (5a, kstory5_5); flares at most 5 (item 64; was 6). Heal amount and drop rate stay ours.
