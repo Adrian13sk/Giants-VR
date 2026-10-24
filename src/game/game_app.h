@@ -879,6 +879,7 @@ private:  // the mission placed enemies: no test waves
     std::string titleWorld_, titleMission_;   // the checkpoint CONTINUE goes to ("" none)
     std::vector<std::pair<std::string, std::string>> titleMissions_;  // main menu mission select: (world, mission)
     int titleMissionSel_ = 0;
+    void startChosenMission(const InputFrame& in);
     int titleRow_ = 0, titleCampaign_ = 0;
     float titleRepeat_ = 0, titleHold_ = 0, titleT_ = 0, titleYaw_ = 0;
     Vec3 titleEye_;

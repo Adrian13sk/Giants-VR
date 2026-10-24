@@ -77,6 +77,18 @@ void GameApp::startFromTitle(const std::string& world, const std::string& missio
     LOGI("Main menu: %s %s / %s", restore ? "continue" : "new game", world.c_str(), mission.empty() ? "(first)" : mission.c_str());
 }
 
+// Mission select: a fresh start at the chosen mission, carrying what the campaign would have
+// given by then - the rocket launcher, Timmy's present at the end of 1b (ours: the original
+// keeps it in the save).
+void GameApp::startChosenMission(const InputFrame& in) {
+    const auto wm = titleMissions_[size_t(titleMissionSel_)];
+    startFromTitle(wm.first, wm.second, false, in);
+    const std::string m = toLower(wm.second);
+    if (launcherModel_ && toLower(wm.first) != "story1") hasLauncher_ = true;
+    if (launcherModel_ && (m.rfind("1c", 0) == 0 || m.rfind("1d", 0) == 0)) hasLauncher_ = true;
+    LOGI("Mission select: %s / %s (rocket launcher %s)", wm.first.c_str(), wm.second.c_str(), hasLauncher_ ? "carried" : "not yet");
+}
+
 void GameApp::updateTitle(float dt, const InputFrame& in) {
     titleT_ += dt;
     if (in.headValid && !titleViewSet_) {
@@ -133,8 +145,7 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
             haptics_.push_back({kLeft, 1.0f, 0.3f});
             haptics_.push_back({kRight, 1.0f, 0.3f});
             if (missionRow) {
-                const auto& wm = titleMissions_[size_t(titleMissionSel_)];
-                startFromTitle(wm.first, wm.second, false, in);
+                startChosenMission(in);
             } else {
                 startFromTitle(kStoryWorld[titleCampaign_], std::string(), false, in);
             }
@@ -145,7 +156,7 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
             haptics_.push_back({kRight, 0.6f, 0.08f});
             if (titleRow_ == kTitleContinue && !titleWorld_.empty()) startFromTitle(titleWorld_, titleMission_, true, in);
             else if (titleRow_ == kTitleNewGame) startFromTitle(kStoryWorld[titleCampaign_], std::string(), false, in);
-            else if (missionRow) startFromTitle(titleMissions_[size_t(titleMissionSel_)].first, titleMissions_[size_t(titleMissionSel_)].second, false, in);
+            else if (missionRow) startChosenMission(in);
             else if (titleRow_ == kTitleOptions) openMenu(in);
         }
     }
