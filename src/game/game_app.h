@@ -473,6 +473,8 @@ private:
     uint32_t frameNo_ = 0;
     bool reflFresh_ = false;  // the reflection texture holds a usable recent frame
     float perfTime_ = 0;
+    float perfIgnore_ = 8.0f;  // seconds not counted (start, after loads)
+    int perfGood_ = 0;          // full-rate windows in a row (quality back up after 3)
     int perfFrames_ = 0;
     void updateQuality(float dt);
     // Timmy rides on Baz's back (Ref_HolsterB, his own sm_mount clip) once Baz has the jetpack:

@@ -1341,3 +1341,8 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   13.2 m), so a forward punch put the upper arm across the right eye's view. The eye point is now 2 m (model) ahead of
   the face (~24 cm at his scale); harness renders at 0.2 / 1.2 / 2.0 m compared, arms lower in view at 2.0. Needs a
   headset check (looking down no longer shows his chest).
+- **Adaptive quality fix (from the device logs of run 2):** the fps watchdog counted the slow first seconds after a
+  load and dropped the effects quality for the rest of the session (logs: "47.4 fps average, effects quality down to
+  level 1", "40.5 ... level 1" then "54.0 ... level 2" - reflections and terrain detail off), and never raised it
+  again. Now the 6 s after any load or cutscene (8 s at start) don't count, and the quality steps back up after 12 s
+  at >= 71 fps. (So the "FFR off" baselines of run 2 ran with reduced effects - the real gap is larger.)

@@ -2126,14 +2126,28 @@ void GameApp::writeCheckpoint() {
 }
 
 void GameApp::updateQuality(float dt) {
-    if (dt <= 0 || dt > 0.05f || load_.phase != LoadPhase::Idle || cutsceneActive()) return;  // hitches while loading don't count
+    // Loading and the first seconds after it don't count: on the Quest the first 3-4 s of a level ran
+    // at 35-50 fps (first use of its textures and shaders), which used to drop the quality for good.
+    if (load_.phase != LoadPhase::Idle || cutsceneActive()) { perfIgnore_ = 6.0f; perfTime_ = 0; perfFrames_ = 0; return; }
+    if (perfIgnore_ > 0) { perfIgnore_ -= dt; return; }
+    if (dt <= 0 || dt > 0.05f) return;  // a single hitch
     perfTime_ += dt;
     ++perfFrames_;
     if (perfTime_ < 4.0f) return;
     const float avg = perfTime_ / float(perfFrames_);
     if (avg > 1.0f / 65.0f && quality_ < 3) {
         ++quality_;
+        perfGood_ = 0;
         LOGW("perf: %.1f fps average, effects quality down to level %d", 1.0f / avg, quality_);
+    } else if (avg < 1.0f / 71.0f && quality_ > 0) {
+        // Back up after 12 s at full rate (three windows in a row).
+        if (++perfGood_ >= 3) {
+            --quality_;
+            perfGood_ = 0;
+            LOGI("perf: %.1f fps average, effects quality back up to level %d", 1.0f / avg, quality_);
+        }
+    } else {
+        perfGood_ = 0;
     }
     perfTime_ = 0;
     perfFrames_ = 0;
