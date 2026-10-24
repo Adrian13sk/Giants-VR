@@ -658,6 +658,13 @@ private:  // the mission placed enemies: no test waves
     float heroScale_ = 1.0f;     // body size / the Meccaryn's (capsule, aim points, camera)
     float kabutoEye_ = 22.0f;    // m: his eye height (Ref_Camera in kb_stand)
     float kabutoFeet_ = 0.0f;    // m: lift so his feet touch the ground
+    // Growing by eating (k2a's briefing: "Eat 5 Smarties to reach full strength and size"): his size
+    // relative to full (kbGrow_ the target, kbGrowShown_ easing to it); everything that comes from
+    // his size - height, eye, reach, speed - follows. Base values from setHero.
+    float kbGrow_ = 1.0f, kbGrowShown_ = 1.0f, kbBaseScale_ = 1.0f, kbBaseH_ = 1.8f;
+    PlayerParams kbBaseParams_;
+    void applyKabutoGrowth(float g);
+    void kabutoAte(int what);  // 0 Smartie, 1 Vimp, 2 other
     float heroLift_ = 0.0f;      // m: the current hero's model lift
     struct KabutoState {
         float punchT = -1, stompT = -1, eatT = -1, roarT = -1, roarCool = 0, stepT = 0;

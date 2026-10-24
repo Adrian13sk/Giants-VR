@@ -63,10 +63,50 @@ bool GameApp::loadKabuto() {
 
 // The giant's scale: the user's tracking space is scaled so their eyes are at Kabuto's (only in
 // play; cutscenes, loading and the free camera are human scale).
+void GameApp::applyKabutoGrowth(float g) {
+    if (hero_ != Hero::Kabuto) return;
+    kbGrowShown_ = g;
+    const PlayerParams& b = kbBaseParams_;
+    PlayerParams p = player_.params;  // keeps what was set since (stun and landing times)
+    p.runSpeed = b.runSpeed * g;
+    p.strideSpeed = b.strideSpeed * g;
+    p.turboStride = b.turboStride * g;
+    p.strafeStride = b.strafeStride * g;
+    p.jumpSpeed = b.jumpSpeed * std::sqrt(g);
+    p.stepDown = b.stepDown * g;
+    p.maxStepUp = b.maxStepUp * g;
+    player_.params = p;
+    heroScale_ = kbBaseScale_ * g;
+    heroLift_ = kabutoFeet_ * g;
+    const float H = kbBaseH_ * g;
+    player_.height = H;
+    player_.radius = 0.11f * H;
+    player_.stepUp = 0.3f * heroScale_;
+    player_.floatDepth = 0.7f * H;
+}
+
+void GameApp::kabutoAte(int what) {
+    if (hero_ != Hero::Kabuto || kbGrow_ >= 1.0f) return;
+    const float add = what == 0 ? 0.08f : (what == 1 ? 0.05f : 0.03f);
+    kbGrow_ = std::min(1.0f, kbGrow_ + add);
+    timmyLine_ = kbGrow_ >= 1.0f ? std::string("KABUTO: FULL STRENGTH AND SIZE!") : "KABUTO GROWS: " + std::to_string(int(kbGrow_ * 100.0f + 0.5f)) + "%";
+    timmyLineT_ = 2.5f;
+    if (kbGrow_ >= 1.0f) {
+        static const char* roars[] = {"ka_roar1", "ka_roar2"};
+        sfx2D(roars[int(frand() * 1.99f)], 1.0f);
+    }
+    LOGI("Kabuto grows to %.0f%% of his full size", kbGrow_ * 100.0f);
+}
+
 void GameApp::updateHeroScale() {
     float s = 1.0f;
+    if (hero_ == Hero::Kabuto && std::fabs(kbGrowShown_ - kbGrow_) > 1e-4f) {
+        // Grows smoothly over about a second.
+        const float step = 0.0012f;  // per frame: ~1 s per Smartie at 72 Hz
+        applyKabutoGrowth(kbGrowShown_ + std::max(-step, std::min(step, kbGrow_ - kbGrowShown_)));
+    }
     if (hero_ == Hero::Kabuto && playMode_ && !cutsceneActive() && load_.phase == LoadPhase::Idle)
-        s = std::max(1.0f, kabutoEye_ / std::max(1.0f, userEye_));
+        s = std::max(1.0f, kabutoEye_ * kbGrowShown_ / std::max(1.0f, userEye_));
     if (const char* e = std::getenv("GVR_WORLD_SCALE")) s = float(std::atof(e));  // test hook
     rig_.comfort.worldScale = s;
 }
@@ -295,6 +335,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
                 }
             }
             if (ate) {
+                kabutoAte(k.eatTarget >= kVimpTargetK ? 1 : (k.eatTarget >= kVillagerTargetK ? 0 : 2));
                 playerHealth_ = std::min(100.0f, playerHealth_ + 25.0f);
                 healFlash_ = 1.0f;
                 blood_.burst(mouth, Vec3{0, -1, 0}, 14, 3.0f, 0.12f);

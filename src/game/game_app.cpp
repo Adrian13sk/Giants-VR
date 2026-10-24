@@ -688,6 +688,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         if (syringeOut_) armTargets_[rig_.moveHand()].squeeze = 1.0f;  // the hand closes on the syringe
     } else {
         bodyXf_ = Mat4::translation(player_.position + Vec3{0, heroLift_, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
+        if (hero_ == Hero::Kabuto && kbGrowShown_ < 0.999f) bodyXf_ = bodyXf_ * Mat4::scale(Vec3{1, 1, 1} * kbGrowShown_);
         armTargets_[0].valid = armTargets_[1].valid = false;
         // Aiming: the gun arm reaches toward the crosshair (model space, game units).
         Mat4 sh;
@@ -1837,6 +1838,15 @@ void GameApp::initMission() {
     const uint32_t race = m.setup[0];
     setHero(race == 1 ? Hero::Kabuto : (race == 2 ? Hero::Mecc : (race == 3 ? Hero::Delphi : heroForWorld(worldName_))));
     if (hero_ != Hero::Mecc) player_.jetpackAvailable = false;
+    if (hero_ == Hero::Kabuto) {
+        // He comes out of the sea weakened at the start of his story (k1a) and of 2a ("Eat 5
+        // Smarties to reach full strength and size"); full size elsewhere. Our reading.
+        const std::string mn = toLower(assetWorld_->missionName());
+        kbGrow_ = (mn.rfind("k1a", 0) == 0 || mn.rfind("k2a", 0) == 0) ? 0.6f : 1.0f;
+        if (const char* g = std::getenv("GVR_KABUTO_GROW")) kbGrow_ = std::max(0.3f, std::min(1.0f, float(std::atof(g))));  // test hook
+        applyKabutoGrowth(kbGrow_);
+        LOGI("Kabuto starts at %.0f%% of his full size", kbGrow_ * 100.0f);
+    }
     if (title_) return;  // the main menu's scene: no checkpoint
     if (haveRestore_) {  // what he carried at the checkpoint
         if (pendingRestore_.launcher && launcherModel_) hasLauncher_ = true;
@@ -2799,6 +2809,7 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
         if (deathTime_ < 4.0f && frand() < dt * 3.5f) piranhaBite(player_.position, 1.2f, true);  // the frenzy goes on
     }
     bodyXf_ = Mat4::translation(player_.position + Vec3{0, heroLift_ - sink, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
+    if (hero_ == Hero::Kabuto && kbGrowShown_ < 0.999f) bodyXf_ = bodyXf_ * Mat4::scale(Vec3{1, 1, 1} * kbGrowShown_);
     if (playerModel_ && !playerGibbed_) {
         playerModel_->setHideEnabled(false);
         const int clip = deathClip_[deathCause_ == DeathCause::Drowned ? 1 : (deathCause_ == DeathCause::Fall ? 2 : 0)];

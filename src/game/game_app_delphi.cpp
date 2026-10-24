@@ -144,6 +144,12 @@ void GameApp::setHero(Hero h) {
     player_.params = p;
     std::copy(std::begin(heroDeath_[int(h)]), std::end(heroDeath_[int(h)]), std::begin(deathClip_));
     hero_ = h;
+    if (h == Hero::Kabuto) {
+        kbBaseParams_ = p;
+        kbBaseScale_ = heroScale_;
+        kbBaseH_ = player_.height;
+        kbGrow_ = kbGrowShown_ = 1.0f;
+    }
     kb_ = KabutoState{};
     LOGI("Hero: %s (scale %.1f)", h == Hero::Delphi ? "Delphi (Sea Reaper)" : (h == Hero::Kabuto ? "Kabuto" : "the Meccaryn"), heroScale_);
 }
