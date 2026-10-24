@@ -38,11 +38,19 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         LOGW("Cutscene shot %s unavailable %s", name.c_str(), err.c_str());
         return false;
     }
+    // The fade state carries from shot to shot when the scripts drive it.
+    startVis_ = (active_ && !shot_.fades.empty()) ? scriptVisibility(t_) : 1.0f;
+    if (shotsPlayed_ == 0 && !s.fades.empty()) startVis_ = 0.0f;  // an opening shot snaps in from black
     shot_ = std::move(s);
     shotName_ = name;
     t_ = 0;
     cueNext_ = 0;
     duration_ = std::max(0.5f, shot_.duration());
+    // A last shot fading out holds until its fade is through (story1_start_12's 2 s fade starts
+    // 1.3 s before the director ends).
+    if (shot_.next.empty())
+        for (const auto& f : shot_.fades)
+            if (f.level < 0.5f) duration_ = std::max(duration_, f.time + f.seconds);
     actors_.clear();
     const AnmAnimation& dir = shot_.director;
     auto lower = [](std::string v) { return toLower(v); };
@@ -263,6 +271,8 @@ bool CutscenePlayer::loadShot(const std::string& name) {
 void CutscenePlayer::update(float dt) {
     if (!active_) return;
     t_ += dt;
+    static const bool trace = std::getenv("GVR_CUT_TRACE") != nullptr;  // test hook
+    if (trace && int(t_ * 4) != int((t_ - dt) * 4)) LOGI("cut trace: %s t %.2f / %.2f blackout %.2f (%zu fades)", shotName_.c_str(), t_, duration_, blackout(), shot_.fades.size());
     if (t_ >= duration_) {
         const std::string next = shot_.next;
         if (next.empty() || !loadShot(next)) {
@@ -417,8 +427,23 @@ std::string CutscenePlayer::takeStream() {
     return s;
 }
 
+float CutscenePlayer::scriptVisibility(float t) const {
+    float v = startVis_;
+    const auto& fs = shot_.fades;
+    for (size_t i = 0; i < fs.size(); ++i) {
+        if (t < fs[i].time) break;
+        const float end = i + 1 < fs.size() ? std::min(t, fs[i + 1].time) : t;
+        const float k = fs[i].seconds <= 0 ? 1.0f : std::min(1.0f, (end - fs[i].time) / fs[i].seconds);
+        v += (fs[i].level - v) * k;
+    }
+    return v;
+}
+
 float CutscenePlayer::blackout() const {
     if (!active_) return 0.0f;
+    // The shot's own fades (op 0x1F) when it has any; otherwise a short dip between shots.
+    if (!shot_.fades.empty()) return 1.0f - scriptVisibility(t_);
+    if (startVis_ < 0.999f) return std::max(0.0f, 1.0f - (startVis_ + (1.0f - startVis_) * std::min(1.0f, t_ / 0.25f)));
     const float f = 0.25f;
     const float in = 1.0f - std::min(1.0f, t_ / f);
     const float out = shot_.next.empty() ? 0.0f : std::max(0.0f, 1.0f - (duration_ - t_) / f);

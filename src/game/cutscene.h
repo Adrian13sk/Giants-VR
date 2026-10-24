@@ -89,6 +89,8 @@ private:
     std::vector<Actor> actors_;
     std::vector<Mat4> world_;
     float t_ = 0, duration_ = 0;
+    float startVis_ = 1.0f;  // screen visibility when the shot began (the script's fades carry over)
+    float scriptVisibility(float t) const;  // the shot's op 0x1F fades at t (1 picture, 0 black)
     size_t shotsPlayed_ = 0;
     size_t cueNext_ = 0;
     std::vector<std::string> dueCues_;

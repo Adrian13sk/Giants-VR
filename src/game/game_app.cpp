@@ -2689,6 +2689,7 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
         if (assetWorld_ && assetWorld_->terrain().heightAt(p.x, p.z, h)) p.y = std::max(p.y, h + 0.7f);
         return p;
     };
+    if (cutscene_->active()) cutBlack_ = cutscene_->blackout();
     if (cutscene_->active() && cutscene_->takeNewShot(eye, yaw)) {
         eye = aboveGround(eye);
         // Put the viewer's eyes at the shot camera, facing the scene; head look stays free.
@@ -2710,6 +2711,9 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
     if (!cutscene_->active()) {
         // Back to the game where the player stands.
         if (playMode_) rig_.teleportHead(in, player_.position, player_.yaw);
+        // A cutscene that faded out (its last shot's script) fades back in on the game.
+        respawnFade_ = std::max(respawnFade_, cutBlack_);
+        cutBlack_ = 0;
         LOGI("Cutscene finished");
     }
 }

@@ -1346,3 +1346,10 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   level 1", "40.5 ... level 1" then "54.0 ... level 2" - reflections and terrain detail off), and never raised it
   again. Now the 6 s after any load or cutscene (8 s at start) don't count, and the quality steps back up after 12 s
   at >= 71 fps. (So the "FFR off" baselines of run 2 ran with reduced effects - the real gap is larger.)
+
+### 2026-10-24 — Cutscene fades from the scripts (this build)
+- Surveyed all 80 flk shots: op 0x25 (the decompilation's "fade") is never used; op 0x1F {level, seconds} is the fade
+  (opening shots `{0,0}{1,2}`, last shots `{0,2}` at their final wait; FORMATS.md). Parsed into FlickShot::fades; the
+  player's blackout follows them (carried across shots; shots without fades keep our 0.25 s dip), a last shot is held
+  until its fade-out completes (story1_start_12: 12.0 -> 12.67 s), and the game fades back in from there. Harness
+  trace: story1_start_1 fades in over 2.0 s from black; story1_start_12 fades out to black before play.

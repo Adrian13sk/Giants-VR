@@ -1,6 +1,7 @@
 #include "assets/flick.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 namespace gvr {
@@ -96,6 +97,17 @@ bool parseFlick(const uint8_t* d, size_t n, FlickShot& out, std::string* error) 
                 break;
             }
             case 0x34: if (out.stream.empty()) out.stream = cstr(d, n, word(0)); break;
+            case 0x1F:
+                if (nw >= 2) {
+                    float lv, sec;
+                    const uint32_t a = word(0), b = word(1);
+                    std::memcpy(&lv, &a, 4);
+                    std::memcpy(&sec, &b, 4);
+                    int same = 0;
+                    for (const auto& f : out.fades) same += std::fabs(f.time - waited) < 1e-4f;
+                    if (same < 2) out.fades.push_back({waited, std::max(0.0f, std::min(1.0f, lv)), std::max(0.0f, sec)});
+                }
+                break;
             case 9:  // wait until timeline frame N
                 if (out.hasDirector && out.director.fps && out.director.ticksPerFrame) {
                     const float t = (float(word(0)) * float(out.director.ticksPerFrame) - float(out.director.startTick)) /

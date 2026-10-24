@@ -50,6 +50,13 @@ struct FlickShot {
     struct Cue { float time; std::string stream; };
     std::vector<Cue> cues;
     std::vector<float> subtitleTimes;  // per subtitles[i]
+    // op 0x1F {f32 level, f32 seconds}: the screen fade - 1 = picture, 0 = black - reached over
+    // `seconds` (0 = at once), at the time of the preceding waits. Read from the data: every
+    // opening shot starts {0, 0} {1, 2} (snap to black, fade in over 2 s) and every last shot ends
+    // {0, 2} (fade out). Some shots repeat the pair at the same moment ({0,0}{1,2}{0,0}{1,0.25}):
+    // only the first pair at a moment is used (the second presumably drives another channel).
+    struct Fade { float time, level, seconds; };
+    std::vector<Fade> fades;
     float duration() const { return hasDirector ? director.durationSeconds() : 0.0f; }
 };
 

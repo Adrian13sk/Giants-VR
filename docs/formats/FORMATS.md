@@ -187,7 +187,11 @@ One file per shot; shots chain into a cutscene through the "next shot" name.
     Examples: jetpack (254) in Timmy's `ref_lhand`, gun (21) in Baz's `ref_rhand`, Timmy (583) on Baz's `ref_holsterb`,
     lander engine flames (135) on `ref_engine1/2`.
   - op 4 camera `{director, animOff, nodeOff}`; op 0x10 subtitle GText key; op 0x34 soundtrack stream (`f_start`);
-    op 0x25 fade; op 5 yield.
+    op 5 yield. op 0x25 (named "fade" in the decompilation) never occurs in the 80 shots.
+  - op 0x1F `{f32 level, f32 seconds}` is the screen fade (V, from the data, 2026-10-24): 29 uses; every opening
+    shot (intro_island_1, story1_start_1, save_sm_1, save_sm_11) begins `{0,0}{1,2}` - snap to black, fade in over
+    2 s - and every last shot ends `{0,2}` / `{0,0.5}` / `{0,1}` at its final wait (fade out). Some put two pairs at
+    the same moment (`{0,0}{1,2}{0,0}{1,0.25}`); we use the first pair.
   - op 9 `{frames}`: wait. The waits of a shot add up to its director length at 70 frames/s (story1_hatch_dilemma:
     91 + 70 + 210 = 371 frames = 5.3 s). Provisional rate.
   - op 0x2C `{nameOff}`: start a stream at that point (after the preceding waits). The streams are files in

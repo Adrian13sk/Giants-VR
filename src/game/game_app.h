@@ -434,6 +434,7 @@ private:
     std::vector<Objective> objectives_;
     size_t objectivesDone_ = 0;
     bool missionComplete_ = false;
+    float cutBlack_ = 0;  // the cutscene's blackout last frame (carried into a fade-in on the game)
     int foveationOverride_ = -1;  // test runs (GVR_FFR) pin it
     bool advanceDone_ = false;  // the step to the next mission has started
     // Loading / briefing screen between missions: fade to black, the mission's title and objectives
