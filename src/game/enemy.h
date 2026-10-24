@@ -63,6 +63,11 @@ struct Enemy {
     // stands facing `siegeAt` and fires bursts at it (reported in EnemyDirector::siegeShots).
     bool siege = false;
     Vec3 siegeAt;
+    // His weapon (game layer): -1 not yet chosen, 0 spear gun, 1 bazooka; its transform this frame.
+    int weapon = -1;
+    bool weaponOn = false;
+    Mat4 weaponXf = Mat4::identity();
+    float rocketCool = 0;
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
 

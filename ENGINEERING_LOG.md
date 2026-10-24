@@ -1560,3 +1560,11 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Smartie hatches are drawn as the game's skinned Sm_hatch_l0 (the mission's static copy hidden) and play
   sm_hatch_open when the Smarties climb out; hatch Smarties face the base as they come out. Sweep after the siege
   change: 56/56 exit 0, 0 errors.
+
+### 2026-10-24 — Reaper soldiers hold their weapons
+- Data: xx_rpman_weapons-era models rpman_spear / rpm_bazooka (/ rpm_snipergun) with Ref_handle, Ref_nozzle
+  (anm); cutscenes attach them at the soldier's ref_rhand. Missions place no weapons (native in the original).
+- Ours (game_app_rpweapons.cpp): every Reaper soldier holds one at ref_rhand, aligned by Ref_handle (as the
+  cutscene prop fix); shots leave from its Ref_nozzle. One in four (by uid) carries the bazooka: instead of bursts it
+  fires a slow rocket (22 m/s, smoke trail) every 3.5 s that bursts on impact or within 1.6 m of the player
+  (radius 3.5 m, 55). Weapons cast shadows. Harness: a 2b Reaper holds the spear gun across his body.

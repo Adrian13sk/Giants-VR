@@ -1990,6 +1990,7 @@ void GameApp::renderShadowMap() {
         if (e.slot >= 0 && length(e.pos - centre) < half * 1.4f)
             enemyPool_[size_t(e.slot)]->renderShadow(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
                                                                     Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
+    renderReaperWeapons(true, centre, half * 1.4f);
     // The player's own body (whole, also in first person) and Timmy on his back.
     if (playMode_ && playerModel_ && !cut && !playerGibbed_) playerModel_->renderShadowFull(renderer_, bodyXf_);
     if (playMode_ && timmyOn_ && !cut) timmy_->renderShadow(renderer_, timmyXf_);
@@ -3043,6 +3044,15 @@ void GameApp::updateRockets(float dt) {
             r.pos += r.vel * dt;
             continue;
         }
+        if (r.kind == 3) {
+            // A Reaper's bazooka rocket: smoke trail; bursts near the player as well as on what it hits.
+            if (frand() < dt * 25.0f) smokePuff(FxTex::SmokeGrey, r.pos, Vec3{0, 0.3f, 0}, 0.25f, 1.2f, 1.0f, 0.45f, 0.1f);
+            if (length(r.pos - (player_.position + Vec3{0, 0.5f * player_.height, 0})) < 1.6f) {
+                explode(r.pos, 3.5f, 55.0f);
+                r.life = 1e9f;
+                continue;
+            }
+        }
         const float step = length(r.vel) * dt;
         const Vec3 dir = normalize(r.vel);
         float t;
@@ -3056,6 +3066,7 @@ void GameApp::updateRockets(float dt) {
         }
         if (hit || r.life > 5.0f) {
             if (r.kind == 1) explode(hit ? r.pos + dir * t : r.pos, 2.6f, 75.0f);  // fire bolt: smaller blast
+            else if (r.kind == 3) explode(hit ? r.pos + dir * t : r.pos, 3.5f, 55.0f);
             else explode(hit ? r.pos + dir * t : r.pos, 4.0f, 120.0f);
             r.life = 1e9f;
             continue;
@@ -3266,14 +3277,28 @@ void GameApp::updateCombat(float dt) {
         float& lift = slotLift_[size_t(e.slot)];
         lift += (-mn.y - lift) * std::min(1.0f, dt / 0.06f);
     }
+    placeReaperWeapons();  // the guns in their hands, from this frame's poses
     // Enemy shots from each Reaper's gun nozzle toward the player's chest, with spread.
+    for (auto& e : enemies_.enemies) e.rocketCool = std::max(0.0f, e.rocketCool - dt);
     for (int i : shooters_) {
-        const Enemy& e = enemies_.enemies[size_t(i)];
+        Enemy& e = enemies_.enemies[size_t(i)];
         const Quat r = Quat::fromAxisAngle({0, 1, 0}, e.yaw);
         Vec3 muzzle = e.pos + Vec3{0, 1.5f, 0} + r.rotate(Vec3{0.3f, 0, -0.6f});
         Mat4 nz;
-        if (e.slot >= 0 && enemyPool_[size_t(e.slot)]->nodeWorld("ref_nozzle", nz))
+        if (reaperMuzzle(e, muzzle)) {
+        } else if (e.slot >= 0 && enemyPool_[size_t(e.slot)]->nodeWorld("ref_nozzle", nz))
             muzzle = e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0} + r.rotate(giantsToRuntime(nz.m[12], nz.m[13], nz.m[14]));
+        if (e.weapon == 1 && e.weaponOn) {
+            // Bazooka: one slow rocket every few seconds instead of the burst (ours).
+            if (e.rocketCool > 0) continue;
+            e.rocketCool = 3.5f;
+            const Vec3 aim = player_.position + Vec3{0, 0.5f * player_.height, 0};
+            Vec3 dir = normalize(aim - muzzle);
+            dir = normalize(dir + Vec3{frand() - 0.5f, (frand() - 0.5f) * 0.3f, frand() - 0.5f} * (0.04f + 0.002f * length(aim - muzzle)));
+            rockets_.push_back({muzzle + dir * 0.8f, dir * 22.0f, 0.0f, 3});
+            sfx("pr_wsmil", muzzle, 0.9f, 1.1f);
+            continue;
+        }
         const Vec3 target = player_.position + Vec3{0, (0.5f + 0.4f * frand()) * player_.height, 0};
         Vec3 dir = normalize(target - muzzle);
         // Spread grows with distance: long shots mostly miss, close ones are dangerous.
@@ -3286,7 +3311,8 @@ void GameApp::updateCombat(float dt) {
     for (int i : enemies_.siegeShots) {
         const Enemy& e = enemies_.enemies[size_t(i)];
         const Quat r = Quat::fromAxisAngle({0, 1, 0}, e.yaw);
-        const Vec3 muzzle = e.pos + Vec3{0, 1.5f, 0} + r.rotate(Vec3{0.3f, 0, -0.6f});
+        Vec3 muzzle = e.pos + Vec3{0, 1.5f, 0} + r.rotate(Vec3{0.3f, 0, -0.6f});
+        reaperMuzzle(e, muzzle);
         Vec3 dir = normalize(e.siegeAt - muzzle);
         dir = normalize(dir + Vec3{frand() - 0.5f, (frand() - 0.5f) * 0.4f, frand() - 0.5f} * 0.08f);
         enemyFire_.spawnShot(muzzle, dir);
@@ -3834,6 +3860,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         if (e.slot >= 0)
             enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
                                                               Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
+    renderReaperWeapons(false, renderer_.currentView().eyePosition, 150.0f);
     // Reaper bolts: the spark in its own white (as the original's sea Reapermen fire).
     for (const auto& p : enemyFire_.projectiles()) {
         const Quat r = rotationBetween({0, 0, -1}, p.vel);

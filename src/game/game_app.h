@@ -234,7 +234,15 @@ private:
     bool switchArmed_ = true;
     float rocketCooldown_ = 0;
     bool rocketTriggerHeld_ = false;
-    struct Rocket { Vec3 pos, vel; float life; int kind = 0; };  // kind 0 rocket, 1 Delphi's fire bolt, 2 a SAM's homing missile
+    struct Rocket { Vec3 pos, vel; float life; int kind = 0; };  // kind 0 rocket, 1 Delphi's fire bolt, 2 a SAM's homing missile, 3 a Reaper's bazooka rocket
+    // Reaper soldiers' weapons (game_app_rpweapons.cpp): 0 spear gun, 1 bazooka.
+    struct RpWeapon { const RenderModel* model = nullptr; Mat4 handleInv = Mat4::identity(), nozzle = Mat4::identity(); };
+    RpWeapon rpWeapon_[2];
+    bool rpWeaponsReady_ = false;
+    void initReaperWeapons();
+    void placeReaperWeapons();
+    bool reaperMuzzle(const Enemy& e, Vec3& muzzle) const;
+    void renderReaperWeapons(bool shadow, const Vec3& eye, float range);
     std::vector<Rocket> rockets_;
     void updateRockets(float dt);
     void explode(const Vec3& at, float radius, float damage, bool fire = true);
