@@ -147,7 +147,14 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
         // Engaged (aware) Reapers keep track of the player within sight range; an unaware one
         // must see him: in front, with a clear line, or hear him close by.
         const Vec3 eyeP = e.pos + Vec3{0, 1.6f, 0}, chest = player + Vec3{0, 1.2f, 0};
-        bool sees = playerAlive && dist < params.sightRange && (e.aware || dist < params.hearRange || lineOfSight(eyeP, chest));
+        // Line of sight (a ray through the collision world) is re-checked a few times a second, not
+        // every frame per Reaper.
+        e.losT -= dt;
+        if (playerAlive && dist < params.sightRange && !e.aware && dist >= params.hearRange && e.losT <= 0) {
+            e.los = lineOfSight(eyeP, chest);
+            e.losT = 0.15f + float(nextRand() % 100) * 0.001f;
+        }
+        bool sees = playerAlive && dist < params.sightRange && (e.aware || dist < params.hearRange || e.los);
         if (playerHidden && e.aware && e.state != EnemyState::Dead) {
             // Engaged, but the player has gone into his bush: lost after a while unless close.
             e.lost = dist > 8.0f ? e.lost + dt : 0.0f;
@@ -212,7 +219,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     e.lookTimer = 0.2f + float(nextRand() % 100) * 0.001f;
                     const bool front = std::fabs(angleDelta(e.yaw, faceYaw)) < params.noticeAngle;
                     if (e.aware ? dist < params.sightRange
-                                : (dist < params.hearRange || (dist < params.sightRange && front && lineOfSight(eyeP, chest)))) {
+                                : (dist < params.hearRange || (dist < params.sightRange && front && e.los))) {
                         e.aware = true;
                         e.alert = e.posted ? 0.3f : params.noticeDelay;
                         // Its squad hears it.

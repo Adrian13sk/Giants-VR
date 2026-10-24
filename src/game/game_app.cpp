@@ -3192,7 +3192,9 @@ void GameApp::updateCombat(float dt) {
     for (auto& e : enemies_.enemies) {
         if (e.slot < 0) continue;
         const float pd = length(e.pos - player_.position);
-        if (pd > poseFar || (pd > poseFar * 0.45f && ((enemyPoseTick_ + e.slot) & 1))) continue;
+        const float near = hero_ == Hero::Kabuto ? 75.0f : 25.0f;
+        const uint32_t every = pd < near ? 1u : (pd < near * 2.4f ? 2u : 4u);  // animation LOD by distance
+        if (pd > poseFar || ((enemyPoseTick_ + uint32_t(e.slot)) % every) != 0) continue;
         SkinnedModel& m = *enemyPool_[size_t(e.slot)];
         m.poseBlend(renderer_, int(e.prevClip), e.prevTime, int(e.clip), e.clipTime, e.fadeWeight(enemies_.params.crossfade));
         // Ground contact from the actual pose: the lowest point (planted foot, or the body lying

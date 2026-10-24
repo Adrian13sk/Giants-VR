@@ -54,6 +54,8 @@ struct Enemy {
     bool aware = false;
     float poke = -1;        // >= 0: walking up to / poking a suspicious bush (s)
     float lost = 0;         // s an aware Reaper has had the hidden player out of sight
+    float losT = 0;         // s until its line of sight to the player is re-checked
+    bool los = false;       // last line-of-sight result
     Vec3 vel;               // Falling: knocked off its post (the tower collapsed under it)
     float fallFrom = 0;     // height it fell from
     int postObject = -1;    // the structure it stands on (game layer's world object index)

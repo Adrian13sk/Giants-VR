@@ -393,3 +393,13 @@ User report: "that worked, now it is as it is supposed". The village buildings (
     past in the bush, the Reaper goes to poke it and finds nothing.
   - Kstory1 (k1a): Kabuto starts at 60 %; render at 60 % and 100 %.
 - **Not device-tested.**
+
+## Host verification — first-person bodies, mission sweep, CPU pass 2 (builds 07bbbc8, 55ef4a7, this build)
+- `gvr_tests`: all pass.
+- Delphi and Kabuto render in first person with their bodies; both arms reach the controllers (Rstory1, Kstory1); the
+  Meccaryn's first person is unchanged.
+- `scripts/mission_sweep.sh`: all 56 missions run 500 frames (fire, jetpack, map, injection, flare) with exit 0 and no
+  errors. Mean update time over the missions 0.34 → 0.27 ms after Reaper animation LOD and throttled line-of-sight
+  (2b_2 1.96 → 0.66 ms, kstory4_1 1.20 → 0.66 ms; host x86, relative).
+- Mesa's host GL reports GL_OVR_multiview2, so a one-pass stereo renderer could be checked on the host.
+- **Not device-tested.**

@@ -397,6 +397,7 @@ bool Renderer::init() {
         uPointColor_ = glGetUniformLocation(program_, "uPointColor");
         // Anisotropic filtering where the GPU has it: ground and walls stay sharp at grazing angles.
         const char* ext = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+        LOGI("GL_OVR_multiview2: %s", ext && std::strstr(ext, "GL_OVR_multiview2") ? "yes" : "no");
         if (ext && std::strstr(ext, "GL_EXT_texture_filter_anisotropic")) {
             GLfloat mx = 0;
             glGetFloatv(0x84FF /* GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT */, &mx);
