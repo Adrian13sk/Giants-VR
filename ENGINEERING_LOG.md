@@ -1286,3 +1286,27 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   the army barracks from 600 to 300 hp (77 m throw). kstory4_1 - a held Reaper thrown (third person, and first person
   with a scripted left-hand swing) kills itself and the Reaper it hits; a quick X tap still eats.
 - **Not device-tested.** Throw strength and the aim help need the headset.
+
+### 2026-10-24 — On-device automatic tests (this build)
+- Goal: let Claude run the game on the Quest without anyone wearing it. The user installed adb (platform-tools 37.0.1
+  in Documents\platform-tools; `adb devices` lists the Quest 2, 1WMHHA696A2426). This session has no shell on the PC,
+  so the user starts the runner; everything else is automatic.
+- `src/game/test_script.{h,cpp}`: a text test script (world, mission, env hooks, start point, view, timed stick /
+  button / hand-path input, blasts, screenshots, perf window), in seconds. Unit-tested; the headless harness runs the
+  same scripts (`--script`) as a dry run on the PC.
+- `src/platform/android/autotest.{h,cpp}`: when `files/autotest.txt` exists the app consumes it, skips the save and the
+  menu, starts the mission, replaces controller input and eye poses with the script's (so it doesn't matter where the
+  headset lies; XrApp test mode also renders without tracking), and records every frame: interval, update and render
+  CPU time, GPU time (GL_EXT_disjoint_timer_query, ring of 6 queries), draw calls; left-eye screenshots (glReadPixels,
+  halved, PNG); then writes result.txt (fps, frame-time p50/p95/p99/max, slow frames, CPU/GPU, memory RSS/peak,
+  mission state), frames.csv and a done marker, and exits.
+- `devtest/devtest.ps1` (PowerShell 5.1): installs the APK, wakes the headset and fakes the proximity sensor
+  (com.oculus.vrpowermanager.prox_close; automation_disable at the end), pushes each script, starts the app, waits for
+  done / crash / timeout, pulls results and logcat into devtest\results\<stamp>\, writes summary.txt. `-Sweep` adds
+  every mission (20 s each). PowerShell couldn't be run here (no pwsh in this environment) - the script is untested.
+- First tests: perf_1a_village, perf_1d_tower (12 blasts bring guard_tower2 down at 8 s), perf_1c_flight,
+  kabuto_k1a, delphi_r1. All dry-run on the host without errors.
+- New test hook GVR_GOD (player can't be hurt; perf runs were being cut short by Rippers). The death log now names
+  the real cause (it said "fell" for any death that wasn't drowning or a blast).
+- **Not device-tested.** Unknowns for the first run: whether the session reaches FOCUSED with the proximity override
+  and nobody wearing it, whether the timer query works on the Quest's driver, and screenshot orientation.

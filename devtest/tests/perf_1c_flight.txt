@@ -1,0 +1,14 @@
+# Frame rate in jetpack flight over 1c (A held, flying forward).
+name perf_1c_flight
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 25
+perf 4 25
+hold a 4 18
+move 0 1 4 20
+shot 3 ground
+shot 10 flying
+shot 17 high

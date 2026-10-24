@@ -59,9 +59,14 @@ public:
 
     XrReferenceSpaceType appSpaceType() const { return appSpaceType_; }
     float currentRefreshRate() const { return refreshRate_; }
+    // Scripted test runs: render even without tracking (a headset lying on a desk), from eye poses
+    // the test supplies (overrideEyePoses after beginFrame).
+    void setTestMode(bool on) { testMode_ = on; }
+    void overrideEyePoses(XrFrameContext& frame, const Pose eyes[2]);
 
 private:
     uint32_t recenterSerial_ = 0;
+    bool testMode_ = false;
     struct Swapchain {
         XrSwapchain handle = XR_NULL_HANDLE;
         int width = 0, height = 0;

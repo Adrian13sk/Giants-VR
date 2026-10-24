@@ -398,9 +398,19 @@ bool XrApp::beginFrame(XrFrameContext& frame) {
     const XrViewStateFlags need =
         XR_VIEW_STATE_ORIENTATION_VALID_BIT | XR_VIEW_STATE_POSITION_VALID_BIT;
     if (XR_FAILED(r) || n != 2 || (vs.viewStateFlags & need) != need) {
-        // Tracking lost: submit an empty frame rather than rendering with garbage poses.
-        frame.shouldRender = false;
-        return true;
+        if (testMode_) {
+            // A test run brings its own eye poses; it only needs field-of-view numbers (a Quest 2
+            // eye's, roughly, if the runtime gave none).
+            for (int eye = 0; eye < 2; ++eye) {
+                XrView& v = views_[eye];
+                if (v.fov.angleRight - v.fov.angleLeft < 0.5f) v.fov = {eye == 0 ? -0.94f : -0.70f, eye == 0 ? 0.70f : 0.94f, 0.77f, -0.87f};
+                v.pose = {{0, 0, 0, 1}, {0, 1.6f, 0}};
+            }
+        } else {
+            // Tracking lost: submit an empty frame rather than rendering with garbage poses.
+            frame.shouldRender = false;
+            return true;
+        }
     }
     for (int eye = 0; eye < 2; ++eye) {
         EyeView& ev = frame.eyes[eye];
@@ -413,6 +423,15 @@ bool XrApp::beginFrame(XrFrameContext& frame) {
         ev.height = swapchains_[eye].height;
     }
     return true;
+}
+
+void XrApp::overrideEyePoses(XrFrameContext& frame, const Pose eyes[2]) {
+    for (int eye = 0; eye < 2; ++eye) {
+        frame.eyes[eye].pose = eyes[eye];
+        XrPosef& p = views_[eye].pose;  // what the projection layer reports
+        p.position = {eyes[eye].position.x, eyes[eye].position.y, eyes[eye].position.z};
+        p.orientation = {eyes[eye].orientation.x, eyes[eye].orientation.y, eyes[eye].orientation.z, eyes[eye].orientation.w};
+    }
 }
 
 XrApp::EyeBindResult XrApp::bindEyeFramebuffer(int eye) {

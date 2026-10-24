@@ -22,6 +22,9 @@
 #include "core/prof.h"
 #include "scene/asset_world.h"
 #include "game/game_app.h"
+#include "game/test_script.h"
+#include <fstream>
+#include <sstream>
 #include "scene/model_cache.h"
 #include "render/gl.h"
 #include "egl_util.h"
@@ -56,7 +59,7 @@ int main(int argc, char** argv) {
     bool killDemo = false;
     float blastX = 0, blastY = 0, blastH = 1;
     int blastN = 0, blastFrame = -1;
-    std::string audioOut;
+    std::string audioOut, scriptPath;
     float triggerAmount = 0.0f, aimPitchDeg = -17.2f, aimYawDeg = 0.0f;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -73,6 +76,7 @@ int main(int argc, char** argv) {
         else if (a == "--no-test-scene") testScene = false;
         else if (a == "--hold-brief") holdBrief = true;  // hold the left stick down (mission briefing overlay)
         else if (a == "--world") world = next();
+        else if (a == "--script") scriptPath = next();  // a device test script (devtest/tests/*.txt), run at 72 fps
         else if (a == "--pitch") pitchDeg = std::atof(next());
         else if (a == "--height") headHeight = std::atof(next());
         else if (a == "--at") { atX = std::atof(next()); atY = std::atof(next()); useAt = true; }
@@ -111,6 +115,29 @@ int main(int argc, char** argv) {
         else if (a == "--view-corpse") { viewCorpse = true; viewFrames = std::atoi(next()); }  // then N more frames 3 m from the nearest body
         else if (a == "--audio-out") audioOut = next();  // write the mixed game audio (48 kHz stereo WAV)
         else if (a == "--hands") { handsFwd = std::atof(next()); handsUp = std::atof(next()); }  // controller offset (m)
+    }
+    TestScript script;
+    const bool useScript = !scriptPath.empty();
+    if (useScript) {
+        std::ifstream sf(scriptPath);
+        std::stringstream ss;
+        ss << sf.rdbuf();
+        std::string err;
+        if (!sf || !script.parse(ss.str(), err)) {
+            LOGE("script %s: %s", scriptPath.c_str(), sf ? err.c_str() : "can't read");
+            return 4;
+        }
+        world = script.world;
+        if (!script.mission.empty()) setenv("GVR_MISSION", script.mission.c_str(), 1);
+        for (const auto& e : script.env) setenv(e.first.c_str(), e.second.c_str(), 1);
+        frames = int(script.duration * 72.0f);
+        firstPerson = script.firstPerson;
+        pitchDeg = script.pitchDeg;
+        aimYawDeg = script.aimYawDeg;
+        aimPitchDeg = script.aimPitchDeg;
+        if (script.hasAt) { useAt = true; atX = script.atX; atY = script.atY; }
+        if (script.hasLook) { useLook = true; lookX = script.lookX; lookY = script.lookY; }
+        LOGI("script %s: %s / %s, %.0f s", script.name.c_str(), world.c_str(), script.mission.c_str(), script.duration);
     }
     if (!initEgl()) return 2;
 
@@ -211,6 +238,15 @@ int main(int argc, char** argv) {
             const float yaw = std::atan2(-d.x, -d.z), pitch = std::asin(std::max(-1.0f, std::min(1.0f, d.y)));
             const Quat q = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, pitch);
             in.hand[kRight].gripPose.orientation = in.hand[kRight].aimPose.orientation = q;
+        }
+        if (useScript) {
+            const float t = float(f) / 72.0f, tp = float(f - 1) / 72.0f;
+            const Pose head = in.head;
+            script.inputAt(t, in);
+            in.head = head;  // (the harness's own head pose: --look-at already turned the rig)
+            for (const auto* b : script.blastsIn(tp, t))
+                for (int k = 0; k < b->n; ++k) app.debugBlast(b->x, b->y, b->h);
+            for (const auto* s : script.shotsIn(tp, t)) LOGI("script: shot '%s' at %.1f s (device only)", s->label.c_str(), s->t);
         }
         if (f == killPlayerAt) app.debugKillPlayer(killCause);
         if (f == blastFrame) {

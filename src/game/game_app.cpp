@@ -2741,6 +2741,8 @@ void GameApp::spawnWave() {
 
 void GameApp::damagePlayer(float amount, DeathCause cause) {
     if (playerHealth_ <= 0 || dying_) return;
+    static const bool god = std::getenv("GVR_GOD") != nullptr;  // test hook: the player can't be hurt (perf runs)
+    if (god) return;
     if (hero_ == Hero::Kabuto) amount *= 0.3f;  // a giant's hide: Reaper bolts and bites sting
     playerHealth_ -= amount;
     lastHurt_ = cause;
@@ -2808,7 +2810,8 @@ void GameApp::startDeath() {
         sfx2D(hero_ == Hero::Kabuto ? (frand() < 0.5f ? "ka_deth1" : "ka_deth2") : "me_shrt3", 1.0f, 0.85f);
         if (deathCause_ != DeathCause::Drowned) blood_.pool(player_.position, 1.4f);
     }
-    LOGI("Player died (%s)", deathCause_ == DeathCause::Blast ? "blown apart" : (deathCause_ == DeathCause::Drowned ? "eaten in the water" : "fell"));
+    static const char* const kCause[] = {"shot", "bitten", "eaten in the water", "blown apart", "fell"};
+    LOGI("Player died (%s)", kCause[int(deathCause_)]);
 }
 
 void GameApp::updateDeath(float dt, const InputFrame& in) {

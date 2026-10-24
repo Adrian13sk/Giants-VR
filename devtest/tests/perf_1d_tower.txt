@@ -1,0 +1,15 @@
+# Frame rate while a guard tower collapses (12 rocket blasts at its base at 8 s).
+name perf_1d_tower
+world Story1
+mission 1d_1_sneakpast
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+at 3767 250
+look 3767 -18
+duration 25
+perf 4 25
+blast 3767 -18 6 12 8
+shot 7 before
+shot 9 collapse
+shot 14 after

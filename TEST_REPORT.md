@@ -428,3 +428,10 @@ User report: "that worked, now it is as it is supposed". The village buildings (
 - Rendered: the boulder seated on the pillar, carried in Kabuto's first-person hand, in third-person flight.
 - **Not device-tested.**
 - Sweep: all 56 missions exit 0, no errors (mean update 0.32 ms, partly run alongside an APK build).
+
+## Host verification — on-device test mode (this build)
+- `gvr_tests`: all pass, including the new test-script parser test (timeline, hand paths, events, eye poses, errors).
+- Harness `--script` dry runs of the five device tests: exit 0, no errors; perf_1d_tower destroys guard_tower2;
+  GVR_GOD keeps the perf runs from ending in a respawn.
+- The APK contains the autotest code (log strings present in libgiantsvr.so). devtest.ps1 not executed (no
+  PowerShell here); **nothing device-tested**.

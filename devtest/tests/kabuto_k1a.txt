@@ -1,0 +1,15 @@
+# Kabuto in k1a: walking, punching (right hand swung forward), a stomp.
+name kabuto_k1a
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 25
+perf 4 25
+move 0 1 4 12
+hand_r 0 0.2 -0.5 13 13.15
+hold trigger_l 16 16.2
+shot 3 start
+shot 11 walking
+shot 17 stomp

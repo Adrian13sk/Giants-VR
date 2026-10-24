@@ -55,6 +55,7 @@ add_library(gvr_core STATIC
   src/game/game_app_jet.cpp
   src/game/game_app_kbpowers.cpp
   src/game/game_app_kbthrow.cpp
+    src/game/test_script.cpp
   src/game/game_app_jetski.cpp
   src/game/game_app_map.cpp
   src/game/game_app_ripper.cpp
@@ -97,6 +98,7 @@ if(ANDROID)
 
   add_library(giantsvr SHARED
     src/platform/android/android_main.cpp
+    src/platform/android/autotest.cpp
     src/platform/android/audio_aaudio.cpp
     src/xr/xr_app.cpp
     src/xr/xr_input.cpp

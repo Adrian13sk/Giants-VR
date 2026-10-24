@@ -1,0 +1,13 @@
+# Delphi in her first mission: walking and casting fire bolts.
+name delphi_r1
+world Rstory1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 25
+perf 4 25
+move 0 1 4 8
+hold trigger_r 13 13.2
+hold trigger_r 15 15.2
+shot 3 start
+shot 13.5 bolt

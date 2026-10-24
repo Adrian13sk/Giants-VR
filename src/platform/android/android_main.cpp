@@ -13,6 +13,7 @@
 #include "audio/mixer.h"
 #include "game/game_app.h"
 #include "platform/android/audio_aaudio.h"
+#include "platform/android/autotest.h"
 #include "render/gl.h"
 #include "xr/xr_app.h"
 
@@ -126,10 +127,20 @@ void android_main(android_app* app) {
     ok = ok && xr.createSession(egl.display, egl.config, egl.context);
     const std::string dataDir = dataDirectory(app);
     LOGI("Original data directory: %s", dataDir.c_str());
-    // Progress checkpoint next to the Bin folder (app storage, no permission needed).
-    if (app->activity->externalDataPath) game.setSavePath(std::string(app->activity->externalDataPath) + "/save.txt");
-    game.setMainMenu(true);  // start at the main menu (title scene)
-    ok = ok && game.init(dataDir);
+    // A scripted test run (scripts/devtest.ps1 pushes files/autotest.txt): no save, no menu.
+    gvr::AutoTest autotest;
+    const std::string filesDir = app->activity->externalDataPath ? app->activity->externalDataPath : "";
+    if (!filesDir.empty() && autotest.load(filesDir)) {
+        autotest.applyEnvironment();
+        xr.setTestMode(true);
+        if (autotest.finished()) ok = false;  // a bad script: reported, exit
+        ok = ok && game.init(dataDir, autotest.world());
+    } else {
+        // Progress checkpoint next to the Bin folder (app storage, no permission needed).
+        if (!filesDir.empty()) game.setSavePath(filesDir + "/save.txt");
+        game.setMainMenu(true);  // start at the main menu (title scene)
+        ok = ok && game.init(dataDir);
+    }
     if (!ok) LOGE("Initialisation failed; see log above. Exiting.");
 
     // Audio: AAudio stream -> software mixer with the original sound effects.
@@ -197,11 +208,16 @@ void android_main(android_app* app) {
             // Not focused (system menu / guardian): keep rendering, ignore gameplay input.
             for (auto& h : frame.input.hand) { h.thumbstick = {}; h.trigger = h.squeeze = 0; }
         }
+        if (autotest.active()) autotest.beginFrame(game, xr, frame, now);
+        const double u0 = nowSeconds();
         game.update(dt, frame.input);
+        if (autotest.active()) autotest.updateDone((nowSeconds() - u0) * 1000.0);
         for (const auto& hr : game.hapticRequests()) xr.input().vibrate(hr.hand, hr.amplitude, hr.seconds);
         game.hapticRequests().clear();
 
         bool eyesOk = true;
+        const double r0 = nowSeconds();
+        if (autotest.active() && frame.shouldRender) autotest.renderBegin();
         if (frame.shouldRender) {
             game.renderer().resetStats();
             {
@@ -221,6 +237,7 @@ void android_main(android_app* app) {
                 gvr::EyeRenderInfo info{ev.pose, ev.fovLeft, ev.fovRight, ev.fovUp, ev.fovDown,
                                         ev.width, ev.height};
                 game.renderEye(info);
+                if (autotest.active()) autotest.afterEye(eye, ev.width, ev.height);
                 xr.releaseEye(eye);
             }
         }
@@ -229,7 +246,12 @@ void android_main(android_app* app) {
             for (int eye = 0; eye < 2; ++eye) xr.releaseEye(eye);
             frame.shouldRender = false;
         }
+        if (autotest.active() && frame.shouldRender) autotest.renderEnd((nowSeconds() - r0) * 1000.0, game.renderer().drawCallsThisFrame());
         if (!xr.endFrame(frame)) exitRequested = true;
+        if (autotest.active()) {
+            autotest.endFrame(now);
+            if (autotest.finished()) exitRequested = true;  // results written: done
+        }
 
         ++frameCount;
         if (now - statsStart >= 5.0) {

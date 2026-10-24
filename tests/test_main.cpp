@@ -13,6 +13,7 @@
 #include "assets/mission.h"
 #include "assets/object_defs.h"
 #include "core/math.h"
+#include "game/test_script.h"
 #include "game/arm_ik.h"
 #include "scene/collision.h"
 #include "game/player.h"
@@ -1380,7 +1381,34 @@ static void testSaveGame() {
     std::printf("save game / settings ok\n");
 }
 
+static void testTestScript() {
+    TestScript ts;
+    std::string err;
+    CHECK(ts.parse("name village  # a comment\nworld Story1\nmission 1a_x\nenv GVR_CUTSCENE none\nview third\nat 100 200\nlook 100 300\n"
+                   "duration 12\nmove 0 1 2 4\nhold trigger_r 3 5\nhand_r 0 0 -1 6 8\nblast 1 2 3 4 5\nshot 6 town\n", err));
+    CHECK(ts.name == "village" && ts.world == "Story1" && ts.mission == "1a_x" && !ts.firstPerson && ts.duration == 12.0f);
+    CHECK(ts.env.size() == 1 && ts.env[0].first == "GVR_CUTSCENE");
+    // Facing +game y = runtime +z: yaw pi.
+    CHECK(std::fabs(std::fabs(ts.startYaw()) - 3.14159265f) < 1e-3f);
+    InputFrame in;
+    ts.inputAt(1.0f, in);
+    CHECK(in.hand[kLeft].thumbstick.y == 0.0f && in.hand[kRight].trigger == 0.0f);
+    ts.inputAt(3.5f, in);
+    CHECK(in.hand[kLeft].thumbstick.y == 1.0f && in.hand[kRight].trigger == 1.0f);
+    ts.inputAt(7.0f, in);  // half way along the hand path
+    CHECK(std::fabs(in.hand[kRight].gripPose.position.z - (-0.35f - 0.5f)) < 1e-4f);
+    ts.inputAt(9.0f, in);  // and it stays there
+    CHECK(std::fabs(in.hand[kRight].gripPose.position.z - (-1.35f)) < 1e-4f);
+    CHECK(ts.blastsIn(4.9f, 5.0f).size() == 1 && ts.blastsIn(5.0f, 5.1f).empty());
+    CHECK(ts.shotsIn(5.99f, 6.01f).size() == 1);
+    const Pose l = ts.eyePose(0), r = ts.eyePose(1);
+    CHECK(std::fabs(length(r.position - l.position) - 0.064f) < 1e-4f);
+    TestScript bad;
+    CHECK(!bad.parse("hold nosuchbutton 1 2\n", err) && err.find("line 1") == 0);
+}
+
 int main() {
+    testTestScript();
     testGameText();
     testRescue();
     testGore();

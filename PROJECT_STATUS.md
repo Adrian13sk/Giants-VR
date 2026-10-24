@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-24 (Kabuto's story powers: gates by size, adrenaline, Offspring, magnifying glass)
+Last updated: 2026-10-24 (on-device automatic test mode + PC runner; adb set up on the user's PC)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
