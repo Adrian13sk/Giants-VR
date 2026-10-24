@@ -9,6 +9,9 @@ powershell -ExecutionPolicy Bypass -File .\devtest.ps1            # all tests in
 powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Sweep     # plus all 56 missions, 20 s each (~40 min)
 ```
 
+To run the GPU experiments (same scenes with foveation levels, shadows or reflections off):
+`powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Set experiments` (~9 min).
+
 Results go to `results\<date-time>\`: `summary.txt`, and per test `autotest_out\result.txt` (fps, frame
 time percentiles, CPU update / render time, GPU time, draw calls, memory), `frames.csv` (every frame),
 left-eye screenshots, and the app's log (`logcat.txt`).

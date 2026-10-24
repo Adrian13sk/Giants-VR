@@ -6,6 +6,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <string>
 
@@ -142,6 +144,9 @@ void android_main(android_app* app) {
         ok = ok && game.init(dataDir);
     }
     if (!ok) LOGE("Initialisation failed; see log above. Exiting.");
+    // Fixed foveated rendering: GVR_FFR=0..3 (a test hook for now; d = dynamic).
+    if (ok)
+        if (const char* f = std::getenv("GVR_FFR")) xr.setFoveation(std::atoi(f), std::strchr(f, 'd') != nullptr);
 
     // Audio: AAudio stream -> software mixer with the original sound effects.
     gvr::AAudioOutput audioOut;

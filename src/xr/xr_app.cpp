@@ -76,6 +76,9 @@ bool XrApp::createInstance(void* vm, void* activity, const Config& cfg) {
     const char* optional[] = {
         XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME,
         XR_EXT_LOCAL_FLOOR_EXTENSION_NAME,
+        XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME,
+        XR_FB_FOVEATION_EXTENSION_NAME,
+        XR_FB_FOVEATION_CONFIGURATION_EXTENSION_NAME,
     };
     for (const char* e : optional)
         if (hasExtension(e)) enabledExtensions_.push_back(e);
@@ -178,7 +181,48 @@ bool XrApp::createSession(EGLDisplay display, EGLConfig config, EGLContext conte
         xrGetInstanceProcAddr(instance_, "xrEnumerateDisplayRefreshRatesFB",
                               reinterpret_cast<PFN_xrVoidFunction*>(&pfnEnumerateRefresh_));
     }
+    if (hasExtension(XR_FB_FOVEATION_EXTENSION_NAME) && hasExtension(XR_FB_FOVEATION_CONFIGURATION_EXTENSION_NAME) &&
+        hasExtension(XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME)) {
+        xrGetInstanceProcAddr(instance_, "xrCreateFoveationProfileFB", reinterpret_cast<PFN_xrVoidFunction*>(&pfnCreateFoveation_));
+        xrGetInstanceProcAddr(instance_, "xrDestroyFoveationProfileFB", reinterpret_cast<PFN_xrVoidFunction*>(&pfnDestroyFoveation_));
+        xrGetInstanceProcAddr(instance_, "xrUpdateSwapchainFB", reinterpret_cast<PFN_xrVoidFunction*>(&pfnUpdateSwapchain_));
+    }
     return true;
+}
+
+bool XrApp::setFoveation(int level, bool dynamic) {
+    if (!pfnCreateFoveation_ || !pfnUpdateSwapchain_ || !session_) {
+        LOGW("Foveated rendering not available");
+        return false;
+    }
+    level = std::max(0, std::min(3, level));
+    XrFoveationLevelProfileCreateInfoFB lp{XR_TYPE_FOVEATION_LEVEL_PROFILE_CREATE_INFO_FB};
+    lp.level = static_cast<XrFoveationLevelFB>(level);  // NONE, LOW, MEDIUM, HIGH
+    lp.verticalOffset = 0;
+    lp.dynamic = dynamic ? XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB : XR_FOVEATION_DYNAMIC_DISABLED_FB;
+    XrFoveationProfileCreateInfoFB ci{XR_TYPE_FOVEATION_PROFILE_CREATE_INFO_FB};
+    ci.next = &lp;
+    XrFoveationProfileFB profile = XR_NULL_HANDLE;
+    XrResult r = pfnCreateFoveation_(session_, &ci, &profile);
+    if (XR_FAILED(r)) {
+        LOGW("xrCreateFoveationProfileFB failed: %s", xrResultName(instance_, r));
+        return false;
+    }
+    bool ok = true;
+    for (Swapchain& sc : swapchains_) {
+        XrSwapchainStateFoveationFB st{XR_TYPE_SWAPCHAIN_STATE_FOVEATION_FB};
+        st.profile = profile;
+        r = pfnUpdateSwapchain_(sc.handle, reinterpret_cast<const XrSwapchainStateBaseHeaderFB*>(&st));
+        if (XR_FAILED(r)) {
+            LOGW("xrUpdateSwapchainFB (foveation) failed: %s", xrResultName(instance_, r));
+            ok = false;
+        }
+    }
+    if (foveationProfile_ && pfnDestroyFoveation_) pfnDestroyFoveation_(foveationProfile_);
+    foveationProfile_ = profile;
+    if (ok) foveationLevel_ = level;
+    LOGI("Foveated rendering: level %d%s%s", level, dynamic ? " (dynamic)" : "", ok ? "" : " - not applied");
+    return ok;
 }
 
 bool XrApp::createReferenceSpace() {
@@ -505,6 +549,8 @@ bool XrApp::endFrame(const XrFrameContext& frame) {
 
 void XrApp::destroy() {
     input_.destroy();
+    if (foveationProfile_ && pfnDestroyFoveation_) pfnDestroyFoveation_(foveationProfile_);
+    foveationProfile_ = XR_NULL_HANDLE;
     for (Swapchain& sc : swapchains_) {
         if (!sc.framebuffers.empty())
             glDeleteFramebuffers(static_cast<GLsizei>(sc.framebuffers.size()), sc.framebuffers.data());

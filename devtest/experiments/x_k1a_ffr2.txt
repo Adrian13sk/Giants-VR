@@ -1,0 +1,12 @@
+# GPU experiment: k1a, ffr2
+name x_k1a_ffr2
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 24
+perf 4 22
+move 0 1 4 20
+shot 22 view
+env GVR_FFR 2

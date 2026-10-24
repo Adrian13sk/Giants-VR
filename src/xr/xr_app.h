@@ -63,6 +63,10 @@ public:
     // the test supplies (overrideEyePoses after beginFrame).
     void setTestMode(bool on) { testMode_ = on; }
     void overrideEyePoses(XrFrameContext& frame, const Pose eyes[2]);
+    // Fixed foveated rendering (XR_FB_foveation): 0 off .. 3 high; the edges of each eye are
+    // shaded at lower resolution. False when the runtime doesn't offer it.
+    bool setFoveation(int level, bool dynamic);
+    int foveation() const { return foveationLevel_; }
 
 private:
     uint32_t recenterSerial_ = 0;
@@ -102,6 +106,11 @@ private:
     XrInput input_;
     std::vector<XrCompositionLayerProjectionView> layerViews_;
     PFN_xrRequestDisplayRefreshRateFB pfnRequestRefresh_ = nullptr;
+    PFN_xrCreateFoveationProfileFB pfnCreateFoveation_ = nullptr;
+    PFN_xrDestroyFoveationProfileFB pfnDestroyFoveation_ = nullptr;
+    PFN_xrUpdateSwapchainFB pfnUpdateSwapchain_ = nullptr;
+    XrFoveationProfileFB foveationProfile_ = XR_NULL_HANDLE;
+    int foveationLevel_ = -1;
     PFN_xrEnumerateDisplayRefreshRatesFB pfnEnumerateRefresh_ = nullptr;
 };
 

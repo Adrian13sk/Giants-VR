@@ -435,3 +435,26 @@ User report: "that worked, now it is as it is supposed". The village buildings (
   GVR_GOD keeps the perf runs from ending in a respawn.
 - The APK contains the autotest code (log strings present in libgiantsvr.so). devtest.ps1 not executed (no
   PowerShell here); **nothing device-tested**.
+
+## Automated device run 1 — 2026-10-24, user's Quest 2, build da6a2a4, run by devtest.ps1
+First run of the on-device test mode: the user ran `devtest.ps1`; nobody wore the headset. **DEVICE VERIFIED:** the
+test mode itself (scripted input and eye poses, the session runs unattended with the proximity override, screenshots
+upright and correct, results pulled). 5/5 tests done, 0 errors logged, no crashes.
+
+| Test (perf window 4 s - end) | fps | frame ms p50 / p95 / p99 | slow frames | update ms | render CPU ms | draws |
+|---|---|---|---|---|---|---|
+| 1a village, turning | 68.7 | 13.9 / 15.0 / 26.2 | 27 | 0.61 | 3.99 | 1167 |
+| 1d guard tower collapse | 62.4 | 14.0 / 25.9 / 27.9 | 137 | 0.71 | 2.83 | 720 |
+| 1c jetpack flight | 66.4 | 14.1 / 20.1 / 22.7 | 52 | 0.52 | 2.41 | 624 |
+| Kabuto k1a, walking | 65.6 | 14.0 / 22.5 / 23.2 | 90 | 0.74 | 2.19 | 497 |
+| Delphi r1, walking | 71.1 | 14.0 / 14.1 / 14.3 | 4 | 0.37 | 0.90 | 167 |
+
+- These include the screenshots' read-back stalls (~170 ms each, 2-3 per test); taken out from the next build on.
+- Per second: the village holds 71-72 once loaded; the tower scene runs ~45-55 fps from 4 s to 12 s (Rippers close to
+  the camera, then the collapse); flight drops to ~45-60 fps at height; Kabuto walking ~54 fps, standing 72.
+- The system's VrApi line in the village (last seconds): FPS 70-71/72, App GPU 11.8-12.3 ms of the 13.9 ms frame,
+  GPU load 0.91-0.93, GPU at its top clock level (4), CPU level 2. **The game is GPU-bound; CPU is far from the limit**
+  (update < 1 ms, render submission 1-4 ms).
+- Memory: 223-237 MB resident (peak 255 MB).
+- The app's GPU timer queries returned garbage on the Quest's driver (now filtered); the runner reads VrApi instead.
+- The phone log buffer had been overwritten by system chatter (only the last seconds kept); the runner now sets 16 MB.

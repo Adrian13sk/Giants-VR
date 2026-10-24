@@ -10,12 +10,14 @@
     .\devtest.ps1 -Tests perf_1a_village,kabuto_k1a
     .\devtest.ps1 -Sweep               # also every mission for 20 s (needs the game's Bin folder)
     .\devtest.ps1 -NoInstall           # keep the installed APK
+    .\devtest.ps1 -Set experiments     # the scripts in .\experiments instead of .\tests
 
   If Windows refuses to run scripts:  powershell -ExecutionPolicy Bypass -File .\devtest.ps1
 #>
 param(
     [string]$Apk = (Join-Path $PSScriptRoot "..\GiantsVR-dev.apk"),
     [string[]]$Tests = @(),
+    [string]$Set = 'tests',
     [switch]$Sweep,
     [switch]$NoInstall,
     [string]$GameBin = "C:\GOG Games\Giants - Citizen Kabuto\Bin",
@@ -33,6 +35,8 @@ function Adb { & $adb @args 2>$null }
 $state = (Adb get-state) -join ''
 if ($state -ne 'device') { Write-Host "No Quest found by adb (state '$state'). Plug it in and allow USB debugging."; exit 1 }
 $serial = (Adb get-serialno) -join ''
+Adb logcat -G 16M | Out-Null   # a bigger log buffer: the system's chatter pushed the app's lines out
+function Avg($a) { if ($a.Count) { [math]::Round((($a | Measure-Object -Average).Average), 2) } else { 'n/a' } }
 
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $outRoot = Join-Path $PSScriptRoot "results\$stamp"
@@ -55,7 +59,7 @@ Adb shell am broadcast -a com.oculus.vrpowermanager.prox_close | Out-Null
 
 # The test list.
 $scripts = @()
-$testDir = Join-Path $PSScriptRoot 'tests'
+$testDir = Join-Path $PSScriptRoot $Set
 if ($Tests.Count -gt 0) { $scripts = @($Tests | ForEach-Object { Join-Path $testDir "$_.txt" }) }
 else { $scripts = @(Get-ChildItem $testDir -Filter *.txt | Sort-Object Name | ForEach-Object { $_.FullName }) }
 # Mission name prefix -> world (as scripts/mission_sweep.sh).
@@ -118,8 +122,23 @@ foreach ($script in $scripts) {
     $res = Join-Path $dest 'autotest_out\result.txt'
     $fps = ''
     if (Test-Path $res) { $fps = ((Get-Content $res) | Where-Object { $_ -match '^(fps|gpu_ms|slow_frames)' }) -join '; ' }
+    # The system's own once-a-second performance line (VrApi) for the app: GPU time and load.
+    $log = @(Get-Content (Join-Path $dest 'logcat.txt'))
+    $appPid = 'none'
+    foreach ($l in $log) { if ($l -match 'GiantsVR\(\s*(\d+)\)') { $appPid = $Matches[1]; break } }
+    $vr = @($log | Where-Object { $_ -match ('VrApi\s*\(\s*' + $appPid + '\):\s*FPS=') })
+    $vr | Set-Content (Join-Path $dest 'vrapi.txt')
+    $use = $vr
+    if ($vr.Count -gt 6) { $use = $vr[4..($vr.Count - 2)] }
+    $appMs = @(); $gpuPct = @(); $fpsV = @()
+    foreach ($l in $use) {
+        if ($l -match 'App=([\d.]+)ms') { $appMs += [double]$Matches[1] }
+        if ($l -match 'GPU%=([\d.]+)') { $gpuPct += [double]$Matches[1] }
+        if ($l -match 'FPS=(\d+)/') { $fpsV += [double]$Matches[1] }
+    }
+    $vrs = 'vrapi fps {0}, app gpu {1} ms, gpu load {2} ({3} s)' -f (Avg $fpsV), (Avg $appMs), (Avg $gpuPct), $use.Count
     $errs = (Select-String -Path (Join-Path $dest 'logcat.txt') -Pattern ' E/GiantsVR' -SimpleMatch -ErrorAction SilentlyContinue | Measure-Object).Count
-    $line = "{0}: {1}; {2}; {3} errors logged" -f $name, $status, $fps, $errs
+    $line = "{0}: {1}; {2}; {3}; {4} errors logged" -f $name, $status, $fps, $vrs, $errs
     Write-Host "   $line"
     $line | Add-Content $summary
 }

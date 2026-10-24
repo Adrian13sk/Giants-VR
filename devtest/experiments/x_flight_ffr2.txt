@@ -1,0 +1,13 @@
+# GPU experiment: flight, ffr2
+name x_flight_ffr2
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 24
+perf 4 22
+hold a 4 9
+move 0 1 4 20
+shot 8 air
+env GVR_FFR 2

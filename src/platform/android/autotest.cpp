@@ -154,6 +154,8 @@ void AutoTest::renderEnd(double cpuMs, unsigned drawCalls) {
     s.cpuMs = float(cpuMs);
     s.gpuMs = -1;
     s.draws = drawCalls;
+    s.skip = skip_ > 0;
+    if (skip_ > 0) --skip_;
     samples_.push_back(s);
     gpuByFrame_.push_back(-1);
     ++frameNo_;
@@ -170,7 +172,8 @@ void AutoTest::pollTimers() {
         uint64_t ns = 0;
         getQueryui64v(queries_[q], kQueryResult, &ns);
         qBusy_[q] = false;
-        if (!disjoint && size_t(qFrame_[q]) < gpuByFrame_.size()) gpuByFrame_[size_t(qFrame_[q])] = float(ns * 1e-6);
+        // (Adreno returned nonsense for some queries: keep only plausible times.)
+        if (!disjoint && ns < 200000000ull && size_t(qFrame_[q]) < gpuByFrame_.size()) gpuByFrame_[size_t(qFrame_[q])] = float(ns * 1e-6);
     }
 }
 
@@ -197,6 +200,7 @@ void AutoTest::afterEye(int eye, int width, int height) {
         else LOGE("autotest: screenshot %s failed", path.c_str());
     }
     pendingShots_.clear();
+    skip_ = 5;
 }
 
 void AutoTest::endFrame(double now) {
@@ -217,7 +221,7 @@ void AutoTest::writeResults() {
     std::vector<float> dt, upd, cpu, gpu, draws;
     int over = 0;
     for (const auto& s : samples_) {
-        if (s.t < script_.perfFrom || s.t > script_.perfEnd()) continue;
+        if (s.skip || s.t < script_.perfFrom || s.t > script_.perfEnd()) continue;
         dt.push_back(s.dtMs);
         upd.push_back(s.updMs);
         cpu.push_back(s.cpuMs);
@@ -233,7 +237,7 @@ void AutoTest::writeResults() {
     std::ofstream r(out_ + "/result.txt");
     char buf[512];
     r << "status ok\nname " << script_.name << "\nworld " << script_.world << "\nmission " << script_.mission << "\n";
-    std::snprintf(buf, sizeof(buf), "window %.1f-%.1f s, %zu frames\n", script_.perfFrom, script_.perfEnd(), dt.size());
+    std::snprintf(buf, sizeof(buf), "window %.1f-%.1f s, %zu frames (screenshot stalls left out)\n", script_.perfFrom, script_.perfEnd(), dt.size());
     r << buf;
     const double meanDt = mean(dt);
     std::snprintf(buf, sizeof(buf), "fps %.1f\nframe_ms mean %.2f p50 %.2f p95 %.2f p99 %.2f max %.2f\nslow_frames %d (> 1.5 x 13.9 ms)\n",
@@ -257,9 +261,9 @@ void AutoTest::writeResults() {
     r << buf;
     r.close();
     std::ofstream csv(out_ + "/frames.csv");
-    csv << "t,dt_ms,update_ms,render_cpu_ms,gpu_ms,draws\n";
+    csv << "t,dt_ms,update_ms,render_cpu_ms,gpu_ms,draws,screenshot_stall\n";
     for (const auto& s : samples_) {
-        std::snprintf(buf, sizeof(buf), "%.3f,%.2f,%.2f,%.2f,%.2f,%u\n", s.t, s.dtMs, s.updMs, s.cpuMs, s.gpuMs, s.draws);
+        std::snprintf(buf, sizeof(buf), "%.3f,%.2f,%.2f,%.2f,%.2f,%u,%d\n", s.t, s.dtMs, s.updMs, s.cpuMs, s.gpuMs, s.draws, int(s.skip));
         csv << buf;
     }
     csv.close();

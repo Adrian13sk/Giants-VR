@@ -53,7 +53,8 @@ private:
     float t_ = 0, prevT_ = 0;
     std::vector<std::string> pendingShots_;
     // Per frame.
-    struct Sample { float t, dtMs, updMs, cpuMs, gpuMs; unsigned draws; };
+    struct Sample { float t, dtMs, updMs, cpuMs, gpuMs; unsigned draws; bool skip; };
+    int skip_ = 0;  // frames after a screenshot (its read-back stalls): left out of the statistics
     std::vector<Sample> samples_;
     double updMs_ = 0;
     std::string error_;

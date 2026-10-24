@@ -62,8 +62,13 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         startMission.clear();
         title_ = true;
     }
-    shadowsOn_ = renderer_.initShadows(2048);  // sharper (user feedback after device test 19)
-    reflOn_ = renderer_.initReflection(1024, 768);
+    // Test hooks for GPU experiments: GVR_SHADOWS=0 / GVR_REFLECT=0 turn the sun shadow map / the
+    // water reflection pass off; GVR_SHADOW_SIZE=1024 etc.
+    const char* shEnv = std::getenv("GVR_SHADOWS");
+    const char* rfEnv = std::getenv("GVR_REFLECT");
+    const char* shSize = std::getenv("GVR_SHADOW_SIZE");
+    shadowsOn_ = !(shEnv && shEnv[0] == '0') && renderer_.initShadows(shSize ? std::max(256, std::atoi(shSize)) : 2048);  // 2048: sharper (device test 19)
+    reflOn_ = !(rfEnv && rfEnv[0] == '0') && renderer_.initReflection(1024, 768);
     assetWorld_ = std::make_unique<AssetWorld>();
     if (title_ && !assetWorld_->init(dataDir, renderer_, worldName_, startMission)) {
         // No title scene in the data: straight into the game as before.

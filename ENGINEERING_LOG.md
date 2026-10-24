@@ -1310,3 +1310,13 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   the real cause (it said "fell" for any death that wasn't drowning or a blast).
 - **Not device-tested.** Unknowns for the first run: whether the session reaches FOCUSED with the proximity override
   and nobody wearing it, whether the timer query works on the Quest's driver, and screenshot orientation.
+
+### 2026-10-24 — First automated device run (AD1); GPU experiment set (this build)
+- Automated device run 1 (TEST_REPORT): the test mode works on the Quest unattended. Findings: GPU-bound (VrApi App GPU ~12 ms
+  of 13.9 ms in the village at full GPU clock), drops to 45-60 fps with Kabuto walking, in flight at height, with
+  Rippers at the camera and during the tower collapse. CPU is not the problem.
+- Added for the next step: fixed foveated rendering via XR_FB_foveation / _configuration / swapchain_update_state
+  (XrApp::setFoveation, test hook GVR_FFR=0..3, `d` for dynamic); GPU experiment hooks GVR_SHADOWS=0,
+  GVR_SHADOW_SIZE=n, GVR_REFLECT=0; devtest/experiments: 15 runs (k1a walk x 7 configs, village x 5, flight x 3).
+  The runner (-Set experiments) now records the VrApi lines (vrapi.txt) and summarises fps / App GPU ms / GPU load.
+- Screenshot frames (read-back stalls) are left out of the statistics (flagged in frames.csv).

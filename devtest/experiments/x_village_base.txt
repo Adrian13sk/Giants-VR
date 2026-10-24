@@ -1,0 +1,13 @@
+# GPU experiment: village, base
+name x_village_base
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+at -4096 -1250
+look -4096 -1473
+duration 24
+perf 4 22
+turn 0.6 0 6 20
+shot 22 view
