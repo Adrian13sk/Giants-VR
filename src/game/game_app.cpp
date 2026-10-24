@@ -3464,6 +3464,7 @@ void GameApp::poseFirstPersonBody(const InputFrame& in) {
 bool GameApp::hasOriginalAssets() const { return assetWorld_ && assetWorld_->loaded(); }
 
 void GameApp::update(float dt, const InputFrame& in) {
+    warmedThisFrame_ = false;
     GVR_PROF("update (all)");
     time_ += dt;
     if (dt > 1e-4f) fpsSmooth_ += (1.0f / dt - fpsSmooth_) * std::min(1.0f, dt * 2.0f);
@@ -3622,6 +3623,27 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     v.view = Mat4::fromPose(eyeWorld.inverse());
     v.projection = Mat4::projectionFov(eye.fovLeft, eye.fovRight, eye.fovUp, eye.fovDown, 0.05f, 0.0f);
     v.eyePosition = eyeWorld.position;
+    if (load_.phase == LoadPhase::Brief && load_.t > 0.3f && load_.t < 5.0f && assetWorld_ && assetWorld_->loaded() && !warmedThisFrame_) {
+        // Warm-up behind the briefing (first eye only): draw the new level from where the player
+        // starts, a different direction each frame, so the driver's first-use work on its textures
+        // and shaders happens now - on the Quest the first 3-4 s of play ran at 33-45 fps without it.
+        const float yaw = float(warmFrame_ % 8) * 0.785398f;
+        Pose wp;
+        wp.position = assetWorld_->spawnPoint() + Vec3{0, 1.7f * heroScale_, 0};
+        wp.orientation = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, (warmFrame_ / 8) % 2 ? -0.35f : 0.0f);
+        ViewParams wv;
+        wv.view = Mat4::fromPose(wp.inverse());
+        wv.projection = v.projection;
+        wv.eyePosition = wp.position;
+        renderer_.beginView(wv, eye.width, eye.height, true);
+        assetWorld_->render(renderer_);
+        for (const auto& c : chars_)
+            if (c.visible && c.model && length(c.pos - wp.position) < 160.0f) c.model->render(renderer_, c.xf());
+        renderer_.endView();
+        warmedThisFrame_ = true;
+        if (++warmFrame_ == 16) LOGI("Warm-up: the level drawn from the start in 16 directions");
+    }
+    if (load_.phase != LoadPhase::Brief) warmFrame_ = 0;
     renderer_.beginView(v, eye.width, eye.height, true);
     if (load_.phase != LoadPhase::Idle && load_.phase != LoadPhase::FadeOut) {
         renderLoading();  // the briefing on black, nothing else

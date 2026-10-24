@@ -444,6 +444,8 @@ private:
         std::string world;  // non-empty: switch to this world first (end of a story chapter)
         std::string worldMission;  // with `world`: start this mission of it (a checkpoint) instead of the first
     } load_;
+    int warmFrame_ = 0;  // warm-up views drawn behind the briefing
+    bool warmedThisFrame_ = false;
     void beginLoading(const std::string& mission, const InputFrame& in, bool load = true);
     // A mission's title and objectives text (GText <mission>, MO_<mission>).
     void missionText(const std::string& mission, std::string& title, std::string& brief) const;

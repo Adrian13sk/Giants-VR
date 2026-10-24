@@ -155,14 +155,18 @@ float sunShadow(highp vec3 wp, vec3 n) {
     highp vec3 c = sp.xyz / sp.w * 0.5 + 0.5;
     if (c.x <= 0.0 || c.x >= 1.0 || c.y <= 0.0 || c.y >= 1.0 || c.z >= 1.0) return 1.0;
     highp float z = c.z - 0.0005;
-    // 5 bilinear PCF taps (hardware 2x2 each): soft edge about two texels wide.
+    highp vec2 e = min(c.xy, 1.0 - c.xy);
+    float edge = clamp(min(e.x, e.y) * 12.0, 0.0, 1.0);  // fades out toward the map's border
+    // Beyond 8 m one hardware-filtered tap is enough (texels there are far smaller than a pixel):
+    // the Quest 2 measurements put the shadows at 1.4-1.8 ms of GPU time, mostly this sampling.
+    highp vec3 dv = wp - uEyePos;
+    if (dot(dv, dv) > 64.0) return mix(1.0, texture(uShadowMap, vec3(c.xy, z)), edge);
+    // Up close, 5 bilinear PCF taps (hardware 2x2 each): soft edge about two texels wide.
     float s = texture(uShadowMap, vec3(c.xy, z)) * 2.0;
     s += texture(uShadowMap, vec3(c.xy + vec2(-0.75, -0.75) * uShadowTexel, z));
     s += texture(uShadowMap, vec3(c.xy + vec2(0.75, -0.75) * uShadowTexel, z));
     s += texture(uShadowMap, vec3(c.xy + vec2(-0.75, 0.75) * uShadowTexel, z));
     s += texture(uShadowMap, vec3(c.xy + vec2(0.75, 0.75) * uShadowTexel, z));
-    highp vec2 e = min(c.xy, 1.0 - c.xy);
-    float edge = clamp(min(e.x, e.y) * 12.0, 0.0, 1.0);  // fades out toward the map's border
     return mix(1.0, s / 6.0, edge);
 }
 
