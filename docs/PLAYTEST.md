@@ -9,14 +9,14 @@ For each item: works / doesn't / how it feels. A phone photo of anything that lo
 ## 1. Base building (newest work)
 **22. 5c "The Battle!" (Meccaryn)**
 - [ ] Opening cutscene plays; you start near Borjoyzee (he waves when you're close).
-- [ ] Walk to a **Smartie hatch** (the level has three): 3 Smarties climb out and run to the base.
+- [ ] Walk to a **Smartie hatch** (the level has three): the lid opens, 3 Smarties climb out and run to the base.
 - [ ] Shoot Vimps, pick up the meat, walk past the **MEAT DROP-OFF**: "VIMP MEAT STORED".
 - [ ] Stand on the **BUILD PAD**: two rows of signs within arm's reach. Touch one with a hand: it starts building.
       Are the signs easy to read and to hit? Do they ever trigger by accident?
 - [ ] Smarties walk to the site and hammer / saw / dig; the building rises out of the ground.
 - [ ] Finished buildings are solid. **Giftshop** opens a shop counter in front of it.
-- [ ] **Raids**: Reapers march in from the barracks' side and set buildings on fire ("UNDER ATTACK" sign).
-      Is their pace OK (they arrive about a minute after a raid starts)?
+- [ ] **Raids**: Reapers march in along the level's army paths, stand and shoot at buildings, which burn ("UNDER
+      ATTACK" sign); your Smarties cower and stop working while they're close. Is the pace OK?
 - [ ] One raider grabs **Borjoyzee** and carries him off: kill it and he walks home. Let it escape: MISSION FAILED,
       the mission restarts.
 - [ ] Upgrade a finished building (its sign says UPGRADE TO ...).
@@ -34,7 +34,10 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
 - [ ] Any mission's opening and closing cutscene: fades in/out smoothly, characters stand on the ground, weapons are
       in hands (e.g. **26. r1_saveyan** / the Reaper guards firing into the air), effects (flashes, dust, glows).
 
-## 4. Earlier work still waiting for a headset check
+## 4. Races
+- [ ] Lose a Reaperski race (**30-33**, **35**): the rival's winning cutscene plays, then the race restarts.
+
+## 5. Earlier work still waiting for a headset check
 - Story 1 (**1-5**): Timmy, Rippers, jetpack, the wax Smarties, the Shop.
 - Kabuto (**39-54**): growing by eating, throwing boulders and Reapers (hold X), magnifying glass (**45**, **47**).
 - Delphi: sword swings, fire wall, bubble; Reaperski races (**30-33**).

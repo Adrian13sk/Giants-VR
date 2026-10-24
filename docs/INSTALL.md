@@ -164,7 +164,8 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   comes once the base is complete.
 - **Raids:** a minute after your first building stands, and then every 80 s while the enemy army barracks stands, a
   few Reapers march on the base along the level's own army paths from the barracks. Near a building they wreck it (it burns; a red
-  "UNDER ATTACK" sign shows its health; Borjoyzee / Yan call for help). Kill them or draw them off. A wrecked
+  "UNDER ATTACK" sign shows its health; Borjoyzee / Yan call for help). They stand and shoot at the building, and
+  your Smarties cower and stop work while Reapers are close. Kill them or draw them off. A wrecked
   building falls back to its site: order it again on the Build Pad. Destroying the barracks stops the raids.
 - **Upgrades:** once a building stands, its sign on the Build Pad turns into **UPGRADE TO ...** with a cost; touch it
   and the Smarties rebuild it as the game's second-level model: Stone Workshop, Giftshop 2 (adds a pop-up bomb to its
