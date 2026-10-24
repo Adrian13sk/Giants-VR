@@ -544,3 +544,7 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 ## Host verification — base upgrades
 - 5c and r4a with GVR_BASE_UPGRADE=1: every upgradable kind rebuilt as its second-level model and completed (log);
   no errors. Hand-touch of an UPGRADE sign: same code path as ordering, untested by hand path. **Not device-tested.**
+
+## Regression sweep after base building, pop-up bomb, raids, upgrades (build ce5af02)
+- `scripts/mission_sweep.sh`: 56/56 exit 0, 0 errors, mean update 0.27 ms (host).
+- Raids along army paths (5c, 14000 frames): raiders follow the paths, perimeter wall destroyed, raids continue.

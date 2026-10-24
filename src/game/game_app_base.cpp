@@ -454,8 +454,8 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
 
 // Raids (ours; the game's own lines: smchbaseattack1-4 "Help! Our base is under attack!",
 // basehintpubdestroyed "Can't build - Repair the Pub!!!"). Once something stands, every 80 s while
-// the enemy army barracks stands, a few Reapers appear 45-60 m out on the barracks' side and march on
-// the base; near a standing building they wreck it (6 hp/s each) unless the player draws them off.
+// the enemy army barracks stands, a few Reapers come down the mission's army paths (army_spline, the
+// last ~60 m of each; else 45-60 m out on the barracks' side) and march on the base; near a standing building they wreck it (6 hp/s each) unless the player draws them off.
 // A wrecked building falls back to its site and can be ordered again.
 void GameApp::updateRaids(float dt) {
     if (!assetWorld_ || enemyPool_.empty() || std::getenv("GVR_NO_RAIDS")) return;
@@ -466,6 +466,27 @@ void GameApp::updateRaids(float dt) {
         if (assetWorld_->worldObjects()[size_t(d.object)].name != "guard_army_barracks") continue;
         if (!base_.haveRaidFrom) { base_.raidFrom = d.base; base_.haveRaidFrom = true; }
         barracks = barracks || d.alive();
+    }
+    // The data's army paths: type army_spline, one path per id (op 5), points in file order from the
+    // barracks to the base (5c: 18 paths from about (700, 1500) to the base's surroundings; ids 10 and
+    // 11 loop by the barracks). Read: paths whose last point lies within 150 m of the base.
+    if (!base_.routesRead) {
+        base_.routesRead = true;
+        const MissionData& md = assetWorld_->mission();
+        const ObjectRegistry& reg = assetWorld_->registry();
+        std::vector<std::pair<int, std::vector<Vec3>>> paths;
+        for (const auto& o : md.objects) {
+            if (toLower(reg.modelName(o.type)) != "army_spline") continue;
+            auto it = std::find_if(paths.begin(), paths.end(), [&](const auto& pp) { return pp.first == o.group; });
+            if (it == paths.end()) { paths.push_back({o.group, {}}); it = paths.end() - 1; }
+            it->second.push_back(giantsToRuntime(o.x, o.y, o.z));
+        }
+        for (auto& pp : paths) {
+            if (pp.second.size() < 2) continue;
+            const Vec3 e = pp.second.back() - base_.centre;
+            if (e.x * e.x + e.z * e.z < 150.0f * 150.0f) base_.routes.push_back(std::move(pp.second));
+        }
+        LOGI("Base: %zu army paths lead to the base (of %zu)", base_.routes.size(), paths.size());
     }
     bool standing = false;
     for (const auto& b : base_.bldgs) standing = standing || (b.def != 0 && b.state == 3);
@@ -481,7 +502,27 @@ void GameApp::updateRaids(float dt) {
             dir = normalize(dir + Vec3{1e-3f, 0, 0});
             const int n = 2 + std::min(2, base_.raids / 2);
             int placed = 0;
-            for (int attempt = 0; attempt < 30 && placed < n; ++attempt) {
+            // Along an army path: start where about 60 m of it remains (the march from the barracks
+            // itself would take minutes at a walk), follow its points to the end, then the buildings.
+            for (int k = 0; k < n && !base_.routes.empty(); ++k) {
+                const int r = int(frand() * float(base_.routes.size())) % int(base_.routes.size());
+                const auto& pts = base_.routes[size_t(r)];
+                size_t i = pts.size() - 1;
+                float left = 0;
+                while (i > 0 && left < 60.0f) { left += length(Vec3{pts[i].x - pts[i - 1].x, 0, pts[i].z - pts[i - 1].z}); --i; }
+                Vec3 p = pts[i] + Vec3{(frand() - 0.5f) * 3.0f, 0, (frand() - 0.5f) * 3.0f};
+                float h;
+                if (!assetWorld_->terrain().heightAt(p.x, p.z, h) || h < player_.seaLevel - 0.8f) continue;
+                const Vec3 to = pts[std::min(i + 1, pts.size() - 1)] - p;
+                const int ei = enemies_.spawn(Vec3{p.x, h, p.z}, std::atan2(-to.x, -to.z));
+                if (ei < 0) continue;
+                Enemy& e = enemies_.enemies[size_t(ei)];
+                e.home = pts[std::min(i + 1, pts.size() - 1)];
+                base_.raiders.push_back({e.uid, r, i + 1});
+                LOGI("Raider %u on army path %d at (%.1f %.1f %.1f)", e.uid, r, p.x, h, p.z);
+                ++placed;
+            }
+            for (int attempt = 0; attempt < 30 && placed < n; ++attempt) {  // no paths (or none usable): from the barracks' side
                 const float side = (frand() - 0.5f) * 0.8f;
                 const Vec3 d2{dir.x * std::cos(side) - dir.z * std::sin(side), 0, dir.x * std::sin(side) + dir.z * std::cos(side)};
                 const Vec3 p = base_.centre + d2 * (45.0f + frand() * 15.0f);
@@ -491,7 +532,7 @@ void GameApp::updateRaids(float dt) {
                 if (ei < 0) continue;
                 Enemy& e = enemies_.enemies[size_t(ei)];
                 e.home = base_.centre;  // retargeted below to a standing building
-                base_.raiders.push_back(e.uid);
+                base_.raiders.push_back({e.uid, -1, 0});
                 ++placed;
             }
             LOGI("Base raid %d: %d Reapers", base_.raids, placed);
@@ -499,12 +540,33 @@ void GameApp::updateRaids(float dt) {
     }
     // March the raiders on the base (the patrol walk, kept going) and let them wreck what they reach.
     base_.attackSayT = std::max(0.0f, base_.attackSayT - dt);
-    std::vector<uint32_t> alive;
-    for (uint32_t uid : base_.raiders) {
+    std::vector<Base::Raider> alive;
+    for (Base::Raider rd : base_.raiders) {
+        const uint32_t uid = rd.uid;
         Enemy* e = nullptr;
         for (auto& c : enemies_.enemies) if (c.uid == uid) e = &c;
-        if (!e || e->state == EnemyState::Dead || e->remove) continue;
-        alive.push_back(uid);
+        if (!e || e->state == EnemyState::Dead || e->remove) {
+            LOGI("Raider %u gone (%s)", uid, e ? "dead" : "removed");
+            continue;
+        }
+        // Still on its army path: walk point to point.
+        if (rd.route >= 0 && !e->aware) {
+            const auto& pts = base_.routes[size_t(rd.route)];
+            while (rd.next < pts.size()) {
+                const Vec3 g{pts[rd.next].x - e->pos.x, 0, pts[rd.next].z - e->pos.z};
+                if (g.x * g.x + g.z * g.z > 4.0f * 4.0f) break;
+                ++rd.next;
+            }
+            if (rd.next < pts.size()) {
+                e->home = e->patrolTo = pts[rd.next];
+                e->patrolWait = 0;
+                e->stateTime = 0;
+                alive.push_back(rd);
+                continue;
+            }
+            rd.route = -1;  // arrived: on to the buildings
+        }
+        alive.push_back(rd);
         static const bool trace = std::getenv("GVR_BASE_TRACE") != nullptr;
         if (trace && int(base_.traceT) % 10 == 0 && int(base_.traceT - dt) % 10 != 0)
             LOGI("raider %u at (%.1f %.1f) home (%.1f %.1f) state %d aware %d", uid, e->pos.x, e->pos.z, e->home.x, e->home.z, int(e->state), int(e->aware));

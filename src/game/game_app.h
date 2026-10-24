@@ -539,7 +539,11 @@ private:
         // Raids (ours): Reapers sent from the enemy barracks' side to wreck the buildings.
         float raidT = -1;         // s until the next raid (< 0: not started)
         int raids = 0;
-        std::vector<uint32_t> raiders;  // enemy uids
+        struct Raider { uint32_t uid; int route = -1; size_t next = 0; };
+        std::vector<Raider> raiders;
+        // The missions' army_spline paths (barracks -> base), runtime points; those ending near the base.
+        std::vector<std::vector<Vec3>> routes;
+        bool routesRead = false;
         Vec3 raidFrom;
         bool haveRaidFrom = false;
         float attackSayT = 0;

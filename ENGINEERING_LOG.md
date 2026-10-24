@@ -1467,3 +1467,16 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   description: "Even more weapons"). Costs ours. Test hook GVR_BASE_UPGRADE=1.
 - Harness: 5c - Stone Workshop, Giftshop 2, Stone Gate, Stone Walls A/B ordered and completed; r4a - Persuader 2,
   Spellshop 2, Reaper Gate 2 completed, Forcefields 2 ordered (3 sites). No errors.
+
+### 2026-10-24 — Raids follow the data's army paths
+- army_spline (type 1162) points grouped by id (op 5) in file order form 18 paths per base mission. 5c: from about
+  game (700, 1500), beside the army barracks at (1014, 1626), to the base's surroundings (e.g. id 1 ends at
+  (-1411, -1293), id 7 at (-1451, -2283)); ids 10/11 loop by the barracks. r4a: from about (-2900, 600) to the base
+  marker's area (2900-3500, -400..1460). So these are the armies' routes to the player's base (V, from positions).
+- Raiders now start on a path that ends within 150 m of the base, where ~60 m of it remains (the whole march at a walk
+  would take minutes), walk its points, then go for the nearest standing building. Without usable paths: as before.
+- Harness 5c (14 of 18 paths end within 150 m of the base; r4a 12 of 18): raiders walk their path, the attack lines
+  follow, WOOD WALL C (on the perimeter, where the paths end) destroyed, raid 3 follows. Slower than the direct
+  approach (they reach the walls first), as an army coming down its route would.
+- Regression sweep (all 56 missions, before this change but after the base/bomb/raid work): 56/56 exit 0, no errors,
+  mean update 0.27 ms.
