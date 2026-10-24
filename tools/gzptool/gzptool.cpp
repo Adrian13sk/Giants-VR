@@ -508,6 +508,8 @@ static int cmdFx(const char* dir, int n, char** names) {
             if ((op.op == 0x03 || op.op == 0x38 || op.op == 0x24) && !op.u.empty())
                 for (uint32_t u : op.u)
                     if (u) std::printf("  [%s]", reg.modelName(u).c_str());
+            if (op.op == 0x2b || op.op == 0x2c || op.op == 0x87 || op.op == 0x83)
+                for (uint32_t u : op.u) std::printf("  <%s>", reg.soundName(u).c_str());
             std::printf("\n");
         }
     }

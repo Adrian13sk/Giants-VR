@@ -1479,6 +1479,29 @@ static void testWeaponDefs() {
     CHECK(!parseWeaponDefs(d.data(), d.size(), defs, &err));
 }
 
+static void testSoundTable() {
+    // 0x1A0002E5 file whose section 2 holds two sounds: 7 -> "A_B.wav", 9 -> "c.wav".
+    std::vector<uint8_t> d(32 + 20 + 2 * 40, 0);
+    auto put = [&](size_t at, uint32_t v) { std::memcpy(d.data() + at, &v, 4); };
+    put(0, 0x1A0002E5u);
+    const uint32_t sec = 32;
+    put(4 + 2 * 4, sec);
+    put(sec, 0xFFFFFFFFu);
+    put(sec + 4, 0x33221102u);
+    put(sec + 8, 2);
+    put(sec + 12, 40);
+    const uint32_t pool = uint32_t(d.size()) - sec;
+    const char names[] = "A_B.wav\0c.wav\0";
+    d.insert(d.end(), names, names + sizeof(names) - 1);
+    put(sec + 16, uint32_t(d.size()) - sec);
+    put(sec + 20, 7); put(sec + 20 + 36, pool);
+    put(sec + 60, 9); put(sec + 60 + 36, pool + 8);
+    ObjectRegistry reg;
+    std::string err;
+    CHECK(reg.addSoundTable(d.data(), d.size(), &err));
+    CHECK(reg.soundCount() == 2 && reg.soundName(7) == "a_b" && reg.soundName(9) == "c" && reg.soundName(8).empty());
+}
+
 static void testFxLibrary() {
     // Two effects: "a" = {03 type 794, 06, 1b 2.0, 07, 02}; "b" = {0a 1 "a" 0, 2b 5 6, 02}.
     std::vector<uint8_t> d;
@@ -1509,6 +1532,7 @@ static void testFxLibrary() {
 }
 
 int main() {
+    testSoundTable();
     testFxLibrary();
     testWeaponDefs();
     testTestScript();

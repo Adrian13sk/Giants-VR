@@ -1660,3 +1660,9 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - What it shows: effects are lists of particle emitters of efx_* GameObj types with parameter blocks, named
   sub-effects spawned at points of reference shapes (efx_ref_sphere), sounds by id, and projectile/trail pairs
   (FX_rocket: mc_rocket + efx_ref_line_back). Meanings are guesses (FORMATS.md); nothing renders from it yet.
+- Sound ids decoded: section 2 of every 0x1A0002E5 .bin is a sound table {id, flags, 6 floats, name offset} (format
+  in FORMATS.md; ObjectRegistry::addSoundTable, unit-tested). The first framing tried (name offset first) gave
+  shifted names and 111 conflicts between files; the record really starts with the id and ends with the name
+  offset - then 660 ids with 5 conflicts, and fx.bin's ids land on fitting sounds (rocket explosion me_mslex,
+  bullet hits bi_hit1/2, the Millenium bomb's bounce me_mtrht). It also confirms the guesses made for the new guns:
+  1512 me_sprsh is the sniper's shot and 1498/1496 me_rsgsh/me_rsgex the shotgun's shot and burst.

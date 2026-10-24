@@ -267,8 +267,9 @@ Readings so far (from values, not confirmed by behaviour):
   793 mc_sniper_bullit.
 - `0a / 10 / 70 {n, "effect", 0}`: a named sub-effect, several times with rising n inside an emitter whose model is
   a reference shape (efx_ref_sphere, efx_ref_ground_hit) - read as "start this effect at point/frame n" of that shape.
-- `2b {sound, sound}`, `2c {sound}`, `87 {sound, sound}` (foot steps), `83`: sound ids (FX_EXPLOSION_ROCKET 1475;
-  fx_bullet_sound 1786/1787).
+- `2b {sound, sound}`, `2c {sound}`, `87 {sound, sound}` (foot steps), `83`: sound ids, resolved by the sound table
+  below: FX_EXPLOSION_ROCKET 1475 = me_mslex, fx_bullet_sound 1786/1787 = bi_hit1/bi_hit2, FX_Lbomb_bounce 1479 =
+  me_mtrht, FX_rocket's 2c 1594 = pr_wsroc (the rocket's whoosh).
 - `5b / 1d / 5c / 28 / 56 / 57 {"effect", numbers}`: trail-like sub-effects (FX_RKT_Debri leaves FX_RKT_Debri_fire
   every 0.05).
 - Emitter parameters (guesses from typical ranges): `05` / `09` / `35` life and size ranges, `08` size growth,
@@ -276,3 +277,13 @@ Readings so far (from values, not confirmed by behaviour):
   `19` bounce, `33` rotation ranges (0-180 degrees), `1b` scale, `04` timing.
 - `7a {"effect", 6 floats}` (3599 uses) places weather effects over rectangles in the fx_weather_* entries.
 Not used by the port yet: effects are still our stand-in particles (B9).
+
+## Sound table (section 2 of the 0x1A0002E5 .bin files) — V (2026-10-24)
+At section offset 2: `u32 -1, u32 magic 0x33221102, u32 count, u32 record size (40), u32 pool size`, then
+`count x {u32 id, u32 flags, f32[6], u32 ?, u32 name offset}` and the NUL-terminated .wav names; name offsets are
+from the section start. 91 files carry one: 775 records, 660 distinct ids, 5 ids naming different files in two
+files (sr_swsh1/2 swapped between xx_raik / xx_reaperlev1 / xx_rpqueen). The floats read as volume/distance
+settings (typically 25, 100, 0, d, 0, d). Cross-checks: fx.bin's sound ids land on fitting names (rocket explosion
+me_mslex, bullet hits bi_hit1/2, the Millenium bomb's bounce me_mtrht), and weapondefs' key 56 pairs are
+{ground, water} impact sounds (1536 bi_dirt1 / 1539 bi_watr1 for bullets; 1549 ex_dirts, 1550 ex_dirtl for
+blasts). Parser: ObjectRegistry::addSoundTable; `gzptool fx` prints the names.

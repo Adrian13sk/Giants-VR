@@ -50,6 +50,12 @@ public:
     // Animation in a specific slot, or empty.
     std::string anim(uint32_t type, int slot) const;
     bool knows(uint32_t type) const { return types_.count(type) != 0; }
+    // Sound ids (section 2 of the same files; the ids fx.bin and the object definitions use) -> the
+    // .wav file's name without extension, lower case ("me_mslex"); empty if unknown.
+    std::string soundName(uint32_t id) const;
+    size_t soundCount() const { return sounds_.size(); }
+    // Parses one file's sound table (section 2); false if it is malformed. Files without one are fine.
+    bool addSoundTable(const uint8_t* d, size_t n, std::string* error = nullptr);
     size_t typeCount() const { return types_.size(); }
     size_t meshCount() const { return meshNames_.size(); }
     size_t groupCount() const { return groups_.size(); }
@@ -58,6 +64,7 @@ private:
     std::unordered_map<uint32_t, std::string> meshNames_;
     std::unordered_map<uint32_t, ObjectGroup> groups_;
     std::unordered_map<uint32_t, ObjectType> types_;
+    std::unordered_map<uint32_t, std::string> sounds_;
 };
 
 // True for engine helper objects that have no visible geometry in the shipped game

@@ -598,3 +598,9 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
   through the riser. Sweep with every bow and the RPG bow drawn (GVR_BOWS=1 GVR_DELPHI_WEAPON=1): 56/56 exit 0,
   0 errors, arrows loosed in the 11 Delphi missions. **Not device-tested.**
 - Plain sweeps: on a317ed1 (before the bows) and with the bows: 56/56 exit 0, 0 errors each.
+
+## Sanitizer sweep (AddressSanitizer + UBSan host build, `build/asan`)
+- `gvr_tests` under ASan/UBSan: all passed.
+- All 56 missions, 500 frames each, with every gun and bow carried (GVR_ARSENAL=1 GVR_BOWS=1), firing the shotgun as
+  Baz and the sniper bow as Delphi: 56/56 exit 0, no AddressSanitizer or UBSan reports.
+- Sniper zoom pass under ASan (story3_3sonaks_4, 200 frames, firing): clean.

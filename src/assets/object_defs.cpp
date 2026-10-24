@@ -83,9 +83,40 @@ size_t ObjectRegistry::build(const std::string& binDir) {
     for (const auto& f : files) {
         std::ifstream in(binDir + "/" + f, std::ios::binary);
         std::vector<uint8_t> d((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-        if (!d.empty()) addDefinitionFile(d.data(), d.size());
+        if (!d.empty()) { addDefinitionFile(d.data(), d.size()); addSoundTable(d.data(), d.size()); }
     }
     return types_.size();
+}
+
+std::string ObjectRegistry::soundName(uint32_t id) const {
+    auto it = sounds_.find(id);
+    return it == sounds_.end() ? std::string() : it->second;
+}
+
+// Section 2: u32 (-1), u32 magic 0x33221102, u32 count, u32 record size (40), u32 (the pool's size), then
+// count x {u32 id, u32 flags, f32[6], u32, u32 name offset} and the names (offsets from the section start).
+// Check: FX_EXPLOSION_ROCKET's sound 1475 is me_mslex, fx_bullet_sound's 1786/1787 bi_hit1/bi_hit2,
+// FX_Lbomb_bounce's 1479 me_mtrht; 775 records over the files, 660 ids, 5 disagreeing between files.
+bool ObjectRegistry::addSoundTable(const uint8_t* d, size_t n, std::string* error) {
+    auto fail = [&](const char* m) { if (error) *error = m; return false; };
+    if (n < 32 || rd32(d) != 0x1A0002E5u) return fail("not a 0x1A0002E5 file");
+    const uint32_t sec = rd32(d + 4 + 2 * 4);
+    if (sec == 0 || sec > n - 20) return true;  // no sound table
+    if (rd32(d + sec + 4) != 0x33221102u) return true;
+    const uint32_t count = rd32(d + sec + 8), rs = rd32(d + sec + 12);
+    if (rs < 40 || count > 10000 || size_t(sec) + 20 + size_t(count) * rs > n) return fail("sound table runs past the file");
+    for (uint32_t k = 0; k < count; ++k) {
+        const uint8_t* r = d + sec + 20 + size_t(k) * rs;
+        const uint32_t id = rd32(r), off = rd32(r + 36);
+        if (size_t(sec) + off >= n) continue;
+        const char* s = reinterpret_cast<const char*>(d + sec + off);
+        size_t len = 0;
+        while (sec + off + len < n && s[len]) ++len;
+        std::string name = toLower(std::string(s, len));
+        if (name.size() > 4 && name.compare(name.size() - 4, 4, ".wav") == 0) name.resize(name.size() - 4);
+        if (!name.empty()) sounds_[id] = name;
+    }
+    return true;
 }
 
 bool ObjectRegistry::addDefinitionFile(const uint8_t* d, size_t n, std::string* error) {
