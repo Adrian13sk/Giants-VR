@@ -686,7 +686,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateFlares(dt, in);
     { GVR_PROF("camera"); placeCamera(dt, false, &in); }
     if (!playerModel_) return;
-    if (firstPerson_ && hero_ != Hero::Kabuto) {
+    if (firstPerson_) {
         { GVR_PROF("fp body"); poseFirstPersonBody(in); }
         if (syringeOut_) armTargets_[rig_.moveHand()].squeeze = 1.0f;  // the hand closes on the syringe
     } else {
@@ -3406,7 +3406,9 @@ void GameApp::drawModel(const RenderModel* m, const Mat4& xf, bool additive, flo
 // point sits under the tracked head, feet on the character's ground; arm IK targets from the
 // controllers (converted to the model's game-unit frame).
 void GameApp::poseFirstPersonBody(const InputFrame& in) {
-    const float scale = eyeModel_.y > 0.1f ? userEye_ / eyeModel_.y : 1.0f;
+    // The body at the viewer's size: his eye height over the model's (the giant's view is
+    // scaled up, so his body is too - and with his growth).
+    const float scale = eyeModel_.y > 0.1f ? userEye_ * rig_.comfort.worldScale / eyeModel_.y : 1.0f;
     const Quat bodyRot = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
     const Vec3 head = in.headValid ? rig_.toWorld(in.head).position : player_.position;
     // Pin the eye point of the CURRENT animated pose (previous frame) under the head, so the
@@ -3415,7 +3417,7 @@ void GameApp::poseFirstPersonBody(const InputFrame& in) {
     Vec3 base = head - bodyRot.rotate(Vec3{eyeNow_.x, 0, eyeNow_.z} * scale);
     // Vertical pin: the body's eyes are always at the viewer's eyes, so the torso keeps its
     // place under the view (crouching sinks the legs instead of the chest rising into view).
-    base.y = std::max(player_.position.y - 1.2f, std::min(player_.position.y + 0.5f, head.y - eyeNow_.y * scale));
+    base.y = std::max(player_.position.y - 1.2f * heroScale_, std::min(player_.position.y + 0.5f * heroScale_, head.y - eyeNow_.y * scale));
     bodyXf_ = Mat4::translation(base) * Mat4::rotation(bodyRot) * Mat4::scale({scale, scale, scale});
     const Quat inv = bodyRot.conjugate();
     const float u = gGameUnitsToMeters;
@@ -3619,7 +3621,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         drawModel(n.model, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown), false);
     }
     if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
-    if (playMode_ && playerModel_ && !cut && !playerGibbed_ && !(firstPerson_ && hero_ == Hero::Kabuto)) playerModel_->render(renderer_, bodyXf_);
+    if (playMode_ && playerModel_ && !cut && !playerGibbed_) playerModel_->render(renderer_, bodyXf_);
     if (playMode_ && !cut && !dying_) renderJetFx(firstPerson_);
     if (playMode_ && !cut && !dying_) renderBush();
     if (playMode_ && swordValid_ && swordModel_ && !cut && !dying_) drawModel(swordModel_, swordXf_, false);

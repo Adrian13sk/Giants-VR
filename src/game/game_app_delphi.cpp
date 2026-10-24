@@ -129,8 +129,9 @@ void GameApp::setHero(Hero h) {
     const int* clips = meccClip_;
     const float* shots = meccOneShot_;
     if (!meccEyeSaved_) { meccEye_ = eyeModel_; meccEyeFromHead_ = eyeFromHead_; meccEyeSaved_ = true; }
-    eyeModel_ = h == Hero::Delphi ? delphiEye_ : meccEye_;  // the first-person eye point of the body worn
-    eyeFromHead_ = h == Hero::Delphi ? delphiEyeFromHead_ : meccEyeFromHead_;
+    // The first-person eye point of the body worn.
+    eyeModel_ = h == Hero::Delphi ? delphiEye_ : (h == Hero::Kabuto ? kabutoEyeModel_ : meccEye_);
+    eyeFromHead_ = h == Hero::Delphi ? delphiEyeFromHead_ : (h == Hero::Kabuto ? kabutoEyeFromHead_ : meccEyeFromHead_);
     eyeNow_ = eyeModel_;
     if (h == Hero::Mecc) {
         playerModel_ = std::move(meccMain_);

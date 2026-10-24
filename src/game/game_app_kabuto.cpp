@@ -8,6 +8,7 @@
 #include <cstdlib>
 
 #include "core/log.h"
+#include "game/arm_ik.h"
 #include "game/cutscene.h"
 #include "scene/asset_world.h"
 #include "scene/model_cache.h"
@@ -52,8 +53,47 @@ bool GameApp::loadKabuto() {
     kabutoFeet_ = -mn.y;
     const float height = mx.y - mn.y;
     Vec3 hmn, hmx;
-    if (m->boneVertexBounds("head", hmn, hmx)) kabutoEye_ = hmn.y + 0.55f * (hmx.y - hmn.y) + kabutoFeet_;
-    else kabutoEye_ = 0.85f * height;
+    if (m->boneVertexBounds("head", hmn, hmx)) {
+        kabutoEye_ = hmn.y + 0.55f * (hmx.y - hmn.y) + kabutoFeet_;
+        kabutoEyeModel_ = {0.5f * (hmn.x + hmx.x), hmn.y + 0.55f * (hmx.y - hmn.y), hmn.z - 0.2f};
+    } else {
+        kabutoEye_ = 0.85f * height;
+        kabutoEyeModel_ = {0, kabutoEye_ - kabutoFeet_, -1.0f};
+    }
+    // First person (as the Meccaryn and Delphi): his head hidden, his arms reaching for the
+    // controllers. Chain L_shoulder > L-arm > L_wrist (the forearm) > L_hand; two fingers and a
+    // thumb on the right, two on the left (index side first).
+    m->setHiddenBones({"head", "neck"});
+    m->setKeepFull(true);
+    m->pose(renderer_, 0.0f);
+    kabutoEyeFromHead_ = kabutoEyeModel_ - m->hiddenCentroid();
+    m->setPoseModifier([this](const AnmAnimation& clip, const std::vector<std::vector<int>>& children, std::vector<Mat4>& world) {
+        if (!playMode_ || !firstPerson_ || hero_ != Hero::Kabuto) return;
+        auto node = [&](const char* n) {
+            auto it = clip.byName.find(n);
+            return it == clip.byName.end() ? -1 : it->second;
+        };
+        static const char* names[2][4] = {{"l_shoulder", "l-arm", "l_wrist", "l_hand"}, {"r_shoulder", "r_arm", "r_wrist", "r_hand"}};
+        static const char* fingers[2][4] = {{"l_f2_1", nullptr, nullptr, "l_f1_1"}, {"r_f3_1", "r_f2_1", nullptr, "r_f1_1"}};
+        for (int h = 0; h < 2; ++h) {
+            if (!armTargets_[h].valid) continue;
+            ArmChain c;
+            c.clavicle = node(names[h][0]);
+            c.upper = node(names[h][1]);
+            c.fore = node(names[h][2]);
+            c.hand = node(names[h][3]);
+            for (int f = 0; f < 4; ++f) c.finger[f] = fingers[h][f] ? node(fingers[h][f]) : -1;
+            if (!c.valid()) continue;
+            ArmTarget t;
+            t.grip = armTargets_[h].grip;
+            t.forward = armTargets_[h].forward;
+            t.up = armTargets_[h].up;
+            t.pole = Vec3{h == kLeft ? 0.7f : -0.7f, 0.4f, -1.0f} - normalize(t.up) * 0.5f;
+            t.maxReachStretch = 1.3f;
+            solveArmIk(world, children, c, t);
+        }
+    });
+    m->pose(renderer_, 0.0f);
     heroScale_ = 1.0f;  // set by setHero
     LOGI("Kabuto loaded (kb_l0): posed bounds y %.1f..%.1f m (height %.1f m), eye %.1f m, feet lift %.2f m", mn.y, mx.y, height,
          kabutoEye_, kabutoFeet_);
