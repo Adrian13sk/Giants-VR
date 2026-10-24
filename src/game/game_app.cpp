@@ -1857,6 +1857,8 @@ void GameApp::initMission() {
     const uint32_t race = m.setup[0];
     setHero(race == 1 ? Hero::Kabuto : (race == 2 ? Hero::Mecc : (race == 3 ? Hero::Delphi : heroForWorld(worldName_))));
     if (hero_ != Hero::Mecc) player_.jetpackAvailable = false;
+    initBase();   // both depend on the hero just chosen (initCharacters may have run them with the last one)
+    initPopup();
     if (hero_ == Hero::Kabuto) {
         // He comes out of the sea weakened at the start of his story (k1a) and of 2a ("Eat 5
         // Smarties to reach full strength and size"); full size elsewhere. Our reading.

@@ -21,6 +21,7 @@ namespace {
 bool vimpWorld(const std::string& world) {
     const std::string w = toLower(world);
     if (w.rfind("kstory", 0) == 0) return true;
+    if (w == "rstory4") return true;  // r4a: "Gather SMARTIES and VIMP SOULS" for Delphi's base
     return w.rfind("story", 0) == 0 && w.size() == 6 && w[5] >= '2' && w[5] <= '5';
 }
 }  // namespace

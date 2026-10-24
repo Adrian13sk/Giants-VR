@@ -533,7 +533,7 @@ private:
     void openShopAt(const Vec3& centre);
     // Base building (game_app_base.cpp): 5c's Meccaryn base from Mecc_base_template_1.
     struct Base {
-        bool on = false, complete = false, onPad = false, autoOrdered = false;
+        bool on = false, complete = false, onPad = false, autoOrdered = false, reaper = false;
         Vec3 centre, padAt, dropAt, menuAt;
         float menuYaw = 0, touchCool = 0, traceT = 0, speed = 1.0f;
         int food = 0;  // Vimp meat in the store

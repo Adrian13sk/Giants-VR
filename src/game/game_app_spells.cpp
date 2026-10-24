@@ -30,6 +30,8 @@ bool GameApp::tornadoOwned() const {
     if (hero_ != Hero::Delphi || !assetWorld_) return false;
     // Her Smarties make it once she has a base: the battles (r4a, rstory2_battle, rstory5_battle) and on.
     const std::string m = toLower(assetWorld_->missionName());
+    // r4a builds the base first: "Your Smarties will create the TORNADO SPELL for you once your BASE is complete".
+    if (m.rfind("r4a", 0) == 0 && base_.on) return base_.complete;
     return m.rfind("r4", 0) == 0 || m.find("battle") != std::string::npos || m.rfind("rstory5", 0) == 0;
 }
 

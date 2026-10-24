@@ -150,7 +150,11 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
 - Finished buildings are solid. The **Giftshop** opens a shop counter in front of it (launcher, injections, flares,
   health pool); after the **Workshop** the Smarties build 1.5x faster.
 - Pub + Workshop + Giftshop + Party House = "BASE COMPLETE!" and the Smarties give you a **POP-UP BOMB**.
-- Not yet: enemies attacking the base, stone upgrades, and Delphi's base (r4a).
+- **Delphi's base (Reaper mission r4a "Sappho's Fleet")** works the same way with the Reaper buildings: Persuader,
+  Spell School, Spellshop, Party House (these four complete the base), Shield Generator, Reaper Gate, Forcefields.
+  Vimps now roam that island: their **souls** go to the **SOUL DROP-OFF**. As the briefing says, the **TORNADO** spell
+  comes once the base is complete (in r4a only; the later battles have it from the start, as before).
+- Not yet: enemies attacking the base, stone upgrades.
 
 ## Pop-up bomb (Meccaryn: story3_prison_7, and 5c once the base is complete)
 - **Right stick forward** cycles the weapon strip to the bomb (it appears in your hand). **Right trigger** sets it

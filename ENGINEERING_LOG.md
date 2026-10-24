@@ -1429,3 +1429,19 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Harness: prison_7 with the bomb set 10 m from the prison -> "Destroyed: bw_prison", objective done, mission
   complete; 40 rocket blasts at the prison -> 0 objects destroyed; prison_7's Shop lists 4 items; 5c base complete
   -> "Pop-up bomb given (1)"; bunker_3 unaffected.
+
+### 2026-10-24 — Delphi's base (r4a)
+- Data: RP_base_template_1.anm (21 nodes: command_center, rp_workshop, spellshop, Repair01/02, teleport, Gate,
+  Wall_A1/B1/C1, soul_dropoff, sm_dropoff, waiting_1/2) and xx_reaper_base.gzp (RP_command, Extractor_1/2,
+  RP_workshop, spellshop_1/2, RP_Fun_house(+_build), RP_generator, magic_wall1/2, magic_gate1/2, Rp_soul_dropoff,
+  s_reaper_*; every clip 3.3 s like the Meccaryn build clips). r4a's briefing: gather Smarties and VIMP SOULS, build a
+  base, the Smarties then create the TORNADO for the barracks/fleet.
+- The base code is now per race (Meccaryn 5c / Reaper r4a tables). Reaper: Persuader (Repair01), Spell School,
+  Spellshop, Party House (Repair02) complete it; Shield Generator ("teleport" slot), Reaper Gate, Forcefields extra.
+  Centre: r4a has no Borjoyzee, so its marker (id 2, game 2965 30) - in the harness a flat clearing that fits the
+  layout. Vimps enabled on Rstory4 (souls = the meat pieces, counted the same). In r4a the tornado now needs the base
+  (tornadoOwned); other Reaper battles unchanged.
+- Bug found: initBase ran in initCharacters before initMission picks the hero, so a Delphi mission saw the previous
+  hero; initBase/initPopup now also run right after setHero.
+- Harness r4a with everything ordered: all four core buildings solid and completed, "Base: complete". r4a, 5c,
+  rstory2_battle_1, k1a: no errors.

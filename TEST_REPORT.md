@@ -530,3 +530,9 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 - story3_prison_7: bomb set by the gates -> prison destroyed, mission complete. 40 rocket blasts -> prison intact.
 - Shop lists the extra bomb (4 items). 5c: base completion gives the bomb. story3_bunker_3: no errors.
 - Holding/placing with real controllers untested. **Not device-tested.**
+
+## Host verification — Delphi's base (r4a)
+- r4a, everything ordered: 10 sites from RP_base_template_1, Persuader/Spell School/Spellshop/Party House solid and
+  completed, "Base: complete"; render shows the Reaper buildings round a flat clearing. Vimp herds spawn on Rstory4.
+- r4a, 5c, rstory2_battle_1, k1a plain runs: exit 0, no errors. Tornado gating by the base: logic only, untested.
+  **Not device-tested.**

@@ -44,7 +44,7 @@ struct BldgDef {
     bool core;           // counts toward "base complete"
 };
 // The Build Pad comes first and stands from the start.
-const BldgDef kDefs[] = {
+const BldgDef kMecc[] = {
     {"mccomhut", "BUILD PAD", "wood_command", "wood_command.anm", "command_center", 0, 0.0f, false},
     {"pub", "PUB", "Wood_pub", "Wood_pub_build.anm", "Repair01", 4, 18.0f, true},
     {"mcworkshop", "WORKSHOP", "Wood_shop", "wood_shop.anm", "workshop", 6, 20.0f, true},
@@ -55,25 +55,51 @@ const BldgDef kDefs[] = {
     {"woodwallb", "WOOD WALL B", "Wood_wall", "wood_wall_build.anm", "Wall_B1|Wall_B2", 2, 10.0f, false},
     {"woodwallc", "WOOD WALL C", "Wood_wall", "wood_wall_build.anm", "Wall_C1|Wall_C2|Wall_C3", 3, 12.0f, false},
 };
-constexpr int kNumDefs = int(sizeof(kDefs) / sizeof(kDefs[0]));
+
+// Delphi's base (r4a, "Sappho's Fleet"): RP_base_template_1 and xx_reaper_base.gzp. Names from
+// GTextEnglish (basebldgrpcomhut "Build Pad", rpworkshop "Spell School", spellshop1, extractor
+// "Persuader" - "where your Smarties get magic power ... so long as you keep feeding it souls",
+// rppartyhouse, rpgenerator, weakwall "Forcefield", weakgate "Reaper Gate"). The template has no
+// Persuader slot: it and the Party House take Repair01/02, the Generator "teleport" (ours).
+const BldgDef kReaper[] = {
+    {"rpcomhut", "BUILD PAD", "RP_command", "RP_command.anm", "command_center", 0, 0.0f, false},
+    {"extractor", "PERSUADER", "Extractor_1", "Extractor_1.anm", "Repair01", 4, 18.0f, true},
+    {"rpworkshop", "SPELL SCHOOL", "RP_workshop", "RP_workshop.anm", "rp_workshop", 6, 20.0f, true},
+    {"spellshop1", "SPELLSHOP", "spellshop_1", "spellshop_1.anm", "spellshop", 8, 22.0f, true},
+    {"rppartyhouse", "PARTY HOUSE", "RP_Fun_house", "RP_Fun_house_build.anm", "Repair02", 10, 25.0f, true},
+    {"rpgenerator", "SHIELD GENERATOR", "RP_generator", "RP_generator.anm", "teleport", 6, 18.0f, false},
+    {"weakgate", "REAPER GATE", "magic_gate1", "magic_gate1.anm", "Gate", 4, 14.0f, false},
+    {"weakwall", "FORCEFIELDS", "magic_wall1", "magic_wall1.anm", "Wall_A1|Wall_B1|Wall_C1", 6, 16.0f, false},
+};
+// The race chosen in initBase.
+const BldgDef* kDefs = kMecc;
+int kNumDefs = int(sizeof(kMecc) / sizeof(kMecc[0]));
+const char* kRes = "VIMP MEAT";
 constexpr float kPadRadius = 4.0f;     // m: standing on the Build Pad
 constexpr float kDropRadius = 3.5f;    // m: the meat drop-off
 constexpr int kWorkers = 6;            // ours: Borjoyzee's workforce
 
-bool baseMission(const std::string& mission) {
+bool baseMission(const std::string& mission, bool reaper) {
     if (const char* f = std::getenv("GVR_BASE")) return *f == '1';
-    return toLower(mission).rfind("5c", 0) == 0;
+    return toLower(mission).rfind(reaper ? "r4a" : "5c", 0) == 0;
 }
 }  // namespace
 
 void GameApp::initBase() {
     base_ = Base{};
-    if (!assetWorld_ || hero_ != Hero::Mecc || !baseMission(assetWorld_->missionName())) return;
+    if (!assetWorld_ || (hero_ != Hero::Mecc && hero_ != Hero::Delphi)) return;
+    const bool reaper = hero_ == Hero::Delphi;
+    if (!baseMission(assetWorld_->missionName(), reaper)) return;
+    kDefs = reaper ? kReaper : kMecc;
+    kNumDefs = reaper ? int(sizeof(kReaper) / sizeof(kReaper[0])) : int(sizeof(kMecc) / sizeof(kMecc[0]));
+    kRes = reaper ? "VIMP SOULS" : "VIMP MEAT";
+    base_.reaper = reaper;
     const AssetFS& fs = assetWorld_->fs();
     std::vector<uint8_t> b;
     AnmAnimation tmpl;
-    if (!fs.read("Mecc_base_template_1.anm", b) || !parseAnm(b.data(), b.size(), tmpl)) {
-        LOGW("Base: Mecc_base_template_1.anm unavailable");
+    const char* tmplName = reaper ? "RP_base_template_1.anm" : "Mecc_base_template_1.anm";
+    if (!fs.read(tmplName, b) || !parseAnm(b.data(), b.size(), tmpl)) {
+        LOGW("Base: %s unavailable", tmplName);
         return;
     }
     std::vector<Mat4> nodes;
@@ -83,7 +109,8 @@ void GameApp::initBase() {
             if (toLower(tmpl.nodes[i].name) == toLower(name)) { out = nodes[i]; return true; }
         return false;
     };
-    // Centre: Borjoyzee's start (the base's leader stands at the site), else the player start.
+    // Centre: Borjoyzee's start (5c: the base's leader stands at the site), else the mission's
+    // marker (r4a has one, id 2, and no Borjoyzee), else the player start. Ours.
     const MissionData& md = assetWorld_->mission();
     const ObjectRegistry& reg = assetWorld_->registry();
     bool found = false;
@@ -92,6 +119,11 @@ void GameApp::initBase() {
             base_.centre = giantsToRuntime(o.x, o.y, o.z);
             found = true;
             break;
+        }
+    for (const auto& o : md.objects)
+        if (!found && toLower(reg.modelName(o.type)) == "marker") {
+            base_.centre = giantsToRuntime(o.x, o.y, o.z);
+            found = true;
         }
     if (!found) base_.centre = assetWorld_->spawnPoint();
     float gy;
@@ -122,14 +154,23 @@ void GameApp::initBase() {
     }
     // Props that stand from the start: the fire pit and the meat drop-off.
     Mat4 m;
-    if (slot("Firepit", m)) {
+    if (!reaper && slot("Firepit", m)) {
         base_.firepit = std::make_unique<SkinnedModel>();
         if (!base_.firepit->load(fs, *mc, renderer_, "Sm_firepit", "SM_firepit.anm")) base_.firepit.reset();
         base_.firepitXf = baseXf * gameMatrixToRuntime(m);
     }
-    if (slot("meat_dropoff", m)) {
+    if (slot(reaper ? "soul_dropoff" : "meat_dropoff", m)) {
         base_.dropXf = baseXf * gameMatrixToRuntime(m);
-        base_.dropModel = mc->get("sm_dropoff.gbs", "sm_dropoff.anm", true);
+        if (reaper) {
+            base_.firepit = std::make_unique<SkinnedModel>();  // the soul drop-off is animated: drawn like the fire pit
+            if (!base_.firepit->load(fs, *mc, renderer_, "Rp_soul_dropoff", "Rp_soul_dropoff.anm")) {
+                base_.firepit.reset();  // no skin: the static model with its clip's rest pose
+                base_.dropModel = mc->get("Rp_soul_dropoff.gbs", "Rp_soul_dropoff.anm", true);
+            }
+            base_.firepitXf = base_.dropXf;
+        } else {
+            base_.dropModel = mc->get("sm_dropoff.gbs", "sm_dropoff.anm", true);
+        }
     }
     base_.dropAt = Vec3{base_.dropXf.m[12], base_.dropXf.m[13], base_.dropXf.m[14]};
     if (assetWorld_->terrain().heightAt(base_.dropAt.x, base_.dropAt.z, gy)) base_.dropAt.y = base_.dropXf.m[13] = gy;
@@ -166,7 +207,7 @@ std::vector<int> GameApp::baseOffers() const {
 void GameApp::orderBuilding(int d) {
     const int cost = kDefs[d].meat;
     if (base_.food < cost) {
-        timmyLine_ = std::string(kDefs[d].label) + ": NEEDS " + std::to_string(cost) + " VIMP MEAT IN THE STORE (" +
+        timmyLine_ = std::string(kDefs[d].label) + ": NEEDS " + std::to_string(cost) + " " + kRes + " IN THE STORE (" +
                      std::to_string(base_.food) + ")";
         timmyLineT_ = 3.0f;
         sfx2D("ph_selct", 0.5f, 0.6f);
@@ -179,7 +220,7 @@ void GameApp::orderBuilding(int d) {
     timmyLineT_ = 3.0f;
     sfx2D("ph_selct", 1.0f);
     for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.5f, 0.1f});
-    LOGI("Base: ordered %s (%d meat, store %d)", kDefs[d].label, cost, base_.food);
+    LOGI("Base: ordered %s (%d %s, store %d)", kDefs[d].label, cost, kRes, base_.food);
 }
 
 void GameApp::updateBase(float dt, const InputFrame& in) {
@@ -197,7 +238,7 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
     if (vimpMeat_ > 0 && flat(p, base_.dropAt) < kDropRadius) {
         base_.food += vimpMeat_;
         LOGI("Base: %d Vimp meat stored (%d)", vimpMeat_, base_.food);
-        timmyLine_ = "VIMP MEAT STORED: " + std::to_string(base_.food);
+        timmyLine_ = std::string(kRes) + " STORED: " + std::to_string(base_.food);
         timmyLineT_ = 3.0f;
         vimpMeat_ = 0;
         sfx2D("pu_meat1", 1.0f, 0.8f);
@@ -255,7 +296,7 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
                     if (assetWorld_->terrain().heightAt(at.x, at.z, gy)) at.y = gy;
                     openShopAt(at);
                 }
-                if (std::string(kDefs[b.def].key) == "mcworkshop") base_.speed = 1.5f;
+                if (std::string(kDefs[b.def].key) == "mcworkshop" || std::string(kDefs[b.def].key) == "rpworkshop") base_.speed = 1.5f;
                 timmyLine_ = std::string(kDefs[b.def].label) + " - COMPLETED!";
                 timmyLineT_ = 3.5f;
                 sfx2D("pu_hlth", 0.9f, 0.8f);
@@ -268,7 +309,13 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         for (const auto& b : base_.bldgs) all = all && (!kDefs[b.def].core || b.state == 3);
         if (all) {
             base_.complete = true;
-            givePopupBomb(1, "BASE COMPLETE! YOUR SMARTIES MADE YOU A POP-UP BOMB.");
+            if (base_.reaper) {
+                // r4a: "Your Smarties will create the TORNADO SPELL for you once your BASE is complete."
+                timmyLine_ = "BASE COMPLETE! YOUR SMARTIES TAUGHT YOU THE TORNADO SPELL - HOLD THE CAST LONGER.";
+                timmyLineT_ = 6.0f;
+            } else {
+                givePopupBomb(1, "BASE COMPLETE! YOUR SMARTIES MADE YOU A POP-UP BOMB.");
+            }
             LOGI("Base: complete");
         }
     }
@@ -280,7 +327,7 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         base_.menuYaw = yaw;
         sfx2D("ph_selct", 0.8f, 1.2f);
         if (base_.food == 0 && !baseOffers().empty()) {
-            timmyLine_ = "OUT OF FOOD!!! BRING VIMP MEAT TO THE DROP-OFF.";
+            timmyLine_ = std::string("OUT OF FOOD!!! BRING ") + kRes + " TO THE DROP-OFF.";
             timmyLineT_ = 4.0f;
         }
     }
@@ -350,7 +397,7 @@ void GameApp::renderBase(const Vec3& eye) {
     }
     if (length(eye - base_.dropAt) < 40.0f) {
         char s[64];
-        std::snprintf(s, sizeof s, "MEAT DROP-OFF  STORE %d", base_.food);
+        std::snprintf(s, sizeof s, "%s DROP-OFF  STORE %d", base_.reaper ? "SOUL" : "MEAT", base_.food);
         label(base_.dropAt + Vec3{0, 2.6f, 0}, s, base_.food > 0 ? Vec4{0.6f, 1.0f, 0.6f, 1.0f} : Vec4{1.0f, 0.4f, 0.3f, 1.0f}, 0.18f);
     }
     if (length(eye - base_.padAt) < 40.0f && !base_.onPad) {
@@ -363,14 +410,14 @@ void GameApp::renderBase(const Vec3& eye) {
         const int st = baseKindState(it.def);
         const bool afford = st == 0 && base_.food >= d.meat;
         char s[64];
-        if (st == 0) std::snprintf(s, sizeof s, "%s: %d MEAT", d.label, d.meat);
+        if (st == 0) std::snprintf(s, sizeof s, "%s: %d %s", d.label, d.meat, base_.reaper ? "SOULS" : "MEAT");
         else std::snprintf(s, sizeof s, "%s: %s", d.label, st == 3 ? "COMPLETED!" : "BUILDING...");
         const float bob = 0.03f * std::sin(float(time_) * 2.0f + it.pos.x);
         label(it.pos + Vec3{0, bob, 0}, s, afford ? Vec4{0.6f, 1.0f, 0.6f, 1.0f} : Vec4{0.75f, 0.75f, 0.75f, 1.0f}, 0.045f, 0.3f);
     }
     if (base_.onPad) {
         char s[64];
-        std::snprintf(s, sizeof s, "VIMP MEAT STORE %d   SMARTIES %d   TOUCH A SIGN TO BUILD", base_.food, kWorkers);
+        std::snprintf(s, sizeof s, "%s STORE %d   SMARTIES %d   TOUCH A SIGN TO BUILD", kRes, base_.food, kWorkers);
         label(base_.menuAt + Vec3{-std::sin(base_.menuYaw) * 1.2f, 1.8f, -std::cos(base_.menuYaw) * 1.2f}, s, {0.6f, 0.9f, 1.0f, 1.0f},
               0.05f);
     }
