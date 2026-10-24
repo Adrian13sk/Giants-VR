@@ -45,7 +45,10 @@ void GameApp::initPopup() {
     popupBombs_ = 0;
     if (!assetWorld_ || hero_ != Hero::Mecc) return;
     const std::string m = toLower(assetWorld_->missionName());
-    if (m.rfind("story3_prison_7", 0) == 0) popupBombs_ = 1;  // Reg hands it over in the opening cutscene
+    // Item 10 of the mission's starting items (op 0x0E) is the pop-up bomb: it is listed only by
+    // story3_prison_7 (items 1 10), where Reg hands it over in the opening cutscene.
+    const auto& items = assetWorld_->mission().items;
+    if (std::find(items.begin(), items.end(), 10u) != items.end()) popupBombs_ = 1;
     if (const char* f = std::getenv("GVR_POPUP")) popupBombs_ = std::atoi(f);
     if (!popupModel_) {
         popupModel_ = std::make_unique<SkinnedModel>();

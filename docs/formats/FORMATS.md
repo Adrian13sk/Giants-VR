@@ -221,3 +221,9 @@ One file per shot; shots chain into a cutscene through the "next shot" name.
   at about 1400 units altitude toward the island. Target cameras face `Camera01.Target`.
 - Soundtrack `Stream/<World>/F_*.wav` (22050 Hz stereo PCM) carries music and dialogue for the whole cutscene
   (F_Start.wav 64.7 s vs 62.2 s of shots).
+
+## Mission starting items (op 0x0E) - readings so far (2026-10-24)
+Lists per mission: 1b `1`; 1c/1d `1 3`; 2a `3`; 2b_1 `20`; story3 `1 3` (bunker_3 `1 3 6`, launcher_5 `1 14`,
+prison_7 `1 10`); 4a `1 7`; 5a `1 3 5 0 8`; kstory5_5 `1 3 8 0`; Reaper: r1_smartiegrab `45`, r1_turbo `21`,
+r1_saveyan `25`, r4a `23 22 25 44 45 46`. Read: 1 jetpack, 3 rocket launcher, 10 the pop-up bomb (only prison_7,
+whose briefing is the bomb), 20 the bush pack (only 2b_1, where Story 2's bush disguise starts). Others unknown.
