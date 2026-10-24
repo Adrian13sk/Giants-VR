@@ -687,6 +687,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     }
     { GVR_PROF("pickups"); updatePickups(dt, in); }
     updateShop(dt, in);
+    updateBase(dt, in);
     { GVR_PROF("map"); updateMap(dt, in); }
     updateFlares(dt, in);
     { GVR_PROF("camera"); placeCamera(dt, false, &in); }
@@ -1309,6 +1310,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     timmyChatCooldown_ = 4.0f;
     initPickups(mc);
     initShop();
+    initBase();
     initVillagers(w, mc);
     initVimps(w, mc);
     initDestruction(w, mc);
@@ -3720,6 +3722,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     }
     renderBurrows(v.eyePosition);
     renderShop();
+    renderBase(v.eyePosition);
     renderSpells();
     renderKabutoPowers(v.eyePosition);
     renderThrows();

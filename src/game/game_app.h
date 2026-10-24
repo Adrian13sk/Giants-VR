@@ -517,6 +517,33 @@ private:
     bool shopOn_ = false, shopInside_ = false, shopAnchored_ = false;
     float shopPool_ = 0, shopPoolSnd_ = 0, shopFxT_ = 0, shopRingT_ = 0;
     void initShop();
+    // Base building (game_app_base.cpp): 5c's Meccaryn base from Mecc_base_template_1.
+    struct Base {
+        bool on = false, complete = false, onPad = false, autoOrdered = false;
+        Vec3 centre, padAt, dropAt, menuAt;
+        float menuYaw = 0, touchCool = 0, traceT = 0;
+        int food = 0;  // Vimp meat in the store
+        struct Bldg {
+            int def = 0;
+            int state = 0;  // 0 not ordered, 1 building, 3 complete
+            float progress = 0, fxT = 0;
+            Mat4 xf = Mat4::identity();
+            std::unique_ptr<SkinnedModel> model;
+            const RenderModel* still = nullptr;  // models without a skin
+        };
+        std::vector<Bldg> bldgs;
+        struct Item { int def; Vec3 pos; };
+        std::vector<Item> items;
+        std::unique_ptr<SkinnedModel> firepit;
+        Mat4 firepitXf = Mat4::identity(), dropXf = Mat4::identity();
+        const RenderModel* dropModel = nullptr;
+    };
+    Base base_;
+    void initBase();
+    void updateBase(float dt, const InputFrame& in);
+    void renderBase(const Vec3& eye);
+    std::vector<int> baseOffers() const;
+    void orderBuilding(int def);
     void updateShop(float dt, const InputFrame& in);
     void renderShop();
     std::vector<Vec3> shopCentres_;

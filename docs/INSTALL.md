@@ -140,6 +140,17 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
 - **Story:** finishing 1d now continues into Story 2 (2a). Story 2's objectives aren't implemented yet (2a can't be
   completed).
 
+## Base building (Story 5, "The Battle!" - mission 5c)
+- The base is laid out round Borjoyzee from the game's own base template: Build Pad, meat drop-off and fire pit
+  stand from the start; Pub, Workshop, Giftshop, Party House, Wood Gate and three Wood Walls are yours to order.
+- Hunt Vimps and carry the meat to the **MEAT DROP-OFF** (walk past it): it goes into the base's store.
+- Stand on the **BUILD PAD**: signs float round you at arm's length, one per building with its cost in meat.
+  **Touch a sign with either hand** to order it. The Smarties build two at a time; the building rises out of the
+  ground (the game's own build animation) with a progress sign over it.
+- Pub + Workshop + Giftshop + Party House = "BASE COMPLETE!".
+- Not yet: walking into buildings (no collision), enemies attacking the base, stone upgrades, the POP-UP BOMB the
+  Smarties should make when the base is complete, and Delphi's base (r4a).
+
 ## Delphi (Reaper story)
 Options → NEW GAME: choose **REAPER STORY (DELPHI)** with the stick, hold the trigger 2 s. Delphi has no jetpack:
 - **A**: jump (she steers in the air). **Left grip**: turbo run. Deep water: she swims fast.

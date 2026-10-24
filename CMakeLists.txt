@@ -60,6 +60,7 @@ add_library(gvr_core STATIC
   src/game/game_app_map.cpp
   src/game/game_app_ripper.cpp
   src/game/game_app_shop.cpp
+  src/game/game_app_base.cpp
   src/game/game_app_spells.cpp
   src/game/game_app_tags.cpp
   src/game/game_app_water.cpp

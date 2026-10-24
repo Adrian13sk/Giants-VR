@@ -1384,3 +1384,24 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Every mission's opening cutscene (33 missions) played in the harness for 5 s: all exit 0, no errors. k1b_portal
   names `kstory1b`, which doesn't exist in the data (not on the PC either) - it is skipped as before. The two Rstory3
   race missions need the race world in the harness (`--world Rstory3_race_1`), then play.
+
+### 2026-10-24 — Base building, first version (5c_securebase, Meccaryn)
+- User said yes to base building. From the data: xx_mecc_base.gzp holds the Meccaryn base - skinned buildings
+  (Wood_pub/shop/gift/gate/wall, Fun_house, stone_* upgrades, s_mecc_* towers/turret/SAM/teleport/gyro pad) with
+  `_build` clips that raise each building out of the ground, LODs _L1.._L6, collision meshes `_coll`, and
+  Mecc_base_template_1.anm: one node per slot round base_center (command_center, workshop, giftshop, Gate,
+  Wall_A1-3/B1-2/C1-3, Firepit, meat_dropoff, sm_dropoff, Repair01/02, teleport). GTextEnglish has the building names
+  (basebldg*), descriptions (bldgdescr*: "The Build Pad is where you stand to direct base building", "The Pub is where
+  your Smarties get food. Keep it stocked with Vimp Meat"), states (Ready To Build / Building... / Awaiting More
+  Smarties / Completed!) and hints ("OUT OF FOOD!!!"). 5c's briefing: gather Smarties and Vimp meat, build a base, the
+  Smarties then make the POP-UP BOMB. r4a (Delphi) is the same with souls and the TORNADO.
+- Implemented (game_app_base.cpp): the template placed at Borjoyzee's start (5c), every building site at its slot with
+  the slot's rotation; meat drop-off store; Build Pad menu of floating signs touched by hand; two crews building at
+  once; the build clip posed by progress; dust while building; "COMPLETED!" / "BASE COMPLETE!" lines. Ours: costs,
+  times, crews, Pub/Party House slots (Repair01/02), base centre choice, the template's orientation (not rotated;
+  in the harness the walls sit on the basin's ridges and the gate in a gap, which suggests it is right - unverified).
+- Harness (GVR_BASE_ORDER=all, GVR_BASE_TRACE): sites placed, orders taken, Pub/Workshop progress 0.25-0.28 at 5 s,
+  "WORKSHOP - COMPLETED!" shown at 20 s; gate and walls visible on the ridges from above. 5c/4a/r4a run without errors.
+- Pitfall: the harness's `--free` camera turns play mode off after the first frame, so nothing in updatePlayMode runs;
+  use `--at`/`--look-at` without `--free` to watch gameplay systems.
+- Not yet: building collision, base attacks, stone upgrades, the pop-up bomb, Delphi's base (xx_reaper_base.gzp).

@@ -517,3 +517,9 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
   kstory1b (k1b_portal) absent from the data and skipped.
 - Mission sweep not re-run for this change (it plays with GVR_CUTSCENE=none, so cutscene code isn't exercised).
 - **Not device-tested.**
+
+## Host verification — base building v1 (5c_securebase)
+- `gvr_tests` pass. Harness 5c with `GVR_BASE_ORDER=all GVR_GOD=1`: 14 sites from Mecc_base_template_1; Pub 28% and
+  Workshop 25% after 5 s (two crews); "WORKSHOP - COMPLETED!" on screen at ~20 s; aerial view shows the gate and walls
+  rising on the basin's rim. Plain 5c, 4a and r4a runs: exit 0, no errors.
+- The hand-touch menu is untested (the harness has no hand path to the signs yet). **Not device-tested.**
