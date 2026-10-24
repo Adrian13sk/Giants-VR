@@ -107,7 +107,6 @@ const char* bldgModel(int d, int level) {
 }
 constexpr float kPadRadius = 4.0f;     // m: standing on the Build Pad
 constexpr float kDropRadius = 3.5f;    // m: the meat drop-off
-constexpr int kWorkers = 6;            // ours: Borjoyzee's workforce
 
 bool baseMission(const std::string& mission, bool reaper) {
     if (const char* f = std::getenv("GVR_BASE")) return *f == '1';
@@ -206,6 +205,7 @@ void GameApp::initBase() {
     if (assetWorld_->terrain().heightAt(base_.dropAt.x, base_.dropAt.z, gy)) base_.dropAt.y = base_.dropXf.m[13] = gy;
     base_.padAt = Vec3{base_.bldgs.front().xf.m[12], base_.bldgs.front().xf.m[13], base_.bldgs.front().xf.m[14]};
     base_.on = true;
+    initCrew();
     LOGI("Base: centre (%.1f %.1f %.1f), %zu building sites, pad (%.1f %.1f %.1f), drop-off (%.1f %.1f %.1f)", base_.centre.x,
          base_.centre.y, base_.centre.z, base_.bldgs.size(), base_.padAt.x, base_.padAt.y, base_.padAt.z, base_.dropAt.x,
          base_.dropAt.y, base_.dropAt.z);
@@ -327,10 +327,12 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         for (const auto& b : base_.bldgs)
             if (b.state == 1) LOGI("base-trace t=%.0f %s progress %.2f", base_.traceT, bldgLabel(b.def, b.level), b.progress);
     base_.traceT += dt;
+    updateCrew(dt);
     int busy = 0;
+    const int crews = crewSites();
     for (auto& b : base_.bldgs) {
         if (b.state != 1) continue;
-        if (busy >= 2) break;  // two crews of three
+        if (busy >= crews) break;  // two Smarties per building going up (game_app_basecrew.cpp)
         ++busy;
         b.progress = std::min(1.0f, b.progress + dt * base_.speed / std::max(1.0f, kDefs[b.def].seconds));
         b.fxT -= dt;
@@ -625,6 +627,7 @@ void GameApp::updateRaids(float dt) {
 
 void GameApp::renderBase(const Vec3& eye) {
     if (!base_.on) return;
+    renderCrew(eye, false);  // includes Smarties on their way back from the hatches
     if (length(eye - base_.centre) > 260.0f) return;
     for (auto& b : base_.bldgs) {
         if (b.state == 0) continue;
@@ -655,7 +658,10 @@ void GameApp::renderBase(const Vec3& eye) {
     for (const auto& b : base_.bldgs) {
         if (b.state != 1 || length(eye - Vec3{b.xf.m[12], b.xf.m[13], b.xf.m[14]}) > 60.0f) continue;
         char s[64];
-        std::snprintf(s, sizeof s, "%s  BUILDING... %d%%", bldgLabel(b.def, b.level), int(b.progress * 100.0f));
+        bool worked = false;
+        for (const auto& w : base_.crew) worked = worked || (w.joined && w.site >= 0 && &base_.bldgs[size_t(w.site)] == &b);
+        if (worked) std::snprintf(s, sizeof s, "%s  BUILDING... %d%%", bldgLabel(b.def, b.level), int(b.progress * 100.0f));
+        else std::snprintf(s, sizeof s, "%s  AWAITING MORE SMARTIES", bldgLabel(b.def, b.level));
         label(Vec3{b.xf.m[12], b.xf.m[13] + 6.0f, b.xf.m[14]}, s, {1.0f, 0.85f, 0.3f, 1.0f}, 0.35f);
     }
     for (const auto& b : base_.bldgs) {
@@ -689,7 +695,7 @@ void GameApp::renderBase(const Vec3& eye) {
     }
     if (base_.onPad) {
         char s[64];
-        std::snprintf(s, sizeof s, "%s STORE %d   SMARTIES %d   TOUCH A SIGN TO BUILD", kRes, base_.food, kWorkers);
+        std::snprintf(s, sizeof s, "%s STORE %d   SMARTIES %d   TOUCH A SIGN TO BUILD", kRes, base_.food, crewCount());
         label(base_.menuAt + Vec3{-std::sin(base_.menuYaw) * 1.2f, 1.8f, -std::cos(base_.menuYaw) * 1.2f}, s, {0.6f, 0.9f, 1.0f, 1.0f},
               0.05f);
     }

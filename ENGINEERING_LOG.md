@@ -1480,3 +1480,13 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   approach (they reach the walls first), as an army coming down its route would.
 - Regression sweep (all 56 missions, before this change but after the base/bomb/raid work): 56/56 exit 0, no errors,
   mean update 0.27 ms.
+
+### 2026-10-24 — Base workforce: Smarties from the hatches, working at the sites
+- Data: 3 sm_hatch_l0 (class 38) in 5c and in r4a; Smartie clips sm_hatch_exit, sm_run_with_materials,
+  sm_hammer_use, sm_saw_use, sm_dig, sm_spell_builds, sm_sit, sm_celebrate; GText "Required: %d", "%d/%d Working",
+  "Awaiting More Smarties". Ours (game_app_basecrew.cpp): crew of 3 to start, 3 per hatch released when the hero is
+  within 7 m (they play sm_hatch_exit, then walk to the base, 4x faster while > 60 m from the player); each building
+  under construction needs 2 workers (replaces the fixed two crews); workers hammer/saw/dig (Reaper: spell) facing the
+  building, the rest sit (and celebrate once the base is complete). Test hook GVR_BASE_WORKERS=n.
+- Harness 5c: hatch at game (281, -127) opens with 3 Smarties; at the base the crew walks to the Pub, it completes,
+  they move on to the next site. No errors.

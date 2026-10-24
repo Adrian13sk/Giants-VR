@@ -147,6 +147,10 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
 - Stand on the **BUILD PAD**: two rows of signs float round you within arm's reach, one per building with its cost
   in meat (ordered ones show BUILDING... / COMPLETED!). **Touch a sign with either hand** to order it. The Smarties
   build two at a time; the building rises out of the ground (the game's own build animation) with a progress sign.
+- **Smarties do the work.** You start with three; each building going up needs two, so with three only one goes
+  up at a time (others show AWAITING MORE SMARTIES). Three more wait under each of the level's **Smartie hatches**:
+  walk up to a hatch and they climb out and head for your base. At the sites they hammer, saw and dig (Delphi's cast
+  the build spell); idle ones sit by the middle of the base.
 - Finished buildings are solid. The **Giftshop** opens a shop counter in front of it (launcher, injections, flares,
   health pool); after the **Workshop** the Smarties build 1.5x faster.
 - Pub + Workshop + Giftshop + Party House = "BASE COMPLETE!" and the Smarties give you a **POP-UP BOMB**.

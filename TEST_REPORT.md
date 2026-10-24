@@ -548,3 +548,7 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 ## Regression sweep after base building, pop-up bomb, raids, upgrades (build ce5af02)
 - `scripts/mission_sweep.sh`: 56/56 exit 0, 0 errors, mean update 0.27 ms (host).
 - Raids along army paths (5c, 14000 frames): raiders follow the paths, perimeter wall destroyed, raids continue.
+
+## Host verification — base workforce
+- 5c: crew of 3 created, hatch opened by walking up (3 Smarties out), workers walk to and leave the Pub site, sites
+  without workers show AWAITING MORE SMARTIES (logic). Not device-tested.

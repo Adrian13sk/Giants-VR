@@ -544,6 +544,18 @@ private:
         // The missions' army_spline paths (barracks -> base), runtime points; those ending near the base.
         std::vector<std::vector<Vec3>> routes;
         bool routesRead = false;
+        // The Smartie workforce (game_app_basecrew.cpp).
+        struct Worker {
+            Vec3 pos;
+            float yaw = 0, lift = 0, clipT = 0;
+            int clip = 0, site = -1;  // site: index into bldgs being worked on
+            bool joined = false;      // reached the base (counts as a worker)
+            std::unique_ptr<SkinnedModel> model;
+        };
+        std::vector<Worker> crew;
+        struct Hatch { Vec3 pos; bool open = false; };
+        std::vector<Hatch> hatches;
+        int crewClip[16] = {};
         Vec3 raidFrom;
         bool haveRaidFrom = false;
         float attackSayT = 0;
@@ -577,6 +589,12 @@ private:
     void orderUpgrade(int def);
     void orderBuilding(int def);
     void updateRaids(float dt);
+    bool addCrewSmartie(const Vec3& at, bool fromHatch);
+    void initCrew();
+    void updateCrew(float dt);
+    void renderCrew(const Vec3& eye, bool shadow);
+    int crewCount() const;
+    int crewSites() const;
     void updateShop(float dt, const InputFrame& in);
     void renderShop();
     std::vector<Vec3> shopCentres_;
