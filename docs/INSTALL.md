@@ -228,8 +228,8 @@ The game now starts at the main menu: night over the intro island with the GIANT
 - **CONTINUE** goes back to your last checkpoint (the mission's name is shown).
 - **NEW GAME**: pick the story with the stick left/right (its loading art shows beside the menu). If you have a
   checkpoint, hold the trigger 1.5 s, because a new game replaces it.
-- **MISSION**: jump straight to any mission (left/right through all 55 in campaign order: 1-23 Meccaryn, 24-39
-  Reaper, 40-55 Kabuto), trigger to start it. Like NEW GAME it replaces your checkpoint, so with one it needs a 1.5 s
+- **MISSION**: jump straight to any mission (left/right through all 55 in campaign order: 1-22 Meccaryn, 23-38
+  Reaper, 39-54 Kabuto, 55 the finale), trigger to start it. Like NEW GAME it replaces your checkpoint, so with one it needs a 1.5 s
   hold. See docs/PLAYTEST.md for what to look at in each.
 - **OPTIONS**: the usual options. The left menu button opens them too.
 - Loading screens show the original art of the story's race next to the mission briefing.

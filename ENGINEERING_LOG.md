@@ -1531,3 +1531,14 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   2b_2_returnwife. GVR_LIST_MISSIONS logs the list.
 - docs/PLAYTEST.md: a checklist for the user's headset session (base missions first). INSTALL.md: stale statements
   fixed (Story 2 objectives, Delphi's first-person body, Sonaks/bosses), mission select documented.
+
+### 2026-10-24 — Chapter transitions; finale last in mission select; lost-race cutscene; building pose cache
+- Harness chain test (each chapter's last mission completed at frame 60, GVR_CUTSCENE=none): all 15 chapter ends
+  load the next chapter's first mission - 1d->2a, 2c_2->story3_sonak_1, prison_7->4a, 4d->5a, 5c->r1_smartiegrab,
+  r1_saveyan->rstory2_battle_1, rstory2_jetski_3->rstory3_pre_race_1, race_3->r4a, r4a->rstory5_race_1,
+  queen_4->k1a, k1b->k2a, k2d->kstory3_1, kstory3_4->kstory4_1, kstory4_3->kstory5_1, kstory5_5->end. No errors.
+  So the data's chain is Meccaryn -> Reaper -> Kabuto -> the finale; mission select now lists the_end last (55).
+- Race missions' op 0x13 cutscene = the rival winning ("..._jetski_R_win", outro "..._D_win" = Delphi): now played
+  on a lost race before it runs again (harness: rstory3_1_jetski_r_win plays, 4 actors).
+- Base buildings are CPU-skinned: re-posed only while their pose changes (standing buildings were re-skinned for
+  every eye every frame).

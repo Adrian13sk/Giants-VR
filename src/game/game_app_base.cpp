@@ -334,6 +334,7 @@ void GameApp::orderUpgrade(int d) {
         b.collision = -1;  // the new building's own collision once it stands
         b.model = std::move(sm);
         b.still = still;
+        b.posedT = -1;
         b.level = 1;
         b.state = 1;
         b.progress = 0;
@@ -774,7 +775,9 @@ void GameApp::renderBase(const Vec3& eye) {
         if (b.still) drawModel(b.still, b.xf, false);
         if (!b.model) continue;
         const float d = b.model->animDuration(0);
-        b.model->pose(renderer_, d > 0 ? std::min(d, b.progress * d) : 0.0f);
+        // Skinned on the CPU: only re-posed while it is going up (a standing building keeps its pose).
+        const float pt = d > 0 ? std::min(d, b.progress * d) : 0.0f;
+        if (std::fabs(pt - b.posedT) > 1e-3f) { b.model->pose(renderer_, pt); b.posedT = pt; }
         b.model->render(renderer_, b.xf);
     }
     if (base_.firepit) {

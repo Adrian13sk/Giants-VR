@@ -376,9 +376,11 @@ std::string AssetWorld::nextStoryWorld(const std::string& world) {
 }
 
 std::vector<std::pair<std::string, std::string>> AssetWorld::campaignMissions() const {
-    static const char* worlds[] = {"Story1",  "Story2", "Story3",         "Story4",         "Story5",         "the_end", "Rstory1", "Rstory2",
+    // The data's own chapter chain (each world's next-world scenario): Story5 leads to Rstory1 and
+    // Kstory5 to the_end (harness, 2026-10-24).
+    static const char* worlds[] = {"Story1",         "Story2",         "Story3",  "Story4",  "Story5",  "Rstory1", "Rstory2",
                                    "Rstory3_race_1", "Rstory3_race_2", "Rstory3_race_3", "Rstory4", "Rstory5", "Kstory1", "Kstory2",
-                                   "Kstory3", "Kstory4", "Kstory5"};
+                                   "Kstory3",        "Kstory4",        "Kstory5", "the_end"};
     std::vector<std::pair<std::string, std::string>> out;
     for (const char* w : worlds) {
         std::vector<uint8_t> bytes;

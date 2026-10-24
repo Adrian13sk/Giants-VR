@@ -583,6 +583,7 @@ private:
             int collision = -1;
             float hp = 0, maxHp = 0;  // once standing: raiders wear it down (ours)
             int level = 0;            // 1: upgraded (stone / level 2)
+            float posedT = -1;        // clip time of the current pose (re-posed only when it changes)
             float hitT = -1e9f;       // last damage time (sign shows its health a while)
         };
         std::vector<Bldg> bldgs;
