@@ -552,3 +552,7 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 ## Host verification — base workforce
 - 5c: crew of 3 created, hatch opened by walking up (3 Smarties out), workers walk to and leave the Pub site, sites
   without workers show AWAITING MORE SMARTIES (logic). Not device-tested.
+
+## Host verification — base leader / kidnapping
+- 5c: leader placed at the template's borjoyzee node; snatcher kidnaps him and carries him back along its army path.
+- Loss -> restart: pending a long harness run. Freeing him by killing the carrier: logic only. **Not device-tested.**

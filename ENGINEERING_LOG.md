@@ -1490,3 +1490,16 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   building, the rest sit (and celebrate once the base is complete). Test hook GVR_BASE_WORKERS=n.
 - Harness 5c: hatch at game (281, -127) opens with 3 Smarties; at the base the crew walks to the Pub, it completes,
   they move on to the next site. No errors.
+
+### 2026-10-24 — Base leader and kidnapping (5c / r4a)
+- Briefings: "Protect BORJOYZEE / YAN at all times. If he gets kidnapped and taken back to the enemy base, you lose!".
+  The game's text frames him as the base's "flag holder" ("The Command Center protects your build pad and your flag
+  holder"; multiplayer "Capture the Smartie"); both templates have a "borjoyzee" node by the command centre.
+- Ours: the leader (SmBorjoyzee_L0 / smyan_l0 with sm_stand/squirm/hwalk/wave) stands at that node (5c's own
+  Borjoyzee character hidden); one raider per raid is a snatcher - it goes for him, carries him (over its shoulder)
+  back along its army path; killed, it drops him and he walks home; back at the raid's starting point, the mission
+  fails and restarts from its briefing (beginLoading). Raiders march at 2.4 m/s in the base missions (1.1 elsewhere,
+  reset per mission). Stuck raiders (the paths cross ridges our AI can't climb, rocks) get past after 3 s: 10 m on,
+  or a step aside if the player is within 30 m.
+- Harness 5c: BORJOYZEE kidnapped by the snatcher, carried back along path 8 (indices 10 -> 8 ...), walls destroyed
+  by the others. r4a: Yan placed, snatcher on its way. The loss/restart: long run pending.

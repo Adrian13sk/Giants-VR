@@ -19,6 +19,8 @@
 #include "scene/asset_world.h"
 #include "scene/model_cache.h"
 #include "scene/skinned_model.h"
+#include "assets/skin_anim.h"
+#include "game/cutscene.h"
 
 namespace gvr {
 
@@ -166,7 +168,86 @@ void GameApp::updateCrew(float dt) {
     }
 }
 
+// The leader stands at the template's "borjoyzee" node by the Build Pad (the base's flag holder:
+// "The Command Center protects your build pad and your flag holder"). 5c's own Borjoyzee
+// character is hidden while ours stands in.
+void GameApp::initLeader() {
+    base_.leader.reset();
+    base_.carrier = 0;
+    base_.failT = -1;
+    const char* model = base_.reaper ? "smyan_l0" : "SmBorjoyzee_L0";
+    base_.leaderName = base_.reaper ? "YAN" : "BORJOYZEE";
+    auto m = std::make_unique<SkinnedModel>();
+    if (!m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, model, "sm_stand.anm")) { LOGW("Base: leader %s unavailable", model); return; }
+    base_.leaderClip[1] = m->addAnimation(assetWorld_->fs(), "sm_squirm.anm");
+    base_.leaderClip[2] = m->addAnimation(assetWorld_->fs(), "sm_hwalk.anm");
+    base_.leaderClip[3] = m->addAnimation(assetWorld_->fs(), "sm_wave.anm");
+    m->pose(renderer_, 0.0f);
+    Vec3 mn, mx;
+    m->posedBounds(mn, mx);
+    base_.leaderLift = -mn.y;
+    base_.leader = std::move(m);
+    base_.leaderHome = base_.leaderPos = base_.padAt + Vec3{-3.0f, 0, 0};
+    std::vector<uint8_t> b;
+    AnmAnimation tmpl;  // the template's own spot for him, if the file says
+    if (assetWorld_->fs().read(base_.reaper ? "RP_base_template_1.anm" : "Mecc_base_template_1.anm", b) && parseAnm(b.data(), b.size(), tmpl)) {
+        std::vector<Mat4> nodes;
+        tmpl.evaluate(0.0f, nodes);
+        for (size_t i = 0; i < tmpl.nodes.size() && i < nodes.size(); ++i)
+            if (toLower(tmpl.nodes[i].name) == "borjoyzee") {
+                const Mat4 w = Mat4::translation(base_.centre) * gameMatrixToRuntime(nodes[i]);
+                base_.leaderHome = base_.leaderPos = Vec3{w.m[12], w.m[13], w.m[14]};
+            }
+    }
+    float gy;
+    if (assetWorld_->terrain().heightAt(base_.leaderHome.x, base_.leaderHome.z, gy)) base_.leaderHome.y = base_.leaderPos.y = gy;
+    for (auto& c : chars_)
+        if (c.type == 584) c.visible = false;  // smborjoyzee_l0 placed by 5c
+    LOGI("Base: %s at (%.1f %.1f %.1f)", base_.leaderName.c_str(), base_.leaderHome.x, base_.leaderHome.y, base_.leaderHome.z);
+}
+
+void GameApp::updateLeader(float dt) {
+    if (!base_.leader) return;
+    base_.leaderT += dt;
+    if (base_.carrier) {
+        const Enemy* e = nullptr;
+        for (const auto& c : enemies_.enemies) if (c.uid == base_.carrier) e = &c;
+        if (e && e->state != EnemyState::Dead && !e->remove) {
+            base_.leaderPos = e->pos + Vec3{0, 1.3f, 0};  // over the Reaper's shoulder
+            base_.leaderYaw = e->yaw + 1.57f;
+            return;
+        }
+        // The kidnapper is down: he drops and makes his own way home.
+        base_.carrier = 0;
+        float gy;
+        if (assetWorld_->terrain().heightAt(base_.leaderPos.x, base_.leaderPos.z, gy)) base_.leaderPos.y = gy;
+        timmyLine_ = base_.leaderName + " IS FREE!";
+        timmyLineT_ = 3.0f;
+        LOGI("Base: %s freed", base_.leaderName.c_str());
+    }
+    const Vec3 g{base_.leaderHome.x - base_.leaderPos.x, 0, base_.leaderHome.z - base_.leaderPos.z};
+    const float gd = std::sqrt(g.x * g.x + g.z * g.z);
+    if (gd > 0.5f) {
+        const float step = std::min(gd, 1.6f * dt);
+        base_.leaderPos = base_.leaderPos + g * (step / gd);
+        float gy;
+        if (assetWorld_->terrain().heightAt(base_.leaderPos.x, base_.leaderPos.z, gy)) base_.leaderPos.y = gy;
+        base_.leaderYaw = std::atan2(-g.x, -g.z);
+    }
+}
+
 void GameApp::renderCrew(const Vec3& eye, bool shadow) {
+    if (base_.leader && length(base_.leaderPos - eye) < 150.0f) {
+        const bool carried = base_.carrier != 0;
+        const Vec3 g{base_.leaderHome.x - base_.leaderPos.x, 0, base_.leaderHome.z - base_.leaderPos.z};
+        const bool walking = !carried && g.x * g.x + g.z * g.z > 0.25f;
+        const bool waving = !carried && !walking && length(player_.position - base_.leaderPos) < 6.0f;
+        const int clip = std::max(0, base_.leaderClip[carried ? 1 : walking ? 2 : waving ? 3 : 0]);
+        const float d = base_.leader->animDuration(clip);
+        base_.leader->poseBlend(renderer_, clip, d > 0 ? std::fmod(base_.leaderT, d) : 0.0f, clip, 0.0f, 0.0f);
+        base_.leader->render(renderer_, Mat4::translation(base_.leaderPos + Vec3{0, carried ? 0.0f : base_.leaderLift, 0}) *
+                                            Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, base_.leaderYaw)));
+    }
     for (auto& w : base_.crew) {
         if (length(w.pos - eye) > (shadow ? 60.0f : 120.0f)) continue;
         const int clip = std::max(0, base_.crewClip[w.clip]);

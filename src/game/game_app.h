@@ -539,7 +539,11 @@ private:
         // Raids (ours): Reapers sent from the enemy barracks' side to wreck the buildings.
         float raidT = -1;         // s until the next raid (< 0: not started)
         int raids = 0;
-        struct Raider { uint32_t uid; int route = -1; size_t next = 0; };
+        struct Raider {
+            uint32_t uid; int route = -1; size_t next = 0; int route0 = -1; bool snatch = false, back = false; Vec3 escape;
+            Vec3 lastPos; float stuckT = 0;  // progress check (stuck raiders get past, ours)
+            size_t from = 0;                  // path index it set out from: carried back past it, the leader is lost
+        };
         std::vector<Raider> raiders;
         // The missions' army_spline paths (barracks -> base), runtime points; those ending near the base.
         std::vector<std::vector<Vec3>> routes;
@@ -556,6 +560,15 @@ private:
         struct Hatch { Vec3 pos; bool open = false; };
         std::vector<Hatch> hatches;
         int crewClip[16] = {};
+        // The base's leader - Borjoyzee (5c) / Yan (r4a) - the "flag Smartie": raiders try to carry
+        // him off to their barracks ("If he gets kidnapped and taken back to the enemy base, you lose!").
+        std::unique_ptr<SkinnedModel> leader;
+        int leaderClip[4] = {0, -1, -1, -1};  // stand, squirm (carried), walk, wave
+        Vec3 leaderHome, leaderPos;
+        float leaderYaw = 0, leaderLift = 0, leaderT = 0;
+        uint32_t carrier = 0;  // raider uid carrying him (0: none)
+        float failT = -1;      // > 0: mission failed, restarting
+        std::string leaderName;
         Vec3 raidFrom;
         bool haveRaidFrom = false;
         float attackSayT = 0;
@@ -595,6 +608,8 @@ private:
     void renderCrew(const Vec3& eye, bool shadow);
     int crewCount() const;
     int crewSites() const;
+    void initLeader();
+    void updateLeader(float dt);
     void updateShop(float dt, const InputFrame& in);
     void renderShop();
     std::vector<Vec3> shopCentres_;

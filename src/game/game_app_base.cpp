@@ -116,6 +116,7 @@ bool baseMission(const std::string& mission, bool reaper) {
 
 void GameApp::initBase() {
     base_ = Base{};
+    enemies_.params.patrolSpeed = EnemyParams{}.patrolSpeed;  // the base missions raise it (below)
     if (!assetWorld_ || (hero_ != Hero::Mecc && hero_ != Hero::Delphi)) return;
     const bool reaper = hero_ == Hero::Delphi;
     if (!baseMission(assetWorld_->missionName(), reaper)) return;
@@ -205,7 +206,10 @@ void GameApp::initBase() {
     if (assetWorld_->terrain().heightAt(base_.dropAt.x, base_.dropAt.z, gy)) base_.dropAt.y = base_.dropXf.m[13] = gy;
     base_.padAt = Vec3{base_.bldgs.front().xf.m[12], base_.bldgs.front().xf.m[13], base_.bldgs.front().xf.m[14]};
     base_.on = true;
+    // Raiders march briskly in the base missions (the walk at 1.1 m/s took minutes along the army paths).
+    enemies_.params.patrolSpeed = 2.4f;
     initCrew();
+    initLeader();
     LOGI("Base: centre (%.1f %.1f %.1f), %zu building sites, pad (%.1f %.1f %.1f), drop-off (%.1f %.1f %.1f)", base_.centre.x,
          base_.centre.y, base_.centre.z, base_.bldgs.size(), base_.padAt.x, base_.padAt.y, base_.padAt.z, base_.dropAt.x,
          base_.dropAt.y, base_.dropAt.z);
@@ -303,6 +307,13 @@ void GameApp::orderBuilding(int d) {
 
 void GameApp::updateBase(float dt, const InputFrame& in) {
     if (!base_.on || !playMode_) return;
+    if (base_.failT > 0) {  // lost: the mission starts again from its briefing
+        base_.failT -= dt;
+        timmyLineT_ = std::max(timmyLineT_, 1.0f);
+        if (base_.failT <= 0) { LOGI("Base: restarting %s", assetWorld_->missionName().c_str()); beginLoading(assetWorld_->missionName(), in); }
+        return;
+    }
+    updateLeader(dt);
     // Test hooks: GVR_BASE_FOOD=n stocks the store; GVR_BASE_ORDER=all orders everything at the start.
     if (const char* f = std::getenv("GVR_BASE_FOOD"); f && base_.traceT == 0.0f) base_.food = std::atoi(f);
     if (const char* o = std::getenv("GVR_BASE_ORDER"); o && !base_.autoOrdered) {
@@ -520,7 +531,9 @@ void GameApp::updateRaids(float dt) {
                 if (ei < 0) continue;
                 Enemy& e = enemies_.enemies[size_t(ei)];
                 e.home = pts[std::min(i + 1, pts.size() - 1)];
-                base_.raiders.push_back({e.uid, r, i + 1});
+                Base::Raider rd{e.uid, r, i + 1, r, k == 0 && base_.leader && base_.carrier == 0, false, pts.front()};
+                rd.from = i;
+                base_.raiders.push_back(rd);
                 LOGI("Raider %u on army path %d at (%.1f %.1f %.1f)", e.uid, r, p.x, h, p.z);
                 ++placed;
             }
@@ -534,7 +547,7 @@ void GameApp::updateRaids(float dt) {
                 if (ei < 0) continue;
                 Enemy& e = enemies_.enemies[size_t(ei)];
                 e.home = base_.centre;  // retargeted below to a standing building
-                base_.raiders.push_back({e.uid, -1, 0});
+                base_.raiders.push_back({e.uid, -1, 0, -1, placed == 0 && base_.leader && base_.carrier == 0, false, Vec3{p.x, h, p.z} + d2 * 40.0f});
                 ++placed;
             }
             LOGI("Base raid %d: %d Reapers", base_.raids, placed);
@@ -549,6 +562,55 @@ void GameApp::updateRaids(float dt) {
         for (auto& c : enemies_.enemies) if (c.uid == uid) e = &c;
         if (!e || e->state == EnemyState::Dead || e->remove) {
             LOGI("Raider %u gone (%s)", uid, e ? "dead" : "removed");
+            continue;
+        }
+        // Stuck (ground too steep for the Reaper AI, or a rock in the way - the army paths cross
+        // ridges): after 3 s without progress while marching, it gets past - 10 m on toward its
+        // goal, or a step aside if the player is watching from close by (ours).
+        if (!e->aware) {
+            if (length(Vec3{e->pos.x - rd.lastPos.x, 0, e->pos.z - rd.lastPos.z}) > 1.0f) {
+                rd.lastPos = e->pos;
+                rd.stuckT = 0;
+            } else if ((rd.stuckT += dt) > 3.0f) {
+                rd.stuckT = 0;
+                Vec3 g{e->patrolTo.x - e->pos.x, 0, e->patrolTo.z - e->pos.z};
+                const float gd = std::sqrt(g.x * g.x + g.z * g.z);
+                Vec3 to = e->pos;
+                if (length(e->pos - player_.position) > 30.0f && gd > 0.5f) to = e->pos + g * (std::min(10.0f, gd) / gd);
+                else to = e->pos + Vec3{(frand() - 0.5f) * 8.0f, 0, (frand() - 0.5f) * 8.0f};
+                float gy;
+                if (assetWorld_->terrain().heightAt(to.x, to.z, gy) && gy > player_.seaLevel - 0.8f) {
+                    e->pos = Vec3{to.x, gy, to.z};
+                    rd.lastPos = e->pos;
+                }
+            }
+        }
+        static const bool trace = std::getenv("GVR_BASE_TRACE") != nullptr;
+        if (trace && int(base_.traceT) % 10 == 0 && int(base_.traceT - dt) % 10 != 0)
+            LOGI("raider %u at (%.1f %.1f) home (%.1f %.1f) state %d aware %d route %d next %zu snatch %d back %d", uid, e->pos.x, e->pos.z,
+                 e->home.x, e->home.z, int(e->state), int(e->aware), rd.route, rd.next, int(rd.snatch), int(rd.back));
+        // Carrying the leader off: back the way it came, to the path's start (the barracks' side).
+        if (rd.back) {
+            alive.push_back(rd);
+            if (e->aware) continue;  // stopped to fight; still holds him
+            Vec3 goal = rd.escape;
+            if (rd.route >= 0) {
+                const auto& pts = base_.routes[size_t(rd.route)];
+                while (rd.next > rd.from && length(Vec3{pts[rd.next].x - e->pos.x, 0, pts[rd.next].z - e->pos.z}) < 4.0f) --rd.next;
+                goal = pts[rd.next];
+                alive.back().next = rd.next;
+            }
+            const Vec3 g{goal.x - e->pos.x, 0, goal.z - e->pos.z};
+            // Lost once he's carried back to where the raid set out (the enemy's side of the path).
+            if ((rd.route < 0 || rd.next <= rd.from) && g.x * g.x + g.z * g.z < 4.0f * 4.0f && base_.failT < 0) {
+                base_.failT = 6.0f;
+                timmyLine_ = "MISSION FAILED - " + base_.leaderName + " WAS TAKEN TO THE ENEMY BASE!";
+                timmyLineT_ = 6.0f;
+                LOGI("Base: %s carried off - mission failed", base_.leaderName.c_str());
+            }
+            e->home = e->patrolTo = goal;
+            e->patrolWait = 0;
+            e->stateTime = 0;
             continue;
         }
         // Still on its army path: walk point to point.
@@ -569,10 +631,26 @@ void GameApp::updateRaids(float dt) {
             rd.route = -1;  // arrived: on to the buildings
         }
         alive.push_back(rd);
-        static const bool trace = std::getenv("GVR_BASE_TRACE") != nullptr;
-        if (trace && int(base_.traceT) % 10 == 0 && int(base_.traceT - dt) % 10 != 0)
-            LOGI("raider %u at (%.1f %.1f) home (%.1f %.1f) state %d aware %d", uid, e->pos.x, e->pos.z, e->home.x, e->home.z, int(e->state), int(e->aware));
         if (e->aware) continue;  // fighting the player
+        // The snatcher goes for the leader; when it reaches him it picks him up and turns back.
+        if (rd.snatch && base_.leader && base_.carrier == 0) {
+            const Vec3 g{base_.leaderPos.x - e->pos.x, 0, base_.leaderPos.z - e->pos.z};
+            if (g.x * g.x + g.z * g.z < 2.0f * 2.0f) {
+                base_.carrier = uid;
+                alive.back().back = true;
+                alive.back().route = rd.route0;
+                if (rd.route0 >= 0) alive.back().next = base_.routes[size_t(rd.route0)].size() - 1;
+                timmyLine_ = base_.leaderName + " HAS BEEN KIDNAPPED! STOP THEM BEFORE THEY REACH THEIR BASE!";
+                timmyLineT_ = 5.0f;
+                for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.8f, 0.3f});
+                LOGI("Base: %s kidnapped by raider %u", base_.leaderName.c_str(), uid);
+                continue;
+            }
+            e->home = e->patrolTo = base_.leaderPos;
+            e->patrolWait = 0;
+            e->stateTime = 0;
+            continue;
+        }
         // Head for a standing building (the nearest to the raider); the base's middle if none.
         {
             float best = 1e18f;
