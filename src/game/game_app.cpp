@@ -3537,9 +3537,10 @@ void GameApp::update(float dt, const InputFrame& in) {
             if (!missionHostiles_ && objectives_.empty()) spawnWave();  // test waves only where the mission has no enemies or goals
             // The mission's opening cutscene (op 0x15), e.g. Baz's lander drop in 1a.
             const MissionData& m = assetWorld_->mission();
-            // Test hook (headless): GVR_CUTSCENE=<first shot> plays that cutscene instead.
+            // Test hook (headless): GVR_CUTSCENE=<first shot> plays that cutscene instead; "none" skips it.
             const char* forced = std::getenv("GVR_CUTSCENE");
-            if (forced && *forced) startCutscene(forced);
+            if (forced && std::string(forced) == "none") {}
+            else if (forced && *forced) startCutscene(forced);
             else if (!m.startFlick.empty()) startCutscene(m.startFlick);
         }
         needSpawn_ = false;
