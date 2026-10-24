@@ -14,6 +14,7 @@
 #include "assets/mission.h"
 #include "assets/object_defs.h"
 #include "assets/weapondefs.h"
+#include "assets/fx_defs.h"
 #include "core/math.h"
 #include "game/test_script.h"
 #include "game/arm_ik.h"
@@ -1478,7 +1479,37 @@ static void testWeaponDefs() {
     CHECK(!parseWeaponDefs(d.data(), d.size(), defs, &err));
 }
 
+static void testFxLibrary() {
+    // Two effects: "a" = {03 type 794, 06, 1b 2.0, 07, 02}; "b" = {0a 1 "a" 0, 2b 5 6, 02}.
+    std::vector<uint8_t> d;
+    auto u32 = [&](uint32_t v) { for (int k = 0; k < 4; ++k) d.push_back(uint8_t(v >> (8 * k))); };
+    auto f32 = [&](float f) { uint32_t v; std::memcpy(&v, &f, 4); u32(v); };
+    auto str = [&](const char* s) { while (*s) d.push_back(uint8_t(*s++)); d.push_back(0); };
+    u32(1); u32(0); u32(2);
+    str("a"); const size_t offA = d.size(); u32(0);
+    str("B"); const size_t offB = d.size(); u32(0);
+    const size_t startA = d.size();
+    d.push_back(0x03); u32(794); d.push_back(0x06); d.push_back(0x1b); f32(2.0f); d.push_back(0x07); d.push_back(0x02);
+    const size_t startB = d.size();
+    d.push_back(0x0a); u32(1); str("a"); u32(0); d.push_back(0x2b); u32(5); u32(6); d.push_back(0x02);
+    auto put = [&](size_t at, uint32_t v) { std::memcpy(d.data() + at, &v, 4); };
+    put(offA, uint32_t(startA - 12));
+    put(offB, uint32_t(startB - 12));
+    put(4, uint32_t(d.size() - 12));
+    FxLibrary lib;
+    std::string err;
+    CHECK(parseFxLibrary(d.data(), d.size(), lib, &err));
+    const FxDef* a = lib.find("A");
+    const FxDef* b = lib.find("b");
+    CHECK(a && a->ops.size() == 5 && a->ops[0].op == 0x03 && a->ops[0].u[0] == 794 && a->ops[2].f[0] == 2.0f);
+    CHECK(b && b->ops.size() == 3 && b->ops[0].s == "a" && b->ops[0].u.size() == 2 && b->ops[1].u[1] == 6);
+    // A wrong argument length desyncs the stream and is caught.
+    d[startA + 6] = 0x55;  // the 1b op becomes 0x55 (no arguments): its float bytes then read as ops
+    CHECK(!parseFxLibrary(d.data(), d.size(), lib, &err));
+}
+
 int main() {
+    testFxLibrary();
     testWeaponDefs();
     testTestScript();
     testFlickVisibility();

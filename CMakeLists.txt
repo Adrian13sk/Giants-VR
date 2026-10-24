@@ -32,6 +32,7 @@ add_library(gvr_core STATIC
   src/assets/flick.cpp
   src/assets/gtext.cpp
   src/assets/weapondefs.cpp
+  src/assets/fx_defs.cpp
   src/render/text.cpp
   src/render/quad_batch.cpp
   src/game/cutscene.cpp

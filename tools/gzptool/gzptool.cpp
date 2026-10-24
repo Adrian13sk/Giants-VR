@@ -21,6 +21,7 @@
 #include "assets/mission.h"
 #include "assets/object_defs.h"
 #include "assets/weapondefs.h"
+#include "assets/fx_defs.h"
 #include "assets/skin_anim.h"
 #include "assets/world_bin.h"
 #include <dirent.h>
@@ -479,7 +480,42 @@ static int cmdWeapons(const char* dir) {
     return 0;
 }
 
+// fx.bin: the effect library - every effect, or the ops of the named ones.
+static int cmdFx(const char* dir, int n, char** names) {
+    AssetFS fs;
+    fs.mountAllArchives(dir);
+    fs.mountDirectory(dir);
+    std::vector<uint8_t> d;
+    gvr::FxLibrary lib;
+    std::string err;
+    if (!fs.read("fx.bin", d) || !gvr::parseFxLibrary(d.data(), d.size(), lib, &err)) { std::printf("fx.bin: %s\n", err.c_str()); return 1; }
+    ObjectRegistry reg;
+    reg.build(dir);
+    size_t ops = 0;
+    for (const auto& e : lib.effects) ops += e.ops.size();
+    std::printf("%zu effects, %zu ops\n", lib.effects.size(), ops);
+    for (int i = 0; i < n; ++i) {
+        const gvr::FxDef* e = lib.find(names[i]);
+        if (!e) { std::printf("%s: not found\n", names[i]); continue; }
+        std::printf("%s:\n", e->name.c_str());
+        for (const auto& op : e->ops) {
+            std::printf("  %02x", op.op);
+            if (op.op == 0x02 || op.op == 0x07) { std::printf("\n"); continue; }
+            if (op.op == 0x76 || op.op == 0x78) std::printf(" b%u", op.b);
+            if (!op.s.empty()) std::printf(" \"%s\"", op.s.c_str());
+            for (uint32_t u : op.u) std::printf(" %u", u);
+            for (float f : op.f) std::printf(" %g", double(f));
+            if ((op.op == 0x03 || op.op == 0x38 || op.op == 0x24) && !op.u.empty())
+                for (uint32_t u : op.u)
+                    if (u) std::printf("  [%s]", reg.modelName(u).c_str());
+            std::printf("\n");
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char** argv) {
+    if (argc >= 3 && !std::strcmp(argv[1], "fx")) return cmdFx(argv[2], argc - 3, argv + 3);
     if (argc >= 3 && !std::strcmp(argv[1], "weapons")) return cmdWeapons(argv[2]);
     if (argc >= 4 && !std::strcmp(argv[1], "anminfo")) return cmdAnmInfo(argv[2], argc - 3, argv + 3);
     if (argc >= 4 && !std::strcmp(argv[1], "mission")) return cmdMission(argv[2], argv[3]);

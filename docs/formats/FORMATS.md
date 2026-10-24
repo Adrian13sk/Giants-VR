@@ -251,3 +251,28 @@ the pool at the end of the file (from offset 22180 in the GOG file). Parser: `sr
   ammo, 5 consumable, 6 building), 54 race (1 any, 2 Meccaryn, 3 Reaper), 48 HUD icon name. Check: the items' ids
   agree with the missions' op 0x0E lists and their briefings (6 sniper in bunker_3, 10 pop-up in prison_7, 20 bush in
   2b), and 1c-2c, which list item 3, are the missions that place mc_pickup_shells (the shotgun's ammo pickup).
+
+## fx.bin (loose in Bin/; fx_world_dust.bin is byte-identical) — V (structure), P (meanings) (2026-10-24)
+`u32 version=1, u32 size-12, u32 count (679)`, then a directory of `count x {NUL-terminated name, u32 offset}` with
+offsets from file offset 12, then the effects. Each effect is a byte-coded stream `{u8 op, fixed arguments}` ending
+with op 0x02 (the last effect, FX_nozzle_handgun, ends at the end of the file after its 0x07). The argument layout of
+all 91 ops (`src/assets/fx_defs.cpp`, `gzptool fx <Bin> [names]`) was derived from the data: with it all 679
+effects parse to exactly the next effect's start - a wrong length anywhere desyncs the stream. Arguments are u32,
+f32, one byte (0x76, 0x78) or NUL-terminated names.
+Readings so far (from values, not confirmed by behaviour):
+- `03 {type}` starts a particle emitter of a GameObj type - the efx_* models (794 efx_flash, 815 efx_fire_trail,
+  826 efx_smoke_blue, 796 efx_debri1, 818 efx_ref_sphere...); `06` opens its parameters, `07` closes it. `38 {type}`
+  is the weather's emitter (839 efx_rain).
+- `24 {projectile type, trail type, 0}`: FX_rocket = 800 mc_rocket with 821 efx_ref_line_back; FX_sniper_bullit =
+  793 mc_sniper_bullit.
+- `0a / 10 / 70 {n, "effect", 0}`: a named sub-effect, several times with rising n inside an emitter whose model is
+  a reference shape (efx_ref_sphere, efx_ref_ground_hit) - read as "start this effect at point/frame n" of that shape.
+- `2b {sound, sound}`, `2c {sound}`, `87 {sound, sound}` (foot steps), `83`: sound ids (FX_EXPLOSION_ROCKET 1475;
+  fx_bullet_sound 1786/1787).
+- `5b / 1d / 5c / 28 / 56 / 57 {"effect", numbers}`: trail-like sub-effects (FX_RKT_Debri leaves FX_RKT_Debri_fire
+  every 0.05).
+- Emitter parameters (guesses from typical ranges): `05` / `09` / `35` life and size ranges, `08` size growth,
+  `0e` gravity (1 for debris), `0f` vertical drift (negative for rising smoke), `12` / `1c` speed ranges,
+  `19` bounce, `33` rotation ranges (0-180 degrees), `1b` scale, `04` timing.
+- `7a {"effect", 6 floats}` (3599 uses) places weather effects over rectangles in the fx_weather_* entries.
+Not used by the port yet: effects are still our stand-in particles (B9).

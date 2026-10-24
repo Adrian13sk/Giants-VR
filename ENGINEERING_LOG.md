@@ -1650,3 +1650,13 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   record's projectile type 793) with the EFX_sniper_flash muzzle flash; the shotgun shell is MC_shotgun_shell (type
   1114) nose first with a glow; machine-gun tracers are smaller and orange; arrows are the rparrow streak, with no
   flash off the bow. (WeaponSystem::shotStyle / Projectile::style.)
+
+### 2026-10-24 — fx.bin's structure decoded (effects not yet driven by it)
+- fx.bin (and its copy fx_world_dust.bin) is the effect library: 679 named effects, each a byte-coded op stream.
+  The argument lengths of all 91 ops were found from the data alone (no reference available: the decompilation repo
+  is no longer reachable): starting from the small effects' obvious layouts (`03 u32 06 1b f32 07 02`), each op's
+  length was fixed so the most effects parse; at the end all 679 parse to exactly the next one's start, which any
+  wrong length would break. Parser `src/assets/fx_defs.cpp` (unit test incl. a desync), `gzptool fx`.
+- What it shows: effects are lists of particle emitters of efx_* GameObj types with parameter blocks, named
+  sub-effects spawned at points of reference shapes (efx_ref_sphere), sounds by id, and projectile/trail pairs
+  (FX_rocket: mc_rocket + efx_ref_line_back). Meanings are guesses (FORMATS.md); nothing renders from it yet.
