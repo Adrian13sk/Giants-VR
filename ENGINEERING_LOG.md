@@ -1220,3 +1220,14 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - **Kabuto grows** (k2a briefing: "Eat 5 Smarties to reach full strength and size"): starts k1a and k2a at 60 %
   (our reading), +8 % a Smartie, +5 % a Vimp, +3 % anything else, eased; height, eye, reach, speeds, jump, steps follow.
 - **Not device-tested.**
+
+### 2026-10-24 — Host-side performance pass (build 075a50f)
+- New opt-in profiler (`GVR_PROFILE=1`, core/prof.h); the harness prints update average / worst and world draw counts.
+- Finding: the update's main cost was skinning every pooled Reaper each frame regardless of distance (2b: 12 Reapers
+  300+ m away). Now: none beyond 130 m (400 m as Kabuto), every other frame beyond 45 % of that; villagers beyond 25 m
+  every other frame. Host averages: 2b 1.10 → 0.37 ms, Kstory1 0.82 → 0.43 ms, 1a tower 0.29 → 0.26 ms, 1d 0.56 →
+  0.19 ms. (Host x86 numbers: relative only; the Quest's cores are several times slower.)
+- The VR map mesh was built on the first frame of play (~5 ms); now at mission load.
+- Objects under ~0.5° across are culled (1a tower view: 508 → 471 draw calls per eye).
+- Not done, needs the headset: GPU timing; multiview (one pass for both eyes) would halve draw calls but changes the
+  swapchain and every shader - not attempted blind.

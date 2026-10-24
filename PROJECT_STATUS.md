@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-24 (build 8515055: burrowing Rippers, jetpack plasma, water, name tags, Timmy's tower, Shop, VR map)
+Last updated: 2026-10-24 (build 075a50f: flares, bush pack, Kabuto growth, host performance pass)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -29,11 +29,13 @@ original Giants data and renders the original worlds in stereo.
 | M13 | Quest 2 hardware verification | IN PROGRESS | Device test 1 (TEST_REPORT.md): runs on the user's Quest 2 at a stable 71.8 fps / 72 Hz, Touch controllers bound. Start-up log clean: Oculus runtime 85.200.0, all 129 archives mounted, world loaded in 0.53 s. Waiting on the user's description of what they saw. |
 
 ## Next three priorities
-**Saved for later (user, 2026-10-23 16:45):**
-- Story 2's bush-pack disguise.
-- Flares against homing missiles.
-- Kabuto growing from eating.
-- The performance pass, which needs device frame-rate numbers (Options → Frame rate).
+**Saved-for-later items, done 2026-10-24 (host verified, waiting for device test 26):**
+- Story 2's bush-pack disguise (14386c1).
+- Flares against homing missiles, from any level's Shop (41f2a89).
+- Kabuto growing from eating (3886e95).
+- Host-side performance pass (075a50f): update cost halved in busy scenes. **Still needs device numbers** (Options ->
+  FRAME RATE) in 1a's village, at a tower collapse and in flight; draw calls (~470 per eye in 1a's palm groves, no
+  multiview yet) are the likely next cost on the headset.
 
 **Done (user list, 2026-10-23 16:45; host verified, build 8515055, waiting for device test 26):**
 - Rippers burrowing, mini Rippers, latching, faster spit, spit health drops.
