@@ -178,6 +178,7 @@ void GameApp::damageObject(int item, float amount, bool blast, const Vec3& from)
         const int o = destruct_.items[size_t(item)].object;
         if (o >= 0 && size_t(o) < assetWorld_->worldObjects().size() && assetWorld_->worldObjects()[size_t(o)].name == "guard_army_barracks") return;
     }
+    if (!popupBlast_ && popupOnlyTarget(item)) return;  // "Only the POP-UP BOMB can destroy the GATES"
     destruct_.damage(item, amount, blast, from, destructEvents_);
 }
 

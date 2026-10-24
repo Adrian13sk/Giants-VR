@@ -46,6 +46,8 @@ void GameApp::initShop() {
     // The goods (item 0 the launcher, if not owned yet); placed when the player first walks in.
     const int kinds[3] = {hasLauncher_ ? 1 : 0, 1, 2};  // launcher (or an injection), an injection, flares
     for (int i = 0; i < 3; ++i) shopItems_.push_back({kinds[i], shopAt_, false});
+    // story3_prison_7: "Check the Shop for an extra POP-UP BOMB if you need one".
+    if (hero_ == Hero::Mecc && toLower(assetWorld_->missionName()).rfind("story3_prison_7", 0) == 0) shopItems_.push_back({3, shopAt_, false});
     LOGI("Shop at (%.1f %.1f %.1f): %zu items, health pool %.0f", shopAt_.x, shopAt_.y, shopAt_.z, shopItems_.size(), shopPool_);
 }
 
@@ -78,7 +80,7 @@ void GameApp::updateShop(float dt, const InputFrame& in) {
         shopAt_ = Vec3{player_.position.x, player_.position.y, player_.position.z};
         const float yaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : player_.yaw;  // where he looks
         for (size_t i = 0; i < shopItems_.size(); ++i) {
-            const float a = yaw + (float(i) - 1.0f) * 0.75f;
+            const float a = yaw + (float(i) - 0.5f * float(shopItems_.size() - 1)) * (shopItems_.size() > 3 ? 0.6f : 0.75f);
             shopItems_[i].pos = shopAt_ + Vec3{-std::sin(a) * 1.5f, 1.1f, -std::cos(a) * 1.5f};
         }
     }
@@ -101,7 +103,10 @@ void GameApp::updateShop(float dt, const InputFrame& in) {
         bool touch = f.x * f.x + f.z * f.z < 0.8f * 0.8f;
         for (int k = 0; k < nh; ++k) touch = touch || length(hands[k] - it.pos) < 0.45f;
         if (!touch) continue;
-        if (it.kind == 0) {
+        if (it.kind == 3) {
+            ++popupBombs_;
+            LOGI("Shop: took a pop-up bomb (%d)", popupBombs_);
+        } else if (it.kind == 0) {
             hasLauncher_ = true;
             weaponHudT_ = 0;
             LOGI("Shop: took the rocket launcher");
@@ -165,7 +170,12 @@ void GameApp::renderShop() {
                             Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, yawOf(head.orientation)));
             text_.drawImage(xf, 0.32f, 0.32f, hudTex_[kHudFlare], {1, 1, 1, 1}, true);
         }
-        const RenderModel* m = it.kind == 0 ? launcherModel_ : (it.kind == 2 ? nullptr : syringeModel_);
+        if (it.kind == 3 && popupModel_) {
+            popupModel_->poseBlend(renderer_, popupClip_[0], 0.0f, 0, 0.0f, 0.0f);
+            popupModel_->render(renderer_, Mat4::translation(it.pos + Vec3{0, 0.06f * std::sin(t * 2.0f + it.pos.x) - 0.3f, 0}) *
+                                               Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.8f)) * Mat4::scale(Vec3{0.6f, 0.6f, 0.6f}));
+        }
+        const RenderModel* m = it.kind == 0 ? launcherModel_ : (it.kind == 2 || it.kind == 3 ? nullptr : syringeModel_);
         const float bob = 0.06f * std::sin(t * 2.0f + it.pos.x);
         const float s = it.kind == 0 ? 1.0f : 2.0f;  // the syringe is small
         if (m)
@@ -173,7 +183,7 @@ void GameApp::renderShop() {
                              Mat4::scale(Vec3{s, s, s}),
                       it.kind == 2);  // the flare glows
         if (!near || !text_.ready()) continue;
-        const std::string label = it.kind == 0 ? "ROCKET LAUNCHER"
+        const std::string label = it.kind == 3 ? "POP-UP BOMB" : it.kind == 0 ? "ROCKET LAUNCHER"
                                   : it.kind == 2 ? (flares_ >= kMaxFlares ? "FLARES (FULL)" : "3 FLARES")
                                                  : (syringes_ >= kMaxSyringes ? "INJECTION (FULL)" : "HEALTH INJECTION");
         float w = 0, h = 0;

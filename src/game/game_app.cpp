@@ -688,6 +688,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     { GVR_PROF("pickups"); updatePickups(dt, in); }
     updateShop(dt, in);
     updateBase(dt, in);
+    updatePopup(dt, in);
     { GVR_PROF("map"); updateMap(dt, in); }
     updateFlares(dt, in);
     { GVR_PROF("camera"); placeCamera(dt, false, &in); }
@@ -1311,6 +1312,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initPickups(mc);
     initShop();
     initBase();
+    initPopup();
     initVillagers(w, mc);
     initVimps(w, mc);
     initDestruction(w, mc);
@@ -3324,16 +3326,21 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         // there is nothing to switch to.
         switchArmed_ = false;
         // Gun -> launcher (once he has it) -> bush pack (from 2b) -> gun.
-        for (int k = 0; k < 3; ++k) {
-            weaponSel_ = (weaponSel_ + 1) % 3;
-            if (weaponSel_ == 0 || (weaponSel_ == 1 && hasLauncher_) || (weaponSel_ == 2 && hasBush())) break;
+        for (int k = 0; k < 4; ++k) {
+            weaponSel_ = (weaponSel_ + 1) % 4;
+            if (weaponSel_ == 0 || (weaponSel_ == 1 && hasLauncher_) || (weaponSel_ == 2 && hasBush()) ||
+                (weaponSel_ == 3 && popupBombs_ > 0)) break;
+        }
+        if (weaponSel_ == 3) {
+            timmyLine_ = "POP-UP BOMB (" + std::to_string(popupBombs_) + ") - TRIGGER TO SET IT DOWN";
+            timmyLineT_ = 3.0f;
         }
         weaponHudT_ = 0;
         sfx2D("ph_selct", 0.7f);
         haptics_.push_back({gh, 0.5f, 0.06f});
-        LOGI("Weapon: %s", weaponSel_ == 2 ? "bush pack" : (weaponSel_ ? "rocket launcher" : "gun"));
+        LOGI("Weapon: %s", weaponSel_ == 3 ? "pop-up bomb" : weaponSel_ == 2 ? "bush pack" : (weaponSel_ ? "rocket launcher" : "gun"));
     }
-    if (weaponSel_ == 2) { gunValid_ = false; return; }  // in the bush: no weapon in hand
+    if (weaponSel_ == 2 || weaponSel_ == 3) { gunValid_ = false; return; }  // in the bush / holding the bomb: no gun in hand
     const bool launcher = weaponSel_ == 1 && launcherModel_;
     const RenderModel* held = launcher ? launcherModel_ : gunModel_;
     // Handle / muzzle in each model's GAME frame (forward -Y, up +Z): the launcher is a
@@ -3723,6 +3730,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     renderBurrows(v.eyePosition);
     renderShop();
     renderBase(v.eyePosition);
+    renderPopup();
     renderSpells();
     renderKabutoPowers(v.eyePosition);
     renderThrows();

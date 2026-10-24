@@ -197,7 +197,7 @@ void GameApp::hudWeaponStrip() {
     const uint8_t back[4] = {0, 0, 0, uint8_t(120 * a)}, strip[4] = {255, 255, 255, uint8_t(255 * a)};
     hudRect(kHudPlate, f, 0, 0, W + 0.01f, H + 0.01f, back);
     hudRect(kHudWpSlot, f, 0, 0, W, H, strip);
-    const int sel = weaponSel_ == 2 ? 3 : (weaponSel_ == 1 && launcherModel_ ? 1 : 0);
+    const int sel = weaponSel_ == 3 ? -1 : weaponSel_ == 2 ? 3 : (weaponSel_ == 1 && launcherModel_ ? 1 : 0);
     const float popK = 1.0f + 0.35f * std::max(0.0f, 1.0f - t / 0.3f);
     for (int i = 0; i < 4; ++i) {
         const float cx = -0.5f * W + (float(i) + 0.5f) * (W / 4.0f);

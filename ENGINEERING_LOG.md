@@ -1416,3 +1416,16 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
 - Giftshop finished -> the existing shop counter opens at its front (toward the base middle); Workshop finished ->
   building 1.5x faster (ours, after bldgdescr "where your Smarties go for tools"). Harness 50 s with everything
   ordered: Pub, Workshop, shop opened, Giftshop, Party House, "Base: complete", Wood Gate.
+
+### 2026-10-24 — Pop-up bomb
+- Data: type 822 mc_popupbomb; MC_PopUpBomb.gbs/.skn with MC_Popupbomb_closed/tick/fire/noanim clips
+  (xx_mecc_flick.gzp). Text: Reg's lines in story3_popup_bomb ("destroy the doors to the prison", "extra light ...
+  attached to your back", "set off the Pop-up Bomb right by those doors"), story3_prison_7's briefing ("Only the
+  POP-UP BOMB can destroy the GATES", "Check the Shop for an extra"), 5c's (made by the Smarties once the base is done).
+- Implemented (game_app_popup.cpp): 4th weapon-strip choice; trigger sets it down 1.2 m ahead; tick clip and beeps
+  for 5 s, fire clip, then explode(radius 14 m, 2500). Only its blast damages bw_prison in story3_prison_7 and
+  guard_army_barracks in 5c (as the Delphi barracks need the tornado). Given: 1 at prison_7's start, +1 in that
+  level's Shop, 1 when 5c's base completes. Timings/radius/damage and the VR handling are ours.
+- Harness: prison_7 with the bomb set 10 m from the prison -> "Destroyed: bw_prison", objective done, mission
+  complete; 40 rocket blasts at the prison -> 0 objects destroyed; prison_7's Shop lists 4 items; 5c base complete
+  -> "Pop-up bomb given (1)"; bunker_3 unaffected.

@@ -517,6 +517,19 @@ private:
     bool shopOn_ = false, shopInside_ = false, shopAnchored_ = false;
     float shopPool_ = 0, shopPoolSnd_ = 0, shopFxT_ = 0, shopRingT_ = 0;
     void initShop();
+    // The pop-up bomb (game_app_popup.cpp): weapon strip choice weaponSel_ 3.
+    struct Popup { Vec3 pos; float yaw = 0, t = 0; bool fired = false; };
+    std::vector<Popup> popups_;
+    int popupBombs_ = 0;
+    bool popupBlast_ = false;
+    std::unique_ptr<SkinnedModel> popupModel_;
+    int popupClip_[3] = {0, 0, 0};
+    ButtonEdge popupEdge_;
+    void initPopup();
+    void updatePopup(float dt, const InputFrame& in);
+    void renderPopup();
+    void givePopupBomb(int n, const char* why);
+    bool popupOnlyTarget(int item) const;
     void openShopAt(const Vec3& centre);
     // Base building (game_app_base.cpp): 5c's Meccaryn base from Mecc_base_template_1.
     struct Base {

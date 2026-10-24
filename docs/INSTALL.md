@@ -149,9 +149,14 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   build two at a time; the building rises out of the ground (the game's own build animation) with a progress sign.
 - Finished buildings are solid. The **Giftshop** opens a shop counter in front of it (launcher, injections, flares,
   health pool); after the **Workshop** the Smarties build 1.5x faster.
-- Pub + Workshop + Giftshop + Party House = "BASE COMPLETE!".
-- Not yet: enemies attacking the base, stone upgrades, the POP-UP BOMB the Smarties should make when the base is
-  complete, and Delphi's base (r4a).
+- Pub + Workshop + Giftshop + Party House = "BASE COMPLETE!" and the Smarties give you a **POP-UP BOMB**.
+- Not yet: enemies attacking the base, stone upgrades, and Delphi's base (r4a).
+
+## Pop-up bomb (Meccaryn: story3_prison_7, and 5c once the base is complete)
+- **Right stick forward** cycles the weapon strip to the bomb (it appears in your hand). **Right trigger** sets it
+  down in front of you; it beeps for 5 s (faster at the end), pops up and blows - get clear (about 14 m).
+- As the briefings say, only the bomb breaks the **prison gates** in story3_prison_7 and the **army barracks** in 5c.
+  Reg gives you one at the start of story3_prison_7; that level's Shop has an extra one.
 
 ## Delphi (Reaper story)
 Options → NEW GAME: choose **REAPER STORY (DELPHI)** with the stick, hold the trigger 2 s. Delphi has no jetpack:

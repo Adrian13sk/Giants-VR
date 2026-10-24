@@ -268,8 +268,7 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         for (const auto& b : base_.bldgs) all = all && (!kDefs[b.def].core || b.state == 3);
         if (all) {
             base_.complete = true;
-            timmyLine_ = "BASE COMPLETE! THE SMARTIES ARE WORKING FOR YOU NOW.";
-            timmyLineT_ = 5.0f;
+            givePopupBomb(1, "BASE COMPLETE! YOUR SMARTIES MADE YOU A POP-UP BOMB.");
             LOGI("Base: complete");
         }
     }

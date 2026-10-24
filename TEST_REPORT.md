@@ -525,3 +525,8 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 - The hand-touch menu is untested (the harness has no hand path to the signs yet). **Not device-tested.**
 - v1.1 (harness): hand path to the WORKSHOP sign orders exactly one building; collision boxes enclose their sites;
   50 s run reaches "Base: complete" and opens the Giftshop's counter. Not device-tested.
+
+## Host verification — pop-up bomb
+- story3_prison_7: bomb set by the gates -> prison destroyed, mission complete. 40 rocket blasts -> prison intact.
+- Shop lists the extra bomb (4 items). 5c: base completion gives the bomb. story3_bunker_3: no errors.
+- Holding/placing with real controllers untested. **Not device-tested.**
