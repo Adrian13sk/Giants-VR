@@ -203,6 +203,8 @@ private:
     Mat4 bodyXf_ = Mat4::identity();  // player model transform (FP: under the head, scaled)
     Vec3 eyeModel_{0, 1.9f, -0.1f};   // Meccaryn eye point, model-local metres (measured at init)
     Vec3 eyeFromHead_{0, 0, -0.2f};   // eye point relative to the head-vertex centroid
+    Vec3 meccEye_, meccEyeFromHead_, delphiEye_{0, 1.6f, -0.1f}, delphiEyeFromHead_{0, 0, -0.1f};  // per hero (setHero)
+    bool meccEyeSaved_ = false;
     Vec3 eyeNow_{0, 1.9f, -0.1f};     // eye point in the latest animated pose (follows lean/bob)
     float userEye_ = 1.6f;            // user's eye height estimate (smoothed tracked head height)
     bool eyeCalibrated_ = false;

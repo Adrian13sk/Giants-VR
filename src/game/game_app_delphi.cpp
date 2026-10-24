@@ -49,6 +49,47 @@ bool GameApp::loadDelphi() {
     for (PlayerAnim a : {PlayerAnim::Land, PlayerAnim::LandHard, PlayerAnim::Inject, PlayerAnim::Attack1, PlayerAnim::Attack2,
                          PlayerAnim::Attack3, PlayerAnim::Cast})
         delphiOneShot_[int(a)] = m->animDuration(delphiClip_[int(a)]);
+    // First person: her head hidden (the eyes sit inside it), her arms reaching for the
+    // controllers (the same IK as the Meccaryn's; her chain is L_shoulder > L_arm01 > L_arm02 >
+    // L_arm03, the hand). The eye point from the idle pose, as for him.
+    m->setHiddenBones({"head", "neck"});
+    m->setKeepFull(true);
+    m->pose(renderer_, 0.0f);
+    {
+        Vec3 hmn, hmx;
+        if (m->boneVertexBounds("head", hmn, hmx)) delphiEye_ = {0.5f * (hmn.x + hmx.x), hmn.y + 0.55f * (hmx.y - hmn.y), hmn.z - 0.03f};
+        delphiEyeFromHead_ = delphiEye_ - m->hiddenCentroid();
+        LOGI("Delphi eye point (model, m): %.2f %.2f %.2f", delphiEye_.x, delphiEye_.y, delphiEye_.z);
+    }
+    m->setPoseModifier([this](const AnmAnimation& clip, const std::vector<std::vector<int>>& children, std::vector<Mat4>& world) {
+        if (!playMode_ || !firstPerson_ || hero_ != Hero::Delphi) return;
+        auto node = [&](const char* n) {
+            auto it = clip.byName.find(n);
+            return it == clip.byName.end() ? -1 : it->second;
+        };
+        static const char* names[2][4] = {{"l_shoulder", "l_arm01", "l_arm02", "l_arm03"}, {"r_shoulder", "r_arm01", "r_arm02", "r_arm03"}};
+        for (int h = 0; h < 2; ++h) {
+            if (!armTargets_[h].valid) continue;
+            ArmChain c;
+            c.clavicle = node(names[h][0]);
+            c.upper = node(names[h][1]);
+            c.fore = node(names[h][2]);
+            c.hand = node(names[h][3]);
+            // Her fingers, index to little (by their distance from the thumb in the rest pose).
+            static const char* fingers[2][4] = {{"l_fingers11", "l_fingers10", "l_fingers06", "l_fingers01"},
+                                                {"r_finger13", "r_finger01", "r_finger06", "r_finger02"}};
+            for (int f = 0; f < 4; ++f) c.finger[f] = node(fingers[h][f]);
+            if (!c.valid()) continue;
+            ArmTarget t;
+            t.grip = armTargets_[h].grip;
+            t.forward = armTargets_[h].forward;
+            t.up = armTargets_[h].up;
+            t.pole = Vec3{h == kLeft ? 0.7f : -0.7f, 0.4f, -1.0f} - normalize(t.up) * 0.5f;
+            t.armStretch = 1.0f;
+            t.maxReachStretch = 1.4f;
+            solveArmIk(world, children, c, t);
+        }
+    });
     m->pose(renderer_, 0.0f);
     delphiModel_ = std::move(m);
     swordModel_ = assetWorld_->models()->get("rp_sword.gbs", "", /*dynamicLit=*/true);
@@ -87,6 +128,10 @@ void GameApp::setHero(Hero h) {
     tpAiming_ = false;
     const int* clips = meccClip_;
     const float* shots = meccOneShot_;
+    if (!meccEyeSaved_) { meccEye_ = eyeModel_; meccEyeFromHead_ = eyeFromHead_; meccEyeSaved_ = true; }
+    eyeModel_ = h == Hero::Delphi ? delphiEye_ : meccEye_;  // the first-person eye point of the body worn
+    eyeFromHead_ = h == Hero::Delphi ? delphiEyeFromHead_ : meccEyeFromHead_;
+    eyeNow_ = eyeModel_;
     if (h == Hero::Mecc) {
         playerModel_ = std::move(meccMain_);
         playerSpare_ = std::move(meccSpare_);

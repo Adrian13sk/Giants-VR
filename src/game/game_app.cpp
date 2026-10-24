@@ -3619,7 +3619,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         drawModel(n.model, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown), false);
     }
     if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
-    if (playMode_ && playerModel_ && !cut && !playerGibbed_ && !(firstPerson_ && hero_ != Hero::Mecc)) playerModel_->render(renderer_, bodyXf_);
+    if (playMode_ && playerModel_ && !cut && !playerGibbed_ && !(firstPerson_ && hero_ == Hero::Kabuto)) playerModel_->render(renderer_, bodyXf_);
     if (playMode_ && !cut && !dying_) renderJetFx(firstPerson_);
     if (playMode_ && !cut && !dying_) renderBush();
     if (playMode_ && swordValid_ && swordModel_ && !cut && !dying_) drawModel(swordModel_, swordXf_, false);
