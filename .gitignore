@@ -12,3 +12,5 @@ keys/
 *.tga
 game_data/
 __pycache__/
+# the headless harness default output
+/stereo.png

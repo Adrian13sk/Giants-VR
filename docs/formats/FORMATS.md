@@ -263,8 +263,18 @@ Readings so far (from values, not confirmed by behaviour):
 - `03 {type}` starts a particle emitter of a GameObj type - the efx_* models (794 efx_flash, 815 efx_fire_trail,
   826 efx_smoke_blue, 796 efx_debri1, 818 efx_ref_sphere...); `06` opens its parameters, `07` closes it. `38 {type}`
   is the weather's emitter (839 efx_rain).
-- `24 {projectile type, trail type, 0}`: FX_rocket = 800 mc_rocket with 821 efx_ref_line_back; FX_sniper_bullit =
-  793 mc_sniper_bullit.
+- `24 {object type, emitter type, k}`: an emitter riding a game object. With k = 0 the object is a projectile or a
+  model part (FX_rocket = 800 mc_rocket with 821 efx_ref_line_back; FX_sniper_bullit = 793 mc_sniper_bullit;
+  FXB_bow_RPG = 14 mc_bullet; FX_Lbomb = 808 mc_lbomb with 823 efx_ref_line_up; also nozzles, smartie glows,
+  buildings' smoke); k = -1 (0xFFFFFFFF) effects name the same type twice and are self-contained (foot dust
+  efx_dust_ball, portal, smoke). 111 of the 679 effects carry one. In such an emitter's block (projectile trails):
+  `20 {r, g, b, r, g, b}` colours from/to (rocket 0.4 0.8 0.9 -> 0.3 0.7 0.8; shotgun 1 0.9 0.8 -> 1 0.8 0.6),
+  `22 {from, to}` (rocket 2 -> 0.001, shotgun 0.75 -> 0.001), `25 {s}` (rocket 1.2, sniper / shotgun 0.5),
+  `26 {x}` (rocket 0.1, homing 0.05, shotgun 0.75, sniper 0.01) - read as a streak behind the projectile: colour,
+  width in game units and lifetime (P); 26 unread (we use it as opacity, floored at 0.25). `0a {0, "fx_rocket_fire",
+  0}` - n = 0: the effect rides the object itself (the rocket's blue flame efx_bfire_trail, life 3 s, kept while it
+  flies - ours). `27 {"effect", u, f}` (fxb_bow_screamer_trail) read as a trail like 5b. Played: `FxPlayer::attach`
+  (V: synthetic unit test; harness: the launcher rocket's blue flame and pale streak).
 - `0a / 10 / 70 {n, "effect", 0}`: a named sub-effect, several times with rising n inside an emitter whose model is
   a reference shape (efx_ref_sphere, efx_ref_ground_hit) - read as "start this effect at point/frame n" of that shape.
 - `2b {sound, sound}`, `2c {sound}`, `87 {sound, sound}` (foot steps), `83`: sound ids, resolved by the sound table
@@ -276,7 +286,8 @@ Readings so far (from values, not confirmed by behaviour):
   `0e` gravity (1 for debris), `0f` vertical drift (negative for rising smoke), `12` / `1c` speed ranges,
   `19` bounce, `33` rotation ranges (0-180 degrees), `1b` scale, `04` timing.
 - `7a {"effect", 6 floats}` (3599 uses) places weather effects over rectangles in the fx_weather_* entries.
-Not used by the port yet: effects are still our stand-in particles (B9).
+Played behind Options -> EFFECTS: ORIGINAL (TEST) (FxPlayer; explosions, cutscene effects, projectile trails); the
+default is still our stand-in particles (B9).
 
 ## Sound table (section 2 of the 0x1A0002E5 .bin files) — V (2026-10-24)
 At section offset 2: `u32 -1, u32 magic 0x33221102, u32 count, u32 record size (40), u32 pool size`, then

@@ -163,9 +163,9 @@ void GameApp::hudStatus(const HudFrame& f) {
     // The weapon in hand.
     if (giant) {
     } else if (hero_ == Hero::Delphi) {
-        hudRect(kHudSword, f, 0.040f, -0.024f, 0.036f, 0.036f, on);
-        if (delphiWeapon_ >= 0 && bows_[delphiWeapon_].ammo >= 0) {  // a bow in hand: arrows left (no bow icon in the data's HUD set)
-            const int n = bows_[delphiWeapon_].ammo;
+        hudRect(delphiWeapon_ == kDelphiMine ? kHudMine : kHudSword, f, 0.040f, -0.024f, 0.036f, 0.036f, on);
+        if (delphiWeapon_ == kDelphiMine || (delphiBow() && bows_[delphiWeapon_].ammo >= 0)) {  // arrows / mines left (no bow icon in the data's HUD set)
+            const int n = delphiWeapon_ == kDelphiMine ? mines_ : bows_[delphiWeapon_].ammo;
             const uint8_t nc[4] = {255, uint8_t(n > 0 ? 255 : 80), uint8_t(n > 0 ? 255 : 80), 255};
             hudDigits(f, 0.026f, -0.046f, 0.012f, n, nc);
         }

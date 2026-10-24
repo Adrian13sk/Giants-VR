@@ -29,6 +29,7 @@ struct Villager {
     float calm = 99;       // seconds since the last fright
     float waveCooldown = 0;
     int slot = -1;         // model slot (game layer)
+    uint32_t uid = 0;      // stable id (the list shrinks)
 };
 
 struct VillagerParams {

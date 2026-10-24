@@ -67,6 +67,7 @@ void GameApp::openShopAt(const Vec3& centre) {
         initBows();
         if (!bows_[kBowHoming].have) shopItems_.push_back({6, shopAt_, false});
         shopItems_.push_back({4, shopAt_, false});
+        if (rpMineModel_) shopItems_.push_back({5, shopAt_, false});  // her mines (item 63)
         shopItems_.push_back({1, shopAt_, false});
     } else {
         const int kinds[3] = {hasLauncher_ ? 1 : 0, 1, 2};
@@ -209,7 +210,7 @@ void GameApp::renderShop() {
             popupModel_->render(renderer_, Mat4::translation(it.pos + Vec3{0, 0.06f * std::sin(t * 2.0f + it.pos.x) - 0.3f, 0}) *
                                                Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.8f)) * Mat4::scale(Vec3{0.6f, 0.6f, 0.6f}));
         }
-        const RenderModel* m = it.kind == 0 ? launcherModel_ : it.kind == 4 ? shellsModel_ : it.kind == 5 ? mineModel_
+        const RenderModel* m = it.kind == 0 ? launcherModel_ : it.kind == 4 ? shellsModel_ : it.kind == 5 ? (hero_ == Hero::Delphi ? rpMineModel_ : mineModel_)
                                : it.kind == 6 ? bows_[kBowHoming].model : it.kind == 7 ? bows_[kBowPowerup].model
                                : (it.kind == 2 || it.kind == 3 ? nullptr : syringeModel_);
         const float bob = 0.06f * std::sin(t * 2.0f + it.pos.x);

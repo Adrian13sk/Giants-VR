@@ -37,13 +37,12 @@ constexpr int kPerSite = 2;
 bool GameApp::addCrewSmartie(const Vec3& at, bool fromHatch) {
     if (!assetWorld_) return false;
     Base::Worker w;
-    w.model = std::make_unique<SkinnedModel>();
-    if (!w.model->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "sm_L0", kCrewAnims[0])) return false;
-    for (int k = 1; k < kCrewClips; ++k) {
-        const int i = w.model->addAnimation(assetWorld_->fs(), kCrewAnims[k]);
-        if (base_.crewClip[k] < 0) base_.crewClip[k] = i;
+    if (!base_.crewPool.empty()) {  // loaded at the mission start: no stall when a hatch opens
+        w.model = std::move(base_.crewPool.back());
+        base_.crewPool.pop_back();
+    } else if (!(w.model = loadCrewModel())) {
+        return false;
     }
-    w.model->pose(renderer_, 0.0f);
     Vec3 mn, mx;
     w.model->posedBounds(mn, mx);
     w.lift = -mn.y;
@@ -56,9 +55,21 @@ bool GameApp::addCrewSmartie(const Vec3& at, bool fromHatch) {
     return true;
 }
 
+std::unique_ptr<SkinnedModel> GameApp::loadCrewModel() {
+    auto m = std::make_unique<SkinnedModel>();
+    if (!m->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "sm_L0", kCrewAnims[0])) return nullptr;
+    for (int k = 1; k < kCrewClips; ++k) {
+        const int i = m->addAnimation(assetWorld_->fs(), kCrewAnims[k]);
+        if (base_.crewClip[k] < 0) base_.crewClip[k] = i;
+    }
+    m->pose(renderer_, 0.0f);
+    return m;
+}
+
 void GameApp::initCrew() {
     base_.crew.clear();
     base_.hatches.clear();
+    base_.crewPool.clear();
     base_.crewClip[0] = 0;
     for (int k = 1; k < 16; ++k) base_.crewClip[k] = -1;
     const MissionData& md = assetWorld_->mission();
@@ -86,7 +97,11 @@ void GameApp::initCrew() {
         if (assetWorld_->terrain().heightAt(p.x, p.z, gy)) p.y = gy;
         addCrewSmartie(p, false);
     }
-    LOGI("Base crew: %zu Smarties, %zu hatches with %d each", base_.crew.size(), base_.hatches.size(), kPerHatch);
+    // The hatches' Smarties, loaded now rather than in the frame a hatch opens (a visible stall).
+    for (size_t i = 0; i < base_.hatches.size() * kPerHatch; ++i)
+        if (auto m = loadCrewModel()) base_.crewPool.push_back(std::move(m));
+    LOGI("Base crew: %zu Smarties, %zu hatches with %d each (%zu loaded ahead)", base_.crew.size(), base_.hatches.size(), kPerHatch,
+         base_.crewPool.size());
 }
 
 int GameApp::crewCount() const {

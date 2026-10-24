@@ -357,6 +357,8 @@ void GameApp::initFx(ModelCache* mc) {
     for (int k = 0; k < 5; ++k) bloodBatch_[k].init(renderer_, bcaps[k]);
     holeTex_ = mc->texture("blastmark_2");  // Ripper holes (game_app_ripper.cpp)
     holeBatch_.init(renderer_, 40);
+    streakTex_ = mc->texture("b_thrust");  // a soft glow: its middle column across the streak
+    streakBatch_.init(renderer_, 512);
     batchesReady_ = true;
 }
 
@@ -428,6 +430,7 @@ void GameApp::updateFx(float dt) {
     updateDataFx(dt);
     // Rocket trails: a flame at the nozzle and grey smoke left hanging behind.
     for (const auto& r : rockets_) {
+        if (rocketTrail(r)) continue;  // the original trail (fx.bin) rides it
         const Vec3 back = normalize(r.vel) * -1.0f;
         if (r.kind == 1) {  // Delphi's fire bolt: a blazing ball with a blue-white tail
             smokePuff(FxTex::Fire, r.pos, back * 1.0f, 0.75f, 0.2f, 0.12f, 1.0f, 0.0f);
@@ -514,6 +517,7 @@ void GameApp::buildBatches() {
     for (auto& b : fxBatch_) b.upload(renderer_);
     for (auto& b : bloodBatch_) b.upload(renderer_);
     holeBatch_.upload(renderer_);
+    buildStreaks(eye);
     jetGlowBatch_.clear();
     if (jetGlow_ > 0.01f) {
         // The jetpack's light on the ground under the player (additive: colour is brightness).
@@ -557,6 +561,13 @@ void GameApp::renderFx() {
         fp.texture = fxTex_[k];
         if (fire) { fp.blend = BlendMode::Additive; fp.noFog = true; }
         fxBatch_[k].draw(renderer_, fp);
+    }
+    if (streakTex_ && streakBatch_.count()) {
+        DrawParams sp = dp;
+        sp.texture = streakTex_;
+        sp.blend = BlendMode::Additive;
+        sp.noFog = true;
+        streakBatch_.draw(renderer_, sp);
     }
 }
 

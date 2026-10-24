@@ -1,0 +1,16 @@
+# Delphi's mine (rp_mine, her weapon cycle's last slot): one set down, the screenshot of it on the ground and of the
+# one in her hand.
+name delphi_mine
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_ARSENAL 1
+env GVR_DELPHI_WEAPON 5
+view first
+duration 12
+perf 3 12
+pitch -35
+shot 2.5 mine_in_hand
+hold trigger_r 3 3.2
+shot 5 mine_set

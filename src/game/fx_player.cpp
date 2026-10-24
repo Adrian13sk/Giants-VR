@@ -80,6 +80,39 @@ FxPlayer::Shape* FxPlayer::shape(const std::string& anim) {
     return r;
 }
 
+FxPlayer::Particle* FxPlayer::findMut(uint32_t id) {
+    for (auto& p : particles)
+        if (p.id == id) return &p;
+    return nullptr;
+}
+
+uint32_t FxPlayer::attach(const std::string& name, const Vec3& at, const Quat& rot, float scale) {
+    if (!lib_) return 0;
+    const FxDef* def = lib_->find(name);
+    if (!def) return 0;
+    attaching_ = true;
+    attachedRoot_ = 0;
+    run(def, 0, at, rot, scale, 0, -1);
+    attaching_ = false;
+    return attachedRoot_;
+}
+
+bool FxPlayer::moveAttached(uint32_t handle, const Vec3& at, const Quat& rot) {
+    Particle* p = handle ? findMut(handle) : nullptr;
+    if (!p || !p->attached) return false;
+    p->pos = at;
+    p->rot = rot;
+    p->unmoved = 0;
+    return true;
+}
+
+void FxPlayer::detach(uint32_t handle) {
+    Particle* p = handle ? findMut(handle) : nullptr;
+    if (!p || !p->attached) return;
+    p->attached = false;
+    p->life = p->age;  // gone at the next update; its streak fades with it
+}
+
 const FxPlayer::Particle* FxPlayer::byId(uint32_t id) const {
     for (const auto& p : particles)
         if (p.id == id) return &p;
@@ -103,7 +136,7 @@ void FxPlayer::run(const FxDef* def, size_t from, const Vec3& at, const Quat& ro
         auto f = [&](size_t k) { return k < op.f.size() ? op.f[k] : 0.0f; };
         switch (op.op) {
             case 0x0b:  // wait, then go on
-                if (!inBlock && f(0) > 0) {
+                if (!inBlock && f(0) > 0 && !(attaching_ && !attachedRoot_)) {
                     pending_.push_back({def, i + 1, f(0), at, rot, scale, parent, node});
                     return;
                 }
@@ -114,9 +147,12 @@ void FxPlayer::run(const FxDef* def, size_t from, const Vec3& at, const Quat& ro
                     if (!s.empty() && op.op == 0x2b) sounds.push_back({s, at});
                 }
                 break;
-            case 0x03: case 0x38: {
+            case 0x03: case 0x38: case 0x24: {
                 if (particles.size() >= kMaxParticles || op.u.empty()) { cur = nullptr; break; }
-                const TypeInfo& ti = typeInfo(op.u[0]);
+                // 24: an emitter riding an object - only with attach() unless self-contained (k = -1).
+                const bool onObject = op.op == 0x24 && (op.u.size() < 3 || op.u[2] != 0xFFFFFFFFu);
+                if (op.op == 0x24 && (op.u.size() < 2 || (onObject && (!attaching_ || attachedRoot_)))) { cur = nullptr; break; }
+                const TypeInfo& ti = typeInfo(op.op == 0x24 ? op.u[1] : op.u[0]);
                 Particle p;
                 p.id = nextId_++;
                 p.model = ti.model;
@@ -129,6 +165,11 @@ void FxPlayer::run(const FxDef* def, size_t from, const Vec3& at, const Quat& ro
                 p.parent = parent;
                 p.node = node;
                 if (!ti.anim.empty()) p.shape = shape(ti.anim);
+                if (onObject) {
+                    p.attached = p.fromAttach = true;
+                    p.life = 1e9f;
+                    attachedRoot_ = p.id;
+                }
                 particles.push_back(p);
                 cur = &particles.back();
                 sizeLo = sizeHi = 1;
@@ -170,15 +211,21 @@ void FxPlayer::run(const FxDef* def, size_t from, const Vec3& at, const Quat& ro
                 if (lib_ && !op.s.empty() && !op.u.empty())
                     if (const FxDef* c = lib_->find(op.s)) {
                         const uint32_t pid = p.id;
-                        const int n = int(op.u[0]);
+                        const int n = int(op.u[0]);  // 0: the emitter's own position
                         // Started after this emitter's block (its parameters complete): queued with no wait.
                         pending_.push_back({c, 0, 0.0f, p.pos, p.rot, scale, pid, n});
                     }
                 break;
-            case 0x5b:
+            case 0x5b: case 0x27:
                 if (lib_ && !op.s.empty())
-                    if (const FxDef* c = lib_->find(op.s)) trails_.push_back({p.id, c, std::max(0.02f, f(0)), 0.0f});
+                    if (const FxDef* c = lib_->find(op.s)) trails_.push_back({p.id, c, std::max(op.op == 0x27 ? 0.03f : 0.02f, f(0)), 0.0f});
                 break;
+            case 0x20:
+                for (int k = 0; k < 3; ++k) { p.sc0[k] = f(size_t(k)); p.sc1[k] = f(size_t(k) + 3); }
+                break;
+            case 0x22: p.sw0 = f(0) * gGameUnitsToMeters * scale; p.sw1 = f(1) * gGameUnitsToMeters * scale; break;
+            case 0x25: p.slife = f(0); p.streak = p.attached && p.slife > 0.01f; break;
+            case 0x26: p.sopacity = std::max(0.25f, std::min(1.0f, f(0))); break;
             default: break;
         }
     }
@@ -210,6 +257,13 @@ void FxPlayer::update(float dt) {
         p.age += dt;
         if (p.parent) {
             const Particle* par = byId(p.parent);
+            if (par && p.node == 0 && par->attached) {  // riding an attached emitter itself, kept alive while it flies
+                if (dt > 1e-4f && p.age > dt) p.vel = (par->pos + p.offset - p.pos) * (1.0f / dt);
+                p.pos = par->pos + p.offset;
+                p.parentAttached = true;
+                p.age = std::min(p.age, 0.5f * p.life);
+                continue;
+            }
             if (par && p.node >= 1 && size_t(p.node) <= par->points.size()) {
                 const Vec3 np = par->points[size_t(p.node - 1)] + p.offset;
                 if (dt > 1e-4f && p.age > dt) p.vel = (np - p.pos) * (1.0f / dt);  // kept when the shape ends
@@ -217,7 +271,28 @@ void FxPlayer::update(float dt) {
                 continue;
             }
             p.parent = 0;  // the shape is gone: carry on free, with the speed it had
+            if (p.parentAttached) {  // what it rode has landed: it goes out with it
+                p.vel = {0, 0, 0};
+                p.life = std::min(p.life, p.age + 0.1f);
+                p.fadeOut = 0.1f;
+            }
         }
+        if (p.attached) {
+            // Moved by the caller; the streak it leaves.
+            p.unmoved += dt;
+            if (p.unmoved > 0.5f) { p.attached = false; p.life = p.age; }
+        }
+        if (p.streak) {
+            for (auto& s : p.streakPts) s.age += dt;
+            while (!p.streakPts.empty() && p.streakPts.front().age > p.slife) p.streakPts.erase(p.streakPts.begin());
+            if (p.attached && (p.streakPts.empty() || length(p.streakPts.back().pos - p.pos) > 0.15f)) {
+                if (p.streakPts.size() >= 64) p.streakPts.erase(p.streakPts.begin());
+                p.streakPts.push_back({p.pos, 0.0f});
+            }
+            if (!p.attached) p.life = p.streakPts.empty() ? p.age : p.age + 1.0f;  // stays until its streak has faded
+            if (p.attached || !p.streakPts.empty()) continue;
+        }
+        if (p.attached) continue;
         p.vel.y -= 9.8f * p.gravity * dt;
         p.pos += p.vel * dt;
         if (p.spin != 0) p.rot = Quat::fromAxisAngle(p.spinAxis, p.spin * dt) * p.rot;
@@ -231,7 +306,7 @@ void FxPlayer::update(float dt) {
     // Trails.
     for (auto& tr : trails_) {
         const Particle* p = byId(tr.particle);
-        if (!p) { tr.every = -1; continue; }
+        if (!p || (p->fromAttach && !p->attached)) { tr.every = -1; continue; }  // landed: no more
         tr.t += dt;
         while (tr.t >= tr.every && particles.size() < kMaxParticles) {
             tr.t -= tr.every;

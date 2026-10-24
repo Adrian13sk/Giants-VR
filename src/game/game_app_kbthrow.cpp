@@ -35,6 +35,8 @@ void GameApp::initThrows() {
     kbShrapnel_.clear();
     kbThrown_.clear();
     kbHold_ = HoldNone;
+    kbHeld_ = -1;
+    kbHeldUid_ = 0;
     if (hero_ != Hero::Kabuto || !assetWorld_) return;
     for (const auto& o : assetWorld_->worldObjects()) {
         if (o.name != "k_rock_gen" || !o.model) continue;
@@ -218,8 +220,17 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
                     Boulder b;
                     b.pos = r.top;
                     b.state = Boulder::Loose;
-                    kbBoulders_.push_back(b);
-                    bi = int(kbBoulders_.size()) - 1;
+                    // Pulled tops add up (dropped ones stay): past a dozen lying about, the oldest is reused.
+                    int loose = 0, oldest = -1;
+                    for (size_t j = 0; j < kbBoulders_.size(); ++j)
+                        if (kbBoulders_[j].state == Boulder::Loose) { ++loose; if (oldest < 0) oldest = int(j); }
+                    if (loose >= 12 && oldest >= 0) {
+                        kbBoulders_[size_t(oldest)] = b;
+                        bi = oldest;
+                    } else {
+                        kbBoulders_.push_back(b);
+                        bi = int(kbBoulders_.size()) - 1;
+                    }
                     LOGI("Kabuto pulls a boulder off the volcanic rock");
                     break;
                 }
@@ -245,6 +256,7 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
             if (ei >= 0) {
                 kbHold_ = HoldReaper;
                 kbHeld_ = ei;
+                kbHeldUid_ = enemies_.enemies[size_t(ei)].uid;
                 enemies_.knockOff(ei, Vec3{0, 0, 0});
                     sfx2D("ka_grab", 0.9f);
                 sfx("rpman_hit1", enemies_.enemies[size_t(ei)].pos, 0.8f, 1.1f);
@@ -261,6 +273,7 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
             if (kbHeld_ < 0 || size_t(kbHeld_) >= kbBoulders_.size()) { kbHold_ = HoldNone; }
             else { kbBoulders_[size_t(kbHeld_)].pos = hand; kbBoulders_[size_t(kbHeld_)].vel = Vec3{0, 0, 0}; }
         } else if (kbHold_ == HoldReaper) {
+            kbHeld_ = enemyOfUid(kbHeldUid_);  // (the list shrinks as the dead are cleared)
             if (kbHeld_ < 0 || size_t(kbHeld_) >= enemies_.enemies.size() || enemies_.enemies[size_t(kbHeld_)].state != EnemyState::Falling) {
                 kbHold_ = HoldNone;
             } else {
@@ -318,7 +331,7 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
             e.vel = thrown ? vel : Vec3{0, 0, 0};
             e.fallFrom = e.pos.y + (thrown ? 100.0f : 0.0f);  // a thrown one doesn't get up again
             if (thrown) {
-                kbThrown_.push_back({kbHeld_, 0.0f});
+                kbThrown_.push_back({e.uid, 0.0f});
                 sfx2D("ka_throw", 1.0f);
                 sfx("rpman_die1", e.pos, 1.0f, 1.2f);
                 haptics_.push_back({mh, 1.0f, 0.15f});
@@ -327,6 +340,7 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
         }
         kbHold_ = HoldNone;
         kbHeld_ = -1;
+        kbHeldUid_ = 0;
     }
     kbXWas_ = x;
 
@@ -406,12 +420,13 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
     // Thrown Reapers: bowl over the ones they meet, and burst on landing.
     for (auto& t : kbThrown_) {
         t.age += dt;
-        if (t.index < 0 || size_t(t.index) >= enemies_.enemies.size()) { t.age = 99; continue; }
-        Enemy& e = enemies_.enemies[size_t(t.index)];
+        const int ti = enemyOfUid(t.uid);
+        if (ti < 0) { t.age = 99; continue; }
+        Enemy& e = enemies_.enemies[size_t(ti)];
         const Vec3 c = e.pos + Vec3{0, 0.9f, 0};
         if (e.state == EnemyState::Falling) {
             for (size_t j = 0; j < enemies_.enemies.size(); ++j) {
-                if (int(j) == t.index) continue;
+                if (int(j) == ti) continue;
                 Enemy& o = enemies_.enemies[j];
                 if (o.state == EnemyState::Dead || length(o.pos + Vec3{0, 0.9f, 0} - c) > 1.6f) continue;
                 LOGI("A thrown Reaper hits Reaper %zu", j);
@@ -425,7 +440,7 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
         explode(c, 3.0f, 120.0f, false);
         if (e.state != EnemyState::Dead) {
             const int obj = e.objective;
-            if (enemies_.damage(t.index, 1e5f, true) && obj >= 0) completeObjective(obj);
+            if (enemies_.damage(ti, 1e5f, true) && obj >= 0) completeObjective(obj);
         }
         bleed(c, Vec3{0, 1, 0}, true, 1.2f);
         sfx("ka_stomp", e.pos, 0.7f, 1.4f);

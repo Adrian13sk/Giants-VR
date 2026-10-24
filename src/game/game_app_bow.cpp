@@ -103,17 +103,17 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
     static bool hookDone = false;  // test hook: GVR_DELPHI_WEAPON=n starts with bow n in hand
     if (!hookDone && playMode_) {
         hookDone = true;
-        if (const char* w = std::getenv("GVR_DELPHI_WEAPON")) delphiWeapon_ = std::max(-1, std::min(kNumBows - 1, std::atoi(w)));
+        if (const char* w = std::getenv("GVR_DELPHI_WEAPON")) delphiWeapon_ = std::max(-1, std::min(int(kDelphiMine), std::atoi(w)));
     }
-    // Right stick forward: sword -> each bow she has -> sword.
+    // Right stick forward: sword -> each bow she has -> her mines (if she carries any) -> sword.
     const float sy = in.hand[gh].thumbstick.y;
     if (sy < 0.3f) bowSwitchArmed_ = true;
     if (bowSwitchArmed_ && sy > 0.75f && !dying_) {
         bowSwitchArmed_ = false;
         int next = delphiWeapon_;
-        for (int k = 0; k < kNumBows + 1; ++k) {
-            next = next + 1 >= kNumBows ? -1 : next + 1;
-            if (next < 0 || (bows_[next].have && bows_[next].model)) break;
+        for (int k = 0; k < kNumBows + 2; ++k) {
+            next = next + 1 > kDelphiMine ? -1 : next + 1;
+            if (next < 0 || (next == kDelphiMine && mines_ > 0 && rpMineModel_) || (next < kNumBows && bows_[next].have && bows_[next].model)) break;
         }
         if (next != delphiWeapon_) {
             delphiWeapon_ = next;
@@ -121,16 +121,18 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
             bowDraw_ = 0;
             sfx2D(next < 0 ? "sr_btosw" : kBows[next].draw, 0.8f);
             haptics_.push_back({gh, 0.5f, 0.06f});
-            const Bow* b = next >= 0 ? &bows_[next] : nullptr;
-            timmyLine_ = b ? std::string(b->name) + (b->ammo >= 0 ? " (" + std::to_string(b->ammo) + ")" : "") +
+            const Bow* b = next >= 0 && next < kNumBows ? &bows_[next] : nullptr;
+            timmyLine_ = next == kDelphiMine ? "MINES (" + std::to_string(mines_) + ") - TRIGGER SETS ONE DOWN"
+                       : b ? std::string(b->name) + (b->ammo >= 0 ? " (" + std::to_string(b->ammo) + ")" : "") +
                                  (firstPerson_ ? " - GRAB THE STRING WITH YOUR OTHER HAND, PULL, LET GO" : " - HOLD THE TRIGGER, LET GO")
                            : "SWORD";
             timmyLineT_ = 3.0f;
-            LOGI("Delphi: %s", b ? b->name : "sword");
+            LOGI("Delphi: %s", next == kDelphiMine ? "mines" : b ? b->name : "sword");
         }
     }
-    if (delphiWeapon_ >= 0 && !(bows_[delphiWeapon_].have && bows_[delphiWeapon_].model)) delphiWeapon_ = -1;
-    if (delphiWeapon_ < 0 || dying_) { bowDrawing_ = false; return; }
+    if (delphiBow() && !(bows_[delphiWeapon_].have && bows_[delphiWeapon_].model)) delphiWeapon_ = -1;
+    if (delphiWeapon_ == kDelphiMine && !(mines_ > 0 && rpMineModel_)) delphiWeapon_ = -1;
+    if (!delphiBow() || dying_) { bowDrawing_ = false; return; }
     Bow& bow = bows_[delphiWeapon_];
     // Where the bow is: first person the bow hand's controller (riser in the fist, limbs vertical,
     // the back of the bow where it points); third person her right hand.
@@ -274,7 +276,7 @@ void GameApp::buildBowLines() {
 }
 
 void GameApp::renderBow() {
-    if (!bowValid_ || delphiWeapon_ < 0 || !playMode_ || dying_ || riding_ || hero_ != Hero::Delphi) return;
+    if (!bowValid_ || !delphiBow() || !playMode_ || dying_ || riding_ || hero_ != Hero::Delphi) return;
     drawModel(bows_[delphiWeapon_].model, bowXf_, false);
     if (bowLinesInit_) {
         DrawParams dp;

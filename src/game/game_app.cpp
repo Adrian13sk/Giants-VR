@@ -665,7 +665,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.viewYaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : camYaw_;
     pi.jet = in.hand[th].primary;              // A
     pi.sprint = in.hand[mh].squeeze > 0.5f;    // move-hand grip
-    if (hero_ == Hero::Delphi && delphiWeapon_ >= 0 && firstPerson_ && (bowDrawing_ || (in.hand[mh].gripPoseValid &&
+    if (hero_ == Hero::Delphi && delphiBow() && firstPerson_ && (bowDrawing_ || (in.hand[mh].gripPoseValid &&
         length(rig_.toWorld(in.hand[mh].gripPose).position - bowNockRest_) < 0.3f)))
         pi.sprint = false;  // that grip is drawing her bowstring, not running
     if (!firstPerson_ && hero_ != Hero::Kabuto) {
@@ -1890,10 +1890,13 @@ void GameApp::initMission() {
         if (const char* g = std::getenv("GVR_KABUTO_GROW")) kbGrow_ = std::max(0.3f, std::min(1.0f, float(std::atof(g))));  // test hook
         applyKabutoGrowth(kbGrow_);
         LOGI("Kabuto starts at %.0f%% of his full size", kbGrow_ * 100.0f);
-        initKabutoPowers();
-        initThrows();
-        kbAdren_ = kbGrow_ >= 0.999f ? 1.0f : 0.0f;  // at full size he comes in ready
     }
+    // Kabuto's state starts afresh each mission (setHero keeps it from one Kabuto mission to the next),
+    // and his Offspring, boulders and throws don't outlive him when another hero takes over.
+    kb_ = KabutoState{};
+    initKabutoPowers();
+    initThrows();
+    if (hero_ == Hero::Kabuto) kbAdren_ = kbGrow_ >= 0.999f ? 1.0f : 0.0f;  // at full size he comes in ready
     if (title_) return;  // the main menu's scene: no checkpoint
     if (haveRestore_) {  // what he carried at the checkpoint
         if (pendingRestore_.launcher && launcherModel_) {
@@ -3084,7 +3087,7 @@ void GameApp::updateRockets(float dt) {
             const float k = std::min(1.0f, (1.8f + 40.0f / std::max(5.0f, dist)) * dt);  // tighter when close: no orbiting
             f = normalize(f + (want - f) * k);
             r.vel = f * std::min(30.0f, sp + 10.0f * dt);
-            if (frand() < dt * 25.0f) smokePuff(FxTex::Smoke, r.pos, Vec3{0, 0.3f, 0}, 0.3f, 1.4f, 1.2f, 0.45f, 0.1f);
+            if (!rocketTrail(r) && frand() < dt * 25.0f) smokePuff(FxTex::Smoke, r.pos, Vec3{0, 0.3f, 0}, 0.3f, 1.4f, 1.2f, 0.45f, 0.1f);
             float g = -1e9f;
             const bool ground = assetWorld_ && assetWorld_->terrain().heightAt(r.pos.x, r.pos.z, g) && r.pos.y < g + 0.3f;
             if (dist < 3.0f || ground || r.pos.y < 0.0f || r.life > 9.0f || dying_) {
@@ -3181,11 +3184,11 @@ void GameApp::updateRockets(float dt) {
                 f = normalize(f + (want - f) * std::min(1.0f, 8.0f * dt));
                 r.vel = f * sp;
             }
-            if (frand() < dt * 20.0f) smokePuff(FxTex::FireGreen, r.pos, Vec3{0, 0.1f, 0}, 0.12f, 0.3f, 0.4f, 0.6f, 0.0f);
+            if (!rocketTrail(r) && frand() < dt * 20.0f) smokePuff(FxTex::FireGreen, r.pos, Vec3{0, 0.1f, 0}, 0.12f, 0.3f, 0.4f, 0.6f, 0.0f);
         }
         if (r.kind == 3) {
             // A Reaper's bazooka rocket: smoke trail; bursts near the player as well as on what it hits.
-            if (frand() < dt * 25.0f) smokePuff(FxTex::SmokeGrey, r.pos, Vec3{0, 0.3f, 0}, 0.25f, 1.2f, 1.0f, 0.45f, 0.1f);
+            if (!rocketTrail(r) && frand() < dt * 25.0f) smokePuff(FxTex::SmokeGrey, r.pos, Vec3{0, 0.3f, 0}, 0.25f, 1.2f, 1.0f, 0.45f, 0.1f);
             if (length(r.pos - (player_.position + Vec3{0, 0.5f * player_.height, 0})) < 1.6f) {
                 explode(r.pos, 3.5f, 55.0f);
                 r.life = 1e9f;
@@ -3230,6 +3233,7 @@ void GameApp::updateRockets(float dt) {
         }
         r.pos += r.vel * dt;
     }
+    syncRocketFx();
     rockets_.erase(std::remove_if(rockets_.begin(), rockets_.end(), [](const Rocket& r) { return r.life >= 1e9f; }), rockets_.end());
 }
 

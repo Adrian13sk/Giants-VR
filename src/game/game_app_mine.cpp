@@ -4,6 +4,9 @@
 // every 0.5 s with me_minlk (it locks) - and FX_EXPLOSION_MINE (me_minex).
 // Ours: pick MINES on the strip, trigger sets one down at arm's length; it arms after 2 s and blows
 // when a Reaper, a Ripper or a Vimp comes within reach. Your own don't go off under you.
+// Delphi's (item 63 IconMine, race 3: object 1222 rp_mine, the same ammo item 9 and 5 carried; weapon 44:
+// the same 55 over (.., 30, 50), its blast fx.bin's FXB_Rp_mine): her weapon cycle's last slot after the
+// bows, sold at her Spellshop (ours, as the Meccaryn's at the Giftshop).
 #include "game/game_app.h"
 
 #include <algorithm>
@@ -24,11 +27,19 @@ void GameApp::initMines() {
     placedMines_.clear();
     if (!assetWorld_) return;
     mineModel_ = assetWorld_->models()->get("mc_mine.gbs", "mc_mine_set.anm", /*dynamicLit=*/true);
+    rpMineModel_ = assetWorld_->models()->get("rp_mine.gbs", "", /*dynamicLit=*/true);
     if (const ItemDef* it = weaponDefs_.item(9)) {
         if (it->maxAmmo > 0) minesMax_ = it->maxAmmo;
         if (it->ammoPerPickup > 0) minesGive_ = it->ammoPerPickup;
     }
     if (std::getenv("GVR_ARSENAL") && mineModel_) mines_ = minesMax_;
+}
+
+bool GameApp::holdingMine() const {
+    if (mines_ <= 0) return false;
+    if (hero_ == Hero::Mecc) return weaponSel_ == 9 && mineModel_;
+    if (hero_ == Hero::Delphi) return delphiWeapon_ == kDelphiMine && rpMineModel_;
+    return false;
 }
 
 void GameApp::updateMines(float dt, const InputFrame& in) {
@@ -37,18 +48,23 @@ void GameApp::updateMines(float dt, const InputFrame& in) {
     const bool pull = trig && !mineTrigWas_;
     mineTrigWas_ = trig;
     if (weaponSel_ == 9 && mines_ <= 0) weaponSel_ = 0;
-    if (playMode_ && !dying_ && hero_ == Hero::Mecc && weaponSel_ == 9 && mines_ > 0 && pull && mineModel_ && assetWorld_) {
+    if (delphiWeapon_ == kDelphiMine && mines_ <= 0) delphiWeapon_ = -1;
+    if (playMode_ && !dying_ && !riding_ && holdingMine() && pull && assetWorld_) {
+        const bool rp = hero_ == Hero::Delphi;
         const float yaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : player_.yaw;
         Vec3 at = player_.position + Vec3{-std::sin(yaw) * 1.3f, 0, -std::cos(yaw) * 1.3f};
         float gy;
         if (assetWorld_->terrain().heightAt(at.x, at.z, gy)) at.y = std::max(gy, player_.position.y - 0.6f);
         else at.y = player_.position.y;
-        placedMines_.push_back({at, yaw, 0.0f, false});
+        placedMines_.push_back({at, yaw, 0.0f, false, rp});
         --mines_;
         sfx("me_minth", at, 0.9f);
         haptics_.push_back({gh, 0.5f, 0.08f});
         LOGI("Mine set at (%.1f %.1f %.1f), %d left", at.x, at.y, at.z, mines_);
-        if (mines_ <= 0) weaponSel_ = 0;
+        if (mines_ <= 0) {
+            if (rp) delphiWeapon_ = -1;
+            else weaponSel_ = 0;
+        }
     }
     for (auto& m : placedMines_) {
         const float before = m.t;
@@ -67,7 +83,7 @@ void GameApp::updateMines(float dt, const InputFrame& in) {
             go = go || (v.state != VimpState::Dead && length(Vec3{v.pos.x - m.pos.x, 0, v.pos.z - m.pos.z}) < kReach + 1.0f);
         if (go) {
             m.t = -1e9f;
-            blastFx_ = "FX_EXPLOSION_MINE";
+            blastFx_ = m.rp ? "FXB_Rp_mine" : "FX_EXPLOSION_MINE";
             explode(m.pos + Vec3{0, 0.3f, 0}, kBlastRadius, kBlastDamage, true);
             sfx("me_minex", m.pos, 1.0f, 0.95f + 0.1f * frand());
             LOGI("Mine went off at (%.1f %.1f %.1f)", m.pos.x, m.pos.y, m.pos.z);
@@ -80,10 +96,12 @@ void GameApp::updateMines(float dt, const InputFrame& in) {
 }
 
 void GameApp::renderMines() {
-    if (!mineModel_ || !playMode_) return;
+    if (!playMode_) return;
     const float k = 0.55f;
     for (const auto& m : placedMines_) {
-        drawModel(mineModel_, Mat4::translation(m.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, m.yaw)) * Mat4::scale({k, k, k}), false);
+        const RenderModel* model = m.rp ? rpMineModel_ : mineModel_;
+        if (!model) continue;
+        drawModel(model, Mat4::translation(m.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, m.yaw)) * Mat4::scale({k, k, k}), false);
         // The red light (FXB_redlight every 0.5 s once armed).
         if (m.armed && std::fmod(m.t, 0.5f) < 0.18f && boltModel_) {
             for (const auto& part : boltModel_->parts) {
@@ -99,11 +117,12 @@ void GameApp::renderMines() {
         }
     }
     // One in the hand while chosen (first person).
-    if (weaponSel_ == 9 && mines_ > 0 && firstPerson_ && !dying_ && lastInput_.hand[rig_.turnHand()].gripPoseValid) {
+    if (holdingMine() && firstPerson_ && !dying_ && !riding_ && lastInput_.hand[rig_.turnHand()].gripPoseValid) {
+        const RenderModel* model = hero_ == Hero::Delphi ? rpMineModel_ : mineModel_;
         const Pose hand = rig_.toWorld(lastInput_.hand[rig_.turnHand()].gripPose);
         const float h = 0.3f;
-        drawModel(mineModel_, Mat4::translation(hand.position + hand.orientation.rotate(Vec3{0, -0.04f, -0.1f})) * Mat4::rotation(hand.orientation) *
-                                  Mat4::scale({h, h, h}) * Mat4::translation((mineModel_->boundsMin + mineModel_->boundsMax) * -0.5f),
+        drawModel(model, Mat4::translation(hand.position + hand.orientation.rotate(Vec3{0, -0.04f, -0.1f})) * Mat4::rotation(hand.orientation) *
+                             Mat4::scale({h, h, h}) * Mat4::translation((model->boundsMin + model->boundsMax) * -0.5f),
                   false);
     }
 }

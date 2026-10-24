@@ -445,7 +445,16 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
             }
             bool allOfKind = true;
             for (const auto& o : base_.bldgs) allOfKind = allOfKind && (o.def != b.def || o.state == 3);
-            if (allOfKind) {
+            auto rw = base_.rewarded.find(b.def);
+            const bool rebuilt = rw != base_.rewarded.end() && rw->second >= b.level;
+            if (allOfKind && rebuilt) {
+                // Rebuilt after a raid: standing again, no second reward (shop items, counters).
+                timmyLine_ = std::string(bldgLabel(b.def, b.level)) + " - REBUILT";
+                timmyLineT_ = 3.0f;
+                sfx2D("pu_hlth", 0.7f, 0.8f);
+                LOGI("Base: %s rebuilt", bldgLabel(b.def, b.level));
+            } else if (allOfKind) {
+                base_.rewarded[b.def] = b.level;
                 // What a finished building gives (ours, after the game's descriptions): the Giftshop
                 // "is full of weapons and other nifty stuff" - the shop counter opens in it; the
                 // Workshop is "where your Smarties go for tools" - they build faster from then on.

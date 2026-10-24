@@ -27,6 +27,7 @@ struct Vimp {
     int herd = 0;
     int slot = -1;        // model slot (game layer)
     bool remove = false;
+    uint32_t uid = 0;     // stable id (the list shrinks)
 };
 
 struct VimpHerd {

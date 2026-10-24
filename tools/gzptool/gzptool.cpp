@@ -494,9 +494,14 @@ static int cmdFx(const char* dir, int n, char** names) {
     size_t ops = 0;
     for (const auto& e : lib.effects) ops += e.ops.size();
     std::printf("%zu effects, %zu ops\n", lib.effects.size(), ops);
-    for (int i = 0; i < n; ++i) {
-        const gvr::FxDef* e = lib.find(names[i]);
-        if (!e) { std::printf("%s: not found\n", names[i]); continue; }
+    std::vector<std::string> want(names, names + n);
+    if (n == 1 && want[0] == "all") {  // every effect, in file order
+        want.clear();
+        for (const auto& e : lib.effects) want.push_back(e.name);
+    }
+    for (const auto& w : want) {
+        const gvr::FxDef* e = lib.find(w);
+        if (!e) { std::printf("%s: not found\n", w.c_str()); continue; }
         std::printf("%s:\n", e->name.c_str());
         for (const auto& op : e->ops) {
             std::printf("  %02x", op.op);

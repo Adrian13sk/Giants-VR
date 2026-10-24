@@ -164,11 +164,45 @@ void GameApp::kabutoQuake(const Vec3& at, float radius, float damage) {
     haptics_.push_back({kRight, 1.0f, 0.25f});
 }
 
+int GameApp::enemyOfUid(uint32_t uid) const {
+    if (uid == 0) return -1;
+    for (size_t i = 0; i < enemies_.enemies.size(); ++i)
+        if (enemies_.enemies[i].uid == uid) return int(i);
+    return -1;
+}
+
+uint32_t GameApp::targetUid(int t) const {
+    if (t >= kVimpTargetK) return size_t(t - kVimpTargetK) < vimps_.vimps.size() ? vimps_.vimps[size_t(t - kVimpTargetK)].uid : 0;
+    if (t >= kVillagerTargetK)
+        return size_t(t - kVillagerTargetK) < villagers_.villagers.size() ? villagers_.villagers[size_t(t - kVillagerTargetK)].uid : 0;
+    if (t >= kCreatureTargetK)
+        return size_t(t - kCreatureTargetK) < creatures_.creatures.size() ? creatures_.creatures[size_t(t - kCreatureTargetK)].uid : 0;
+    return t >= 0 && size_t(t) < enemies_.enemies.size() ? enemies_.enemies[size_t(t)].uid : 0;
+}
+
+int GameApp::targetOfUid(int kindOf, uint32_t uid) const {
+    if (uid == 0) return -1;
+    if (kindOf >= kVimpTargetK) {
+        for (size_t i = 0; i < vimps_.vimps.size(); ++i)
+            if (vimps_.vimps[i].uid == uid) return kVimpTargetK + int(i);
+    } else if (kindOf >= kVillagerTargetK) {
+        for (size_t i = 0; i < villagers_.villagers.size(); ++i)
+            if (villagers_.villagers[i].uid == uid) return kVillagerTargetK + int(i);
+    } else if (kindOf >= kCreatureTargetK) {
+        for (size_t i = 0; i < creatures_.creatures.size(); ++i)
+            if (creatures_.creatures[i].uid == uid) return kCreatureTargetK + int(i);
+    } else if (kindOf >= 0) {
+        return enemyOfUid(uid);
+    }
+    return -1;
+}
+
 void GameApp::kabutoEat(int target) {
     player_.startAction(PlayerAnim::Inject, std::max(0.5f, player_.oneShot[int(PlayerAnim::Inject)]));
     kb_.eatT = 0;
     kb_.eatDone = false;
     kb_.eatTarget = target;
+    kb_.eatUid = targetUid(target);  // the bite lands 0.3 of the clip later: by then the lists may have shrunk
 }
 
 void GameApp::updateKabuto(float dt, const InputFrame& in) {
@@ -179,7 +213,6 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
     KabutoState& k = kb_;
     const int gh = rig_.turnHand(), mh = rig_.moveHand();
     const float H = kMeccHeight * heroScale_;   // his height (m)
-    const float S = rig_.comfort.worldScale;
     const Quat body = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
     const Vec3 fwd = body.rotate(Vec3{0, 0, -1});
     auto ground = [&](const Vec3& p) { return player_.groundHeight ? player_.groundHeight(p.x, p.z) : player_.position.y; };
@@ -246,16 +279,22 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
         const ControllerState& c = in.hand[h];
         if (!firstPerson_ || !c.gripPoseValid || dt <= 0 || (h == mh && kbHold_ != HoldNone)) { k.fistValid[h] = false; continue; }  // (a hand carrying something throws it, doesn't punch)
         const Vec3 fist = rig_.toWorld(c.gripPose).position;
+        // The swing is the user's own hand (tracking space): where the body went meanwhile (a respawn,
+        // a snap turn, a fall) is not a punch. Its path is drawn in the world as the rig stands now.
+        Pose prevPose = c.gripPose;
+        prevPose.position = k.fistPrev[h];
+        const Vec3 fistBefore = rig_.toWorld(prevPose).position;
         if (k.fistValid[h] && k.fistCool[h] <= 0) {
-            const Vec3 v = (fist - k.fistPrev[h]) * (1.0f / dt);
-            const float real = length(v) / std::max(1.0f, S);  // the user's real hand speed (m/s)
+            const Vec3 v = (fist - fistBefore) * (1.0f / dt);
+            const float real = length(c.gripPose.position - k.fistPrev[h]) / dt;  // the user's real hand speed (m/s)
             if (real > 2.2f) {
                 const Vec3 dir = normalize(v);
                 const float r = 0.10f * H;  // fist size
                 const float mul = std::min(7.0f, 1.5f + 1.5f * real);
                 bool hit = false;
-                for (int s = 0; s <= 2 && !hit; ++s) hit = smash(k.fistPrev[h] + (fist - k.fistPrev[h]) * (0.5f * float(s)), dir, r, mul);
+                for (int s = 0; s <= 2 && !hit; ++s) hit = smash(fistBefore + (fist - fistBefore) * (0.5f * float(s)), dir, r, mul);
                 if (hit) {
+                    LOGI("Kabuto: fist blow (hand %d, %.1f m/s)", h, real);
                     k.fistCool[h] = 0.35f;
                     haptics_.push_back({h, 1.0f, 0.12f});
                 } else if (dir.y < -0.7f && std::min(fist.y - ground(fist), fist.y - player_.position.y) < 0.1f * H && real > 2.8f) {
@@ -265,7 +304,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
                 }
             }
         }
-        k.fistPrev[h] = fist;
+        k.fistPrev[h] = c.gripPose.position;
         k.fistValid[h] = true;
     }
 
@@ -354,6 +393,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
         const float dur = std::max(0.5f, player_.oneShot[int(PlayerAnim::Inject)]);
         if (!k.eatDone && k.eatT > dur * 0.3f) {
             k.eatDone = true;
+            k.eatTarget = targetOfUid(k.eatTarget, k.eatUid);  // where it is in its list now (-1: gone meanwhile)
             // Gone in one bite: killed and taken (no body left).
             const Vec3 mouth = player_.position + Vec3{0, 0.8f * H, 0} + fwd * (0.1f * H);
             bool ate = false;
@@ -380,7 +420,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
                     creatures_.creatures[ci].remove = true;
                     ate = true;
                 }
-            } else if (size_t(k.eatTarget) < enemies_.enemies.size()) {
+            } else if (k.eatTarget >= 0 && size_t(k.eatTarget) < enemies_.enemies.size()) {
                 Enemy& e = enemies_.enemies[size_t(k.eatTarget)];
                 if (e.state != EnemyState::Dead) {
                     const int obj = e.objective;

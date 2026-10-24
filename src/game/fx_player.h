@@ -14,6 +14,13 @@
 //     10 / 0a / 70 {n, "effect", 0}: that effect rides the shape's Ref_debri<n> point
 //     5b {"effect", every s}: leaves that effect behind it (a trail)
 //   2b {sound, sound}: a sound at the start (ids -> names by the caller)
+//   24 {object type, emitter type, k}: an emitter riding a game object (a projectile's trail: FX_rocket =
+//     mc_rocket + efx_ref_line_back). Started with attach(), the caller moves it every frame; k = -1
+//     effects (foot dust, smoke) are self-contained and start like 03 with the emitter type.
+//     In its block: 20 {colour from rgb, to rgb}, 22 {width from, to (game units)}, 25 {seconds}: a
+//     streak left behind it fading over that time (ours, from the values); 26 read as its opacity
+//     (provisional); 0a/10/70 with n = 0: a child effect riding the object itself (kept alive while
+//     it flies); 27 {"effect", ...}: like 5b, every frame.
 // Unknown ops are skipped. One instance draws at most kMaxParticles.
 #pragma once
 
@@ -50,6 +57,14 @@ public:
         uint32_t id = 0, parent = 0;    // riding the parent's Ref_debri<node> point (0: free)
         int node = -1;
         Vec3 offset;                    // from that point
+        bool attached = false, fromAttach = false;  // moved by the caller (attach / moveAttached); dies when no longer moved
+        bool parentAttached = false;    // riding an attached emitter's own position (n = 0)
+        float unmoved = 0;              // seconds since the caller last moved it
+        // The streak an attached emitter leaves (20/22/25/26).
+        bool streak = false;
+        float sc0[3] = {1, 1, 1}, sc1[3] = {1, 1, 1}, sw0 = 0, sw1 = 0, slife = 0, sopacity = 1;
+        struct StreakPt { Vec3 pos; float age; };
+        std::vector<StreakPt> streakPts;
         Shape* shape = nullptr;         // a reference shape: its animated points, this frame
         float shapeScale = 1;
         std::vector<Vec3> points;
@@ -68,8 +83,14 @@ public:
     bool ready() const { return lib_ != nullptr; }
     // Starts an effect at `at` (runtime metres), oriented by `rot`, sized by `scale`. False if unknown.
     bool play(const std::string& name, const Vec3& at, const Quat& rot = Quat{}, float scale = 1.0f);
+    // An effect riding a moving object (its 24 op): returns a handle (0 if the effect has none), moved
+    // with moveAttached every frame (false once it is gone) and ended with detach; one not moved for
+    // half a second ends by itself.
+    uint32_t attach(const std::string& name, const Vec3& at, const Quat& rot = Quat{}, float scale = 1.0f);
+    bool moveAttached(uint32_t handle, const Vec3& at, const Quat& rot);
+    void detach(uint32_t handle);
     void update(float dt);
-    void clear() { particles.clear(); pending_.clear(); sounds.clear(); }
+    void clear() { particles.clear(); pending_.clear(); sounds.clear(); trails_.clear(); }
     static constexpr size_t kMaxParticles = 600;
 
 public:
@@ -92,6 +113,9 @@ private:
     struct Trail { uint32_t particle; const FxDef* effect; float every, t; };
     std::vector<Trail> trails_;
     uint32_t nextId_ = 1;
+    bool attaching_ = false;   // run() from attach(): waits before the 24 op are skipped
+    uint32_t attachedRoot_ = 0;
+    Particle* findMut(uint32_t id);
     const TypeInfo& typeInfo(uint32_t type);
     Shape* shape(const std::string& anim);
     // Runs a definition from op index `from` until it waits (0b) or ends; new emitters ride

@@ -293,6 +293,8 @@ private:
     // (rp_bow_sniper), handed out in r1_smartiegrab (45) and r4a (44 45 46). Right stick forward switches
     // sword <-> bows. Draw with the other hand (grab the string and pull) or hold the trigger; let go to shoot.
     enum { kBowPlain = 0, kBowRpg, kBowSniper, kBowHoming, kBowPowerup, kNumBows };
+    static constexpr int kDelphiMine = kNumBows;  // delphiWeapon_: her mines (item 63 rp_mine)
+    bool delphiBow() const { return delphiWeapon_ >= 0 && delphiWeapon_ < kNumBows; }
     struct Bow {
         const char* name = "";
         int item = -1;
@@ -302,7 +304,7 @@ private:
         int ammo = -1, maxAmmo = -1, startAmmo = 0;  // -1: no ammo needed
     };
     Bow bows_[kNumBows];
-    int delphiWeapon_ = -1;  // -1 the sword, else a bow
+    int delphiWeapon_ = -1;  // -1 the sword, a bow, or kDelphiMine
     bool bowsReady_ = false, bowValid_ = false, bowDrawing_ = false, bowByHand_ = false, bowSwitchArmed_ = true, bowTrigWas_ = false, bowGripWas_ = false;
     float bowDraw_ = 0, bowCooldown_ = 0, bowScale_ = 0.75f;
     Mat4 bowXf_ = Mat4::identity();
@@ -337,7 +339,9 @@ private:
     // Mines (item 9; game_app_mine.cpp), weaponSel_ 9: set down, armed after 2 s, set off by foes.
     int mines_ = 0, minesMax_ = 5, minesGive_ = 5;
     const RenderModel* mineModel_ = nullptr;
-    struct PlacedMine { Vec3 pos; float yaw; float t; bool armed; };
+    const RenderModel* rpMineModel_ = nullptr;  // Delphi's (item 63: object 1222 rp_mine, the same ammo, item 9)
+    struct PlacedMine { Vec3 pos; float yaw; float t; bool armed; bool rp = false; };
+    bool holdingMine() const;
     std::vector<PlacedMine> placedMines_;
     bool mineTrigWas_ = false;
     void initMines();
@@ -348,7 +352,10 @@ private:
     bool rocketTriggerHeld_ = false;
     // kind 0 rocket, 1 Delphi's fire bolt, 2 a SAM's homing missile, 3 a Reaper's bazooka rocket, 4 a shotgun shell,
     // 5 a Millenium bomb, 6 a grenade, 7 Delphi's RPG-bow arrow. dmg: the direct hit (x the handgun's), 0 = the kind's own.
-    struct Rocket { Vec3 pos, vel; float life; int kind = 0; int bounces = 0; float dmg = 0; };
+    struct Rocket { Vec3 pos, vel; float life; int kind = 0; int bounces = 0; float dmg = 0; uint32_t fx = 0; };  // fx: its fx.bin trail (0 none yet, kNoFx none)
+    static constexpr uint32_t kNoFx = 0xFFFFFFFFu;
+    static bool rocketTrail(const Rocket& r) { return r.fx != 0 && r.fx != kNoFx; }  // the original trail rides it
+    void syncRocketFx();
     // Reaper soldiers' weapons (game_app_rpweapons.cpp): 0 spear gun, 1 bazooka.
     struct RpWeapon { const RenderModel* model = nullptr; Mat4 handleInv = Mat4::identity(), nozzle = Mat4::identity(); };
     RpWeapon rpWeapon_[2];
@@ -545,6 +552,10 @@ private:
     bool playDataFx(const std::string& name, const Vec3& at, const Quat& rot = Quat{}, float scale = 1.0f);
     void updateDataFx(float dt);
     void renderDataFx();
+    bool dataFxOn() const;   // Options -> EFFECTS: ORIGINAL (TEST), or GVR_DATA_FX
+    QuadBatch streakBatch_;  // the streaks attached fx.bin emitters leave (rockets, arrows)
+    TextureId streakTex_ = 0;
+    void buildStreaks(const Vec3& eye);
     void updateFx(float dt);
     void buildBatches();
     void renderFx();
@@ -698,6 +709,7 @@ private:
             float posedT = -1;
         };
         std::vector<Hatch> hatches;
+        std::vector<std::unique_ptr<SkinnedModel>> crewPool;  // the hatches' Smarties, loaded behind the loading screen
         int crewClip[16] = {};
         // The base's leader - Borjoyzee (5c) / Yan (r4a) - the "flag Smartie": raiders try to carry
         // him off to their barracks ("If he gets kidnapped and taken back to the enemy base, you lose!").
@@ -731,6 +743,7 @@ private:
         std::unique_ptr<SkinnedModel> firepit;
         Mat4 firepitXf = Mat4::identity(), dropXf = Mat4::identity();
         const RenderModel* dropModel = nullptr;
+        std::unordered_map<int, int> rewarded;  // per kind: the highest level whose reward was given (a rebuild gives none)
     };
     Base base_;
     void initBase();
@@ -743,6 +756,7 @@ private:
     void orderBuilding(int def);
     void updateRaids(float dt);
     bool addCrewSmartie(const Vec3& at, bool fromHatch);
+    std::unique_ptr<SkinnedModel> loadCrewModel();
     void initCrew();
     void updateCrew(float dt);
     void renderCrew(const Vec3& eye, bool shadow);
@@ -970,13 +984,17 @@ private:  // the mission placed enemies: no test waves
     struct RockGen { Vec3 base, top; float radius = 1, regrow = 0, grow = 1; bool hasTop = true; };
     struct Boulder { enum State { Resting, Loose, Held, Thrown, Gone } state = Resting; Vec3 pos, vel, rot, spin; float age = 0; };
     struct Shrapnel { Vec3 pos, vel, rot, spin; float size = 0.2f, age = 0; };
-    struct Thrown { int index = -1; float age = 0; };
+    struct Thrown { uint32_t uid = 0; float age = 0; };  // a thrown Reaper (by uid: the enemy list shrinks)
     enum { HoldNone, HoldBoulder, HoldReaper };
     std::vector<RockGen> kbRocks_;
     std::vector<Boulder> kbBoulders_;
     std::vector<Shrapnel> kbShrapnel_;
     std::vector<Thrown> kbThrown_;
-    int kbHold_ = HoldNone, kbHeld_ = -1;
+    int kbHold_ = HoldNone, kbHeld_ = -1;  // kbHeld_: a boulder's index, or the held Reaper's this frame
+    uint32_t kbHeldUid_ = 0;               // the held Reaper
+    int enemyOfUid(uint32_t uid) const;
+    uint32_t targetUid(int target) const;          // eat / hit target ids (enemy, creature, villager, Vimp ranges)
+    int targetOfUid(int kindOf, uint32_t uid) const;  // that kind's target with this uid now (-1: gone)
     float kbHoldT_ = 0, boulderSize_ = 1;
     bool kbXWas_ = false, kbHandValid_ = false;
     Vec3 kbHandPrev_, kbHandVel_;
@@ -995,10 +1013,11 @@ private:  // the mission placed enemies: no test waves
         float punchT = -1, stompT = -1, eatT = -1, roarT = -1, roarCool = 0, stepT = 0;
         bool punchHit = false, stompHit = false, eatDone = false, punchLeft = false;
         bool trigWas[2] = {false, false}, xWas = false, yWas = false, wasAir = false;
-        Vec3 fistPrev[2];
+        Vec3 fistPrev[2];  // tracking space (the user's real hand: teleports, turns and falls aren't swings)
         bool fistValid[2] = {false, false};
         float fistCool[2] = {0, 0};
         int eatTarget = -1;
+        uint32_t eatUid = 0;
     } kb_;
     float uiScaleSaved_ = 1.0f;
     Pose uiRigSaved_;

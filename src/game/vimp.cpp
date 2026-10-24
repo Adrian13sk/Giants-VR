@@ -25,6 +25,8 @@ int VimpDirector::add(int herd, const Vec3& pos, float yaw) {
     v.stateTime = rand01() * v.duration;
     setClip(v, VimpClip::Graze);
     v.clipTime = rand01() * 2.0f;
+    static uint32_t nextUid = 1;
+    v.uid = nextUid++;
     vimps.push_back(v);
     return int(vimps.size()) - 1;
 }

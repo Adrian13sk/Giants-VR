@@ -13,6 +13,8 @@ int VillagerDirector::add(const Vec3& pos, float yaw) {
     v.yaw = yaw;
     startIdle(v);
     v.stateTime = rand01() * v.duration;  // don't all change at once
+    static uint32_t nextUid = 1;
+    v.uid = nextUid++;
     villagers.push_back(v);
     return int(villagers.size()) - 1;
 }

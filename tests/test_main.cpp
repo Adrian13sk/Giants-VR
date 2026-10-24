@@ -15,6 +15,8 @@
 #include "assets/object_defs.h"
 #include "assets/weapondefs.h"
 #include "assets/fx_defs.h"
+#include "game/fx_player.h"
+#include "scene/model_cache.h"
 #include "core/math.h"
 #include "game/test_script.h"
 #include "game/arm_ik.h"
@@ -1536,9 +1538,71 @@ static void testFxLibrary() {
     CHECK(!parseFxLibrary(d.data(), d.size(), lib, &err));
 }
 
+static void testFxAttach() {
+    // "r" = {0b 0.05, 24 800 821 0, 06, 21, 0a 0 "f" 0, 20 colours, 22 2 0.001, 25 1.0, 07, 02} (a rocket's trail),
+    // "f" = {03 820, 06, 04 3 0 0.001, 07, 02} (the flame riding it).
+    std::vector<uint8_t> d;
+    auto u32 = [&](uint32_t v) { for (int k = 0; k < 4; ++k) d.push_back(uint8_t(v >> (8 * k))); };
+    auto f32 = [&](float f) { uint32_t v; std::memcpy(&v, &f, 4); u32(v); };
+    auto str = [&](const char* s) { while (*s) d.push_back(uint8_t(*s++)); d.push_back(0); };
+    u32(1); u32(0); u32(2);
+    str("r"); const size_t offR = d.size(); u32(0);
+    str("f"); const size_t offF = d.size(); u32(0);
+    const size_t startR = d.size();
+    d.push_back(0x0b); f32(0.05f);
+    d.push_back(0x24); u32(800); u32(821); u32(0);
+    d.push_back(0x06); d.push_back(0x21);
+    d.push_back(0x0a); u32(0); str("f"); u32(0);
+    d.push_back(0x20); for (float c : {0.4f, 0.8f, 0.9f, 0.3f, 0.7f, 0.8f}) f32(c);
+    d.push_back(0x22); f32(2.0f); f32(0.001f);
+    d.push_back(0x25); f32(1.0f);
+    d.push_back(0x07); d.push_back(0x02);
+    const size_t startF = d.size();
+    d.push_back(0x03); u32(820); d.push_back(0x06); d.push_back(0x04); f32(3.0f); f32(0.0f); f32(0.001f); d.push_back(0x07); d.push_back(0x02);
+    auto put = [&](size_t at, uint32_t v) { std::memcpy(d.data() + at, &v, 4); };
+    put(offR, uint32_t(startR - 12));
+    put(offF, uint32_t(startF - 12));
+    put(4, uint32_t(d.size() - 12));
+    FxLibrary lib;
+    std::string err;
+    CHECK(parseFxLibrary(d.data(), d.size(), lib, &err));
+    FxPlayer fx;
+    fx.init(&lib, nullptr, nullptr, nullptr);
+    // Played free, an object-riding emitter has nothing to ride: nothing starts.
+    fx.play("r", {0, 0, 0});
+    fx.update(0.1f);
+    CHECK(fx.particles.empty());
+    const uint32_t h = fx.attach("r", {0, 0, 0});
+    CHECK(h != 0 && fx.particles.size() == 1 && fx.particles[0].attached && fx.particles[0].streak && fx.particles[0].ref);
+    CHECK(std::fabs(fx.particles[0].sw0 - 2.0f * gGameUnitsToMeters) < 1e-5f && fx.particles[0].sc1[2] == 0.8f);
+    // Flying 4 s (longer than the flame's 3 s life): the flame rides it all the way; the streak follows.
+    Vec3 at{0, 0, 0};
+    for (int i = 0; i < 240; ++i) {
+        at.z -= 0.5f;
+        CHECK(fx.moveAttached(h, at, Quat{}));
+        fx.update(1.0f / 60.0f);
+    }
+    const FxPlayer::Particle* root = nullptr;
+    const FxPlayer::Particle* flame = nullptr;
+    for (const auto& p : fx.particles) (p.id == h ? root : flame) = &p;
+    CHECK(root && flame && length(flame->pos - at) < 1e-4f);
+    CHECK(root->streakPts.size() >= 40 && root->streakPts.front().age <= 1.0f + 1e-3f);
+    // Landed: the flame goes out at once, the streak fades over its second, then nothing is left.
+    fx.detach(h);
+    for (int i = 0; i < 12; ++i) fx.update(1.0f / 60.0f);
+    CHECK(fx.particles.size() == 1 && !fx.particles[0].attached && !fx.moveAttached(h, at, Quat{}));
+    for (int i = 0; i < 70; ++i) fx.update(1.0f / 60.0f);
+    CHECK(fx.particles.empty());
+    // One the caller stops moving (say, its projectile was cleared) ends by itself.
+    const uint32_t h2 = fx.attach("r", at);
+    for (int i = 0; i < 120; ++i) fx.update(1.0f / 60.0f);
+    CHECK(h2 != 0 && fx.particles.empty());
+}
+
 int main() {
     testSoundTable();
     testFxLibrary();
+    testFxAttach();
     testWeaponDefs();
     testTestScript();
     testFlickVisibility();
