@@ -640,3 +640,22 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
   (homing, power-up), fx_original (frame cost of fx.bin explosions). Dry-run in the harness: all ran clean, every
   scripted shot / throw / switch happened. **They need the Quest on USB and devtest.ps1 run on the PC.**
 - Nothing in this build has run on the headset yet.
+
+## Branch `next` (after d295fa1) — host verification, 2026-10-24 evening
+Not built into an APK; nothing here is device verified.
+- `build/host/gvr_tests`: all pass, incl. the new FxPlayer attach test (synthetic fx.bin: attach, child riding,
+  streak, detach, auto-end after 0.5 s unmoved).
+- `tools/py/review_results.py` on the two real PC runs (20261024-121735, 20261024-123302) and a synthetic later run:
+  tables, worst frames, both cost tables, history comparison and the "did not finish" flag all produced.
+- Targeted harness set (`asan_targeted.sh`, plain build): all 16 Kabuto missions first person (grab / eat, a fist
+  swing, Y held for an egg, a snap turn, a stomp) and third person; kstory5_4 -> kstory5_5 chain; the four races and
+  two Reaperski missions; trails on launcher, shotgun and Millenium mortar shots and on Delphi's RPG / homing /
+  power-up arrows; Delphi's mine. 46 runs: all exit 0, 0 errors. Trails logged for kinds 0, 3, 4, 5, 7, 8.
+- Snap turn with still hands: no fist blow. A 0.9 m swing in 3 frames: one blow at 21.6 m/s.
+- Device-test scripts dry-run in the harness: fx_trails (4 rockets with trails), delphi_mine (set, screenshots).
+- Same 46-run set under AddressSanitizer + UBSan (`build/asan`): all exit 0, 0 errors, 0 sanitizer reports; ASan
+  unit tests pass. (A first attempt crashed in `initShop` on every mission with a shop: a stale object file from an
+  interrupted build had the old `GameApp` layout. After touching `game_app.h` and rebuilding, clean. Not a code bug.)
+- Whole-campaign sweep with the branch build (56 missions, 500 frames each with firing, jetpack, map, injection,
+  flare): all exit 0, 0 errors; 4 warnings, all the known harness one ("w_Rstory3.bin not found": the sweep starts
+  the Rstory3 race missions without their race world).

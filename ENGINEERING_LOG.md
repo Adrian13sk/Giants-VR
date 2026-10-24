@@ -1716,3 +1716,49 @@ screen fine, face and jetpack swap fine, bridges fixed. Asked for more:
   under AddressSanitizer/UBSan - all clean (TEST_REPORT.md). Three new devtest scripts cover the new weapons, the bows
   and the original effects' frame cost on the Quest; they run unattended over USB with devtest.ps1.
 - Fix found while writing them: the weapon-switch log named grenades and mines "rocket launcher" (log only).
+
+### 2026-10-24 evening — Branch `next`: run summary, projectile trails, Delphi's mine, review fixes
+Work goes on branch `next` (from a3d2d52) so tomorrow's device results match the d295fa1 APK.
+- **Device-run summary** (`tools/py/review_results.py`, extended): per test fps, frame-time p50/p95/p99/max, update and
+  render CPU, GPU time, draws, memory and the VrApi line; the 3 worst frames with what they waited on (GPU over 13.9 ms,
+  CPU over it, or neither = a hitch); the sniper zoom cost (weapons_mecc: 3-10.5 s sniper vs 14.5-18.5 s mortar) and the
+  original effects' cost (fx_original: 1.5 s after each explosion vs between); the change against the newest earlier
+  run with the same tests. Statistics are recomputed from frames.csv: the 20261024-121735 run's result.txt GPU means
+  are timer garbage (~1.8e13 ms, from before the 200 ms plausibility filter) - flagged, not used. Checked on both real
+  runs from the PC and on a synthetic later run (comparison, a crashed test, the two cost tables).
+- **fx.bin op 24** (111 of 679 effects): `{object type, emitter type, k}` - an emitter riding a game object (k = 0) or a
+  self-contained one (k = -1). FxPlayer::attach / moveAttached / detach: the caller moves the emitter; n = 0 children
+  ride it and live while it flies; 20/22/25 draw a streak behind it (colours, width in game units, seconds - our
+  reading of the values; 26 used as its opacity, floored at 0.25; unconfirmed); 5b/27 trails follow it. One not
+  moved for 0.5 s ends by itself (a cleared projectile can't leak it). Projectiles carry their original trail with
+  the Options test switch on: FX_rocket (launcher, Reaper bazooka), FX_homing (SAM), FX_shotgun_trail, FX_Lbomb,
+  FXB_bow_RPG, FXB_bow_screamer; the fire bolt and grenade keep ours. Unit test on a synthetic library (attach, ride,
+  streak, detach, auto-end). Harness: the launcher rocket shows a blue flame (efx_bfire_trail) and a pale streak;
+  every listed kind logs its trail in the targeted runs.
+- **Delphi's mine** (item 63 IconMine, race 3, object 1222 rp_mine, ammo item 9 like the Meccaryn's; weapon 44 the
+  same 55 splash, blast fx FXB_Rp_mine): the last slot of her right-stick cycle (sword -> bows -> mines), the trigger
+  sets one down 1.3 m ahead as his; her Spellshop sells mines. Harness r4a: set, armed, a Reaper next to it sets it off.
+- **Review of base building and Kabuto** (a separate read-only agent): fixed
+  1. held / thrown Reapers and the eat target were list indices kept across frames while dead enemies, creatures and
+     Vimps are removed from the lists (an index could land on another Reaper and kill it, or complete an objective):
+     now uids (Vimps and villagers gained one);
+  2. fist swings were measured on the world-space hand, so a respawn teleport, a snap turn at giant scale or a fall
+     counted as a punch (up to 7x): now the tracking-space hand (the user's real swing), drawn where the rig is now;
+     Kabuto's state is also reset each mission (setHero skips Kabuto -> Kabuto);
+  3. Offspring and eggs stayed drawn after another hero took over: Kabuto's powers and throws are reset for every hero;
+  4. a raided and rebuilt upgraded Giftshop / Spellshop added its shop item again (and re-opened the counter): rewards
+     are given once per kind and level ("REBUILT" otherwise);
+  5. the 9 hatch Smarties were loaded (3 skinned models x 10 clips) in the frame a hatch opened: now loaded with the
+     mission;
+  6. pulled pillar tops are capped at 12 loose boulders.
+  Not changed (low): the fire pit re-posed per eye, the build menu showing during death, the base set up twice per load.
+- Harness checks: snap turn with the hands still -> no fist blow; a 0.9 m swing in 3 frames -> one blow (21.6 m/s);
+  kstory5_4 with eggs laid, completed -> kstory5_5 loads as the Meccaryn.
+- Housekeeping: `stereo.png` (the harness's default output, the test scene) was tracked by accident since d9e445b;
+  untracked and ignored.
+- Build lesson: stopping a ninja build while editing a header it is compiling against can leave object files built
+  from the old header but newer than it (ninja then calls them up to date): the ASan harness crashed in `initShop`
+  writing through a vector whose pointer held 1.0f (another member's float). `touch` the header and rebuild after
+  interrupting a build mid-edit.
+- Sanitizers: the 46-run targeted set (Kabuto x 32, mission chain, races, Reaperski, trails, Delphi's mine) is clean
+  under ASan + UBSan.
