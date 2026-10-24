@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-24 (weapondefs.bin decoded: the Meccaryn arsenal - shotgun, machine gun, sniper gun, Millenium mortar - from the data; base building v2; no new APK built since 89f3fd7, by the user's request)
+Last updated: 2026-10-24 (weapondefs.bin, sound table and fx.bin decoded; Meccaryn arsenal and Delphi's bows from the data; original effects behind an Options test switch; no new APK since 89f3fd7, by the user's request)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.

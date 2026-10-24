@@ -611,3 +611,5 @@ GPU load and GPU clock level from the system's VrApi lines (18-19 per run). FFR 
 - fx.bin playback (GVR_DATA_FX=1): cutscene Rstory1_fire_4a's effects resolve to fx.bin entries ("Effect
   fx_flick_millenium_spear (fx.bin)"); a rocket explosion renders flash, glow and debris; ASan/UBSan run in 4a with
   the mortar and a rocket explosion every 3 s: clean. **Looks unverified against the original.**
+- Sweeps on fb0b21d: with the original effects forced on (GVR_DATA_FX=1, a grenade explosion every 3 s in front of
+  the hero, rockets fired): 56/56 exit 0, 0 errors (effects played in 52); plain: 56/56 exit 0, 0 errors.
