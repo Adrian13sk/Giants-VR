@@ -782,3 +782,7 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
   objective 3 (a box smaller than the 2 m grid, 2 m off: a grid artifact). Walked in play (GVR_REACH_WALK) and
   objective completed: k1b_portal, k2d_offspring, kstory4_3. kstory3_4: reachable by the fill only with the
   68-degree climb; the walker reached the island but not the portal within 30 000 frames.
+- 7400b54: the texture doubling fix (blocky magnified ground in every rework APK before it) - unit test added
+  (fails on the old code); sweep 56/56 clean. Also checked since 68003c5: shot knockback, near-miss flinch
+  (GVR_AUTOAIM_MISS=3.5: "Reaper 1 flinches (bolt 0.8 m off)"), the 17 cutscenes not seen at mission starts
+  (contact sheets; intro_island_1's flyover no longer swung), duplicate heartbeat removed.
