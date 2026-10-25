@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-25 midday (branch `next` merged into `main` at 7136b37 after headset runs: 12 tests + all 56 missions done with 0 errors; the slow missions now 69.8-71.8 fps. Device-verified today: unattended test launches, multiplayer with computer players, rocket trails, Delphi's mine, Reaper ammo drops. Next: play-test by the user, multiview rendering, finishing base building, two-headset play)
+Last updated: 2026-10-25 afternoon. **The rework is under way on branch `rework`** (the user's play-test: "boring, not VR-ish enough, ugly; cutscene actors misplaced; Kabuto starts wrong, can't finish, too slow"). The classic version is tag `classic-final` (2e3cf55, branch `main`). What the rework changed and its status: docs/REWORK.md. Earlier on main today: multiview (4cc085f, not device-tested) and base-building turrets / damaged look / gates / Comm Center (2e3cf55).
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.

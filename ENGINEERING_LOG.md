@@ -1846,3 +1846,21 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   full, with the original's pickup object and model (weapondefs ammo item -> pickup type -> GameObj model:
   mc_pickup_rockets / _shells / _clips; sniper rounds are type 787, whose model is the sniper gun itself - as the
   data says). Placed ammo pickups show their own model now (all were the shells box).
+
+
+## 2026-10-25 afternoon - the rework (branch `rework`)
+- User play-test verdict: boring graphics and gameplay, not VR-ish, ugly; cutscene actors misplaced; Kabuto's
+  story starts wrong, can't be completed, he's too slow. Asked for a complete rework on a separate branch,
+  working nonstop, with progress videos. Classic kept: tag `classic-final`, bundle on the PC.
+- Root causes found: (1) every Kabuto and Delphi mission started at the terrain's default point - the start
+  marker id goes with the race (Mecc 1, Delphi 2, Kabuto 3) and only id 1 was read; k1a's default point is an
+  empty canyon, so Kabuto could never eat enough Smarties to break the gate. (2) Kabuto's cutscenes: the world
+  scale changed (8x -> 1x) after the shot camera was placed, dropping the eyes 5 m into the ground.
+- Rework so far (all harness-checked, not device-tested): 4x MSAA on the multiview swapchain; new lighting
+  (texture relief, sun highlights, haze glow, highlight shoulder, terrain detail octaves; GVR_LOOK=0 = classic);
+  no debug controllers in play; gun recoil; two-handed aim; body holsters; punches; reach-to-take pickups;
+  comfort vignette; Reapers press in, lob grenades at hidden players; head-height hit box (cover works); hit
+  flashes; light flashes; objective marker; ambushes; aim laser; Kabuto faster.
+- Mesa llvmpipe (harness renderer) miscompiles exp2/pow in the new specular block (whole frame wrong);
+  softpipe renders it right. Specular uses repeated squaring.
+- Harness sweeps: 56/56 missions clean after each batch. scripts/make_video.sh renders progress videos.
