@@ -1349,6 +1349,8 @@ private:  // the mission placed enemies: no test waves
     std::vector<Flash> flashes_;
     void addFlash(const Vec3& pos, const Vec3& color, float radius, float dur) { if (flashes_.size() < 16) flashes_.push_back({pos, color, radius, 0.0f, dur}); }
     void updateFlashes(float dt);
+    MeshId markerMesh_ = 0;
+    void renderObjectiveMarker();
     // Holsters on the body and punches (game_app_vr.cpp).
     int holsterZone_ = -1;
     bool holsterGrabHeld_ = false;

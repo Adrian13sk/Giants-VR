@@ -4341,6 +4341,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     if (cut) renderCutscene();
     else if (playMode_) renderHud();
     if (playMode_ && !cut) renderTags();
+    if (playMode_ && !cut && !title_) renderObjectiveMarker();
     if (playMode_ && !cut) renderTimmyLine();
     if (playMode_ && !cut) renderSkirmishHud();
     if (playMode_ && !cut) renderRaceHud();

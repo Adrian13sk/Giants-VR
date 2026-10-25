@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 
 #include "audio/mixer.h"
@@ -48,6 +49,60 @@ void GameApp::updateFlashes(float dt) {
         env.pointLightRadius = 6.0f;
     }
     flashes_.erase(std::remove_if(flashes_.begin(), flashes_.end(), [](const Flash& f) { return f.t >= f.dur; }), flashes_.end());
+}
+
+// Objective marker (rework; ours): a small gold diamond in the direction of the nearest unfinished
+// objective, 6 m out, seen through walls, with its distance - only while it is more than 20 m away.
+void GameApp::renderObjectiveMarker() {
+    if (!text_.ready() || objectives_.empty() || missionComplete_) return;
+    const Vec3 eye = renderer_.currentView().eyePosition;
+    float best = 1e18f;
+    Vec3 target;
+    bool have = false;
+    for (size_t i = 0; i < objectives_.size(); ++i) {
+        const Objective& o = objectives_[i];
+        if (o.done) continue;
+        Vec3 p = (o.boundsMin + o.boundsMax) * 0.5f;
+        if (o.item >= 0 && size_t(o.item) < destruct_.items.size()) p = destruct_.items[size_t(o.item)].base + Vec3{0, destruct_.items[size_t(o.item)].height * 0.6f, 0};
+        for (const auto& e : enemies_.enemies)
+            if (e.objective == int(i) && e.state != EnemyState::Dead) { p = e.pos + Vec3{0, 2.0f, 0}; break; }
+        const float d2 = dot(p - player_.position, p - player_.position);
+        if (d2 < best) { best = d2; target = p; have = true; }
+    }
+    if (!have) return;
+    const float dist = std::sqrt(best);
+    if (dist < 20.0f) return;
+    const Vec3 dir = normalize(target - eye);
+    const Vec3 at = eye + dir * 6.0f;
+    const float pulse = 0.85f + 0.15f * std::sin(float(time_) * 3.0f);
+    DrawParams dp;
+    dp.unlit = true;
+    dp.blend = BlendMode::Additive;
+    dp.depthTest = false;
+    dp.depthWrite = false;
+    dp.noFog = true;
+    dp.doubleSided = true;
+    dp.tint = {1.0f * pulse, 0.75f * pulse, 0.25f * pulse, 1.0f};
+    const Quat face = headWorldRot_;
+    if (!markerMesh_) {
+        MeshData md;
+        const Vec3 pts[4] = {{0, 0.12f, 0}, {0.08f, 0, 0}, {0, -0.12f, 0}, {-0.08f, 0, 0}};
+        for (const Vec3& q : pts) {
+            Vertex v{};
+            v.pos[0] = q.x; v.pos[1] = q.y; v.pos[2] = q.z;
+            v.normal[2] = 1;
+            v.color[0] = v.color[1] = v.color[2] = v.color[3] = 255;
+            md.vertices.push_back(v);
+        }
+        md.indices = {0, 1, 2, 0, 2, 3};
+        markerMesh_ = renderer_.uploadMesh(md);
+    }
+    renderer_.draw(markerMesh_, Mat4::translation(at) * Mat4::rotation(face), dp);
+    char s[32];
+    std::snprintf(s, sizeof s, "%d M", int(dist + 0.5f));
+    float w = 0, h = 0;
+    if (const MeshId tm = text_.mesh(s, 0.07f, 1.0f, &w, &h))
+        text_.draw(tm, Mat4::translation(at) * Mat4::rotation(face) * Mat4::translation({0, -0.2f, 0}), {1.0f, 0.85f, 0.45f, 0.9f}, false);
 }
 
 void GameApp::updateHolsters(float dt, const InputFrame& in) {
