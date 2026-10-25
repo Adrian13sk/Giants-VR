@@ -786,3 +786,6 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
   (fails on the old code); sweep 56/56 clean. Also checked since 68003c5: shot knockback, near-miss flinch
   (GVR_AUTOAIM_MISS=3.5: "Reaper 1 flinches (bolt 0.8 m off)"), the 17 cutscenes not seen at mission starts
   (contact sheets; intro_island_1's flyover no longer swung), duplicate heartbeat removed.
+- ce48a8b: unit tests pass incl. the new binaural test (a click to the right peaks louder and 10+ samples
+  earlier in the right ear); harness audio render of a fight is sane (no clipping or NaN, RMS L/R 2347/3141);
+  GVR_HEAD_DROP crouch -> "Kabuto slams the ground"; sweeps clean at 9e93e37, after the marksmen and at caeb29e.

@@ -1908,3 +1908,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   x1.5), PlayerController::climbing suspends gravity and walking. Harness: one hand, 5 pulls up a 61-degree
   bank: 1.6 -> 14.6 m; two alternating hands: up and onto the top of the bank at 22 m. Meant also as the way
   up kstory3_4's plateau (B18, unverified there).
+- After 9e93e37: grass patch shrinks at the first adaptive-quality step; Delphi's sword trail; marksman
+  Reapers (1 in 4: 26 m stand-off, single aimed shots at a third of the spread, a glow for 0.7 s before
+  each); binaural sound in the mixer (interaural delay up to 0.65 ms, head-shadow low-pass on the far ear,
+  duller from behind and with distance); Kabuto's physical ground pound (a quick crouch).
