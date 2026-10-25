@@ -2035,3 +2035,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   (left), the turn hand draws the string; the trigger draw is third person only; the fire bolt is off while a bow
   is out (its trigger is the bow hand's). devtest delphi_bows rewritten: right hand to the string (0.09 m), pull
   0.5 m, release -> "Arrow from the HOMING BOW at 76% draw", twice per bow; a trigger pull in between fires nothing.
+- Water: Delphi swimming -> no piranhas (waterTime 0); Kabuto past his float depth (0.7 H) -> drowning: 12 raw damage
+  per 0.5 s (x0.3 hide = ~7/s), splashes, gasps, a warning line; no piranha bites or blood frenzy for him or Delphi.
+  Harness: Delphi at r4a in the sea 12 s, health 100; Kabuto off kstory3_4's coast, "out of his depth", health 17 at
+  12 s. Sweep 56/56 clean.

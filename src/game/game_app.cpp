@@ -3209,8 +3209,10 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
     float sink = 0;
     if (deathCause_ == DeathCause::Drowned) {
         sink = std::max(0.0f, deathTime_ - 1.2f) * 0.5f;  // goes under
-        if (frand() < dt * 3.0f) bloodInWater(player_.position, 0.8f);
-        if (deathTime_ < 4.0f && frand() < dt * 3.5f) piranhaBite(player_.position, 1.2f, true);  // the frenzy goes on
+        if (hero_ == Hero::Mecc) {  // (Kabuto simply drowns; Delphi never meets them)
+            if (frand() < dt * 3.0f) bloodInWater(player_.position, 0.8f);
+            if (deathTime_ < 4.0f && frand() < dt * 3.5f) piranhaBite(player_.position, 1.2f, true);  // the frenzy goes on
+        }
     }
     bodyXf_ = Mat4::translation(player_.position + Vec3{0, heroLift_ - sink, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, player_.yaw));
     if (hero_ == Hero::Kabuto && kbGrowShown_ < 0.999f) bodyXf_ = bodyXf_ * Mat4::scale(Vec3{1, 1, 1} * kbGrowShown_);
@@ -3659,7 +3661,31 @@ void GameApp::updateCombat(float dt) {
     wasSwimming_ = swim;
     for (auto& f : waterFx_) f.age += dt;
     waterFx_.erase(std::remove_if(waterFx_.begin(), waterFx_.end(), [](const WaterFx& f) { return f.age > 2.0f; }), waterFx_.end());
-    if (swim) {
+    if (swim && hero_ == Hero::Kabuto) {
+        // Rework (user): no piranha takes on a giant - but Kabuto can't swim: out of his depth he
+        // goes under and drowns unless he gets back to where he can stand.
+        waterTime_ += dt;
+        piranhaAttack_ = false;
+        if (waterTime_ > 0.6f) {
+            if (waterTime_ - dt <= 0.6f) {
+                timmyLine_ = "TOO DEEP - KABUTO CAN'T SWIM! BACK TO THE SHALLOWS";
+                timmyLineT_ = 4.0f;
+                LOGI("Kabuto is out of his depth: drowning");
+            }
+            biteTimer_ -= dt;
+            if (biteTimer_ <= 0) {
+                biteTimer_ = 0.5f;
+                damagePlayer(12.0f, DeathCause::Drowned);  // (his hide's 0.3: ~7 a second)
+                sfx2D(frand() < 0.5f ? "ka_wound" : "ka_mdht1", 0.6f, 0.8f);
+                waterSplash(player_.position + Vec3{0, player_.height * 0.7f, 0}, 0.25f * player_.height, 1);
+                for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.4f, 0.1f});
+            }
+        }
+    } else if (swim && hero_ == Hero::Delphi) {
+        // A Sea Reaper is at home in the water: no piranhas for her.
+        waterTime_ = 0;
+        piranhaAttack_ = false;
+    } else if (swim) {
         waterTime_ += dt;
         if (waterTime_ > 0.8f) {
             if (!piranhaAttack_) {
