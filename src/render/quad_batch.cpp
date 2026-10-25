@@ -41,6 +41,12 @@ void QuadBatch::add(const Vec3 c[4], const float uv[4][2], const uint8_t rgba[4]
     ++count_;
 }
 
+void QuadBatch::addVertices(const Vertex v[4]) {
+    if (count_ >= capacity_) return;
+    for (int k = 0; k < 4; ++k) verts_[count_ * 4 + size_t(k)] = v[k];
+    ++count_;
+}
+
 void QuadBatch::addBillboard(const Vec3& c, float size, const Vec3& right, const Vec3& up, float angle, const uint8_t rgba[4]) {
     const float h = 0.5f * size, ca = std::cos(angle), sa = std::sin(angle);
     const Vec3 r = (right * ca + up * sa) * h, u = (up * ca - right * sa) * h;

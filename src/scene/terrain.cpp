@@ -16,6 +16,7 @@ constexpr float kWallSlopeY = 0.6f;      // normal.y below this uses the wall/ro
 
 bool Terrain::build(const GtiTerrain& t, Renderer& r, TextureId ground, TextureId wall) {
     t_ = t;
+    ground_ = ground ? ground : wall;
     bmin_ = {1e30f, 1e30f, 1e30f};
     bmax_ = {-1e30f, -1e30f, -1e30f};
     tris_ = 0;
@@ -139,6 +140,12 @@ bool Terrain::heightAt(float rx, float rz, float& outY) const {
     }
     outY = h * gGameUnitsToMeters;
     return true;
+}
+
+Vec2 Terrain::uvAt(float rx, float rz) const {
+    if (t_.gridW == 0 || t_.stretch == 0) return Vec2{0, 0};
+    const float gx = -rx / gGameUnitsToMeters, gy = rz / gGameUnitsToMeters;
+    return Vec2{((gx - t_.minX) / t_.stretch + 1.0f) / kTexCellsPerRepeat, ((gy - t_.minY) / t_.stretch + 1.0f) / kTexCellsPerRepeat};
 }
 
 Vec3 Terrain::lightAt(float rx, float rz) const {

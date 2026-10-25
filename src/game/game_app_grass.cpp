@@ -1,8 +1,14 @@
 // GameApp, rework: grass tufts on the ground near the player (atmosphere and depth up close in VR).
-// The original ground is one flat texture; here crossed blade cards stand on gentle, dry, grassy
-// ground within ~16 m, coloured from the world's own ground texture. Positions come from a hash of
-// a 0.9 m grid, so they stay put as you move; the batch is rebuilt only when you've moved 2 m.
-// Not as Kabuto (too small to matter) or on worlds whose ground isn't green. GVR_NO_GRASS=1: off.
+// The original ground is one flat texture; here crossed blade cards stand on gentle, grassy ground
+// within ~15 m. Rework 2 (user: "Grass looks awful"): the tufts were bright, uniform sprites on
+// darker ground. Now each blade takes the colour of the ground it grows from - the grass material
+// (renderer Material::Grass) runs the terrain's own colour function at the tuft's ground texture
+// coordinate, lit by the ground's baked light there - with darker roots and lighter, varied tips;
+// tufts grow in clumps and patches (low-frequency noise) with bare ground between, three cards each
+// so they read from above; thin blades with alpha-to-coverage on the headset's MSAA. Positions come
+// from a hash of a 0.55 m grid, so they stay put as you move; the batch is rebuilt only when you've
+// moved 2 m. Not as Kabuto (too small to matter) or on worlds whose ground isn't green.
+// GVR_NO_GRASS=1: off.
 #include "game/game_app.h"
 
 #include <algorithm>
@@ -18,9 +24,9 @@
 namespace gvr {
 
 namespace {
-constexpr float kCell = 0.9f;
-constexpr float kRadius = 16.0f;
-constexpr size_t kMaxQuads = 2600;
+constexpr float kCell = 0.55f;
+constexpr float kRadius = 15.0f;
+constexpr size_t kMaxQuads = 3600;
 uint32_t hash2(int x, int z) {
     uint32_t h = uint32_t(x) * 73856093u ^ uint32_t(z) * 19349663u;
     h ^= h >> 13;
@@ -29,6 +35,16 @@ uint32_t hash2(int x, int z) {
     return h;
 }
 float h01(uint32_t h, int k) { return float((h >> (k * 4)) & 0xFFFu) / 4095.0f; }
+// Smooth value noise (0..1) on a grid of `cell` metres: where the grass grows thick and where thin.
+float vnoise(float x, float z, float cell, int salt) {
+    const float fx = x / cell, fz = z / cell;
+    const int ix = int(std::floor(fx)), iz = int(std::floor(fz));
+    float u = fx - float(ix), v = fz - float(iz);
+    u = u * u * (3 - 2 * u);
+    v = v * v * (3 - 2 * v);
+    auto n = [&](int a, int b) { return h01(hash2(a * 31 + salt, b * 17 - salt), 0); };
+    return (n(ix, iz) * (1 - u) + n(ix + 1, iz) * u) * (1 - v) + (n(ix, iz + 1) * (1 - u) + n(ix + 1, iz + 1) * u) * v;
+}
 }  // namespace
 
 void GameApp::initGrass() {
@@ -50,33 +66,60 @@ void GameApp::initGrass() {
     LOGI("Grass: ground %s average (%.2f %.2f %.2f) -> %s", g.c_str(), grassColor_.x, grassColor_.y, grassColor_.z, green ? "grass" : "none");
     if (!green) return;
     if (!grassTex_) {
-        // Blades: tapered, darker at the root, alpha-tested.
-        const int W = 64, H = 128;
-        std::vector<uint8_t> px(size_t(W) * H * 4, 0);
-        uint32_t seed = 12345u;
+        // Blades: a tuft of ~34 thin, tapering, curving blades leaning out from the middle; each its
+        // own shade and hue (fresh green, yellowed, a few dry); dark at the root (the ground's shade),
+        // lighter toward the tip. rgb around 0.4-0.85: the shader scales it by ~1.25-1.75 over the
+        // ground colour. Coverage-antialiased edges (alpha), so mip levels stay smooth.
+        const int W = 128, H = 128;
+        std::vector<float> acc(size_t(W) * H * 4, 0.0f);
+        uint32_t seed = 4711u;
         auto rnd = [&]() { seed = seed * 1664525u + 1013904223u; return float((seed >> 8) & 0xFFFF) / 65535.0f; };
-        for (int k = 0; k < 18; ++k) {
-            const float x0 = 6.0f + rnd() * float(W - 12), lean = (rnd() - 0.5f) * 22.0f, hgt = float(H) * (0.45f + 0.55f * rnd());
-            const float w0 = 1.6f + rnd() * 1.8f, shade = 0.75f + 0.5f * rnd();
+        for (int k = 0; k < 34; ++k) {
+            const float side = rnd() * 2.0f - 1.0f;                      // -1 .. 1 across the tuft
+            const float x0 = float(W) * (0.5f + 0.3f * side);
+            const float lean = side * float(W) * (0.12f + 0.2f * rnd()) + (rnd() - 0.5f) * 14.0f;
+            const float hgt = float(H) * (0.5f + 0.48f * rnd()) * (1.0f - 0.3f * std::fabs(side));
+            const float w0 = 1.3f + rnd() * 1.4f;
+            const float shade = 0.82f + 0.3f * rnd();
+            const float kind = rnd();
+            float hr = 0.9f, hg = 1.0f, hb = 0.62f;                     // fresh green (on the ground's colour)
+            if (kind > 0.72f) { hr = 1.08f; hg = 1.0f; hb = 0.5f; }     // yellowed
+            if (kind > 0.92f) { hr = 1.2f; hg = 0.96f; hb = 0.62f; }    // dry
             for (int y = 0; y < int(hgt); ++y) {
                 const float t = float(y) / hgt;
-                const float cx = x0 + lean * t * t, hw = w0 * (1.0f - t);
-                for (int x = int(cx - hw - 1); x <= int(cx + hw + 1); ++x) {
+                const float cx = x0 + lean * t * t * (1.4f - 0.4f * t);
+                const float hw = w0 * (1.0f - t * t) + 0.25f;
+                for (int x = int(cx - hw - 2); x <= int(cx + hw + 2); ++x) {
                     if (x < 0 || x >= W) continue;
                     const float d = std::fabs(float(x) + 0.5f - cx);
-                    if (d > hw + 0.5f) continue;
-                    uint8_t* p = &px[size_t((H - 1 - y) * W + x) * 4];
-                    const float v = std::min(1.0f, (0.55f + 0.6f * t) * shade);
-                    p[0] = uint8_t(255.0f * v * 0.92f);
-                    p[1] = uint8_t(255.0f * v);
-                    p[2] = uint8_t(255.0f * v * 0.78f);
-                    p[3] = 255;
+                    const float cov = std::max(0.0f, std::min(1.0f, hw + 0.5f - d));
+                    if (cov <= 0) continue;
+                    float* p = &acc[size_t((H - 1 - y) * W + x) * 4];
+                    const float v = (0.42f + 0.43f * std::pow(t, 0.7f)) * shade;
+                    // Blades in front cover the ones behind (later ones drawn over).
+                    p[0] = p[0] * (1 - cov) + v * hr * 0.75f * cov;
+                    p[1] = p[1] * (1 - cov) + v * hg * 0.75f * cov;
+                    p[2] = p[2] * (1 - cov) + v * hb * 0.75f * cov;
+                    p[3] = std::max(p[3], cov);
                 }
             }
+        }
+        // Colour where uncovered = the blades' mean, so the smaller mip levels don't darken them.
+        double mr = 0, mg = 0, mb = 0, mw = 0;
+        for (size_t i = 0; i < acc.size(); i += 4)
+            if (acc[i + 3] > 0.5f) { mr += acc[i] / acc[i + 3]; mg += acc[i + 1] / acc[i + 3]; mb += acc[i + 2] / acc[i + 3]; mw += 1; }
+        if (mw > 0) { mr /= mw; mg /= mw; mb /= mw; }
+        std::vector<uint8_t> px(acc.size());
+        for (size_t i = 0; i < acc.size(); i += 4) {
+            const float a = acc[i + 3];
+            const double c[3] = {a > 0.02f ? acc[i] / a : mr, a > 0.02f ? acc[i + 1] / a : mg, a > 0.02f ? acc[i + 2] / a : mb};
+            for (int k = 0; k < 3; ++k) px[i + size_t(k)] = uint8_t(std::min(255.0, c[k] * 255.0));
+            px[i + 3] = uint8_t(std::min(255.0f, a * 255.0f));
         }
         grassTex_ = renderer_.uploadTexture(W, H, px.data(), true, false);
         grassBatch_.init(renderer_, kMaxQuads);
     }
+    renderer_.setGrassTexture(grassTex_);
     grassOn_ = true;
 }
 
@@ -98,35 +141,44 @@ void GameApp::updateGrass() {
     const int cx = int(std::floor(c.x / kCell)), cz = int(std::floor(c.z / kCell));
     for (int dz = -r; dz <= r; ++dz)
         for (int dx = -r; dx <= r; ++dx) {
-            if (grassBatch_.count() + 2 > kMaxQuads) break;
+            if (grassBatch_.count() + 3 > kMaxQuads) break;
             const float dd = std::sqrt(float(dx * dx + dz * dz)) * kCell;
             if (dd > radius) continue;
             const uint32_t h = hash2(cx + dx, cz + dz);
-            if (h01(h, 0) > 0.8f) continue;  // density
             const float x = (float(cx + dx) + h01(h, 1)) * kCell, z = (float(cz + dz) + h01(h, 2)) * kCell;
+            // Clumps (~3 m) within patches (~14 m): thick in places, bare ground between.
+            const float dens = 0.15f + 1.1f * vnoise(x, z, 14.0f, 7) * vnoise(x, z, 3.2f, 3);
+            if (h01(h, 0) > dens) continue;
             float y, yx, yz;
             if (!terr.heightAt(x, z, y) || !terr.heightAt(x + 0.5f, z, yx) || !terr.heightAt(x, z + 0.5f, yz)) continue;
             if (y < renderer_.environment().seaLevel + 1.2f) continue;  // no grass on the beach or under water
             const float slope = std::sqrt((yx - y) * (yx - y) + (yz - y) * (yz - y)) / 0.5f;
-            if (slope > 0.55f) continue;  // cliffs and steep banks: rock
-            // Smaller toward the edge of the patch (no hard line where it ends).
+            if (slope > 0.5f) continue;  // cliffs and steep banks: rock
+            // Smaller toward the edge of the patch (no hard line where it ends), and in thin places.
             const float edge = 1.0f - std::max(0.0f, (dd - radius * 0.7f) / (radius * 0.3f));
-            const float size = (0.22f + 0.36f * h01(h, 3) * h01(h, 3)) * (0.4f + 0.6f * edge);
+            const float size = (0.2f + 0.3f * h01(h, 3) * h01(h, 3) + 0.14f * std::min(1.0f, dens)) * (0.35f + 0.65f * edge);
             const float a = h01(h, 4) * 3.14159f;
-            const Vec3 base{x, y - 0.03f, z};
-            // The ground's own colour there (texture average x baked light), a little lusher, varied.
-            const float tone = 0.8f + 0.45f * h01(h, 5);
+            const Vec3 base{x, y - 0.02f, z};
+            const Vec2 guv = terr.uvAt(x, z);
             const Vec3 li = terr.lightAt(x, z);
-            const Vec3 col = Vec3{grassColor_.x * li.x * 0.95f, grassColor_.y * li.y * 1.08f, grassColor_.z * li.z * 0.9f} * (tone * 1.2f);
-            const uint8_t rgba[4] = {uint8_t(std::min(255.0f, col.x * 255.0f)), uint8_t(std::min(255.0f, col.y * 255.0f)),
-                                     uint8_t(std::min(255.0f, col.z * 255.0f)), 255};
-            for (int k = 0; k < 2; ++k) {  // two crossed cards
-                const float aa = a + float(k) * 1.5708f;
-                const Vec3 side{std::cos(aa) * size * 0.5f, 0, std::sin(aa) * size * 0.5f};
+            const float tone = h01(h, 5);
+            const uint8_t lc[4] = {uint8_t(std::min(255.0f, li.x * 255.0f)), uint8_t(std::min(255.0f, li.y * 255.0f)),
+                                   uint8_t(std::min(255.0f, li.z * 255.0f)), 255};
+            for (int k = 0; k < 3; ++k) {  // three cards, 60 degrees apart
+                const float aa = a + float(k) * 1.0472f;
+                const Vec3 side{std::cos(aa) * size * 0.55f, 0, std::sin(aa) * size * 0.55f};
                 const Vec3 up{0, size, 0};
                 const Vec3 q[4] = {base - side, base + side, base + side + up, base - side + up};
-                static const float uv[4][2] = {{0, 1}, {1, 1}, {1, 0}, {0, 0}};
-                grassBatch_.add(q, uv, rgba, Vec3{0, 1, 0});  // lit like the ground
+                static const float bc[4][2] = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+                Vertex v[4];
+                for (int c = 0; c < 4; ++c) {
+                    v[c] = Vertex{};
+                    v[c].pos[0] = q[c].x; v[c].pos[1] = q[c].y; v[c].pos[2] = q[c].z;
+                    v[c].normal[0] = bc[c][0]; v[c].normal[1] = bc[c][1]; v[c].normal[2] = tone;
+                    v[c].uv[0] = guv.x; v[c].uv[1] = guv.y;
+                    for (int i = 0; i < 4; ++i) v[c].color[i] = lc[i];
+                }
+                grassBatch_.addVertices(v);
             }
         }
     grassBatch_.upload(renderer_);
@@ -136,8 +188,11 @@ void GameApp::renderGrass() {
     // Only with the rework look at full quality (classic look and the adaptive fallback: none).
     if (!grassOn_ || hero_ == Hero::Kabuto || grassBatch_.count() == 0 || renderer_.inReflectionPass() || renderer_.look() != 1) return;
     DrawParams dp;
-    dp.texture = grassTex_;
+    dp.texture = assetWorld_ ? assetWorld_->terrain().groundTexture() : 0;  // (the ground's colour; the blades: setGrassTexture)
+    dp.material = DrawParams::Material::Grass;
+    dp.unlit = true;  // the ground's baked light, as the terrain
     dp.blend = BlendMode::AlphaTest;
+    dp.alphaCoverage = true;
     dp.doubleSided = true;
     dp.sway = 0.07f;
     grassBatch_.draw(renderer_, dp);

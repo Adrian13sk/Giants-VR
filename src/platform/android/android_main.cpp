@@ -263,6 +263,7 @@ void android_main(android_app* app) {
                 game.renderShadows(gvr::EyeRenderInfo{l.pose, l.fovLeft, l.fovRight, l.fovUp, l.fovDown, l.width, l.height},
                                    gvr::EyeRenderInfo{r.pose, r.fovLeft, r.fovRight, r.fovUp, r.fovDown, r.width, r.height});
             }
+            game.renderer().setMsaa(xr.multiview() && game.renderer().multiviewSupported() && xr.msaaSamples() > 1);
             if (xr.multiview() && game.renderer().multiviewSupported()) {
                 // Both eyes in one pass (GL_OVR_multiview2).
                 const auto bind = xr.bindStereoFramebuffer();

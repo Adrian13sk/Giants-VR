@@ -50,6 +50,7 @@ uniform mat4 uMVP;
 #endif
 uniform mat4 uModel;
 uniform highp vec2 uSway;  // wind: amplitude (m at the card's top), time (s)
+uniform mediump int uMaterial;  // (4: rework grass - the blade's height fraction is in the normal's y)
 out vec3 vWorldPos;
 out vec3 vNormal;
 out vec2 vUv;
@@ -59,7 +60,7 @@ void main() {
     if (uSway.x > 0.0) {
         // Gusts travelling across the field: two waves; only the top of the card moves.
         highp float ph = uSway.y * 1.7 + p.x * 0.35 + p.z * 0.27;
-        float k = (1.0 - aUv.y) * uSway.x;
+        float k = (uMaterial == 4 ? aNormal.y * aNormal.y : 1.0 - aUv.y) * uSway.x;
         p.x += k * (sin(ph) * 0.8 + sin(ph * 2.3 + 1.3) * 0.35);
         p.z += k * (cos(ph * 0.9 + 0.4) * 0.5);
     }
@@ -109,7 +110,7 @@ uniform highp vec3 uEyePos;
 #endif
 uniform float uUnlit;         // 0 lit, 1 baked (lightmaps / vertex colours), 2 emissive (effects, overlays)
 uniform float uAlphaRef;
-uniform int uMaterial;        // 0 standard, 1 water, 2 sky
+uniform mediump int uMaterial; // 0 standard, 1 water, 2 sky, 3 terrain, 4 grass
 uniform highp float uTime;
 uniform highp float uSeaLevel;
 uniform highp float uClipY;   // reflection pass: nothing below the water surface
@@ -137,6 +138,7 @@ uniform sampler2D uTerrSand;
 uniform sampler2D uTerrGrass2;
 uniform sampler2D uTerrRock2;
 uniform sampler2D uTerrNoise;
+uniform sampler2D uGrassTex;  // rework grass (material 4): the blades' shape and shading
 uniform float uTerrDetail;
 uniform vec3 uSkyTint;
 uniform float uNight;
@@ -174,11 +176,13 @@ vec3 fogMix(vec3 rgb, float fog, highp vec3 wp) {
 // rock on slopes (projected on the dominant side axis, so cliffs aren't stretched), two rocks
 // mixed in large patches; a sand beach just above the sea and sand under it, wet below the
 // waterline; fine grain up close. Weights come from slope, height above the sea and noise.
-vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d) {
+// Set by terrainColor for the relief in main(): how much rock, and its brightness (as height).
+float gRockW = 0.0, gRockH = 0.0;
+vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
     highp vec2 xz = wp.xz;
     vec2 nz = texture(uTerrNoise, xz * 0.006).rg;              // ~170 m: large patches
     float nzp = texture(uTerrNoise, xz * 0.031 + vec2(0.37, 0.71)).r;  // ~32 m: small patches
-    vec3 grass = texture(uTex, uv).rgb;
+    vec3 grass = texture(uTex, uv, bias).rgb;  // (bias: grass blades take the ground's local average, not one texel)
     float slope = 1.0 - n.y;
     float rockW = smoothstep(0.26, 0.45, slope + (nzp - 0.5) * 0.14);
     highp float hs = wp.y - uSeaLevel;
@@ -197,12 +201,45 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d) {
         sand *= mix(1.0, 0.68, smoothstep(-0.1, 0.5, -hs));        // wet at and below the waterline
         col = mix(col, sand, sandW);
     }
+    gRockW = 0.0;
     if (rockW > 0.01) {
         vec3 an = abs(n);
         highp vec2 ruv = an.x > an.z ? wp.zy : wp.xy;
         if (an.y > max(an.x, an.z)) ruv = xz;
-        vec3 rock = texture(uTerrRock, ruv * 0.11).rgb;
-        if (uTerrDetail > 0.5) rock = mix(rock, texture(uTerrRock2, ruv * 0.07).rgb * 1.1, smoothstep(0.42, 0.62, nz.x) * 0.7);
+        vec3 rock;
+        if (uLook > 0.5 && uLook < 1.5) {
+            // Rework (user: "the rocks textures" look awful): true triplanar (three projections
+            // blended by the normal, no seams or smears where a cliff turns), strata bands along the
+            // height warped by noise, a finer octave up close, and the rock's own texture as the relief
+            // height (main(): gRockH), so cracks and ledges catch the light.
+            vec3 w = an * an;
+            w = w * w;
+            w /= (w.x + w.y + w.z);
+            highp vec3 q = wp * 0.11;
+            rock = texture(uTerrRock, q.zy).rgb * w.x + texture(uTerrRock, q.xz).rgb * w.y + texture(uTerrRock, q.xy).rgb * w.z;
+            if (uTerrDetail > 0.5) rock = mix(rock, texture(uTerrRock2, ruv * 0.07).rgb * 1.1, smoothstep(0.42, 0.62, nz.x) * 0.6);
+            // Strata: gently tilted layers (~9 m), warmer and cooler, lighter and darker.
+            float band = sin(wp.y * 0.7 + nz.y * 5.0 + wp.x * 0.03) * 0.5 + 0.5;
+            band = band * band * (3.0 - 2.0 * band);
+            rock *= mix(vec3(0.72, 0.8, 0.88), vec3(1.28, 1.12, 0.9), band);
+            // Moss and earth caught on ledges and slopes that face up, in patches.
+            float moss = smoothstep(0.3, 0.62, n.y) * smoothstep(0.35, 0.65, nzp + (nz.x - 0.5) * 0.4);
+            rock = mix(rock, grass * vec3(0.9, 1.05, 0.75), moss * 0.75);  // strata: cooler and warmer layers
+            float lr = dot(rock, vec3(0.299, 0.587, 0.114));
+            float fine = 1.0;
+            if (d < 30.0) {
+                float f = dot(texture(uTerrRock, ruv * 0.47 + vec2(0.31, 0.17)).rgb, vec3(0.299, 0.587, 0.114));
+                fine = mix(1.0, 0.7 + 0.6 * f / max(lr, 0.05), 0.5 * (1.0 - smoothstep(12.0, 30.0, d)));
+            }
+            rock *= clamp(fine, 0.6, 1.4);
+            // Crevices darker, faces lighter: a contrast lift around the rock's own mean.
+            rock = max(rock + (rock - vec3(lr)) * 0.15 + (lr - 0.3) * 0.25 * rock, vec3(0.0));
+            gRockH = lr;
+            gRockW = rockW;
+        } else {
+            rock = texture(uTerrRock, ruv * 0.11).rgb;
+            if (uTerrDetail > 0.5) rock = mix(rock, texture(uTerrRock2, ruv * 0.07).rgb * 1.1, smoothstep(0.42, 0.62, nz.x) * 0.7);
+        }
         col = mix(col, rock, rockW);
     }
     if (uTerrDetail > 0.5 && d < 30.0) {
@@ -361,8 +398,31 @@ void main() {
 #endif
         return;
     }
-    vec4 base = uMaterial == 3 ? vec4(terrainColor(vWorldPos, normalize(vNormal), vUv, d), 1.0) * vColor * uTint
-                               : texture(uTex, vUv) * vColor * uTint;
+    // (The terrain colour from one expression, as a select: called twice, or inside an if, Mesa's
+    // llvmpipe - the PC test renderer - miscompiled the whole shader.)
+    bool terr = uMaterial == 3 || uMaterial == 4;
+    vec4 base = terr ? vec4(terrainColor(vWorldPos, uMaterial == 4 ? vec3(0.0, 1.0, 0.0) : normalize(vNormal), vUv, d, uMaterial == 4 ? 10.0 : 0.0), 1.0)
+                     : texture(uTex, vUv);
+    if (uMaterial == 4) {
+        // Rework grass: the card's blade coordinates (x across, y up, z the tuft's tone) ride in the
+        // normal; vUv is the ground's own texture coordinate under the tuft, so the blades take the
+        // colour of the ground they grow from; the vertex colour is the ground's baked light there.
+        vec3 bc = vNormal;
+        vec4 bl = texture(uGrassTex, vec2(bc.x, 1.0 - bc.y));
+        // Thin blades keep their coverage in the smaller mip levels, and the edge is sharpened to a
+        // pixel (with alpha-to-coverage on the headset's MSAA: smooth, not stair-stepped).
+        // (about the mip level, without log2: llvmpipe miscompiles exp2/log2 in this shader)
+        highp vec2 tx = dFdx(bc.xy) * 128.0, ty = dFdy(bc.xy) * 128.0;
+        float lod = clamp(sqrt(sqrt(max(max(dot(tx, tx), dot(ty, ty)), 1.0))) - 1.0, 0.0, 3.0);
+        float a = bl.a * (1.0 + 0.3 * lod);
+        a = clamp((a - 0.5) / max(fwidth(a), 1e-4) + 0.5, 0.0, 1.0);
+        // Blades ~1.4x the ground's brightness on average (roots darker, tips lighter, each tuft its
+        // own tone), and a little more saturated: grass catching the light over its earth.
+        vec3 gc = base.rgb * bl.rgb * (5.2 + 2.6 * bc.z);
+        float gl = dot(gc, vec3(0.299, 0.587, 0.114));
+        base = vec4(max(mix(vec3(gl), gc, 1.3), 0.0), a);
+    }
+    base *= vColor * uTint;
     if (base.a < uAlphaRef) discard;
     if (uUnlit > 1.5) {  // emissive: effects and overlays keep their own colour
         oColor = vec4(base.rgb, base.a);
@@ -370,14 +430,19 @@ void main() {
     }
     vec3 n = normalize(vNormal);
     if (!gl_FrontFacing) n = -n;
+    if (uMaterial == 4) n = vec3(0.0, 1.0, 0.0);  // grass: lit like the ground
     float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
     vec3 ng = n;  // the geometric normal (shadow lookups)
-    if (uLook > 0.5 && uLook < 1.5 && d < 45.0) {
+    if (uLook > 0.5 && uLook < 1.5 && d < 45.0 && uMaterial != 4) {
         // Relief up close (fades out by 45 m: no shimmer far away). Terrain a little deeper.
         float k = (uMaterial == 3 ? 0.10 : 0.025) * (1.0 - smoothstep(25.0, 45.0, d));
         // Terrain: the relief of its detail noise (the ground textures are too soft to read from).
         float hgt = uMaterial == 3 ? texture(uTerrNoise, vWorldPos.xz * 0.43 + vec2(0.13, 0.57)).r * 0.6
                                      + texture(uTerrNoise, vWorldPos.xz * 1.7).g * 0.4 : lum;
+        if (uMaterial == 3 && gRockW > 0.0) {  // rock: its own texture is the relief, deeper
+            hgt = mix(hgt, gRockH * 2.2, gRockW);
+            k *= 1.0 + 1.5 * gRockW;
+        }
         n = bumpNormal(n, vWorldPos, hgt, k);
     }
     float sh = sunShadow(vWorldPos, ng);
@@ -386,7 +451,8 @@ void main() {
     if (uUnlit > 0.5) {
         // Baked lighting (lightmaps, vertex colours) still darkens under a moving shadow, and the
         // moving sun brightens what faces it a little.
-        rgb = base.rgb * mix(0.36, 1.0, sh) * (0.86 + 0.32 * ndl * sh) * uBakedLight;
+        // (Rock: the relief shows - ledges lit, cracks dark - around the same mean brightness.)
+        rgb = base.rgb * mix(0.36, 1.0, sh) * mix(0.86 + 0.32 * ndl * sh, 0.6 + 0.85 * ndl * sh, uMaterial == 3 ? gRockW : 0.0) * uBakedLight;
     } else {
         // Sky light from above, darker bounce from below; warm sun; a faint rim of sky light.
         vec3 amb = uAmbient * mix(vec3(0.62, 0.58, 0.52), vec3(1.08, 1.1, 1.18), n.y * 0.5 + 0.5) * (uLook > 0.5 ? 1.25 : 1.0);
@@ -394,7 +460,7 @@ void main() {
         float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.25;
         rgb = base.rgb * (amb + uSunColor * ndl * sh) + uSkyHorizon * rim * base.rgb;
     }
-    if (uLook > 0.5 && uLook < 1.5) {
+    if (uLook > 0.5 && uLook < 1.5 && uMaterial != 4) {
         // Sun highlights (Blinn-Phong): brighter texels read as smoother and shinier.
         highp vec3 vv = normalize(uEyePos - vWorldPos);
         vec3 hv = normalize(vv - uSunDir);
@@ -502,7 +568,7 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u) {
     for (int k = 0; k < 5; ++k) u.uTerr_[k] = L(tn[k]);
     u.uTerrDetail_ = L("uTerrDetail"); u.uSway_ = L("uSway"); u.uSkyTint_ = L("uSkyTint"); u.uNight_ = L("uNight"); u.uBakedLight_ = L("uBakedLight");
     u.uPointPos_ = L("uPointPos"); u.uPointColor_ = L("uPointColor");
-    u.uSkyTex_ = L("uSkyTex"); u.uSkyOn_ = L("uSkyOn");
+    u.uSkyTex_ = L("uSkyTex"); u.uSkyOn_ = L("uSkyOn"); u.uGrassTex_ = L("uGrassTex");
     u.uViewProj_ = L("uViewProj"); u.uEyePosV_ = L("uEyePosV"); u.uLook_ = L("uLook");
     return prog;
 }
@@ -788,6 +854,13 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
         glUniform1f(U_->uSkyOn_, t && skyHaze_ ? 1.0f : 0.0f);
     }
     glUniform1f(U_->uLook_, look_);
+    {  // the grass blades: unit 11
+        GLuint t = 0;
+        if (grassTex_ != 0 && grassTex_ <= textures_.size() && textures_[grassTex_ - 1].live) t = textures_[grassTex_ - 1].tex;
+        glUniform1i(U_->uGrassTex_, 11);
+        glActiveTexture(GL_TEXTURE11);
+        glBindTexture(GL_TEXTURE_2D, t ? t : whiteTexture_);
+    }
     glActiveTexture(GL_TEXTURE0);
 }
 
@@ -814,6 +887,8 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
     if (p.texture != 0 && p.texture <= textures_.size() && textures_[p.texture - 1].live)
         tex = textures_[p.texture - 1].tex;
     glBindTexture(GL_TEXTURE_2D, tex);
+    if (p.alphaCoverage && msaa_) glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+    else glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
 
     switch (p.blend) {
         case BlendMode::Opaque:
@@ -824,7 +899,7 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
         case BlendMode::AlphaTest:
             glDisable(GL_BLEND);
             glDepthMask(GL_TRUE);
-            glUniform1f(U_->uAlphaRef_, 0.5f);
+            glUniform1f(U_->uAlphaRef_, p.alphaCoverage && msaa_ ? 0.02f : 0.5f);
             break;
         case BlendMode::AlphaBlend:
             glEnable(GL_BLEND);

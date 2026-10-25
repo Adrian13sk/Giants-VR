@@ -53,6 +53,7 @@ public:
     // Both eyes in one pass: one swapchain with two layers (GL_OVR_multiview). bindEyeFramebuffer /
     // releaseEye still work then (each eye's layer on its own), for a renderer without multiview.
     bool multiview() const { return multiview_; }
+    int msaaSamples() const { return msaaSamples_; }  // the eye buffers' MSAA (1: none)
     EyeBindResult bindStereoFramebuffer();
     void releaseStereo();
     // A framebuffer to read one eye's finished image from (test screenshots); 0 if none bound.
@@ -78,6 +79,7 @@ public:
 private:
     uint32_t recenterSerial_ = 0;
     bool testMode_ = false;
+    int msaaSamples_ = 1;
     struct Swapchain {
         XrSwapchain handle = XR_NULL_HANDLE;
         int width = 0, height = 0;

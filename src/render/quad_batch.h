@@ -20,6 +20,8 @@ public:
     void add(const Vec3 corners[4], const float uv[4][2], const uint8_t rgba[4]);
     // Same with a given normal (e.g. straight up, so a card is lit like the ground under it).
     void add(const Vec3 corners[4], const float uv[4][2], const uint8_t rgba[4], const Vec3& normal);
+    // A quad of fully specified vertices (e.g. per-corner data in the normal).
+    void addVertices(const Vertex v[4]);
     // A camera-facing square (right/up: the viewer's axes), rolled by `angle`.
     void addBillboard(const Vec3& centre, float size, const Vec3& right, const Vec3& up, float angle, const uint8_t rgba[4]);
     // Uploads this frame's quads (once per frame, before drawing).

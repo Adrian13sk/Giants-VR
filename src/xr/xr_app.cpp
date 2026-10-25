@@ -424,6 +424,7 @@ bool XrApp::createMultiviewSwapchain() {
         return false;
     }
     multiview_ = true;
+    msaaSamples_ = samples > 1 ? samples : 1;
     LOGI("Multiview swapchain %dx%d x2 layers, %u images (both eyes in one pass), MSAA %dx", sc.width, sc.height, count, samples > 1 ? samples : 1);
     return true;
 }

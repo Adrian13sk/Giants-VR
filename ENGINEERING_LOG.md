@@ -2087,3 +2087,26 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   then he falls back and lies (asleep after 1.5 s); delphi_impale - hanging by the torso, legs dangling, dropped
   when yanked. Unit test (stick figure: falls, rests above ground, keeps bone lengths, helper node rides on the
   pelvis; pinned it hangs, unpinned it drops). Sweep 56/56 clean. devtest reaper_ragdolls. HARNESS only.
+
+### 2026-10-26 — Rework: graphics pass 1 (grass, rock)
+- User: "All maps need graphics/texture redesign. Grass looks awful and the rocks textures as well." Montage of 9 worlds:
+  grass tufts were bright uniform lime sprites on olive ground; cliffs (terrain rock layer) flat teal wallpaper,
+  dominant-axis projection smearing where faces turn; ground blurry close up.
+- Grass: new renderer Material::Grass. Card blade coordinates (x, height, tuft tone) ride in the vertex normal; vUv
+  is the terrain's own texture coordinate at the tuft (Terrain::uvAt), so the fragment runs terrainColor() there
+  (bias 10: the ground's local average, not one texel) times a procedural 128x128 blade texture (34 thin curving
+  blades, hue per blade, dark roots) bound on unit 11 (setGrassTexture); light = Terrain::lightAt in the vertex
+  colour; baked like the terrain. Clumps (3.2 m) within patches (14 m) of value noise, 0.55 m grid, 3 cards per
+  tuft, <= 3600 quads within 15 m. Alpha: coverage kept in small mips, edge sharpened by fwidth; alpha-to-coverage
+  when the eye buffers are MSAA (Renderer::setMsaa from XrApp::msaaSamples, device only; headless keeps the 0.5
+  test). Brightness calibrated by measurement (grass pixels via a magenta mask render vs the ground there): the
+  grade curve is non-linear, final blades ~1.15-1.2x the ground.
+- llvmpipe (PC test renderer) pitfalls found by bisection, documented in the shader: log2 in the grass branch, and
+  terrainColor() called twice or from inside an if-branch, each broke the whole frame (white ground, black cards);
+  now one select-expression call site with a material-dependent normal and mip bias.
+- Rock (terrain rock layer, rework look only): true triplanar (normal^4 weights), strata bands (~9 m, tilted,
+  warm 1.28/1.12/0.9 vs cool 0.72/0.8/0.88), moss on up-facing rock in noise patches, a finer rock octave within
+  30 m, a contrast lift; relief: the rock's luminance becomes the bump height (x2.2, 2.5x depth) and the baked
+  light lets the bumped normal through more on rock (0.6 + 0.85 ndl vs 0.86 + 0.32 ndl).
+- Harness: 1a/1d/5a close views before/after; 1d cliff views; 9-world sweep montage. Tests pass; sweep 56/56
+  clean. HARNESS only (A2C path only on device).

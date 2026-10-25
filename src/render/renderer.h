@@ -43,7 +43,8 @@ struct DrawParams {
     float sway = 0.0f;      // wind: metres the top (uv v = 0) of a card sways (grass); 0 = still; < 0: a tree bending (-sway m at 10 m up)
     // Material: Standard (lit/unlit textured), Water (animated surface: waves, fresnel sky
     // reflection, sun glints), Sky (drifting clouds, sun disc and glow).
-    enum class Material : uint8_t { Standard, Water, Sky, Terrain } material = Material::Standard;
+    enum class Material : uint8_t { Standard, Water, Sky, Terrain, Grass } material = Material::Standard;
+    bool alphaCoverage = false;  // AlphaTest edges as MSAA coverage (when the target is multisampled)
 };
 
 struct ViewParams {
@@ -118,6 +119,10 @@ public:
     // Draws after this skip fragments within `radius` of `centre` (0: off) - the own body in first person.
     void setNearCut(const Vec3& centre, float radius);
     void setSkyTexture(TextureId t) { skyTex_ = t; }
+    // Rework grass (Material::Grass): the blade texture; msaa: the eye buffers are multisampled
+    // (alpha-to-coverage for DrawParams::alphaCoverage).
+    void setGrassTexture(TextureId t) { grassTex_ = t; }
+    void setMsaa(bool on) { msaa_ = on; }
     void setSkyHaze(bool on) { skyHaze_ = on; }
     void setTerrainLayers(TextureId rock, TextureId sand, TextureId grass2, TextureId rock2, TextureId noise) {
         terrainTex_[0] = rock; terrainTex_[1] = sand; terrainTex_[2] = grass2; terrainTex_[3] = rock2; terrainTex_[4] = noise;
@@ -178,7 +183,7 @@ private:
         GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
         GLint uClipY_ = -1, uGrade_ = -1, uReflTex_ = -1, uReflDepth_ = -1, uReflMat_ = -1, uReflEye_ = -1, uReflNear_ = -1,
               uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
-        GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1, uSway_ = -1, uSkyTex_ = -1, uSkyOn_ = -1, uNearCut_ = -1;
+        GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1, uSway_ = -1, uSkyTex_ = -1, uSkyOn_ = -1, uNearCut_ = -1, uGrassTex_ = -1;
         GLint uViewProj_ = -1, uEyePosV_ = -1;  // multiview: both eyes' view-projection and position
         GLint uLook_ = -1;
     };
@@ -191,6 +196,8 @@ private:
     float anisotropy_ = 0;
     TextureId terrainTex_[5] = {};
     TextureId skyTex_ = 0;
+    TextureId grassTex_ = 0;
+    bool msaa_ = false;
     bool skyHaze_ = true;
     bool terrainDetail_ = true;
     float look_ = 1.0f;

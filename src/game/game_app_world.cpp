@@ -342,6 +342,23 @@ void GameApp::debugBlast(float gx, float gy, float height) {
     explode(at, 4.0f, 120.0f);
 }
 
+void GameApp::debugDumpNear(float r) const {
+    const Vec3 p = player_.position;
+    for (size_t i = 0; i < chars_.size(); ++i)
+        if (length(chars_[i].pos - p) < r) LOGI("  near: character %zu type %d rescue %d at %.2f m (ambient %d visible %d)", i, chars_[i].type, chars_[i].rescue, length(chars_[i].pos - p), int(chars_[i].ambient), int(chars_[i].visible));
+    for (size_t i = 0; i < rescue_.smarties.size(); ++i)
+        if (length(rescue_.smarties[i].pos - p) < r) LOGI("  near: rescue Smartie %zu at %.2f m, state %d", i, length(rescue_.smarties[i].pos - p), int(rescue_.smarties[i].state));
+    for (size_t i = 0; i < villagers_.villagers.size(); ++i)
+        if (length(villagers_.villagers[i].pos - p) < r) LOGI("  near: villager %zu at %.2f m = game (%.0f, %.0f)", i, length(villagers_.villagers[i].pos - p), -villagers_.villagers[i].pos.x / 0.2f, villagers_.villagers[i].pos.z / 0.2f);
+    if (assetWorld_)
+        for (const auto& o : assetWorld_->worldObjects())
+            if (o.model && length(o.centre - p) < r + o.radius) {
+                std::string tex;
+                for (const auto& pt : o.model->parts) tex += pt.textureName + " ";
+                LOGI("  near: object %s (radius %.1f m) at %.1f m: %s", o.name.c_str(), o.radius, length(o.centre - p), tex.c_str());
+            }
+}
+
 void GameApp::debugReapersAhead(int n, float dist) {
     if (enemyPool_.empty() || !assetWorld_) return;
     const Vec3 f = Quat::fromAxisAngle({0, 1, 0}, player_.yaw).rotate(Vec3{0, 0, -1});
