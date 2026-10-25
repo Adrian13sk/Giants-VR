@@ -1355,6 +1355,14 @@ private:  // the mission placed enemies: no test waves
     Vec3 laserFrom_, laserTo_;
     bool laserOn_ = false;
     void renderAimLaser();
+    // Floating motes (rework, atmosphere): dust in the sunlight by day, fireflies at night, drifting
+    // within ~9 m of the eyes - gives the air depth in VR.
+    struct Mote { Vec3 pos, vel; float size, phase; };
+    std::vector<Mote> motes_;
+    QuadBatch moteBatch_;
+    TextureId moteTex_ = 0;
+    void updateMotes(float dt);
+    void renderMotes();
     void renderObjectiveMarker();
     float playerHitTop() const;
     bool handReach(const Vec3& p, float r) const;

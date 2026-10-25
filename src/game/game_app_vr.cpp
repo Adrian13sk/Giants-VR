@@ -143,6 +143,72 @@ void GameApp::renderAimLaser() {
     renderer_.draw(laserMesh_, Mat4::translation(laserTo_) * Mat4::rotation(headWorldRot_) * Mat4::scale({s, s, s * 0.2f}), dp);
 }
 
+void GameApp::updateMotes(float dt) {
+    if (!lastInput_.headValid || !assetWorld_ || std::getenv("GVR_NO_MOTES")) { motes_.clear(); return; }
+    const Vec3 c = rig_.toWorld(lastInput_.head).position;
+    const float R = 9.0f * rig_.comfort.worldScale;
+    if (motes_.empty()) {
+        motes_.resize(90);
+        for (auto& m : motes_) {
+            m.pos = c + Vec3{(frand() - 0.5f) * 2.0f * R, (frand() - 0.4f) * R, (frand() - 0.5f) * 2.0f * R};
+            m.vel = Vec3{frand() - 0.5f, (frand() - 0.5f) * 0.3f, frand() - 0.5f} * 0.25f;
+            m.size = 0.03f + 0.035f * frand();
+            m.phase = frand() * 6.28f;
+        }
+    }
+    const float t = float(time_);
+    for (auto& m : motes_) {
+        m.pos = m.pos + (m.vel + Vec3{0.12f * std::sin(t * 0.3f + m.phase), 0.05f * std::sin(t * 0.7f + m.phase * 2.0f), 0.08f}) * dt;
+        const Vec3 d = m.pos - c;
+        if (std::fabs(d.x) > R || std::fabs(d.z) > R || d.y > 0.7f * R || d.y < -0.5f * R) {
+            // Back in on the far side of the cube, somewhere new.
+            m.pos = c + Vec3{d.x > R ? -R : (d.x < -R ? R : (frand() - 0.5f) * 2.0f * R), (frand() - 0.4f) * R,
+                             d.z > R ? -R : (d.z < -R ? R : (frand() - 0.5f) * 2.0f * R)};
+            float gy;
+            if (assetWorld_->terrain().heightAt(m.pos.x, m.pos.z, gy) && m.pos.y < gy + 0.3f) m.pos.y = gy + 0.3f + frand() * 2.0f;
+        }
+    }
+}
+
+void GameApp::renderMotes() {
+    if (motes_.empty() || renderer_.inReflectionPass()) return;
+    if (!moteTex_) {
+        std::vector<uint8_t> px(32 * 32 * 4);
+        for (int y = 0; y < 32; ++y)
+            for (int x = 0; x < 32; ++x) {
+                const float dx = (float(x) + 0.5f) / 16.0f - 1.0f, dy = (float(y) + 0.5f) / 16.0f - 1.0f;
+                const float a = std::max(0.0f, 1.0f - std::sqrt(dx * dx + dy * dy));
+                uint8_t* p = &px[size_t(y * 32 + x) * 4];
+                p[0] = p[1] = p[2] = 255;
+                p[3] = uint8_t(255.0f * a * a);
+            }
+        moteTex_ = renderer_.uploadTexture(32, 32, px.data(), true, false);
+        moteBatch_.init(renderer_, 128);
+    }
+    const EnvironmentParams& env = renderer_.environment();
+    const float night = env.night;
+    const Quat q = headWorldRot_;
+    const Vec3 right = q.rotate({1, 0, 0}), up = q.rotate({0, 1, 0});
+    moteBatch_.clear();
+    const float t = float(time_);
+    for (const auto& m : motes_) {
+        // Day: faint warm dust; night: fireflies that pulse.
+        const float pulse = night > 0.3f ? 0.4f + 0.6f * std::max(0.0f, std::sin(t * 2.3f + m.phase * 3.0f)) : 1.0f;
+        const Vec3 col = night > 0.3f ? Vec3{0.6f, 1.0f, 0.35f} * (1.4f * pulse) : Vec3{1.0f, 0.88f, 0.66f} * 0.8f;
+        const uint8_t rgba[4] = {uint8_t(std::min(255.0f, col.x * 255.0f)), uint8_t(std::min(255.0f, col.y * 255.0f)),
+                                 uint8_t(std::min(255.0f, col.z * 255.0f)), 255};
+        moteBatch_.addBillboard(m.pos, m.size * rig_.comfort.worldScale * (night > 0.3f ? 1.3f : 1.0f), right, up, 0.0f, rgba);
+    }
+    moteBatch_.upload(renderer_);
+    DrawParams dp;
+    dp.texture = moteTex_;
+    dp.unlit = true;
+    dp.blend = BlendMode::Additive;
+    dp.depthWrite = false;
+    dp.doubleSided = true;
+    moteBatch_.draw(renderer_, dp);
+}
+
 void GameApp::updateFlashes(float dt) {
     float best = 0;
     const Flash* pick = nullptr;

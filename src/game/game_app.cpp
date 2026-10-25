@@ -769,6 +769,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     { GVR_PROF("rescue"); updateRescue(dt, in); }
     updateReaperGrenades(dt);
     updateAmbush(dt);
+    updateMotes(dt);
     updateCombat(dt);
     { GVR_PROF("audio"); updateAudio(dt); }
         updateFlashes(dt);
@@ -4387,6 +4388,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     }
     renderFx();
     renderDataFx();
+    if (playMode_ && !cut) renderMotes();
     if (title_) renderTitle();
     beginUiFrame(eyes, n);  // the HUD, menu and hands at human scale (Kabuto)
     if (cut) renderCutscene();
