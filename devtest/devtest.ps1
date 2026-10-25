@@ -100,6 +100,16 @@ foreach ($script in $scripts) {
     Adb logcat -c | Out-Null
     Adb shell am broadcast -a com.oculus.vrpowermanager.prox_close | Out-Null
     Adb shell am start -n "$pkg/android.app.NativeActivity" | Out-Null
+    # A system dialog in front of the app (e.g. "Controllers required" from APKs built before 2026-10-25,
+    # when the controllers lie still) holds the test until someone presses a trigger in the headset.
+    Start-Sleep -Seconds 4
+    $dialog = (Adb shell dumpsys activity activities) | Select-String -Pattern 'LaunchCheck\w*Activity|systemdialog\.\w+' | Select-Object -First 1
+    if ($dialog) {
+        $what = $dialog.Matches[0].Value
+        Write-Host "   The headset is showing a system dialog ($what) - this APK needs a trigger press to start." -ForegroundColor Yellow
+        Write-Host "   Install a newer APK (one that declares hand tracking), or put the headset on and press a trigger." -ForegroundColor Yellow
+        "${name}: system dialog at start: $what" | Add-Content $summary
+    }
 
     $status = 'timeout'
     $deadline = (Get-Date).AddSeconds($dur + 120)
