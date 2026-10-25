@@ -32,6 +32,7 @@ int EnemyDirector::spawn(const Vec3& pos, float yaw) {
     e.stateTime = float(nextRand() % 1000) * 0.001f;  // desynchronise idle clips
     e.clipTime = e.stateTime;
     e.uid = nextUid_++;
+    if (params.marksmen > 0 && float(nextRand() % 1000) < params.marksmen * 1000.0f) e.role = 1;
     e.home = e.patrolTo = e.pos;
     e.patrolWait = 2.0f + float(nextRand() % 4000) * 0.001f;
     enemies.push_back(e);
@@ -168,6 +169,13 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             }
             sees = sees && dist <= 8.0f;
         }
+        // Rework: a marksman keeps his distance and fires single aimed shots.
+        const bool marks = e.role == 1;
+        const float shootR = marks ? std::max(params.shootRange, 45.0f) : params.shootRange;
+        const float fireR = marks ? 26.0f : params.fireRange;
+        const int burstN = marks ? 1 : params.burstSize;
+        const float burstP = marks ? 2.6f : params.burstPause;
+        (void)shootR; (void)fireR; (void)burstN; (void)burstP;
         switch (e.state) {
             case EnemyState::Idle: {
                 if (!playerAlive) e.aware = false;
@@ -278,10 +286,10 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 if (e.posted) {  // a sentry fires from its post once the player is in range
                     turn(faceYaw);
                     setClip(e, EnemyClip::Idle, true);
-                    if (dist <= params.shootRange * 1.3f) {
+                    if (dist <= shootR * 1.3f) {
                         e.state = EnemyState::Fire;
                         e.stateTime = 0;
-                        e.burstLeft = params.burstSize;
+                        e.burstLeft = burstN;
                         e.burstsLeft = params.burstsPerStop;
                         e.fireCooldown = 0.35f;
                     }
@@ -290,8 +298,8 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 e.flankTimer -= dt;
                 const Vec3 dirTo = to * (1.0f / std::max(dist, 1e-3f));
                 const Vec3 side{-dirTo.z, 0, dirTo.x};
-                Vec3 goal{player.x + side.x * e.flank - dirTo.x * params.fireRange - e.pos.x, 0,
-                          player.z + side.z * e.flank - dirTo.z * params.fireRange - e.pos.z};
+                Vec3 goal{player.x + side.x * e.flank - dirTo.x * fireR - e.pos.x, 0,
+                          player.z + side.z * e.flank - dirTo.z * fireR - e.pos.z};
                 // Rework: badly hurt, he falls back - away from the player and to one side - before he
                 // turns to fight again.
                 const bool retreating = e.retreatT > 0;
@@ -300,12 +308,12 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     goal = Vec3{-dirTo.x * 12.0f + side.x * e.flank, 0, -dirTo.z * 12.0f + side.z * e.flank};
                 }
                 const float goalDist = std::sqrt(goal.x * goal.x + goal.z * goal.z);
-                const bool arrived = goalDist < 1.0f || dist <= params.fireRange;
+                const bool arrived = goalDist < 1.0f || dist <= fireR;
                 // Stop to shoot when in range and the current run has lasted long enough (or arrived).
-                if (!retreating && dist <= params.shootRange && (arrived || e.flankTimer <= 0)) {
+                if (!retreating && dist <= shootR && (arrived || e.flankTimer <= 0)) {
                     e.state = EnemyState::Fire;
                     e.stateTime = 0;
-                    e.burstLeft = params.burstSize;
+                    e.burstLeft = burstN;
                     e.burstsLeft = params.burstsPerStop;
                     e.fireCooldown = 0.35f;
                     break;
@@ -322,10 +330,10 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     // Can't climb this: try going around; if the player is in range, shoot instead.
                     e.blockedTime += dt;
                     if (e.blockedTime > 0.3f) {
-                        if (dist <= params.shootRange) {
+                        if (dist <= shootR) {
                             e.state = EnemyState::Fire;
                             e.stateTime = 0;
-                            e.burstLeft = params.burstSize;
+                            e.burstLeft = burstN;
                             e.burstsLeft = params.burstsPerStop;
                             e.fireCooldown = 0.35f;
                         } else {
@@ -345,7 +353,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 if (e.burstLeft > 0) {
                     // Rework: pressing in - a Reaper not yet at his stand-off distance walks at you while
                     // he fires (rpman_walk_fire), instead of standing still to be shot.
-                    const bool press = params.pressIn && !e.posted && dist > params.fireRange + 2.0f;
+                    const bool press = (params.pressIn && e.role != 1) && !e.posted && dist > fireR + 2.0f;
                     if (press) {
                         setClip(e, EnemyClip::Walk, true);
                         const Vec3 f{-std::sin(e.yaw), 0, -std::cos(e.yaw)};
@@ -357,13 +365,13 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     if (e.fireCooldown <= 0 && facing) {
                         shooters.push_back(int(i));
                         --e.burstLeft;
-                        e.fireCooldown = e.burstLeft > 0 ? params.fireInterval : params.burstPause;
+                        e.fireCooldown = e.burstLeft > 0 ? params.fireInterval : burstP;
                     }
                 } else {
                     setClip(e, EnemyClip::Idle, true);
                     if (e.fireCooldown <= 0) {
                         if (--e.burstsLeft > 0) {
-                            e.burstLeft = params.burstSize;
+                            e.burstLeft = burstN;
                         } else {
                             // Reposition: pick a new flank spot and run there.
                             e.flank = (float(nextRand() % 2001) / 1000.0f - 1.0f) * 10.0f;

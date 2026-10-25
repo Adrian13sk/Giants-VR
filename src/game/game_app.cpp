@@ -3622,6 +3622,15 @@ void GameApp::updateCombat(float dt) {
     placeReaperWeapons();  // the guns in their hands, from this frame's poses
     // Enemy shots from each Reaper's gun nozzle toward the player's chest, with spread.
     for (auto& e : enemies_.enemies) e.rocketCool = std::max(0.0f, e.rocketCool - dt);
+    // Rework: a marksman's gun glows red for the moment before each shot - see it, and move.
+    for (const auto& e : enemies_.enemies)
+        if (e.role == 1 && e.state == EnemyState::Fire && e.burstLeft > 0 && e.fireCooldown < 0.7f && e.weapon != 1 && embers_.size() < 220) {
+            const Quat r = Quat::fromAxisAngle({0, 1, 0}, e.yaw);
+            Vec3 m = e.pos + Vec3{0, 1.5f, 0} + r.rotate(Vec3{0.3f, 0, -0.6f});
+            reaperMuzzle(e, m);
+            const float k = 1.0f - std::max(0.0f, e.fireCooldown) / 0.7f;
+            embers_.push_back({m, Vec3{0, 0, 0}, 0.0f, dt * 1.5f, 0.12f + 0.25f * k});
+        }
     for (int i : shooters_) {
         Enemy& e = enemies_.enemies[size_t(i)];
         const Quat r = Quat::fromAxisAngle({0, 1, 0}, e.yaw);
@@ -3644,7 +3653,7 @@ void GameApp::updateCombat(float dt) {
         const Vec3 target = player_.position + Vec3{0, (0.5f + 0.4f * frand()) * playerHitTop() * (player_.height / (1.65f * heroScale_)), 0};
         Vec3 dir = normalize(target - muzzle);
         // Spread grows with distance: long shots mostly miss, close ones are dangerous.
-        const float spread = 0.06f + 0.004f * length(target - muzzle);
+        const float spread = (0.06f + 0.004f * length(target - muzzle)) * (e.role == 1 ? 0.35f : 1.0f);  // (a marksman aims)
         dir = normalize(dir + Vec3{frand() - 0.5f, (frand() - 0.5f) * 0.6f, frand() - 0.5f} * spread);
         enemyFire_.spawnShot(muzzle, dir);
         sfx("rh_sprsh", muzzle, 0.8f, 0.9f + 0.2f * frand());

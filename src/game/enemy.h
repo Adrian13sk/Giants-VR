@@ -68,7 +68,8 @@ struct Enemy {
     bool weaponOn = false;
     Mat4 weaponXf = Mat4::identity();
     float rocketCool = 0;
-    float hiddenT = 0, grenadeCool = 0, flinchCool = 0, retreatT = 0;  // (retreatT: badly hurt, falling back)  // (flinchCool: near misses, game_app_vr.cpp)
+    float hiddenT = 0, grenadeCool = 0, flinchCool = 0, retreatT = 0;
+    int role = 0;           // rework: 1 = marksman (keeps his distance, single aimed shots, a glow before each)  // (retreatT: badly hurt, falling back)  // (flinchCool: near misses, game_app_vr.cpp)
     float hitFlash = 0;     // rework: > 0 just hit (the body flashes)  // rework: the player out of sight this long -> a grenade (game layer)
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
@@ -77,6 +78,7 @@ struct EnemyParams {
     float sightRange = 60.0f;     // m: sees the player in front with a clear line (was 50, any side)
     float shootRange = 30.0f;     // m: stops running to shoot when this close
     float fireRange = 10.0f;      // m: closest stand-off distance
+    float marksmen = 0.25f;       // rework: share of Reapers that are marksmen (0: none)
     float runSpeed = 4.2f;        // m/s (rpman_bzka_run stride: 18.4 units/s = 3.7; the rework runs them faster)
     float walkSpeed = 1.65f;      // m/s (rpman_walk_fire stride: pressing in while firing)
     bool pressIn = true;          // rework: walk at the player while firing (false: the classic stand-and-fire)
