@@ -76,6 +76,7 @@ void GameApp::openShopAt(const Vec3& centre) {
         if (hero_ == Hero::Mecc) shopItems_.push_back({5, shopAt_, false});
     }
     LOGI("Shop opened at (%.1f %.1f %.1f)", centre.x, centre.y, centre.z);
+    addPartyGoods();  // (a Party House that stood before the shop opened)
 }
 
 void GameApp::updateShop(float dt, const InputFrame& in) {

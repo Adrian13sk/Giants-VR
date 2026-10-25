@@ -700,6 +700,13 @@ private:
     // Base building (game_app_base.cpp): 5c's Meccaryn base from Mecc_base_template_1.
     struct Base {
         bool on = false, complete = false, onPad = false, autoOrdered = false, reaper = false;
+        // What the finished buildings do (ours, after GTextEnglish's descriptions): the Party House's
+        // "special items" in the shop; the Pub / Persuader keep the Smarties working (wrecked: "Can't
+        // build - Repair the Pub!!!"); the Persuader "helps them work, so long as you keep feeding it
+        // souls"; the Shield Generator "gives extra shielding to all of your buildings".
+        bool partyGoods = false;        // the Party House stood: its goods go into the shop (now or when it opens)
+        float soulT = 0;                // the Persuader's appetite (one soul every 30 s while it works)
+        float blockSayT = 0;
         Vec3 centre, padAt, dropAt, menuAt;
         float menuYaw = 0, touchCool = 0, traceT = 0, speed = 1.0f;
         // Raids (ours): Reapers sent from the enemy barracks' side to wreck the buildings.
@@ -957,6 +964,7 @@ private:  // the mission placed enemies: no test waves
     struct SkBuilding { std::unique_ptr<SkinnedModel> model; const RenderModel* still = nullptr; Mat4 xf = Mat4::identity(); bool pad = false; };
     std::vector<SkBuilding> skBuildings_;  // the sides' bases, standing (game_app_base.cpp standingBase)
     int standingBase(bool reaper, const Mat4& at, std::vector<SkBuilding>& out);
+    void addPartyGoods();
     int skAddRemote(const std::string& name, int team);
     void skOwnShots();             // the local player's new shots, for the others to see
     void skHandleEvent(const SkEvent& e);

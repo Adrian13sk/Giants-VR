@@ -121,6 +121,22 @@ bool baseMission(const std::string& mission, bool reaper) {
 // A finished base for a skirmish side (game_app_skirmish.cpp): the race's template buildings standing
 // at `at` (its position and yaw), solid. No walls or gates: a closed ring would shut the side's own
 // flag holder in (the original opens gates for its side - not done here; ours).
+// The Party House "holds special items": the pop-up bomb for a Meccaryn, the power-up bow for Delphi,
+// on the shop's counter (ours). Before any shop has opened they wait for it (openShopAt).
+void GameApp::addPartyGoods() {
+    if (!base_.partyGoods || !shopOn_) return;
+    const int kind = base_.reaper ? 7 : 3;
+    if (kind == 7) {
+        initBows();
+        if (bows_[kBowPowerup].have) return;
+    }
+    for (const auto& it : shopItems_)
+        if (it.kind == kind && !it.taken) return;  // (already on the counter)
+    shopItems_.push_back({kind, shopAt_, false});
+    if (!shopInside_) shopAnchored_ = false;
+    LOGI("Base: the Party House's goods are in the shop");
+}
+
 int GameApp::standingBase(bool reaper, const Mat4& at, std::vector<SkBuilding>& out) {
     if (!assetWorld_) return 0;
     const BldgDef* defs = reaper ? kReaper : kMecc;
@@ -465,16 +481,44 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
     poseCrew();
     int busy = 0;
     const int crews = crewSites();
+    // The Pub (Meccaryn) / Persuader (Reaper): once it has stood, its loss stops every other building
+    // until it is rebuilt ("Can't build - Repair the Pub!!!" / "... the Persuader!!!"); a standing
+    // Persuader with souls in the store speeds the work and eats one every 30 s.
+    const char* foodKey = base_.reaper ? "extractor" : "pub";
+    bool foodBuilt = false, foodStands = false, persuading = false;
+    for (const auto& b : base_.bldgs)
+        if (std::string(kDefs[b.def].key) == foodKey) {
+            foodBuilt = foodBuilt || base_.rewarded.count(b.def) > 0;
+            foodStands = foodStands || b.state == 3;
+        }
+    const bool foodDown = foodBuilt && !foodStands;
+    if (base_.reaper && foodStands) {
+        for (const auto& b : base_.bldgs) persuading = persuading || b.state == 1;
+        persuading = persuading && base_.food > 0;
+        if (persuading && (base_.soulT += dt) >= 30.0f) {
+            base_.soulT = 0;
+            --base_.food;
+            LOGI("Base: the Persuader ate a soul (%d left)", base_.food);
+        }
+    }
+    base_.blockSayT = std::max(0.0f, base_.blockSayT - dt);
     for (auto& b : base_.bldgs) {
         if (b.state != 1) continue;
         if (busy >= crews) break;  // two Smarties per building going up (game_app_basecrew.cpp)
+        if (foodDown && std::string(kDefs[b.def].key) != foodKey) {
+            if (base_.blockSayT <= 0) {
+                base_.blockSayT = 15.0f;
+                smartieSay(base_.reaper ? "YAN" : "BORJOYZEE", base_.reaper ? "basehintextrdestroyed" : "basehintpubdestroyed");
+            }
+            continue;
+        }
         ++busy;
         // Work stops while Reapers are at the site (the crew cowers).
         bool threat = false;
         for (const auto& e : enemies_.enemies)
             if (e.state != EnemyState::Dead && length(Vec3{e.pos.x - b.xf.m[12], 0, e.pos.z - b.xf.m[14]}) < 15.0f) { threat = true; break; }
         if (threat) continue;
-        b.progress = std::min(1.0f, b.progress + dt * base_.speed / std::max(1.0f, kDefs[b.def].seconds));
+        b.progress = std::min(1.0f, b.progress + dt * base_.speed * (persuading ? 1.25f : 1.0f) / std::max(1.0f, kDefs[b.def].seconds));
         b.fxT -= dt;
         if (b.fxT <= 0) {
             b.fxT = 0.35f + 0.3f * frand();
@@ -488,7 +532,12 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
             ModelCache* mc = assetWorld_->models();
             const RenderModel* coll = mc->get(std::string(bldgModel(b.def, b.level)) + "_coll.gbs", "", false);
             if (!coll || coll->collisionTris.empty()) coll = mc->get(std::string(bldgModel(b.def, b.level)) + ".gbs", "", false);
-            if (b.collision >= 0) {
+            // A gate "allows you to quickly enter and exit your base" / "lets you pass with ease": not
+            // solid for the player (walls are).
+            const bool gate = std::string(kDefs[b.def].key).find("gate") != std::string::npos;
+            if (gate) {
+                LOGI("Base: %s stands open to you", bldgLabel(b.def, b.level));
+            } else if (b.collision >= 0) {
                 assetWorld_->collisionMutable().setEnabled(b.collision, true);  // rebuilt after a raid
             } else if (coll && !coll->collisionTris.empty()) {
                 std::vector<Vec3> tris;
@@ -540,6 +589,12 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
                 if (std::string(kDefs[b.def].key) == "mcworkshop" || std::string(kDefs[b.def].key) == "rpworkshop") base_.speed = 1.5f;
                 timmyLine_ = std::string(bldgLabel(b.def, b.level)) + " - COMPLETED!";
                 timmyLineT_ = 3.5f;
+                if (std::string(kDefs[b.def].key) == "mcpartyhouse" || std::string(kDefs[b.def].key) == "rppartyhouse") {
+                    base_.partyGoods = true;
+                    addPartyGoods();
+                    // ("PARTY HOUSE COMPLETE! Check your shop for new weapons!" - its own line)
+                    smartieSay(base_.reaper ? "YAN" : "BORJOYZEE", base_.reaper ? "basechatrpphousedone" : "basechatmcphousedone");
+                }
                 sfx2D("pu_hlth", 0.9f, 0.8f);
                 LOGI("Base: %s completed", bldgLabel(b.def, b.level));
             }
@@ -816,12 +871,15 @@ void GameApp::updateRaids(float dt) {
         e->siege = false;
         for (auto& b : base_.bldgs) {
             if (b.state != 3 || b.def == 0) continue;
+            // A standing Shield Generator halves the damage (ours).
+            bool shielded = false;
+            for (const auto& g : base_.bldgs) shielded = shielded || (g.state == 3 && std::string(kDefs[g.def].key) == "rpgenerator");
             const Vec3 bp{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
             const Vec3 d{bp.x - e->pos.x, 0, bp.z - e->pos.z};
             if (d.x * d.x + d.z * d.z > 10.0f * 10.0f) continue;
             e->siege = true;  // stands and fires at it (enemy.cpp)
             e->siegeAt = bp + Vec3{0, 2.0f, 0};
-            b.hp -= 6.0f * dt;
+            b.hp -= 6.0f * dt * (shielded ? 0.5f : 1.0f);
             b.hitT = float(time_);
             if (frand() < dt * 2.0f) {
                 smokePuff(FxTex::Fire, bp + Vec3{(frand() - 0.5f) * 4, 1.0f + frand() * 3, (frand() - 0.5f) * 4}, Vec3{0, 1, 0}, 0.6f, 1.6f, 0.6f, 0.9f, 0.4f);
