@@ -946,11 +946,23 @@ private:
     Vec3 clearSpawn(Vec3 sp, float yaw) const;
     void startCutscene(const std::string& first);
     void updateCutscene(float dt, const InputFrame& in);
-    void renderCutscene();
+    void renderCutscene(bool actors = true);
+    // Rework, cutscene cinema (game_app_cinema.cpp): the shot camera's picture on a screen.
+    void renderWorld(const ViewParams& v, bool cut, const std::vector<int>& cutTypes);
+    bool cinemaActive() const;
+    void renderCinema();
+    void renderCinemaRoom(const ViewParams& v);
+    bool cinemaInit_ = false, cinemaAnchored_ = false;
+    Pose cinemaAnchor_;  // tracking space: where the screen stands
+    Mat4 cinemaSubXf_ = Mat4::identity();  // world: just under the screen (the subtitles)
+    bool cinemaSubValid_ = false;
+    QuadBatch cinemaBatch_;
 public:
     size_t objectiveCount() const { return objectives_.size(); }
     bool cutsceneActive() const;
     size_t cutsceneShots() const;
+    // Test hook: the playing shot, its time and the fade to black (0 = in view).
+    bool cutsceneInfo(std::string& shot, float& t, float& black) const;
     size_t objectivesDone() const { return objectivesDone_; }
     bool missionComplete() const { return missionComplete_; }
     bool jetpackAvailable() const { return player_.jetpackAvailable; }

@@ -1,0 +1,11 @@
+# Video 9: walking through the new grass of 5a.
+name grass
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+view first
+duration 7
+pitch -12
+move 0 0.5 0.5 6.5

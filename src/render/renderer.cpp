@@ -887,7 +887,10 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
     if (p.texture != 0 && p.texture <= textures_.size() && textures_[p.texture - 1].live)
         tex = textures_[p.texture - 1].tex;
     glBindTexture(GL_TEXTURE_2D, tex);
-    if (p.alphaCoverage && msaa_) glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+    // On the headset's MSAA every alpha-tested surface (palm fronds, shrubs, grilles) gets soft,
+    // anti-aliased edges from alpha-to-coverage (rework: the shrub mounds' feathered rims were cut
+    // into hard circles at 0.5); below 0.3 still dropped (stray low alpha in some textures).
+    if (msaa_ && (p.alphaCoverage || p.blend == BlendMode::AlphaTest)) glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
     else glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
 
     switch (p.blend) {
@@ -899,7 +902,7 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
         case BlendMode::AlphaTest:
             glDisable(GL_BLEND);
             glDepthMask(GL_TRUE);
-            glUniform1f(U_->uAlphaRef_, p.alphaCoverage && msaa_ ? 0.02f : 0.5f);
+            glUniform1f(U_->uAlphaRef_, msaa_ ? (p.alphaCoverage ? 0.02f : 0.3f) : 0.5f);
             break;
         case BlendMode::AlphaBlend:
             glEnable(GL_BLEND);
@@ -1085,6 +1088,64 @@ bool Renderer::initScope(int size) {
     scopeSize_ = size;
     LOGI("Gun scope target: %dx%d", size, size);
     return checkGl("initScope");
+}
+
+bool Renderer::initScreen(int width, int height) {
+    screenTex_ = uploadTexture(width, height, nullptr, false, false);
+    if (screenTex_ == 0) return false;
+    const GLuint color = textures_[screenTex_ - 1].tex;
+    glGenFramebuffers(1, &screenFbo_);
+    glBindFramebuffer(GL_FRAMEBUFFER, screenFbo_);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
+    bool complete = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    // Drawn multisampled (4x), resolved into the texture by a blit.
+    glGenRenderbuffers(1, &screenMsColor_);
+    glBindRenderbuffer(GL_RENDERBUFFER, screenMsColor_);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_SRGB8_ALPHA8, width, height);
+    glGenRenderbuffers(1, &screenMsDepth_);
+    glBindRenderbuffer(GL_RENDERBUFFER, screenMsDepth_);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT24, width, height);
+    glGenFramebuffers(1, &screenMsFbo_);
+    glBindFramebuffer(GL_FRAMEBUFFER, screenMsFbo_);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, screenMsColor_);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, screenMsDepth_);
+    complete = complete && glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    if (!complete) {
+        LOGE("Cinema screen framebuffer incomplete");
+        glDeleteFramebuffers(1, &screenFbo_);
+        glDeleteFramebuffers(1, &screenMsFbo_);
+        screenFbo_ = screenMsFbo_ = 0;
+        while (glGetError() != GL_NO_ERROR) {}
+        return false;
+    }
+    screenW_ = width;
+    screenH_ = height;
+    LOGI("Cinema screen target: %dx%d, 4x MSAA", width, height);
+    return checkGl("initScreen");
+}
+
+void Renderer::beginScreenPass(const ViewParams& view) {
+    glBindFramebuffer(GL_FRAMEBUFFER, screenMsFbo_);
+    beginView(view, screenW_, screenH_, false);
+    glClearColor(env_.fogColor.x, env_.fogColor.y, env_.fogColor.z, 1.0f);
+    glClearDepthf(1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void Renderer::endScreenPass() {
+    glBindVertexArray(0);
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, screenMsFbo_);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, screenFbo_);
+    glBlitFramebuffer(0, 0, screenW_, screenH_, 0, 0, screenW_, screenH_, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    // (depth is not needed after the pass: tell a tiler not to store it)
+    const GLenum discard[1] = {GL_DEPTH_ATTACHMENT};
+    glBindFramebuffer(GL_FRAMEBUFFER, screenMsFbo_);
+    glInvalidateFramebuffer(GL_FRAMEBUFFER, 1, discard);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Renderer::beginScopePass(const ViewParams& view) {

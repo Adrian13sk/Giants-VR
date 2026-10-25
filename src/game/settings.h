@@ -13,6 +13,7 @@ struct UserSettings {
     int volume = 9;          // 0..10
     int music = 8;           // 0..10
     bool subtitles = true;
+    bool cutsceneScreen = true;  // rework: cutscenes on a cinema screen (the original framing); false: around you
     bool showFps = false;    // frame-rate counter at the top of the view
     bool dayNight = true;    // false: always day
     bool originalFx = false;  // effects from the game's fx.bin (experimental) instead of our particles

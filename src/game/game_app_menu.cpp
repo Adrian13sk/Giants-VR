@@ -24,7 +24,7 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 }
 
 namespace {
-enum MenuRow { kRowResume, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -90,6 +90,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowVolume: s.volume = std::max(0, std::min(10, s.volume + dx)); changed = true; break;
             case kRowMusic: s.music = std::max(0, std::min(10, s.music + dx)); changed = true; break;
             case kRowSubs: s.subtitles = !s.subtitles; changed = true; break;
+            case kRowCuts: s.cutsceneScreen = !s.cutsceneScreen; changed = true; break;
             case kRowFps: s.showFps = !s.showFps; changed = true; break;
             case kRowFov: s.foveation = std::max(0, std::min(3, s.foveation + dx)); changed = true; break;
             case kRowDay: s.dayNight = !s.dayNight; changed = true; break;
@@ -161,6 +162,7 @@ void GameApp::renderMenu() {
         {"VOLUME", vol},
         {"MUSIC", mus},
         {"SUBTITLES", s.subtitles ? "ON" : "OFF"},
+        {"CUTSCENES", s.cutsceneScreen ? "CINEMA SCREEN" : "AROUND YOU"},
         {"FRAME RATE", s.showFps ? "SHOWN" : "HIDDEN"},
         {"FOVEATED RENDERING", fovs[s.foveation]},
         {"DAY AND NIGHT", s.dayNight ? "CYCLE" : "ALWAYS DAY"},

@@ -1,0 +1,12 @@
+# Ragdoll video: five Reapers 7 m ahead, rockets burst among them at 1.5 s.
+name rag_blast
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+view first
+duration 7
+aim 0 -10
+pitch -8
+reapers 5 7 0.3 1.5

@@ -47,6 +47,8 @@ public:
     std::string modelName(uint32_t type) const;
     // The type's default animation (slot 1, else the lowest slot), or empty.
     std::string modelAnim(uint32_t type) const;
+    // The idle clip of any type drawn with `model` (lower case; empty if none has one).
+    std::string animForModel(const std::string& model) const;
     // Animation in a specific slot, or empty.
     std::string anim(uint32_t type, int slot) const;
     bool knows(uint32_t type) const { return types_.count(type) != 0; }

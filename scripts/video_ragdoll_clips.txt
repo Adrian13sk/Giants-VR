@@ -1,0 +1,6 @@
+# Ragdoll demo: caption|world|mission|from frame|frames|env and harness args
+Before: blown-up Reapers play a canned death animation|Rstory2|rstory2_battle_1|60|400|GVR_NO_RAGDOLL=1 --script scripts/video_ragdoll/blast.txt
+Now: ragdolls - they fly limp, tumble and come to rest|Rstory2|rstory2_battle_1|60|440|--script scripts/video_ragdoll/blast.txt
+Shot dead: the hit reaction, then the body crumples|Story3|story3_bunker_3|40|380|--auto-aim --script scripts/video_ragdoll/shot.txt
+Delphi's sword: run through, he hangs limp on the blade, then is yanked off|Rstory2|rstory2_battle_1|0|430|--script devtest/tests/delphi_impale.txt
+Kabuto throws a Reaper: he lands as a ragdoll|Kstory4|kstory4_1|40|390|--script devtest/tests/kabuto_grab_throw.txt

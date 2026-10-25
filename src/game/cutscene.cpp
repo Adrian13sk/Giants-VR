@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <cstdlib>
 
 #include "core/log.h"
@@ -63,6 +64,24 @@ bool CutscenePlayer::loadShot(const std::string& name) {
     if (shot_.next.empty())
         for (const auto& f : shot_.fades)
             if (f.level < 0.5f) duration_ = std::max(duration_, f.time + f.seconds);
+    // Rework: a shot whose script has faded it to black with nothing left to show or say - no later
+    // fade back, subtitle, voice or effect - ends 2 s after (Kstory5_End_18 held 130 s of black after
+    // THE END).
+    if (!shot_.fades.empty()) {
+        const auto& lf = shot_.fades.back();
+        if (lf.level < 0.02f) {
+            const float black = lf.time + lf.seconds;
+            float last = 0;
+            for (float t : shot_.subtitleTimes) last = std::max(last, t);
+            for (const auto& c : shot_.cues) last = std::max(last, c.time);
+            for (const auto& e : shot_.effects) last = std::max(last, e.time);
+            const float end = std::max(black, last) + 2.0f;
+            if (end + 1.0f < duration_) {
+                LOGI("Cutscene %s: black from %.1f s with nothing after it - ends at %.1f s instead of %.1f", name.c_str(), black, end, duration_);
+                duration_ = end;
+            }
+        }
+    }
     actors_.clear();
     const AnmAnimation& dir = shot_.director;
     auto lower = [](std::string v) { return toLower(v); };
@@ -110,8 +129,22 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         }
     }
     std::vector<bool> claimed(tables.size(), false);
+    // Trees whose mover names a character (a typed actor of this shot, the Mecc crew, Delphi, Yan,
+    // the Smarties...): only that character performs them (rework: a typed actor whose model didn't fit
+    // its own tree took the best-fitting one - another character's).
+    std::vector<bool> named(tables.size(), false);
+    static const char* kCrew[] = {"baz", "tel", "reg", "gordon", "bennet", "meccaryn", "delphi", "yan", "tim", "wife",
+                                  "borj", "smartie", "weeman", "toby", "kabuto", "offspring", "sappho", "lander"};
+    for (int t = 0; t < int(tables.size()); ++t) {
+        const std::string& o = tables[size_t(t)].owner;
+        if (o.empty()) continue;
+        for (const char* c : kCrew)
+            if (o.compare(0, std::strlen(c), c) == 0) named[size_t(t)] = true;
+        for (const auto& a : shot_.actors)
+            if (a.type >= 0 && !a.node.empty() && similar(o, lower(a.node))) named[size_t(t)] = true;
+    }
     // Loads an actor's model and finds its tree; false if it can't be shown in this shot.
-    auto place = [&](const FlickActor& a, const std::string& model, std::string idleAnim, bool quiet) {
+    auto place = [&](const FlickActor& a, const std::string& model, std::string idleAnim, bool quiet, int only = -1) {
         Actor act;
         act.info = a;
         // Objects with no animation slot can still be skinned with their own <model>.anm (the
@@ -127,6 +160,14 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         auto fits = [&](int t) { return !sm || sm->boneMatches(tables[size_t(t)].anim) >= needBones; };
         const std::string me = lower(a.node);
         int table = -1;
+        // Pinned to one tree (the untyped performances below): that tree or nothing.
+        if (only >= 0) {
+            if (claimed[size_t(only)] || !fits(only) || (!sm && true)) {
+                if (!quiet) LOGI("Cutscene %s: %s does not fit tree %d", name.c_str(), model.c_str(), only);
+                return false;
+            }
+            table = only;
+        }
         // 1. A mover named after the actor.
         for (int t = 0; t < int(tables.size()) && table < 0; ++t)
             if (!claimed[size_t(t)] && !tables[size_t(t)].owner.empty() && similar(tables[size_t(t)].owner, me) && fits(t)) table = t;
@@ -139,10 +180,16 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         }
         // 3. Skinned: the unclaimed tree that best matches the skeleton (anonymous movers, e.g.
         //    "Moover" carrying the lander in story1_start_10).
-        if (table < 0 && sm) {
+        //    Trees whose mover names another character come last: only if no other tree fits
+        //    (kstory5_kabuto_fight_2's second Kabuto performs on a "Delphi_mover").
+        for (int pass = 0; pass < 2 && table < 0 && sm; ++pass) {
             size_t best = needBones;
             for (int t = 0; t < int(tables.size()); ++t) {
                 if (claimed[size_t(t)] || tables[size_t(t)].camera) continue;
+                bool other = named[size_t(t)] && !similar(tables[size_t(t)].owner, me);
+                for (const char* c : kCrew)  // (the same character's other tree is no one else's)
+                    if (tables[size_t(t)].owner.compare(0, std::strlen(c), c) == 0 && me.compare(0, std::strlen(c), c) == 0) other = false;
+                if (other != (pass == 1)) continue;
                 const size_t m = sm->boneMatches(tables[size_t(t)].anim);
                 if (m >= best) { best = m + 1; table = t; }
             }
@@ -176,14 +223,29 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         if (model.empty()) { LOGW("Cutscene %s: actor %s (type %d) has no model", name.c_str(), a.node.c_str(), a.type); continue; }
         place(a, model, reg_.modelAnim(uint32_t(a.type)), false);
     }
-    // Performances with no typed actor record: the Mecc crew (Baz, Gordon, ...) on their own
-    // movers. Any remaining tree that fits the Meccaryn skeleton is shown as a Meccaryn.
+    // Performances with no typed actor record, on their own movers: the Mecc crew (Baz, Gordon, ...),
+    // and also Delphi, Yan, Timmy, the Smarties, Borjoyzee and the wife (rework: these were all shown
+    // as Meccaryns - or, not fitting a Meccaryn, took a Meccaryn's tree from him - so the ending's
+    // last shot showed two Meccaryns where wife, Smartie, Timmy, Delphi and Borjoyzee stand). Each
+    // tree gets the model its mover's name says, if its skeleton fits that tree; else a Meccaryn's.
+    static const std::pair<const char*, const char*> kByName[] = {
+        {"delphi", "rp_l0"}, {"yan", "smyan_l0"}, {"timmy", "smtimmy_l0"}, {"tim", "smtimmy_l0"}, {"wife", "smf_l0"},
+        {"borj", "smborjoyzee_l0"}, {"smartie", "sm_l0"}, {"weeman", "sm_l0"}, {"toby", "toby"}, {"kabuto", "kb_l0"},
+        {"offspring", "offspring_l0"}};
     for (int t = 0; t < int(tables.size()); ++t) {
-        if (claimed[size_t(t)] || tables[size_t(t)].camera || tables[size_t(t)].anim.nodes.size() < 30) continue;
+        if (claimed[size_t(t)] || tables[size_t(t)].camera || tables[size_t(t)].anim.nodes.size() < 8) continue;
         FlickActor a;
         a.node = tables[size_t(t)].owner.empty() ? "meccaryn" : tables[size_t(t)].owner;
         a.type = -2;
-        place(a, "mc_l0", "mc_stand.anm", true);
+        bool done = false;
+        for (const auto& kv : kByName) {
+            if (a.node.compare(0, std::strlen(kv.first), kv.first) != 0) continue;
+            std::string anim = reg_.animForModel(kv.second);
+            if (anim.empty() && fs_.exists(std::string(kv.second) + ".anm")) anim = std::string(kv.second) + ".anm";
+            done = !anim.empty() && place(a, kv.second, anim, true, t);
+            break;
+        }
+        if (!done && tables[size_t(t)].anim.nodes.size() >= 30) place(a, "mc_l0", "mc_stand.anm", true, t);
     }
     // Free actors placed in the world (op 0x20): e.g. the wax-Smartie rig (type 1259) at the
     // rock pillars in story1_save_sm_2a.
@@ -315,6 +377,22 @@ void CutscenePlayer::update(float dt) {
         const Mat4& m = world_[size_t(camNode_)];
         eyeNow_ = giantsToRuntime(m.m[12], m.m[13], m.m[14]);
     }
+    // The camera's own axes: a target camera looks at its target (level up, no roll); a free one down
+    // its local -Z with its local +Y up.
+    camFwd_ = Vec3{-std::sin(yaw_), 0, -std::cos(yaw_)};
+    camUp_ = Vec3{0, 1, 0};
+    if (camNode_ >= 0 && !hasEyeOverride_) {
+        const Mat4& m = world_[size_t(camNode_)];
+        if (tgtNode_ >= 0) {
+            const Mat4& tm = world_[size_t(tgtNode_)];
+            const Vec3 d = giantsToRuntime(tm.m[12], tm.m[13], tm.m[14]) - eyeNow_;
+            if (length(d) > 1e-4f) camFwd_ = normalize(d);
+        } else {
+            const Vec3 f = giantsToRuntime(-m.m[8], -m.m[9], -m.m[10]), u = giantsToRuntime(m.m[4], m.m[5], m.m[6]);
+            if (length(f) > 1e-6f) camFwd_ = normalize(f);
+            if (length(u) > 1e-6f && std::fabs(dot(normalize(u), camFwd_)) < 0.99f) camUp_ = normalize(u);
+        }
+    }
     if (tgtNode_ >= 0 && !hasEyeOverride_) {
         const Mat4& m = world_[size_t(tgtNode_)];
         targetNow_ = giantsToRuntime(m.m[12], m.m[13], m.m[14]);
@@ -432,7 +510,7 @@ void CutscenePlayer::updateProps(float t) {
     }
 }
 
-void CutscenePlayer::render() {
+void CutscenePlayer::render(bool nearCull) {
     if (!active_) return;
     for (const auto& a : actors_) {
         if (!a.visible || !shot_.actorShownAt(a.info.index, t_ + 1e-3f)) continue;
@@ -449,7 +527,7 @@ void CutscenePlayer::render() {
             }
             const Vec3 e = r_.currentView().eyePosition;
             const Vec3 q{std::max(wmn.x, std::min(e.x, wmx.x)), std::max(wmn.y, std::min(e.y, wmx.y)), std::max(wmn.z, std::min(e.z, wmx.z))};
-            if (length(q - e) < 1.0f) {
+            if (nearCull && length(q - e) < 1.0f) {
                 if (!a.nearLogged) { a.nearLogged = true; LOGI("Cutscene %s: %s at the camera, not drawn", shotName_.c_str(), a.info.node.c_str()); }
                 continue;
             }

@@ -37,7 +37,8 @@ public:
     void stop() { active_ = false; actors_.clear(); }
     bool active() const { return active_; }
     void update(float dt);
-    void render();
+    // nearCull: leave out actors within 1 m of the eye (the immersive view; not the cinema camera).
+    void render(bool nearCull = true);
     // True once per new shot: where to put the viewer's eyes and which way to face.
     bool takeNewShot(Vec3& eye, float& yaw);
     // Where the shot camera is now (runtime frame). Shots whose camera travels with the action
@@ -46,6 +47,9 @@ public:
     // What the shot camera looks at: its target node, else the middle of the shot's actors, else
     // 8 m ahead of it.
     Vec3 targetNow() const { return targetNow_; }
+    // The shot camera's own view direction and up now (pitch and roll included; cinema screen).
+    Vec3 camForwardNow() const { return camFwd_; }
+    Vec3 camUpNow() const { return camUp_; }
     // Soundtrack stream to start (once), e.g. "f_jetpack"; empty if none pending.
     std::string takeStream();
     // Timed streams (op 0x2C: sound effects, voice clips) due since the last call.
@@ -112,6 +116,7 @@ private:
     std::vector<FxEvent> dueFx_;
     std::vector<std::string> dueCues_;
     Vec3 eye_, eyeNow_, eyeOverride_, targetNow_;
+    Vec3 camFwd_{0, 0, -1}, camUp_{0, 1, 0};
     int tgtNode_ = -1;
     bool hasEyeOverride_ = false;
     int camNode_ = -1;

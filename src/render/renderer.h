@@ -151,6 +151,15 @@ public:
     void beginScopePass(const ViewParams& view);
     void endScopePass();
     TextureId scopeTexture() const { return scopeTex_; }
+    // Rework, cutscene cinema: the shot camera's picture rendered into a w x h texture (4x MSAA,
+    // resolved), then shown on a screen in front of the viewer.
+    bool initScreen(int width, int height);
+    bool screenReady() const { return screenFbo_ != 0; }
+    void beginScreenPass(const ViewParams& view);
+    void endScreenPass();
+    TextureId screenTexture() const { return screenTex_; }
+    int screenWidth() const { return screenW_; }
+    int screenHeight() const { return screenH_; }
     // Water depth below the sea surface over a rectangle of the world (R8: depth / 24 m).
     void setWaterDepthMap(int w, int h, const uint8_t* depth, float x0, float z0, float width, float depthZ);
     const ViewParams& currentView() const { return currentView_; }
@@ -204,6 +213,9 @@ private:
     GLuint reflFbo_ = 0, reflColor_ = 0, reflDepth_ = 0, waterDepthTex_ = 0;
     int reflW_ = 0, reflH_ = 0;
     GLuint scopeFbo_ = 0, scopeDepth_ = 0;
+    GLuint screenFbo_ = 0, screenMsFbo_ = 0, screenMsColor_ = 0, screenMsDepth_ = 0;
+    TextureId screenTex_ = 0;
+    int screenW_ = 0, screenH_ = 0;
     TextureId scopeTex_ = 0;
     int scopeSize_ = 0;
     bool reflActive_ = false, inReflection_ = false;

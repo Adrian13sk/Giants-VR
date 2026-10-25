@@ -2189,6 +2189,7 @@ void GameApp::renderShadows() {
     renderShadowMap();
     renderReflection();
     renderScope();
+    renderCinema();  // rework: a cutscene's picture for the cinema screen
     buildBowLines();
 }
 
@@ -2939,6 +2940,13 @@ bool GameApp::playStream(const std::string& streamIn, bool cue) {
 
 bool GameApp::cutsceneActive() const { return cutscene_ && cutscene_->active(); }
 size_t GameApp::cutsceneShots() const { return cutscene_ ? cutscene_->shotsPlayed() : 0; }
+bool GameApp::cutsceneInfo(std::string& shot, float& t, float& black) const {
+    if (!cutscene_ || !cutscene_->active()) return false;
+    shot = cutscene_->shotName();
+    t = cutscene_->shotTime();
+    black = cutscene_->blackout();
+    return true;
+}
 
 void GameApp::startCutscene(const std::string& first) {
     if (!cutscene_ || first.empty()) return;
@@ -3101,8 +3109,8 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
     }
 }
 
-void GameApp::renderCutscene() {
-    cutscene_->render();
+void GameApp::renderCutscene(bool actors) {
+    if (actors) cutscene_->render();
     const Vec3 eye = renderer_.currentView().eyePosition;
     // Subtitles: a panel below the line of sight, fixed for the shot.
     if (gameText_ && text_.ready() && settings_.subtitles) {
@@ -3120,7 +3128,8 @@ void GameApp::renderCutscene() {
             // a little below the line of sight, smoothed so it doesn't jitter with the head.
             const Quat r = subRot_;
             const Vec3 at = subHead_ + r.rotate(Vec3{0, -0.34f, -1.4f});
-            const Mat4 xf = Mat4::translation(at) * Mat4::rotation(r * Quat::fromAxisAngle({1, 0, 0}, 0.24f));
+            // (cinema: under the screen, as on a cinema's subtitle line)
+            const Mat4 xf = !actors && cinemaSubValid_ ? cinemaSubXf_ : Mat4::translation(at) * Mat4::rotation(r * Quat::fromAxisAngle({1, 0, 0}, 0.24f));
             text_.drawPanel(xf, w + 0.08f, h + 0.05f, {0, 0, 0, 0.55f});
             text_.draw(m, xf * Mat4::translation({0, 0, 0.003f}), {1.0f, 0.92f, 0.7f, 1.0f});
         }
@@ -4424,44 +4433,8 @@ void GameApp::beginEyeViews(const EyeRenderInfo* eyes, int n, const Pose* worldE
     else renderer_.beginView(vs[0], eyes[0].width, eyes[0].height, clear);
 }
 
-// n = 1: one eye into the bound framebuffer; n = 2: both eyes at once into a two-layer (multiview)
-// framebuffer. The game's own distance checks then use the point between the eyes.
-void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
-    for (int i = 0; i < n; ++i) {
-        // Remember the eyes' fields of view (the reflection camera covers both).
-        const EyeRenderInfo& eye = eyes[i];
-        const int k = eye.fovLeft < -eye.fovRight ? 0 : 1;
-        eyeFov_[k][0] = eye.fovLeft; eyeFov_[k][1] = eye.fovRight; eyeFov_[k][2] = eye.fovUp; eyeFov_[k][3] = eye.fovDown;
-        if (k == 1) haveFov_ = true;
-        if (!haveFov_) { eyeFov_[1][0] = eye.fovLeft; eyeFov_[1][1] = eye.fovRight; eyeFov_[1][2] = eye.fovUp; eyeFov_[1][3] = eye.fovDown; }
-    }
-    if (load_.phase == LoadPhase::Brief && load_.t > 0.3f && load_.t < 5.0f && assetWorld_ && assetWorld_->loaded() && !warmedThisFrame_) {
-        // Warm-up behind the briefing (first eye only): draw the new level from where the player
-        // starts, a different direction each frame, so the driver's first-use work on its textures
-        // and shaders happens now - on the Quest the first 3-4 s of play ran at 33-45 fps without it.
-        const float yaw = float(warmFrame_ % 8) * 0.785398f;
-        Pose wp;
-        wp.position = assetWorld_->spawnPoint() + Vec3{0, 1.7f * heroScale_, 0};
-        wp.orientation = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, (warmFrame_ / 8) % 2 ? -0.35f : 0.0f);
-        beginEyeViews(eyes, n, &wp, true);
-        assetWorld_->render(renderer_);
-        for (const auto& c : chars_)
-            if (c.visible && c.model && length(c.pos - wp.position) < 160.0f) c.model->render(renderer_, c.xf());
-        renderer_.endView();
-        warmedThisFrame_ = true;
-        if (++warmFrame_ == 16) LOGI("Warm-up: the level drawn from the start in 16 directions");
-    }
-    if (load_.phase != LoadPhase::Brief) warmFrame_ = 0;
-    beginEyeViews(eyes, n, nullptr, true);
-    const ViewParams v = renderer_.currentView();  // (stereo: the point between the eyes)
-    if (load_.phase != LoadPhase::Idle && load_.phase != LoadPhase::FadeOut) {
-        renderLoading();  // the briefing on black, nothing else
-        renderer_.endView();
-        return;
-    }
-    const bool cut = cutsceneActive();
-    std::vector<int> cutTypes;
-    if (cut) cutTypes = cutscene_->actorTypes();
+// Everything of the world as seen from `v` (the eyes, or the cinema screen's camera).
+void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>& cutTypes) {
     if (assetWorld_) assetWorld_->setHiddenTypes(cutTypes);
     if (assetWorld_ && assetWorld_->loaded()) assetWorld_->render(renderer_);
     for (const auto& n : nests_) {
@@ -4716,9 +4689,59 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     if (playMode_ && !cut) renderMotes();
     renderFireballs();
     renderSwordTrail();
+}
+
+// n = 1: one eye into the bound framebuffer; n = 2: both eyes at once into a two-layer (multiview)
+// framebuffer. The game's own distance checks then use the point between the eyes.
+void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
+    for (int i = 0; i < n; ++i) {
+        // Remember the eyes' fields of view (the reflection camera covers both).
+        const EyeRenderInfo& eye = eyes[i];
+        const int k = eye.fovLeft < -eye.fovRight ? 0 : 1;
+        eyeFov_[k][0] = eye.fovLeft; eyeFov_[k][1] = eye.fovRight; eyeFov_[k][2] = eye.fovUp; eyeFov_[k][3] = eye.fovDown;
+        if (k == 1) haveFov_ = true;
+        if (!haveFov_) { eyeFov_[1][0] = eye.fovLeft; eyeFov_[1][1] = eye.fovRight; eyeFov_[1][2] = eye.fovUp; eyeFov_[1][3] = eye.fovDown; }
+    }
+    if (load_.phase == LoadPhase::Brief && load_.t > 0.3f && load_.t < 5.0f && assetWorld_ && assetWorld_->loaded() && !warmedThisFrame_) {
+        // Warm-up behind the briefing (first eye only): draw the new level from where the player
+        // starts, a different direction each frame, so the driver's first-use work on its textures
+        // and shaders happens now - on the Quest the first 3-4 s of play ran at 33-45 fps without it.
+        const float yaw = float(warmFrame_ % 8) * 0.785398f;
+        Pose wp;
+        wp.position = assetWorld_->spawnPoint() + Vec3{0, 1.7f * heroScale_, 0};
+        wp.orientation = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, (warmFrame_ / 8) % 2 ? -0.35f : 0.0f);
+        beginEyeViews(eyes, n, &wp, true);
+        assetWorld_->render(renderer_);
+        for (const auto& c : chars_)
+            if (c.visible && c.model && length(c.pos - wp.position) < 160.0f) c.model->render(renderer_, c.xf());
+        renderer_.endView();
+        warmedThisFrame_ = true;
+        if (++warmFrame_ == 16) LOGI("Warm-up: the level drawn from the start in 16 directions");
+    }
+    if (load_.phase != LoadPhase::Brief) warmFrame_ = 0;
+    {
+        // The cinema room is dark (the world is on its screen).
+        const bool room = cinemaActive() && load_.phase == LoadPhase::Idle;
+        const Vec3 cc = renderer_.environment().clearColor;
+        if (room) renderer_.environment().clearColor = Vec3{0.012f, 0.012f, 0.016f};
+        beginEyeViews(eyes, n, nullptr, true);
+        if (room) renderer_.environment().clearColor = cc;
+    }
+    const ViewParams v = renderer_.currentView();  // (stereo: the point between the eyes)
+    if (load_.phase != LoadPhase::Idle && load_.phase != LoadPhase::FadeOut) {
+        renderLoading();  // the briefing on black, nothing else
+        renderer_.endView();
+        return;
+    }
+    const bool cut = cutsceneActive();
+    std::vector<int> cutTypes;
+    if (cut) cutTypes = cutscene_->actorTypes();
+    const bool cinema = cut && cinemaActive();
+    if (cinema) renderCinemaRoom(v);  // the world is on the screen (renderCinema, before the eyes)
+    else renderWorld(v, cut, cutTypes);
     if (title_) renderTitle();
     beginUiFrame(eyes, n);  // the HUD, menu and hands at human scale (Kabuto)
-    if (cut) renderCutscene();
+    if (cut) renderCutscene(!cinema);
     else if (playMode_) renderHud();
     if (playMode_ && !cut) renderTags();
     if (playMode_ && !cut && !title_) renderObjectiveMarker();

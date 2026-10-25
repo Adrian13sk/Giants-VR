@@ -1,3 +1,4 @@
+#include <cctype>
 #include "assets/object_defs.h"
 
 #include <cstdio>
@@ -248,6 +249,23 @@ std::string ObjectRegistry::modelAnim(uint32_t typeId) const {
     if (!g || g->anims.empty()) return {};
     auto a = g->anims.find(1);
     return a != g->anims.end() ? a->second : g->anims.begin()->second;
+}
+
+std::string ObjectRegistry::animForModel(const std::string& model) const {
+    std::string lm = model;
+    for (auto& c : lm) c = char(std::tolower(static_cast<unsigned char>(c)));
+    uint32_t best = 0xFFFFFFFFu;
+    std::string out;
+    for (const auto& kv : types_) {
+        std::string m = modelName(kv.first);
+        for (auto& c : m) c = char(std::tolower(static_cast<unsigned char>(c)));
+        if (m != lm || kv.first >= best) continue;  // (the lowest type id: deterministic)
+        const std::string a = modelAnim(kv.first);
+        if (a.empty()) continue;
+        best = kv.first;
+        out = a;
+    }
+    return out;
 }
 
 std::string ObjectRegistry::anim(uint32_t typeId, int slot) const {

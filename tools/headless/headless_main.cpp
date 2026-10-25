@@ -304,7 +304,19 @@ int main(int argc, char** argv) {
         app.update(1.0f / 72.0f, in);
         const double ums = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - u0).count();
         if (f >= 30) { updSum += ums; ++updN; if (ums > updMax) { updMax = ums; updMaxF = f; } }
+        // GVR_CUT_EXIT=1: stop once the cutscene that played has ended (cutscene reviews).
+        static const bool cutExit = std::getenv("GVR_CUT_EXIT") != nullptr;
+        static bool cutWas = false;
+        if (cutExit) {
+            const bool on = app.cutsceneActive();
+            if (cutWas && !on) { LOGI("cutscene over at frame %d", f); frames = f + 1; }
+            cutWas = cutWas || on;
+            if (!cutWas && f > 400) { LOGI("cutscene never started"); frames = f + 1; }
+        }
         if (!videoDir.empty() && f >= videoFrom && (f - videoFrom) % videoEvery == 0) {
+            std::string cs;
+            float ct = 0, cb = 0;
+            if (app.cutsceneInfo(cs, ct, cb)) LOGI("cutframe %d: %s t %.2f black %.2f", videoN, cs.c_str(), ct, cb);
             // A spectator view from the head (16:9, ~92 x 57 degrees) for progress videos.
             if (!vFbo) {
                 glGenTextures(1, &vTex);

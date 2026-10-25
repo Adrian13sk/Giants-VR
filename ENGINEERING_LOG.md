@@ -2110,3 +2110,33 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   light lets the bumped normal through more on rock (0.6 + 0.85 ndl vs 0.86 + 0.32 ndl).
 - Harness: 1a/1d/5a close views before/after; 1d cliff views; 9-world sweep montage. Tests pass; sweep 56/56
   clean. HARNESS only (A2C path only on device).
+
+### 2026-10-26 — Rework: cutscenes on a cinema screen; cutscene cast fixes
+- User: "All cutscenes need fixing. Go through all of them, actors misplacement, black screen, objects placement".
+  All 66 cutscene chains (545 shots, computed as shots no other shot names as next) played to their end in the
+  harness (GVR_CUT_EXIT=1 stops when the cutscene ends; "cutframe" log lines give shot/time/fade per frame), a
+  frame every 2 s, contact sheets plus flags (black frames outside script fades, unstaged actors, near-camera
+  culls, actors drawn as the Meccaryn fallback).
+- Main finding, immersive view: the shots were staged for their own camera; with a level, free head at the camera
+  position many show sky, floor or an undressed side of the set (intro_island_1: 66 s of haze, the camera 615 m up
+  looking 34 degrees up; Kstory5_End: mostly dark blue). Decision: cutscenes default to a CINEMA SCREEN - each
+  frame rendered from the shot camera (position, look-at or free axes incl. roll; 4:3, 75 degrees across - the data
+  carries no FOV, op 0x26 is a distance) into a 1024x768 4x MSAA target (Renderer::initScreen/beginScreenPass,
+  blit-resolved), shown on a 3.6 m screen 3.2 m ahead in a dark room, fixed in tracking space (stays put through
+  cuts), subtitles under it. Options -> CUTSCENES: CINEMA SCREEN / AROUND YOU (the old view). GameApp::renderWorld
+  factored out of renderViews for the second camera. The cinema camera is not lifted out of terrain (a camera
+  inside a cliff sees out through back faces, as the original - Kstory5_End_18 showed the ground otherwise) and
+  has no 1 m near-cull.
+- Cast fixes (both views): untyped performance trees were all drawn as Meccaryns, and one that didn't fit the
+  Meccaryn skeleton stole another character's tree (Kstory5_End_18: "wife" on Reg's tree, "smartie" on Baz's; wife,
+  Smartie, Timmy, Delphi, Borjoyzee never shown). Now each untyped tree is pinned to itself and gets the model its
+  mover names (delphi rp_l0, yan smyan_l0, timmy smtimmy_l0, wife smf_l0, borj* smborjoyzee_l0, smartie/weeman
+  sm_l0, toby, kabuto kb_l0, offspring), idle clip via ObjectRegistry::animForModel, Meccaryn only if nothing
+  else fits. Typed actors whose model doesn't fit their own tree take anonymous trees first, another character's
+  only when nothing else fits (kstory5_kabuto_fight_2's second Kabuto performs on "Delphi_mover").
+- A shot faded to black with nothing after it (no later fade, subtitle, cue, effect) ends 2 s later
+  (Kstory5_End_18 held 130 s of black after THE END).
+- Alpha-to-coverage for every alpha-tested draw on the headset's MSAA (threshold 0.3), so shrub mounds' feathered
+  rims and palm fronds get soft edges (device only).
+- Harness: cinema contact sheets of the reviewed chains look as staged (Kstory1_Delphi_changes, Kstory5_End,
+  Rstory1_vomit/fire, story1_start/jetpack...). Tests pass; sweep 56/56 clean. HARNESS only.

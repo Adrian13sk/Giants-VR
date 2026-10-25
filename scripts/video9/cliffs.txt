@@ -1,0 +1,13 @@
+# Video 9: the cliffs of 1d_1 with the rework's rock (strata, moss, relief), turning slowly.
+name cliffs
+world Story1
+mission 1d_1_sneakpast
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+view first
+duration 7
+at 2799 1045
+look 2900 1110
+pitch 10
+turn -0.35 0 0.5 6.5
