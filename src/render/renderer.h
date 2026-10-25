@@ -114,6 +114,9 @@ public:
     // rock (slopes), sand (beach band and sea bed), a second grass/earth, a second rock and a
     // tileable noise texture (R: patches, G: fine grain) that breaks the blends up. detail=false:
     // the cheap path (ground + rock by slope + sand band, fewer samples) for the low quality levels.
+    // The world's sky band: the rework's haze takes its colour from it (GVR_SKY_HAZE=0: the flat fog colour).
+    void setSkyTexture(TextureId t) { skyTex_ = t; }
+    void setSkyHaze(bool on) { skyHaze_ = on; }
     void setTerrainLayers(TextureId rock, TextureId sand, TextureId grass2, TextureId rock2, TextureId noise) {
         terrainTex_[0] = rock; terrainTex_[1] = sand; terrainTex_[2] = grass2; terrainTex_[3] = rock2; terrainTex_[4] = noise;
     }
@@ -173,7 +176,7 @@ private:
         GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
         GLint uClipY_ = -1, uGrade_ = -1, uReflTex_ = -1, uReflDepth_ = -1, uReflMat_ = -1, uReflEye_ = -1, uReflNear_ = -1,
               uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
-        GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1, uSway_ = -1;
+        GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1, uSway_ = -1, uSkyTex_ = -1, uSkyOn_ = -1;
         GLint uViewProj_ = -1, uEyePosV_ = -1;  // multiview: both eyes' view-projection and position
         GLint uLook_ = -1;
     };
@@ -185,6 +188,8 @@ private:
     bool stereo_ = false;
     float anisotropy_ = 0;
     TextureId terrainTex_[5] = {};
+    TextureId skyTex_ = 0;
+    bool skyHaze_ = true;
     bool terrainDetail_ = true;
     float look_ = 1.0f;
     GLuint reflFbo_ = 0, reflColor_ = 0, reflDepth_ = 0, waterDepthTex_ = 0;

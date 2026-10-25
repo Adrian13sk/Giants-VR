@@ -131,6 +131,8 @@ uniform float uNight;
 uniform vec3 uBakedLight;
 uniform vec4 uPointPos;    // xyz position, w = 1 / radius^2
 uniform vec3 uPointColor;  // 0: no point light
+uniform sampler2D uSkyTex;  // rework: the world's sky band, for haze that dissolves into the sky behind
+uniform float uSkyOn;
 uniform float uLook;       // 0: the classic look; 1: the rework's (detail relief, specular, filmic tone, sun haze)
 out vec4 oColor;
 
@@ -248,6 +250,21 @@ vec3 grade(vec3 c, float satScale) {
     return g * g;
 }
 
+// Rework haze: the sky band's own colour in that direction (just as the sky draws it), so distant
+// ground dissolves into the sky behind it instead of a flat fog colour ending at a hard line.
+vec3 skyHaze(highp vec3 vd) {
+    highp float el = clamp(asin(clamp(vd.y, -1.0, 1.0)), -0.08, 0.75);
+    highp vec2 suv = vec2(atan(vd.x, -vd.z) * 0.15915494 + uTime * 0.0015, mix(0.99, 0.01, (el + 0.08) / 0.83));
+    vec3 b = textureLod(uSkyTex, suv, 2.0).rgb * uSkyTint;
+    highp float sd = max(dot(vd, -normalize(uSunDir)), 0.0);
+    return grade(b + uSunColor * (pow(sd, 48.0) * 0.45 + pow(sd, 6.0) * 0.12), 0.25);
+}
+vec3 fogOut(vec3 rgb, float fog, highp vec3 wp, float sat) {
+    if (uLook < 0.5 || uSkyOn < 0.5) return grade(fogMix(rgb, fog, wp), sat);
+    if (fog > 0.995) return grade(rgb, sat);  // (near: no haze - skip the sky lookup)
+    return mix(skyHaze(normalize(wp - uEyePos)), grade(rgb, sat), fog);
+}
+
 void main() {
     if (vWorldPos.y < uClipY) discard;
     highp float d = length(vWorldPos - uEyePos);
@@ -326,7 +343,7 @@ void main() {
         rgb = mix(rgb, vec3(0.85, 0.9, 0.9) * (uAmbient + uSunColor * sh), foam * 0.5);
         // Clarity: shallows let the bed show through; deep water is nearly opaque.
         float a = mix(mix(0.35, 0.93, smoothstep(0.0, 3.0, depth)), 1.0, max(fres, foam)) * uTint.a;
-        oColor = vec4(grade(fogMix(rgb, fog, vWorldPos), 0.6), a);
+        oColor = vec4(fogOut(rgb, fog, vWorldPos, 0.6), a);
 #ifdef DEBUG_REFL
         if (uReflOn > 0.5) oColor = vec4(texture(uReflTex, (uReflMat * vec4(vWorldPos, 1.0)).xy / (uReflMat * vec4(vWorldPos, 1.0)).w * 0.5 + 0.5).rgb, 1.0);
 #endif
@@ -391,7 +408,7 @@ void main() {
         float dep = uSeaLevel - vWorldPos.y;
         rgb = mix(rgb, uWaterColor * 0.8, clamp(0.12 + dep * 0.2, 0.0, 0.9));
     }
-    oColor = vec4(grade(fogMix(rgb, fog, vWorldPos), 1.0), base.a);
+    oColor = vec4(fogOut(rgb, fog, vWorldPos, 1.0), base.a);
 #ifdef DEBUG_SHADOW
     oColor = vec4(vec3(sh), 1.0);
 #endif
@@ -473,6 +490,7 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u) {
     for (int k = 0; k < 5; ++k) u.uTerr_[k] = L(tn[k]);
     u.uTerrDetail_ = L("uTerrDetail"); u.uSway_ = L("uSway"); u.uSkyTint_ = L("uSkyTint"); u.uNight_ = L("uNight"); u.uBakedLight_ = L("uBakedLight");
     u.uPointPos_ = L("uPointPos"); u.uPointColor_ = L("uPointColor");
+    u.uSkyTex_ = L("uSkyTex"); u.uSkyOn_ = L("uSkyOn");
     u.uViewProj_ = L("uViewProj"); u.uEyePosV_ = L("uEyePosV"); u.uLook_ = L("uLook");
     return prog;
 }
@@ -747,6 +765,15 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
         glBindTexture(GL_TEXTURE_2D, t);
     }
     glUniform1f(U_->uTerrDetail_, terrainDetail_ ? 1.0f : 0.0f);
+    // The sky band for the haze: unit 10 (not while drawing the reflection - it has its own sky).
+    {
+        GLuint t = 0;
+        if (skyTex_ != 0 && skyTex_ <= textures_.size() && textures_[skyTex_ - 1].live) t = textures_[skyTex_ - 1].tex;
+        glUniform1i(U_->uSkyTex_, 10);
+        glActiveTexture(GL_TEXTURE10);
+        glBindTexture(GL_TEXTURE_2D, t ? t : whiteTexture_);
+        glUniform1f(U_->uSkyOn_, t && skyHaze_ ? 1.0f : 0.0f);
+    }
     glUniform1f(U_->uLook_, look_);
     glActiveTexture(GL_TEXTURE0);
 }

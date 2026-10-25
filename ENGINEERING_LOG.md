@@ -1932,3 +1932,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   123/64/26 vs sky 136/67/24; Rstory1 teal 45/101/78 vs 96/154/150; Kstory4 blue 76/143/225 vs 96/154/199), B,G,R in
   none. Fixed - every world's distant haze, clear colour and the water's sky colours now match its sky (Rstory1's
   horizon had been a flat olive plane against a teal sky).
+- Sky haze (rework look): fogOut() blends a fragment toward the sky band's own colour in its direction (the band's
+  u = azimuth/2pi + drift, v = elevation over -0.08..0.75 rad, textureLod 2 so the atan seam can't pick a mip;
+  the sky's tint, sun glow and grading) instead of the flat fog colour; fully fogged ground matches the sky drawn
+  behind it. Sky texture on unit 10 (Renderer::setSkyTexture). Skipped where fog > 0.995. GVR_SKY_HAZE=0 restores
+  the flat colour; classic look unchanged. Sweep 56/56 clean.

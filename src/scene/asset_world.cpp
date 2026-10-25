@@ -143,6 +143,8 @@ bool AssetWorld::loadWorld(const std::string& name, Renderer& r) {
     // Sky: the world's panoramic sky texture (e.g. story1_sky, 2048x512) on a band around
     // the viewer. Band elevation range is a provisional choice (unverified vs. original).
     skyTexture_ = world_.skyTexture.empty() ? 0 : cache_->texture(world_.skyTexture);
+    r.setSkyTexture(skyTexture_);
+    if (const char* sh = std::getenv("GVR_SKY_HAZE")) r.setSkyHaze(sh[0] != '0');
     if (skyTexture_) {
         MeshData band;
         const int slices = 48;
