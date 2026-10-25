@@ -4090,6 +4090,7 @@ void GameApp::update(float dt, const InputFrame& in) {
     }
     if (cutsceneActive()) {
         updateCutscene(dt, in);
+        updateVignette(dt, in);  // (a travelling shot camera closes the comfort ring)
         if (assetWorld_) assetWorld_->update(dt);
         lastInput_ = in;
         return;

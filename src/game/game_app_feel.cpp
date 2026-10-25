@@ -43,6 +43,14 @@ void GameApp::updateVignette(float dt, const InputFrame& in) {
         if (riding_ || !player_.onGround) k = std::max(k, std::min(1.0f, player_.horizontalSpeed() / 12.0f));
         want = k * (settings_.vignette == 1 ? 0.55f : 0.9f);
     }
+    // A cutscene camera that travels (the view moves without you): the same comfort ring, by its speed.
+    if (settings_.vignette > 0 && cutsceneActive() && dt > 0) {
+        const float v = length(cutEye_ - cutVigPrev_) / dt;
+        cutVigPrev_ = cutEye_;
+        if (v < 200.0f) want = std::max(want, std::min(1.0f, v / 15.0f) * (settings_.vignette == 1 ? 0.3f : 0.6f));  // (a cut jumps: ignored)
+    } else {
+        cutVigPrev_ = cutEye_;
+    }
     vignette_ += (want - vignette_) * std::min(1.0f, dt * (want > vignette_ ? 6.0f : 3.0f));
     static const bool trace = std::getenv("GVR_VIGNETTE_TRACE") != nullptr;
     if (trace) LOGI("vignette %.2f (want %.2f, setting %d)", vignette_, want, settings_.vignette);

@@ -920,7 +920,7 @@ private:
     std::unique_ptr<CutscenePlayer> cutscene_;
     std::unique_ptr<GameText> gameText_;
     TextRenderer text_;
-    Vec3 cutEye_, cutOffset_;
+    Vec3 cutEye_, cutOffset_, cutVigPrev_;
     float cutYaw_ = 0;
     bool skipArmed_ = false;
     Quat subRot_;          // head-locked panels: smoothed head yaw/pitch
