@@ -164,8 +164,9 @@ void AudioMixer::targetCues(const Voice& v, float& delayL, float& delayR, float&
     // Head shadow: the far ear rolls off from ~16 kHz (ahead) to ~3 kHz (fully to the side); behind,
     // both ears lose some top (~7 kHz).
     auto coef = [&](float fc) { return 1.0f - std::exp(-6.2831853f * fc / float(outRate_)); };
-    const float farFc = 16000.0f - 13000.0f * std::fabs(side);
-    const float backFc = 16000.0f - 9000.0f * behind;
+    const float farFc = (16000.0f - 13000.0f * std::fabs(side)) * (1.0f - 0.7f * std::min(1.0f, dist / 150.0f));
+    const float air = std::min(1.0f, dist / 150.0f);  // air absorbs the top with distance
+    const float backFc = (16000.0f - 9000.0f * behind) * (1.0f - 0.7f * air);
     const float nearFc = backFc, farEarFc = std::min(farFc, backFc);
     if (side > 0) { lpaL = coef(farEarFc); lpaR = coef(nearFc); }
     else { lpaR = coef(farEarFc); lpaL = coef(nearFc); }
