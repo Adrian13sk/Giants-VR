@@ -2835,6 +2835,11 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
         rig_.worldFromTracking.orientation = q;
         rig_.worldFromTracking.position = eye - q.rotate(headT);
         subInit_ = false;  // the subtitles jump with the cut
+        if (std::getenv("GVR_CUT_TRACE")) {
+            const Vec3 got = rig_.toWorld(in.head).position;
+            LOGI("cut eye: shot (%.1f %.1f %.1f) head (%.2f %.2f %.2f) scale %.2f -> (%.1f %.1f %.1f)", eye.x, eye.y, eye.z, in.head.position.x,
+                 in.head.position.y, in.head.position.z, rig_.comfort.worldScale, got.x, got.y, got.z);
+        }
     } else if (cutscene_->active()) {
         // Travel with a moving shot camera (translation only; the view never rotates by itself).
         const Vec3 now = aboveGround(cutscene_->eyeNow());

@@ -62,7 +62,9 @@ int main(int argc, char** argv) {
     float spawnReaper = 0;
     float blastX = 0, blastY = 0, blastH = 1;
     int blastN = 0, blastFrame = -1;
-    std::string audioOut, scriptPath;
+    std::string audioOut, scriptPath, videoDir;
+    int videoEvery = 3, videoFrom = 0, vw = 1280, vh = 720, videoN = 0;
+    GLuint vTex = 0, vDepth = 0, vFbo = 0;
     float triggerAmount = 0.0f, aimPitchDeg = -17.2f, aimYawDeg = 0.0f;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -121,6 +123,9 @@ int main(int argc, char** argv) {
         else if (a == "--blast-at") { blastX = std::atof(next()); blastY = std::atof(next()); blastH = std::atof(next()); blastN = std::atoi(next()); blastFrame = std::atoi(next()); }  // N rocket blasts at game x y, h m up, at frame F
         else if (a == "--view-corpse") { viewCorpse = true; viewFrames = std::atoi(next()); }  // then N more frames 3 m from the nearest body
         else if (a == "--audio-out") audioOut = next();  // write the mixed game audio (48 kHz stereo WAV)
+        else if (a == "--video") { videoDir = next(); videoEvery = std::max(1, std::atoi(next())); }  // spectator frames (PNG) every N frames
+        else if (a == "--video-from") videoFrom = std::atoi(next());
+        else if (a == "--video-size") { vw = std::atoi(next()); vh = std::atoi(next()); }
         else if (a == "--hands") { handsFwd = std::atof(next()); handsUp = std::atof(next()); }  // controller offset (m)
     }
     TestScript script;
@@ -285,6 +290,41 @@ int main(int argc, char** argv) {
         app.update(1.0f / 72.0f, in);
         const double ums = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - u0).count();
         if (f >= 30) { updSum += ums; ++updN; if (ums > updMax) { updMax = ums; updMaxF = f; } }
+        if (!videoDir.empty() && f >= videoFrom && (f - videoFrom) % videoEvery == 0) {
+            // A spectator view from the head (16:9, ~92 x 57 degrees) for progress videos.
+            if (!vFbo) {
+                glGenTextures(1, &vTex);
+                glBindTexture(GL_TEXTURE_2D, vTex);
+                glTexStorage2D(GL_TEXTURE_2D, 1, GL_SRGB8_ALPHA8, vw, vh);
+                glGenRenderbuffers(1, &vDepth);
+                glBindRenderbuffer(GL_RENDERBUFFER, vDepth);
+                glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, vw, vh);
+                glGenFramebuffers(1, &vFbo);
+                glBindFramebuffer(GL_FRAMEBUFFER, vFbo);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, vTex, 0);
+                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, vDepth);
+            }
+            EyeRenderInfo ve{};
+            ve.trackingPose = in.head;
+            const float hx = 0.80f, hy = hx * float(vh) / float(vw);
+            ve.fovLeft = -hx; ve.fovRight = hx; ve.fovUp = hy; ve.fovDown = -hy;
+            ve.width = vw; ve.height = vh;
+            if (videoN % 40 == 0) {
+                const Pose hw = app.rig().toWorld(in.head);
+                const Vec3 fw = hw.orientation.rotate({0, 0, -1});
+                LOGI("video frame %d (sim frame %d): eye (%.1f %.1f %.1f) forward (%.2f %.2f %.2f) scale %.2f", videoN, f, hw.position.x,
+                     hw.position.y, hw.position.z, fw.x, fw.y, fw.z, app.rig().comfort.worldScale);
+            }
+            app.renderShadows(ve, ve);
+            glBindFramebuffer(GL_FRAMEBUFFER, vFbo);
+            app.renderEye(ve);
+            std::vector<uint8_t> px(size_t(vw) * vh * 4);
+            glReadPixels(0, 0, vw, vh, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+            for (size_t i = 3; i < px.size(); i += 4) px[i] = 255;
+            char name[64];
+            std::snprintf(name, sizeof name, "/f%05d.png", videoN++);
+            writePng(videoDir + name, vw, vh, px.data(), true);
+        }
         if (std::getenv("GVR_PLAYER_TRACE") && f % 12 == 0) {
             const auto& p = app.player();
             LOGI("trace f%d player (%.2f %.2f %.2f) game (%.0f %.0f) ground %d swim %d anim %d", f, p.position.x, p.position.y, p.position.z,

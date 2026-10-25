@@ -147,6 +147,13 @@ void GameApp::updateHeroScale() {
     if (hero_ == Hero::Kabuto && playMode_ && !cutsceneActive() && load_.phase == LoadPhase::Idle)
         s = std::max(1.0f, kabutoEye_ * kbGrowShown_ / std::max(1.0f, userEye_));
     if (const char* e = std::getenv("GVR_WORLD_SCALE")) s = float(std::atof(e));  // test hook
+    if (s != rig_.comfort.worldScale && lastInput_.headValid) {
+        // Keep the eyes where they are in the world while the scale changes (a cutscene starting
+        // after Kabuto's scale was set had put the viewer 5 m into the ground).
+        const Vec3 before = rig_.toWorld(lastInput_.head).position;
+        rig_.comfort.worldScale = s;
+        rig_.worldFromTracking.position = rig_.worldFromTracking.position + (before - rig_.toWorld(lastInput_.head).position);
+    }
     rig_.comfort.worldScale = s;
 }
 
