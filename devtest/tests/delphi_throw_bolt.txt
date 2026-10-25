@@ -1,0 +1,11 @@
+# Rework (2026-10-25): Delphi's fire bolt thrown - the left trigger let go while the left hand swings forward
+# (the bolt flies along the throw at 40 m/s), then a still tap (28 m/s along the aim).
+name delphi_throw_bolt
+world Rstory1
+mission r1_saveyan
+env GVR_CUTSCENE none
+env GVR_GOD 1
+duration 4
+hold trigger_l 1.0 1.2
+hand_l 0 0.1 -0.6 1.05 1.2
+hold trigger_l 2.5 2.6
