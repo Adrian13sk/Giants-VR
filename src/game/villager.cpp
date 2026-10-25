@@ -59,10 +59,85 @@ void VillagerDirector::startIdle(Villager& v) {
     setClip(v, c);
 }
 
+bool VillagerDirector::damage(int i, float amount, const Vec3& from) {
+    if (i < 0 || size_t(i) >= villagers.size()) return false;
+    Villager& v = villagers[size_t(i)];
+    if (v.state == VillagerState::Dead) return false;
+    v.hp -= amount;
+    v.calm = 0;
+    v.fleeFrom = from;
+    v.stateTime = 0;
+    v.rate = 1;
+    if (v.hp <= 0) {
+        v.state = VillagerState::Dead;
+        setClip(v, VillagerClip::Death);
+        v.clipTime = 0;
+        return true;
+    }
+    if (v.state != VillagerState::Held) {
+        v.state = VillagerState::Hurt;
+        setClip(v, VillagerClip::GetsShot);
+        v.clipTime = 0;
+    }
+    return false;
+}
+
+void VillagerDirector::hold(int i, bool held) {
+    if (i < 0 || size_t(i) >= villagers.size() || villagers[size_t(i)].state == VillagerState::Dead) return;
+    Villager& v = villagers[size_t(i)];
+    v.stateTime = 0;
+    v.rate = 1;
+    v.calm = 0;
+    if (held) {
+        v.state = VillagerState::Held;
+        setClip(v, VillagerClip::Squirm);
+    } else {
+        v.state = VillagerState::Cower;
+        setClip(v, VillagerClip::Cower);
+    }
+}
+
+void VillagerDirector::handsUp(int i) {
+    if (i < 0 || size_t(i) >= villagers.size()) return;
+    Villager& v = villagers[size_t(i)];
+    if (v.state == VillagerState::Dead || v.state == VillagerState::Held || v.state == VillagerState::Hurt || v.state == VillagerState::HandsUp) return;
+    v.state = VillagerState::HandsUp;
+    v.stateTime = 0;
+    v.duration = 2.5f;
+    v.rate = 1;
+    setClip(v, VillagerClip::HandsUp);
+}
+
 void VillagerDirector::update(float dt, const Vec3& player, const std::vector<Vec3>& threats, const std::vector<Vec3>& scares) {
     for (auto& v : villagers) {
         v.stateTime += dt;
         v.clipTime += dt * v.rate;
+        // Rework: the dead lie still (the death clip holds its last frame), then go; the held squirm;
+        // the hurt flinch, then run from where it came; hands up hold, then cower.
+        const float cd = clipDuration[int(v.clip)];
+        if (v.state == VillagerState::Dead) {
+            if (cd > 0) v.clipTime = std::min(v.clipTime, cd * 0.999f);
+            continue;
+        }
+        if (v.state == VillagerState::Held) continue;
+        if (v.state == VillagerState::Hurt) {
+            if (cd > 0) v.clipTime = std::min(v.clipTime, cd * 0.999f);
+            if (v.stateTime < std::max(0.5f, cd)) continue;
+            Vec3 away = v.pos - v.fleeFrom;
+            away.y = 0;
+            away = length(away) > 1e-3f ? normalize(away) : Vec3{1, 0, 0};
+            v.target = v.home + away * (params.homeRadius * 0.9f);
+            if (groundHeight) v.target.y = groundHeight(v.target.x, v.target.z);
+            v.state = VillagerState::Flee;
+            v.stateTime = 0;
+            v.duration = 5.0f;
+            setClip(v, VillagerClip::Run);
+        }
+        if (v.state == VillagerState::HandsUp) {
+            face(v, player - v.pos, dt);
+            if (v.stateTime > v.duration) { v.state = VillagerState::Cower; v.stateTime = 0; setClip(v, VillagerClip::Cower); }
+            continue;
+        }
         v.calm += dt;
         v.waveCooldown = std::max(0.0f, v.waveCooldown - dt);
         // Danger: the nearest threat, or a bang close by.
@@ -146,12 +221,16 @@ void VillagerDirector::update(float dt, const Vec3& player, const std::vector<Ve
             }
         }
     }
+    // Bodies go after a while.
+    villagers.erase(std::remove_if(villagers.begin(), villagers.end(),
+                                   [&](const Villager& v) { return v.state == VillagerState::Dead && v.stateTime > params.corpseTime; }),
+                    villagers.end());
 }
 
 int VillagerDirector::waveBack(const Vec3& player, float radius) {
     int n = 0;
     for (auto& v : villagers) {
-        if (v.state == VillagerState::Flee || v.state == VillagerState::Cower || v.calm < params.calmAfter) continue;
+        if (v.state == VillagerState::Dead || v.state == VillagerState::Held || v.state == VillagerState::Hurt || v.state == VillagerState::Flee || v.state == VillagerState::Cower || v.calm < params.calmAfter) continue;
         if (length(Vec3{player.x - v.pos.x, 0, player.z - v.pos.z}) > radius) continue;
         v.state = VillagerState::Wave;
         v.stateTime = 0;
@@ -166,7 +245,7 @@ int VillagerDirector::waveBack(const Vec3& player, float radius) {
 int VillagerDirector::cheer() {
     int n = 0;
     for (auto& v : villagers) {
-        if (v.state == VillagerState::Flee) continue;
+        if (v.state == VillagerState::Flee || v.state == VillagerState::Dead || v.state == VillagerState::Held || v.state == VillagerState::Hurt) continue;
         v.state = VillagerState::Act;
         v.stateTime = 0;
         v.duration = 3.5f;

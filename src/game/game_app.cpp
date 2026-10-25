@@ -341,6 +341,12 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     int is = -1;
                     if (skirmishRay(o, d, maxD, ts, is) && (!he || ts < te)) { he = true; te = ts; ne = d * -1.0f; ie = is; }
                 }
+                // Rework: Smarties of a village.
+                {
+                    float tv = maxD;
+                    int iv = -1;
+                    if (villagerRay(o, d, maxD, tv, iv) && (!he || tv < te)) { he = true; te = tv; ne = d * -1.0f; ie = kVillagerShot + iv; }
+                }
                 // Mission-target characters without AI (Offspring, Charger).
                 {
                     float tb2 = maxD;
@@ -385,6 +391,11 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 if (hitTrace)
                     LOGI("hit trace: target %d at %.1f m (%.1f %.1f %.1f), damage x%.1f, world object %s", target, length(p - player_.position), p.x, p.y, p.z, hm,
                          lastWorldTag_ >= 0 && assetWorld_ && size_t(lastWorldTag_) < assetWorld_->worldObjects().size() ? assetWorld_->worldObjects()[size_t(lastWorldTag_)].name.c_str() : "-");
+                if (target >= kVillagerShot) {
+                    hitVillager(target - kVillagerShot, 25.0f * hm, p, shotDir);
+                    haptics_.push_back({rig_.turnHand(), 0.4f, 0.04f});
+                    return;
+                }
                 if (target >= kObjectTarget) {
                     const int item = target - kObjectTarget;
                     damageObject(item, 25.0f * hm, false, player_.position);
@@ -3321,6 +3332,13 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int
         if (v.state != VimpState::Dead && dv < radius + 1.5f)
             hitVimp(int(i), damage * (1.0f - 0.6f * std::min(1.0f, dv / (radius + 1.5f))), v.pos + Vec3{0, 2.0f, 0}, normalize(v.pos - at + Vec3{0, 0.5f, 0}));
     }
+    // Rework: Smarties in the blast.
+    for (size_t i = 0; i < villagers_.villagers.size(); ++i) {
+        const Villager& v = villagers_.villagers[i];
+        const float dv = length(v.pos + Vec3{0, 0.4f, 0} - at);
+        if (VillagerDirector::alive(v) && dv < radius + 0.5f)
+            hitVillager(int(i), damage * (1.0f - 0.6f * std::min(1.0f, dv / (radius + 0.5f))), v.pos + Vec3{0, 0.4f, 0}, normalize(v.pos - at + Vec3{0, 0.5f, 0}));
+    }
     // Scenery in the blast: distance to the object's upright axis, less its size.
     for (size_t k = 0; k < destruct_.items.size(); ++k) {
         const Destructible& it = destruct_.items[k];
@@ -3837,7 +3855,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("gore"); updateGore(dt); }
     { GVR_PROF("destruction"); updateDestruction(dt); }
     { GVR_PROF("burn"); updateBurn(); }
-    { GVR_PROF("villagers"); updateVillagers(dt); }
+    { GVR_PROF("villagers"); updateVillagers(dt); updateVillagerHands(dt, lastInput_); }
     { GVR_PROF("vimps"); updateVimps(dt); }
     { GVR_PROF("bosses"); updateBosses(dt); }
     { GVR_PROF("sams"); updateSams(dt); }

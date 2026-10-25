@@ -1,12 +1,12 @@
 // GameApp: Smartie villagers (VillagerDirector + the original Smartie model and sm_* clips).
 #include "game/game_app.h"
 
-#include <cstdio>
-
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 #include "core/log.h"
+#include "game/enemy.h"
 #include "scene/asset_world.h"
 #include "scene/model_cache.h"
 #include "scene/skinned_model.h"
@@ -58,7 +58,9 @@ void GameApp::initVillagers(AssetWorld* w, ModelCache* mc) {
     static const char* clips[int(VillagerClip::Count)] = {"sm_stand.anm",   "sm_hwalk.anm",  "sm_scan.anm",      "sm_talk1.anm",
                                                           "sm_listen1.anm", "sm_laugh1.anm", "sm_stand_sing.anm", "sm_tai_chi.anm",
                                                           "sm_sit.anm",     "sm_celebrate.anm", "sm_wave.anm",   "sm_Run_terror.anm",
-                                                          "sm_cower.anm"};
+                                                          "sm_cower.anm",
+                                                          // rework: hit, killed, held, a gun pointed at them
+                                                          "sm_gets_shot.anm", "sm_death.anm", "sm_squirm.anm", "sm_hands_up.anm"};
     const int kMax = 16;
     for (int c = 0; c < clusters && int(villagers_.villagers.size()) < kMax; ++c) {
         Vec3 centre;
@@ -83,8 +85,10 @@ void GameApp::initVillagers(AssetWorld* w, ModelCache* mc) {
             if (inside) continue;
             auto m = std::make_unique<SkinnedModel>();
             if (!m->load(w->fs(), *mc, renderer_, "sm_L0", clips[0])) return;
-            if (villagerModels_.empty())
+            if (villagerModels_.empty()) {
                 for (int k = 1; k < int(VillagerClip::Count); ++k) villagerClip_[k] = std::max(0, m->addAnimation(w->fs(), clips[k]));
+                for (int k = 0; k < int(VillagerClip::Count); ++k) villagers_.clipDuration[k] = m->animDuration(villagerClip_[k]);
+            }
             else
                 for (int k = 1; k < int(VillagerClip::Count); ++k) m->addAnimation(w->fs(), clips[k]);
             m->pose(renderer_, 0.0f);
@@ -157,6 +161,146 @@ void GameApp::renderVillagers(bool shadow, const Vec3& eye, float range) {
         const Mat4 xf = Mat4::translation(v.pos + Vec3{0, villagerLift_[size_t(v.slot)], 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, v.yaw));
         if (shadow) villagerModels_[size_t(v.slot)]->renderShadow(renderer_, xf);
         else villagerModels_[size_t(v.slot)]->render(renderer_, xf);
+    }
+}
+
+bool GameApp::villagerRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const {
+    bool hit = false;
+    float best = maxD;
+    for (size_t i = 0; i < villagers_.villagers.size(); ++i) {
+        const Villager& v = villagers_.villagers[i];
+        if (!VillagerDirector::alive(v)) continue;
+        float th;
+        if (rayCapsule(o, d, maxD, v.pos + Vec3{0, 0.25f, 0}, v.pos + Vec3{0, 0.6f, 0}, 0.28f, th) && th < best) {
+            best = th;
+            index = int(i);
+            hit = true;
+        }
+    }
+    if (hit) t = best;
+    return hit;
+}
+
+void GameApp::hitVillager(int i, float amount, const Vec3& at, const Vec3& dir) {
+    if (i < 0 || size_t(i) >= villagers_.villagers.size()) return;
+    Villager& v = villagers_.villagers[size_t(i)];
+    if (!VillagerDirector::alive(v)) return;
+    const bool killed = villagers_.damage(i, amount, at - dir * 5.0f);
+    bleed(at, dir, killed, 0.6f);
+    if (killed) blood_.pool(v.pos, 0.6f);
+    // A cry (a Smartie voice, pitched up).
+    static const int voices[] = {1, 2, 3, 4, 13, 14};
+    char nm[16];
+    std::snprintf(nm, sizeof nm, "gsm%02d_%d", voices[int(frand() * 5.99f)], frand() < 0.5f ? 1 : 2);
+    sfx(nm, v.pos + Vec3{0, 0.6f, 0}, 1.0f, killed ? 0.8f : 1.3f);
+    LOGI("Smartie %u %s", v.uid, killed ? "killed" : "hurt");
+    if (killed && hero_ != Hero::Kabuto && !smartieWarned_) {
+        smartieWarned_ = true;
+        timmyLine_ = "HEY! THE SMARTIES ARE ON YOUR SIDE!";
+        timmyLineT_ = 3.5f;
+    }
+}
+
+// The Meccaryn and Delphi pick Smarties up too (rework): squeeze a grip with the hand on one (a
+// squirming Smartie in your hand); open it gently to set it down, throw it and it flies - a hard
+// landing kills it. A gun or bow held on one for a moment: it puts its hands up.
+void GameApp::updateVillagerHands(float dt, const InputFrame& in) {
+    const bool can = playMode_ && firstPerson_ && !dying_ && hero_ != Hero::Kabuto && !cutsceneActive();
+    auto indexOf = [&](uint32_t uid) {
+        for (size_t i = 0; i < villagers_.villagers.size(); ++i)
+            if (villagers_.villagers[i].uid == uid) return int(i);
+        return -1;
+    };
+    for (int h = 0; h < 2; ++h) {
+        const ControllerState& c = in.hand[h];
+        const bool g = c.squeeze > 0.7f;
+        const bool edge = g && !villagerGripWas_[h];
+        villagerGripWas_[h] = g;
+        if (!can || !edge || heldVillager_ != 0 || !c.gripPoseValid) continue;
+        const Vec3 p = rig_.toWorld(c.gripPose).position;
+        for (const auto& v : villagers_.villagers) {
+            if (!VillagerDirector::alive(v) || length(p - (v.pos + Vec3{0, 0.45f, 0})) > 0.45f) continue;
+            heldVillager_ = v.uid;
+            heldVillagerHand_ = h;
+            heldVillagerPrev_ = p;
+            heldVillagerVel_ = Vec3{0, 0, 0};
+            villagers_.hold(indexOf(v.uid), true);
+            haptics_.push_back({h, 0.5f, 0.08f});
+            LOGI("Picked up Smartie %u (hand %d)", v.uid, h);
+            break;
+        }
+    }
+    if (heldVillager_ != 0) {
+        const int i = indexOf(heldVillager_);
+        const ControllerState& c = in.hand[heldVillagerHand_ < 0 ? 0 : heldVillagerHand_];
+        if (i < 0 || !VillagerDirector::alive(villagers_.villagers[size_t(i)]) || !can || !c.gripPoseValid) {
+            heldVillager_ = 0;
+        } else {
+            const Pose gp = rig_.toWorld(c.gripPose);
+            const Vec3 p = gp.position;
+            if (dt > 0) heldVillagerVel_ = heldVillagerVel_ * 0.5f + (p - heldVillagerPrev_) * (0.5f / dt);
+            heldVillagerPrev_ = p;
+            Villager& v = villagers_.villagers[size_t(i)];
+            v.pos = p - Vec3{0, 0.45f, 0};
+            v.yaw = yawOf(gp.orientation);
+            if (frand() < dt * 1.5f) haptics_.push_back({heldVillagerHand_, 0.2f, 0.05f});  // it wriggles
+            if (c.squeeze < 0.35f) {
+                if (length(heldVillagerVel_) > 2.5f) {
+                    flyingVillagers_.push_back({v.uid, v.pos, heldVillagerVel_ * 1.4f});
+                    LOGI("Threw Smartie %u (%.1f m/s)", v.uid, length(heldVillagerVel_) * 1.4f);
+                } else {
+                    float gy = v.pos.y;
+                    if (villagers_.groundHeight) gy = villagers_.groundHeight(v.pos.x, v.pos.z);
+                    flyingVillagers_.push_back({v.uid, v.pos, Vec3{0, 0, 0}});  // (drops the little way down)
+                    (void)gy;
+                    LOGI("Set Smartie %u down", v.uid);
+                }
+                heldVillager_ = 0;
+            }
+        }
+    }
+    // Thrown or dropped: falls; a hard landing (or a flight into something) kills it.
+    for (auto& f : flyingVillagers_) {
+        const int i = indexOf(f.uid);
+        if (i < 0) { f.uid = 0; continue; }
+        Villager& v = villagers_.villagers[size_t(i)];
+        f.vel.y -= 14.0f * dt;
+        f.pos = f.pos + f.vel * dt;
+        const float g = villagers_.groundHeight ? villagers_.groundHeight(f.pos.x, f.pos.z) : f.pos.y - 1.0f;
+        v.pos = f.pos;
+        if (f.pos.y <= g) {
+            v.pos.y = g;
+            const float impact = length(f.vel);
+            if (impact > 9.0f) hitVillager(i, 100.0f, v.pos + Vec3{0, 0.3f, 0}, normalize(f.vel));
+            else villagers_.hold(i, false);  // on its feet again: cowering
+            f.uid = 0;
+        }
+    }
+    flyingVillagers_.erase(std::remove_if(flyingVillagers_.begin(), flyingVillagers_.end(), [](const FlyingVillager& f) { return f.uid == 0; }),
+                           flyingVillagers_.end());
+    // A gun (or bow) pointed at one for a moment: hands up.
+    if (can && (gunValid_ || bowValid_) && in.hand[rig_.turnHand()].aimPoseValid) {
+        const Pose a = rig_.toWorld(in.hand[bowValid_ && hero_ == Hero::Delphi ? rig_.moveHand() : rig_.turnHand()].aimPose);
+        const Vec3 f = a.orientation.rotate(Vec3{0, 0, -1});
+        uint32_t best = 0;
+        float bestC = 0.995f;
+        for (const auto& v : villagers_.villagers) {
+            if (!VillagerDirector::alive(v) || v.state == VillagerState::Held) continue;
+            const Vec3 to = v.pos + Vec3{0, 0.45f, 0} - a.position;
+            const float d = length(to);
+            if (d > 25.0f || d < 0.5f) continue;
+            const float cs = dot(to * (1.0f / d), f);
+            if (cs > bestC) { bestC = cs; best = v.uid; }
+        }
+        aimedVillagerT_ = best != 0 && best == aimedVillager_ ? aimedVillagerT_ + dt : 0.0f;
+        aimedVillager_ = best;
+        if (aimedVillagerT_ > 0.4f) {
+            const int i = indexOf(best);
+            if (i >= 0 && villagers_.villagers[size_t(i)].state != VillagerState::HandsUp) {
+                villagers_.handsUp(i);
+                LOGI("Smartie %u puts its hands up", best);
+            }
+        }
     }
 }
 

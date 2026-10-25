@@ -1274,6 +1274,20 @@ private:  // the mission placed enemies: no test waves
     void initVillagers(AssetWorld* w, ModelCache* mc);
     void updateVillagers(float dt);
     void renderVillagers(bool shadow, const Vec3& eye, float range);
+    // Rework: Smarties can be shot, blown up, picked up and thrown by any hero (game_app_village.cpp).
+    static constexpr int kVillagerShot = 10000;  // weapon target ids for villagers (index = id - this)
+    bool villagerRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
+    void hitVillager(int i, float amount, const Vec3& at, const Vec3& dir);
+    void updateVillagerHands(float dt, const InputFrame& in);
+    uint32_t heldVillager_ = 0;
+    int heldVillagerHand_ = -1;
+    bool villagerGripWas_[2] = {false, false};
+    Vec3 heldVillagerPrev_, heldVillagerVel_;
+    struct FlyingVillager { uint32_t uid; Vec3 pos, vel; };
+    std::vector<FlyingVillager> flyingVillagers_;
+    uint32_t aimedVillager_ = 0;
+    float aimedVillagerT_ = 0;
+    bool smartieWarned_ = false;
     // Vimp herds and Vimp meat (game_app_vimp.cpp): ours, see vimp.h. Meat dropped by a killed
     // Vimp is picked up by walking over it; mission trigger kind 4 ("On Vimp Meat Proximity", the
     // original's trigger name) completes when the player brings kVimpMeatNeeded pieces to it.

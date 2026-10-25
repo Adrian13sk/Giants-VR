@@ -279,16 +279,11 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
             }
         // Smarties (village folk): squashed.
         auto& vs = villagers_.villagers;
-        for (size_t i = 0; i < vs.size();) {
-            if (length(vs[i].pos + Vec3{0, 0.5f, 0} - at) < r + 0.4f) {
-                bleed(vs[i].pos + Vec3{0, 0.5f, 0}, dir, true, 0.7f);
-                blood_.pool(vs[i].pos, 0.8f);
-                vs.erase(vs.begin() + long(i));
+        for (size_t i = 0; i < vs.size(); ++i)
+            if (VillagerDirector::alive(vs[i]) && length(vs[i].pos + Vec3{0, 0.5f, 0} - at) < r + 0.4f) {
+                hitVillager(int(i), 1000.0f, vs[i].pos + Vec3{0, 0.5f, 0}, dir);  // (the body stays - rework)
                 any = true;
-            } else {
-                ++i;
             }
-        }
         if (any) {
             kabutoGain(0.03f);
             sfx(mul > 4.0f ? "ka_hvht1" : (mul > 2.5f ? "ka_mdht1" : "ka_ltht1"), at, 1.0f, 0.9f + 0.2f * frand());

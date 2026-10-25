@@ -36,10 +36,8 @@ void GameApp::dropVictim(int target, const Vec3& at, const Vec3& vel, bool throw
         const size_t i = size_t(target - kVillagerTargetC);
         if (i >= villagers_.villagers.size()) return;
         villagers_.villagers[i].pos = at;
-        if (thrown) {
-            bleed(at + Vec3{0, 0.4f, 0}, dir, true, 0.8f);
-            villagers_.villagers.erase(villagers_.villagers.begin() + long(i));
-        }
+        if (thrown) hitVillager(int(i), 1000.0f, at + Vec3{0, 0.4f, 0}, dir);  // (its body lies where it landed)
+        else if (villagers_.villagers[i].state != VillagerState::Held) villagers_.hold(int(i), true);  // squirming in his hand
     } else if (target >= kCreatureTargetC) {
         const size_t i = size_t(target - kCreatureTargetC);
         if (i >= creatures_.creatures.size()) return;
@@ -101,6 +99,7 @@ void GameApp::updateKabutoCarry(float dt, const InputFrame& in) {
                     LOGI("Kabuto throws target %d (%.0f m/s)", t, length(vel));
                 } else {
                     dropVictim(t, Vec3{hand.x, ground(hand), hand.z}, Vec3{0, 0, 0}, false);
+                    if (t >= kVillagerTargetC && t < kVimpTargetC) villagers_.hold(t - kVillagerTargetC, false);
                     LOGI("Kabuto sets target %d down", t);
                 }
                 kbHold_ = HoldNone;

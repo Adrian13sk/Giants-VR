@@ -1416,6 +1416,25 @@ static void testVillagers() {
         waved = vd.villagers[0].state == VillagerState::Wave;
     }
     CHECK(waved);
+    // Rework: hurt (flinch, then flee), held (squirms, stays put), hands up, killed (a body that lies, then goes).
+    for (auto& c : vd.clipDuration) c = 0.8f;
+    vd.add({10, 0, 0}, 0.0f);
+    CHECK(!vd.damage(1, 10.0f, {10, 0, 5}) && vd.villagers[1].state == VillagerState::Hurt && vd.villagers[1].clip == VillagerClip::GetsShot);
+    for (int i = 0; i < 72; ++i) vd.update(1.0f / 72.0f, far, none, none);
+    CHECK(vd.villagers[1].state == VillagerState::Flee);
+    vd.hold(1, true);
+    const Vec3 heldAt = vd.villagers[1].pos;
+    for (int i = 0; i < 72; ++i) vd.update(1.0f / 72.0f, far, threat, none);
+    CHECK(vd.villagers[1].state == VillagerState::Held && length(vd.villagers[1].pos - heldAt) < 1e-4f);
+    vd.hold(1, false);
+    CHECK(vd.villagers[1].state == VillagerState::Cower);
+    for (int i = 0; i < 72 * 10; ++i) vd.update(1.0f / 72.0f, far, none, none);
+    vd.handsUp(1);
+    CHECK(vd.villagers[1].state == VillagerState::HandsUp);
+    CHECK(vd.damage(1, 100.0f, {10, 0, 5}) && vd.villagers[1].state == VillagerState::Dead && vd.waveBack(vd.villagers[1].pos, 50.0f) <= 1);
+    vd.params.corpseTime = 2.0f;
+    for (int i = 0; i < 72 * 3; ++i) vd.update(1.0f / 72.0f, far, none, none);
+    CHECK(vd.villagers.size() == 1);  // the body went
     std::printf("villagers ok\n");
 }
 

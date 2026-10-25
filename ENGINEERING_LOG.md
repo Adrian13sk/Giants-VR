@@ -2039,3 +2039,11 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   per 0.5 s (x0.3 hide = ~7/s), splashes, gasps, a warning line; no piranha bites or blood frenzy for him or Delphi.
   Harness: Delphi at r4a in the sea 12 s, health 100; Kabuto off kstory3_4's coast, "out of his depth", health 17 at
   12 s. Sweep 56/56 clean.
+- Smarties (user: killable by all races, picked up, reactions): VillagerDirector gains hp 30, Hurt / Dead / Held /
+  HandsUp with the original clips sm_gets_shot, sm_death, sm_squirm, sm_hands_up (one-shots hold their last frame;
+  bodies go after 120 s). Weapon target ids 10000+ (villagerRay: a 0.28 m capsule 0.25-0.6 m up), explosions hit
+  them, Kabuto's fist/foot squash now kills (a body) instead of erasing. updateVillagerHands: Meccaryn/Delphi grip
+  within 0.45 m of one picks it up; let go fast (> 2.5 m/s) throws it (landing > 9 m/s kills), slow sets it down;
+  a gun or bow aimed within ~6 degrees for 0.4 s -> hands up. Offspring and name tags skip the dead. Harness: 5a,
+  aiming -> "Smartie 5 puts its hands up"; a blast -> two killed; kabuto_smartie_throw -> killed on landing. Unit test
+  extended. Sweep 56/56 clean.

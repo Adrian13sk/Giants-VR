@@ -94,7 +94,8 @@ void GameApp::renderTags() {
         consider(1000000u + uint64_t(ci.rescue), ci.pos + Vec3{0, 1.15f * ci.scale + 0.25f, 0}, smartieName(uint32_t(ci.rescue) + 1000u), smartieCol);
     }
     for (size_t i = 0; i < villagers_.villagers.size(); ++i)
-        consider(2000000u + i, villagers_.villagers[i].pos + Vec3{0, 1.35f, 0}, smartieName(uint32_t(i) + 5000u), smartieCol);
+        if (VillagerDirector::alive(villagers_.villagers[i]))
+            consider(2000000u + i, villagers_.villagers[i].pos + Vec3{0, 1.35f, 0}, smartieName(uint32_t(i) + 5000u), smartieCol);
     for (size_t i = 0; i < creatures_.creatures.size(); ++i) {
         const Creature& c = creatures_.creatures[i];
         if (c.state == CreatureState::Dead || CreatureDirector::underground(c) || c.state == CreatureState::Latched) continue;
