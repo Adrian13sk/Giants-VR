@@ -29,6 +29,17 @@ const Vec3 kHolster[3] = {
 constexpr float kHolsterRadius = 0.17f;
 }  // namespace
 
+// The top of the player's hit capsule above his feet: his real head in first person (duck behind
+// cover and Reaper bolts pass over), the body's height otherwise.
+float GameApp::playerHitTop() const {
+    const float hs = heroScale_;
+    if (firstPerson_ && lastInput_.headValid && hero_ != Hero::Kabuto) {
+        const float hy = rig_.toWorld(lastInput_.head).position.y - player_.position.y;
+        return std::max(0.7f * hs, std::min(1.85f * hs, hy + 0.1f * hs));
+    }
+    return 1.65f * hs;
+}
+
 void GameApp::updateFlashes(float dt) {
     float best = 0;
     const Flash* pick = nullptr;

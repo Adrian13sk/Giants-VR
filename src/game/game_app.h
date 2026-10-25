@@ -1351,6 +1351,7 @@ private:  // the mission placed enemies: no test waves
     void updateFlashes(float dt);
     MeshId markerMesh_ = 0;
     void renderObjectiveMarker();
+    float playerHitTop() const;
     // Holsters on the body and punches (game_app_vr.cpp).
     int holsterZone_ = -1;
     bool holsterGrabHeld_ = false;

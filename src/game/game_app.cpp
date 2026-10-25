@@ -468,7 +468,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 Vec3 nw;
                 const bool hw = worldRay_ && worldRay_(o, d, maxD, tw, nw);
                 const float hs = heroScale_;
-                const Vec3 a = player_.position + Vec3{0, 0.35f * hs, 0}, b = player_.position + Vec3{0, 1.65f * hs, 0};
+                // The capsule's top follows your real head (rework): duck behind cover and the
+                // bolts pass over you.
+                const float top = playerHitTop();
+                const Vec3 a = player_.position + Vec3{0, 0.35f * hs, 0}, b = player_.position + Vec3{0, top, 0};
                 const bool hp = playMode_ && rayCapsule(o, d, maxD, a, b, player_.radius, tp);
                 if (!hw && !hp) return false;
                 if (hp && (!hw || tp < tw)) { t = tp; n = d * -1.0f; target = -2; }
@@ -3534,7 +3537,7 @@ void GameApp::updateCombat(float dt) {
             sfx("pr_wsmil", muzzle, 0.9f, 1.1f);
             continue;
         }
-        const Vec3 target = player_.position + Vec3{0, (0.5f + 0.4f * frand()) * player_.height, 0};
+        const Vec3 target = player_.position + Vec3{0, (0.5f + 0.4f * frand()) * playerHitTop() * (player_.height / (1.65f * heroScale_)), 0};
         Vec3 dir = normalize(target - muzzle);
         // Spread grows with distance: long shots mostly miss, close ones are dangerous.
         const float spread = 0.06f + 0.004f * length(target - muzzle);
