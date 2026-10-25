@@ -22,6 +22,7 @@
 #include "game/smartie.h"
 #include "game/gore.h"
 #include "game/destruction.h"
+#include "game/ragdoll.h"
 #include "game/particles.h"
 #include "game/hud_gauge.h"
 #include "game/villager.h"
@@ -418,6 +419,12 @@ private:
     EnemyDirector enemies_;
     std::vector<std::unique_ptr<SkinnedModel>> enemyPool_;
     std::vector<uint8_t> slotUsed_;
+    std::vector<Ragdoll> ragdolls_;  // rework: per model slot (game_app_ragdoll.cpp)
+    const Enemy* posingEnemy_ = nullptr;  // the enemy its slot model is being posed for
+    Mat4 ragdollToWorld(const Enemy& e) const;
+    Ragdoll* ragdollOf(const Enemy& e);
+    void updateRagdolls(float dt);
+    Ragdoll* startRagdoll(Enemy& e, const Vec3& vel, const Vec3& spin);
     std::vector<float> slotLift_;   // per model slot: lift so the posed body's lowest point is on the ground
     WeaponSystem enemyFire_;
     std::vector<int> shooters_;

@@ -321,7 +321,8 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
                                     impaledUid_ = uid;
                                     impaleAlong_ = std::max(0.25f * bladeLen, std::min(0.75f * bladeLen, dot(at - hilt, axis)));
                                     impaleT_ = 0;
-                                    enemies_.setBodyClip(ei, EnemyClip::FallCycle, true);  // hanging on the blade, limp and swinging
+                                    // Hanging on the blade: a ragdoll pinned there (no model slot: a limp, swinging clip).
+                                    if (!startRagdoll(e, mv * 0.3f, Vec3{0, 0, 0})) enemies_.setBodyClip(ei, EnemyClip::FallCycle, true);
                                     sfx("ex_bdys1", at, 0.9f, 0.8f);
                                     haptics_.push_back({gh, 1.0f, 0.2f});
                                     LOGI("Delphi runs Reaper %u through", uid);
@@ -351,15 +352,25 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
                 impaledUid_ = 0;
             } else if (yank) {
                 Enemy& e = enemies_.enemies[size_t(ei)];
-                e.vel = tipVel * 0.5f;
-                enemies_.setBodyClip(ei, EnemyClip::FallLand, false);  // off the blade: he lies
+                if (Ragdoll* rd = ragdollOf(e)) {  // off the blade with its motion
+                    rd->unpin();
+                    rd->kick(tipVel * 0.5f);
+                } else {
+                    e.vel = tipVel * 0.5f;
+                    enemies_.setBodyClip(ei, EnemyClip::FallLand, false);  // off the blade: he lies
+                }
                 impaledUid_ = 0;
                 sfx("ex_bdys1", e.pos + Vec3{0, 1, 0}, 0.7f, 1.2f);
                 LOGI("Delphi pulls the sword out of Reaper %u", e.uid);
             } else {
                 Enemy& e = enemies_.enemies[size_t(ei)];
                 const Vec3 p = hilt + axis * impaleAlong_;
-                e.pos = p - Vec3{0, 0.55f, 0};  // (the flailing pose's middle on the blade)
+                if (Ragdoll* rd = ragdollOf(e)) {
+                    if (rd->active) rd->pin(p);
+                    rd->posedAsleep = false;
+                } else {
+                    e.pos = p - Vec3{0, 0.55f, 0};  // (the flailing pose's middle on the blade)
+                }
                 e.vel = Vec3{0, 0, 0};
                 if (frand() < dt * 3.0f) bleed(p, Vec3{0, -1, 0}, false, 0.7f);  // dripping
                 if (frand() < dt * 4.0f) haptics_.push_back({gh, 0.3f, 0.04f});  // his weight

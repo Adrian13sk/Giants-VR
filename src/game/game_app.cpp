@@ -571,8 +571,24 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     enemyFootOffset_ = -mn.y;  // measured: 1.10 m for rpman_stand_scan
                     LOGI("Reaper foot offset %.2f m", enemyFootOffset_);
                 }
+                // Rework: a dead body's pose comes from its ragdoll (game_app_ragdoll.cpp).
+                em->setPoseModifier([this](const AnmAnimation& clip, const std::vector<std::vector<int>>&, std::vector<Mat4>& world) {
+                    if (!posingEnemy_) return;
+                    Ragdoll* rd = ragdollOf(*posingEnemy_);
+                    if (!rd) return;
+                    const Mat4 tw = ragdollToWorld(*posingEnemy_);
+                    if (rd->pending) {
+                        std::vector<int> parent(clip.nodes.size(), -1);
+                        for (size_t n = 0; n < clip.nodes.size(); ++n) parent[n] = clip.nodes[n].parent;
+                        rd->start(world, parent, tw, rd->startVel, rd->startSpin, 0.4f);
+                        rd->pending = false;
+                    }
+                    rd->apply(world, tw);
+                    if (rd->asleep) rd->posedAsleep = true;
+                });
                 enemyPool_.push_back(std::move(em));
             }
+            ragdolls_.assign(enemyPool_.size(), Ragdoll{});
             slotUsed_.assign(enemyPool_.size(), 0);
             slotLift_.assign(enemyPool_.size(), enemyFootOffset_);
             const uint8_t white[4] = {255, 255, 255, 255};
@@ -3762,6 +3778,7 @@ void GameApp::updateCombat(float dt) {
     }
     bushEvents();
     { GVR_PROF("skirmish"); updateSkirmish(dt); }
+    { GVR_PROF("ragdolls"); updateRagdolls(dt); }
     // Model slots follow the enemies (the director removes sunk corpses).
     std::fill(slotUsed_.begin(), slotUsed_.end(), 0);
     for (auto& e : enemies_.enemies)
@@ -3787,6 +3804,14 @@ void GameApp::updateCombat(float dt) {
         const float pd = length(e.pos - player_.position);
         const float near = hero_ == Hero::Kabuto ? 75.0f : 25.0f;
         const uint32_t every = pd < near ? 1u : (pd < near * 2.4f ? 2u : 4u);  // animation LOD by distance
+        if (Ragdoll* rd = ragdollOf(e)) {  // rework: a ragdoll is posed every frame until it lies still
+            if (pd > poseFar || (rd->active && rd->asleep && rd->posedAsleep)) continue;
+            const int c = rd->clip >= 0 ? rd->clip : int(e.clip);
+            posingEnemy_ = &e;
+            enemyPool_[size_t(e.slot)]->poseBlend(renderer_, c, e.clipTime, c, e.clipTime, 0.0f);
+            posingEnemy_ = nullptr;
+            continue;  // (its lift stays as it was)
+        }
         if (pd > poseFar || ((enemyPoseTick_ + uint32_t(e.slot)) % every) != 0) continue;
         SkinnedModel& m = *enemyPool_[size_t(e.slot)];
         m.poseBlend(renderer_, int(e.prevClip), e.prevTime, int(e.clip), e.clipTime, e.fadeWeight(enemies_.params.crossfade));

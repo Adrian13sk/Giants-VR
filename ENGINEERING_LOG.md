@@ -2065,3 +2065,25 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - First render had him lying at the bottom of the view (the death pose with a 1.1 m offset); with FallCycle and 0.55 m he
   hangs on the blade. devtest delphi_impale (Rstory2 battle_1, one Reaper 1.9 m ahead, thrust, lift, yank): harness log
   "Delphi runs Reaper 1 through" / "pulls the sword out". Tests pass; sweep 56/56 clean. HARNESS only.
+
+### 2026-10-25 — Rework: Reaper ragdolls
+- User: "Try to implement ragdolls somehow". New src/game/ragdoll.{h,cpp} (our design): the pose a body dies in
+  (model-space node matrices from the clip) is captured; nodes at least 0.4 game units (8 cm) from their simulated
+  ancestor become Verlet particles (1/60 s substeps, 8 iterations): sticks to the parent particle, siblings rigid
+  (hips, shoulder girdle), and a minimum distance (0.6 x rest) to the grandparent so joints don't fold flat; terrain
+  contact with friction; sleeps after 0.5 s still (or 10 s). A first soft grandparent spring kept the stick figure
+  standing on its feet (unit test failed "fallen over") - changed to a minimum only. Each pose rebuilds every
+  particle's frame from its primary child and its parent (root: its two farthest children), F1*F0^T, shortest arc
+  when degenerate; ends (hands, head) turn with their limb; other nodes ride rigidly on their simulated ancestor.
+- Game layer (game_app_ragdoll.cpp): one Ragdoll per Reaper model slot, keyed by uid; the slot model's pose modifier
+  starts (pending capture) and applies it; model->world = T(pos + lift + sink) R(yaw) C(giants->runtime), so a
+  sinking corpse sinks whole; ragdolls are posed every frame until asleep, then not at all; e.pos follows the
+  particles' centre. Enemy::kick collects pushes (also on the dead: EnemyDirector::push records before its Dead
+  check; a lethal fall records half the fall speed). Blast/fling/fall deaths go limp at once (launch capped 7 m/s
+  across, 6 up - the first try threw bodies 25 m); a shot death plays 0.35 s of its clip then crumples. The director
+  leaves ragdolls' vel and air drop alone. Delphi's impale now pins a ragdoll at the blade (Ragdoll::pin, the
+  particle nearest the body's middle); the yank unpins and kicks it. GVR_NO_RAGDOLL turns it off.
+- Harness: Rstory2 blasts - three bodies fly flailing, rest 9-12 m off; Story3 auto-aimed shotgun kill - the hit,
+  then he falls back and lies (asleep after 1.5 s); delphi_impale - hanging by the torso, legs dangling, dropped
+  when yanked. Unit test (stick figure: falls, rests above ground, keeps bone lengths, helper node rides on the
+  pelvis; pinned it hangs, unpinned it drops). Sweep 56/56 clean. devtest reaper_ragdolls. HARNESS only.

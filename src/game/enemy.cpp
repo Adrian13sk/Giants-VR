@@ -114,6 +114,7 @@ void EnemyDirector::knockOff(int i, const Vec3& v) {
 void EnemyDirector::push(int i, const Vec3& impulse) {
     if (i < 0 || size_t(i) >= enemies.size()) return;
     Enemy& e = enemies[size_t(i)];
+    e.kick = e.kick + impulse;  // (the dead too: a ragdoll takes it)
     if (e.state == EnemyState::Dead || e.posted) return;
     e.vel = e.vel + Vec3{impulse.x, 0, impulse.z};
 }
@@ -222,7 +223,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             e.clipTime += dt;
             continue;
         }
-        if (e.state == EnemyState::Dead && !e.posted && groundHeight) {
+        if (e.state == EnemyState::Dead && !e.posted && groundHeight && !e.ragdoll) {
             // Shot out of the air: he drops.
             const float g = groundHeight(e.pos.x, e.pos.z);
             if (e.pos.y > g + 0.05f) {
@@ -504,6 +505,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 if (e.pos.y <= g) {
                     e.pos.y = g;
                     const bool lethal = e.fallFrom - g > lethalFall;
+                    if (lethal) e.kick = e.vel * 0.5f;  // (a ragdoll lands with it)
                     e.vel = {0, 0, 0};
                     e.stateTime = 0;
                     if (lethal) {
@@ -529,7 +531,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 break;
         }
         // Shoved by a blast: slides, the push dying away quickly.
-        if (e.state != EnemyState::Falling && (e.state != EnemyState::Dead || (e.stateTime < 1.5f && !e.posted)) && (e.vel.x != 0 || e.vel.z != 0)) {
+        if (e.state != EnemyState::Falling && !e.ragdoll && (e.state != EnemyState::Dead || (e.stateTime < 1.5f && !e.posted)) && (e.vel.x != 0 || e.vel.z != 0)) {
             tryMove(e, Vec3{e.vel.x, 0, e.vel.z} * dt);
             e.vel = e.vel * std::max(0.0f, 1.0f - 5.0f * dt);
             if (std::fabs(e.vel.x) + std::fabs(e.vel.z) < 0.05f) e.vel = {0, 0, 0};

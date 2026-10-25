@@ -42,6 +42,7 @@
 #include "audio/music.h"
 #include "assets/gtext.h"
 #include "game/vr_rig.h"
+#include "game/ragdoll.h"
 
 using namespace gvr;
 
@@ -1959,10 +1960,50 @@ static void testUpscale() {
     CHECK(std::abs(int(img.rgba[size_t(5 * 32 + 9) * 4]) - src) < 12);
 }
 
+static void testRagdoll() {
+    // A stick figure standing 1.8 m tall (runtime frame, identity model->world), a helper node riding on the pelvis.
+    const Vec3 pts[] = {{0, 1.0f, 0}, {0, 1.4f, 0}, {0, 1.8f, 0}, {-0.4f, 1.4f, 0}, {-0.8f, 1.4f, 0}, {0.4f, 1.4f, 0}, {0.8f, 1.4f, 0},
+                        {-0.15f, 0.5f, 0}, {-0.15f, 0.05f, 0}, {0.15f, 0.5f, 0}, {0.15f, 0.05f, 0}, {0.01f, 1.0f, 0}};
+    const std::vector<int> parent = {-1, 0, 1, 1, 3, 1, 5, 0, 7, 0, 9, 0};
+    std::vector<Mat4> w;
+    for (const auto& p : pts) w.push_back(Mat4::translation(p));
+    Ragdoll r;
+    r.start(w, parent, Mat4::identity(), Vec3{1.5f, 2.0f, 0}, Vec3{0, 0, 2.0f}, 0.05f);
+    CHECK(r.active && r.particles() == 11);  // the helper rides on the pelvis
+    auto ground = [](float, float) { return 0.0f; };
+    for (int i = 0; i < 600 && !r.asleep; ++i) r.step(1.0f / 60.0f, ground);
+    CHECK(r.asleep);
+    CHECK(r.lowest() > 0.0f);
+    float top = -1e9f;
+    for (size_t k = 0; k < r.particles(); ++k) top = std::max(top, r.particle(k).y);
+    CHECK(top < 0.9f);  // fallen over
+    CHECK(r.centre().x > 0.3f);  // carried along by its velocity
+    std::vector<Mat4> out = w;
+    r.apply(out, Mat4::identity());
+    // Bones keep their lengths (the hand to the elbow: 0.4 m).
+    const Vec3 e{out[3].m[12], out[3].m[13], out[3].m[14]}, h{out[4].m[12], out[4].m[13], out[4].m[14]};
+    CHECK(std::fabs(length(h - e) - 0.4f) < 0.03f);
+    // The helper stays with the pelvis, 1 cm off it.
+    const Vec3 pv{out[0].m[12], out[0].m[13], out[0].m[14]}, hp{out[11].m[12], out[11].m[13], out[11].m[14]};
+    CHECK(std::fabs(length(hp - pv) - 0.01f) < 0.002f);
+    // Run through: pinned in the middle, it hangs there.
+    Ragdoll q;
+    q.start(w, parent, Mat4::identity(), Vec3{0, 0, 0}, Vec3{0, 0, 0}, 0.05f);
+    q.pin(Vec3{0, 3.0f, 0});
+    for (int i = 0; i < 180; ++i) q.step(1.0f / 60.0f, ground);
+    CHECK(!q.asleep);
+    CHECK(q.lowest() > 1.5f && q.lowest() < 2.9f);
+    q.unpin();
+    for (int i = 0; i < 600 && !q.asleep; ++i) q.step(1.0f / 60.0f, ground);
+    CHECK(q.lowest() < 0.2f);
+    std::printf("ragdoll ok\n");
+}
+
 int main() {
     testUpscale();
     testBinaural();
     testReverb();
+    testRagdoll();
     testSkirmish();
     testSkNav();
     testSkNet();

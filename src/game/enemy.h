@@ -78,6 +78,10 @@ struct Enemy {
     bool dropping = false;
     bool inCover = false;   // rework: running to / firing from coverAt
     Vec3 coverAt, coverFrom; // the spot, and where the player was when it was chosen  // rework: coming down on a hover pack (an ambush from the air)
+    // Rework: ragdolls (game_app_ragdoll.cpp). kick: the impulses of the last moments (m/s, decaying,
+    // shots, blasts, blows - also on the dead); ragdoll: the body is a ragdoll (the game layer moves it).
+    Vec3 kick;
+    bool ragdoll = false, ragChecked = false;
     float hitFlash = 0;     // rework: > 0 just hit (the body flashes)  // rework: the player out of sight this long -> a grenade (game layer)
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
