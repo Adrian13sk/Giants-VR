@@ -344,6 +344,18 @@ bool XrApp::createMultiviewSwapchain() {
         LOGW("Multiview: glFramebufferTextureMultiviewOVR missing");
         return false;
     }
+    // 4x MSAA resolved on the tile (GL_OVR_multiview_multisampled_render_to_texture): smooth edges
+    // at almost no bandwidth cost on the Quest's GPU. GVR_MSAA=0/2/4 picks it (tests).
+    auto texMultiviewMs = reinterpret_cast<PFNGLFRAMEBUFFERTEXTUREMULTISAMPLEMULTIVIEWOVRPROC>(
+        eglGetProcAddress("glFramebufferTextureMultisampleMultiviewOVR"));
+    int samples = 4;
+    if (const char* m = std::getenv("GVR_MSAA")) samples = std::atoi(m);
+    if (!std::strstr(ext, "GL_OVR_multiview_multisampled_render_to_texture") || !texMultiviewMs) samples = 0;
+    if (samples > 1) {
+        GLint maxS = 0;
+        glGetIntegerv(GL_MAX_SAMPLES, &maxS);
+        samples = std::min(samples, int(maxS));
+    }
     Swapchain& sc = swapchains_[0];
     sc.width = static_cast<int>(configViews_[0].recommendedImageRectWidth);
     sc.height = static_cast<int>(configViews_[0].recommendedImageRectHeight);
@@ -377,9 +389,21 @@ bool XrApp::createMultiviewSwapchain() {
     bool ok = true;
     for (uint32_t i = 0; i < count && ok; ++i) {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sc.framebuffers[i]);
-        texMultiview(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, sc.images[i].image, 0, 0, 2);
-        texMultiview(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, sc.depth, 0, 0, 2);
+        if (samples > 1) {
+            texMultiviewMs(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, sc.images[i].image, 0, samples, 0, 2);
+            texMultiviewMs(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, sc.depth, 0, samples, 0, 2);
+        } else {
+            texMultiview(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, sc.images[i].image, 0, 0, 2);
+            texMultiview(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, sc.depth, 0, 0, 2);
+        }
         GLenum st = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+        if (st != GL_FRAMEBUFFER_COMPLETE && samples > 1) {  // no MSAA then
+            LOGW("Multiview %dx MSAA framebuffer incomplete (0x%x): without MSAA", samples, st);
+            samples = 0;
+            texMultiview(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, sc.images[i].image, 0, 0, 2);
+            texMultiview(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, sc.depth, 0, 0, 2);
+            st = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+        }
         if (st != GL_FRAMEBUFFER_COMPLETE) { LOGW("Multiview framebuffer %u incomplete: 0x%x", i, st); ok = false; }
         for (int eye = 0; eye < 2 && ok; ++eye) {
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sc.layerFbos[i * 2 + eye]);
@@ -400,7 +424,7 @@ bool XrApp::createMultiviewSwapchain() {
         return false;
     }
     multiview_ = true;
-    LOGI("Multiview swapchain %dx%d x2 layers, %u images (both eyes in one pass)", sc.width, sc.height, count);
+    LOGI("Multiview swapchain %dx%d x2 layers, %u images (both eyes in one pass), MSAA %dx", sc.width, sc.height, count, samples > 1 ? samples : 1);
     return true;
 }
 

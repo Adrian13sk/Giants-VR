@@ -117,6 +117,9 @@ public:
         terrainTex_[0] = rock; terrainTex_[1] = sand; terrainTex_[2] = grass2; terrainTex_[3] = rock2; terrainTex_[4] = noise;
     }
     void setTerrainDetail(bool on) { terrainDetail_ = on; }
+    // 0: the classic look; 1: the rework's lighting (detail relief, specular, filmic tone, sun haze).
+    void setLook(int look) { look_ = float(look); }
+    int look() const { return int(look_); }
     bool shadowsReady() const { return shadowFbo_ != 0; }
     // Orthographic sun view around `centre` (half-size in metres), snapped to shadow texels.
     Mat4 sunShadowMatrix(const Vec3& centre, float halfSize) const;
@@ -171,6 +174,7 @@ private:
               uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
         GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1;
         GLint uViewProj_ = -1, uEyePosV_ = -1;  // multiview: both eyes' view-projection and position
+        GLint uLook_ = -1;
     };
     GLuint linkMain(bool multiview, Uniforms& u);
     void beginViews(const ViewParams* views, int n, int w, int h, bool clear);
@@ -181,6 +185,7 @@ private:
     float anisotropy_ = 0;
     TextureId terrainTex_[5] = {};
     bool terrainDetail_ = true;
+    float look_ = 1.0f;
     GLuint reflFbo_ = 0, reflColor_ = 0, reflDepth_ = 0, waterDepthTex_ = 0;
     int reflW_ = 0, reflH_ = 0;
     GLuint scopeFbo_ = 0, scopeDepth_ = 0;

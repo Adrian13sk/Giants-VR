@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
     int blastN = 0, blastFrame = -1;
     std::string audioOut, scriptPath, videoDir;
     int videoEvery = 3, videoFrom = 0, vw = 1280, vh = 720, videoN = 0;
-    GLuint vTex = 0, vDepth = 0, vFbo = 0;
+    GLuint vTex = 0, vDepth = 0, vFbo = 0, vMsFbo = 0, vMsColor = 0, vMsDepth = 0;
     float triggerAmount = 0.0f, aimPitchDeg = -17.2f, aimYawDeg = 0.0f;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -303,6 +303,18 @@ int main(int argc, char** argv) {
                 glBindFramebuffer(GL_FRAMEBUFFER, vFbo);
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, vTex, 0);
                 glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, vDepth);
+                // 4x MSAA, as on the headset; resolved into vFbo.
+                glGenRenderbuffers(1, &vMsColor);
+                glBindRenderbuffer(GL_RENDERBUFFER, vMsColor);
+                glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_SRGB8_ALPHA8, vw, vh);
+                glGenRenderbuffers(1, &vMsDepth);
+                glBindRenderbuffer(GL_RENDERBUFFER, vMsDepth);
+                glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT24, vw, vh);
+                glGenFramebuffers(1, &vMsFbo);
+                glBindFramebuffer(GL_FRAMEBUFFER, vMsFbo);
+                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, vMsColor);
+                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, vMsDepth);
+                if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE || std::getenv("GVR_VIDEO_NOMSAA")) { LOGW("video: no MSAA"); vMsFbo = 0; }
             }
             EyeRenderInfo ve{};
             ve.trackingPose = in.head;
@@ -316,8 +328,14 @@ int main(int argc, char** argv) {
                      hw.position.y, hw.position.z, fw.x, fw.y, fw.z, app.rig().comfort.worldScale);
             }
             app.renderShadows(ve, ve);
-            glBindFramebuffer(GL_FRAMEBUFFER, vFbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, vMsFbo ? vMsFbo : vFbo);
             app.renderEye(ve);
+            if (vMsFbo) {
+                glBindFramebuffer(GL_READ_FRAMEBUFFER, vMsFbo);
+                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, vFbo);
+                glBlitFramebuffer(0, 0, vw, vh, 0, 0, vw, vh, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+                glBindFramebuffer(GL_FRAMEBUFFER, vFbo);
+            }
             std::vector<uint8_t> px(size_t(vw) * vh * 4);
             glReadPixels(0, 0, vw, vh, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
             for (size_t i = 3; i < px.size(); i += 4) px[i] = 255;

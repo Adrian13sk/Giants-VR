@@ -122,7 +122,30 @@ uniform float uNight;
 uniform vec3 uBakedLight;
 uniform vec4 uPointPos;    // xyz position, w = 1 / radius^2
 uniform vec3 uPointColor;  // 0: no point light
+uniform float uLook;       // 0: the classic look; 1: the rework's (detail relief, specular, filmic tone, sun haze)
 out vec4 oColor;
+
+// Relief from the texture itself (bump mapping without tangents, Mikkelsen 2010): the colour's
+// brightness taken as height; screen-space derivatives give the surface slope. h_m: metres of
+// relief per unit of brightness.
+vec3 bumpNormal(vec3 n, highp vec3 p, float h, float h_m) {
+    highp vec3 dpdx = dFdx(p), dpdy = dFdy(p);
+    float dhdx = dFdx(h) * h_m, dhdy = dFdy(h) * h_m;
+    highp vec3 r1 = cross(dpdy, n), r2 = cross(n, dpdx);
+    highp float det = dot(dpdx, r1);
+    highp vec3 grad = sign(det) * (dhdx * r1 + dhdy * r2);
+    highp vec3 b = abs(det) * n - grad;
+    return dot(b, b) > 1e-20 ? normalize(vec3(b)) : n;
+}
+
+// Fog: the classic linear fog; the rework adds the sun's glow in the haze toward it.
+vec3 fogMix(vec3 rgb, float fog, highp vec3 wp) {
+    if (uLook < 0.5) return mix(uFogColor, rgb, fog);
+    highp vec3 vd = normalize(wp - uEyePos);
+    float sunward = pow(max(dot(vd, -normalize(uSunDir)), 0.0), 6.0);
+    vec3 haze = uFogColor + uSunColor * sunward * 0.45;
+    return mix(haze, rgb, fog);
+}
 
 // Terrain (material 3): the world's ground texture, varied with a second grass/earth in patches;
 // rock on slopes (projected on the dominant side axis, so cliffs aren't stretched), two rocks
@@ -163,6 +186,14 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d) {
         float g = texture(uTerrNoise, xz * 1.7).g;  // grain up close (fades out by 30 m)
         col *= mix(1.0, 0.82 + 0.36 * g, 1.0 - smoothstep(10.0, 30.0, d));
     }
+    if (uLook > 0.5 && d < 60.0) {
+        // Rework: two more octaves of detail (clumps ~2.3 m, grit ~0.3 m) so the ground under your
+        // feet isn't one blurred texel; fades with distance.
+        float c1 = texture(uTerrNoise, xz * 0.43 + vec2(0.13, 0.57)).r;
+        float c2 = texture(uTerrNoise, xz * 3.3 + vec2(0.71, 0.29)).g;
+        float f = 1.0 - smoothstep(20.0, 60.0, d);
+        col *= mix(1.0, (0.78 + 0.44 * c1) * (0.86 + 0.28 * c2), f);
+    }
     return col;
 }
 
@@ -190,6 +221,16 @@ float sunShadow(highp vec3 wp, vec3 n) {
 // Colour grade (in a gamma-2 space, so the curve acts on perceived brightness): saturation,
 // an S-shaped contrast, warm highlights / cool shadows, exposure.
 vec3 grade(vec3 c, float satScale) {
+    if (uLook > 0.5) {
+        // Filmic: exposure, the ACES curve (Narkowicz's fit) for highlights that roll off instead of
+        // clipping, then saturation and a warm/cool split.
+        c = max(c * uGrade.w * 1.6, vec3(0.0));
+        c = clamp((c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14), 0.0, 1.0);
+        float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+        c = mix(vec3(l), c, mix(1.0, uGrade.x * 1.08, satScale));
+        c += (l - 0.35) * uGrade.z * 0.6 * vec3(1.0, 0.3, -0.8);
+        return max(c, vec3(0.0));
+    }
     vec3 g = sqrt(max(c * uGrade.w, vec3(0.0)));
     float l = dot(g, vec3(0.299, 0.587, 0.114));
     g = mix(vec3(l), g, mix(1.0, uGrade.x, satScale));
@@ -277,7 +318,7 @@ void main() {
         rgb = mix(rgb, vec3(0.85, 0.9, 0.9) * (uAmbient + uSunColor * sh), foam * 0.5);
         // Clarity: shallows let the bed show through; deep water is nearly opaque.
         float a = mix(mix(0.35, 0.93, smoothstep(0.0, 3.0, depth)), 1.0, max(fres, foam)) * uTint.a;
-        oColor = vec4(grade(mix(uFogColor, rgb, fog), 0.6), a);
+        oColor = vec4(grade(fogMix(rgb, fog, vWorldPos), 0.6), a);
 #ifdef DEBUG_REFL
         if (uReflOn > 0.5) oColor = vec4(texture(uReflTex, (uReflMat * vec4(vWorldPos, 1.0)).xy / (uReflMat * vec4(vWorldPos, 1.0)).w * 0.5 + 0.5).rgb, 1.0);
 #endif
@@ -292,7 +333,17 @@ void main() {
     }
     vec3 n = normalize(vNormal);
     if (!gl_FrontFacing) n = -n;
-    float sh = sunShadow(vWorldPos, n);
+    float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
+    vec3 ng = n;  // the geometric normal (shadow lookups)
+    if (uLook > 0.5 && d < 45.0) {
+        // Relief up close (fades out by 45 m: no shimmer far away). Terrain a little deeper.
+        float k = (uMaterial == 3 ? 0.10 : 0.025) * (1.0 - smoothstep(25.0, 45.0, d));
+        // Terrain: the relief of its detail noise (the ground textures are too soft to read from).
+        float hgt = uMaterial == 3 ? texture(uTerrNoise, vWorldPos.xz * 0.43 + vec2(0.13, 0.57)).r * 0.6
+                                     + texture(uTerrNoise, vWorldPos.xz * 1.7).g * 0.4 : lum;
+        n = bumpNormal(n, vWorldPos, hgt, k);
+    }
+    float sh = sunShadow(vWorldPos, ng);
     float ndl = max(dot(n, -uSunDir), 0.0);
     vec3 rgb;
     if (uUnlit > 0.5) {
@@ -301,10 +352,24 @@ void main() {
         rgb = base.rgb * mix(0.36, 1.0, sh) * (0.86 + 0.32 * ndl * sh) * uBakedLight;
     } else {
         // Sky light from above, darker bounce from below; warm sun; a faint rim of sky light.
-        vec3 amb = uAmbient * mix(vec3(0.62, 0.58, 0.52), vec3(1.08, 1.1, 1.18), n.y * 0.5 + 0.5);
+        vec3 amb = uAmbient * mix(vec3(0.62, 0.58, 0.52), vec3(1.08, 1.1, 1.18), n.y * 0.5 + 0.5) * (1.0 + 0.25 * uLook);
         highp vec3 v = normalize(uEyePos - vWorldPos);
         float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.25;
         rgb = base.rgb * (amb + uSunColor * ndl * sh) + uSkyHorizon * rim * base.rgb;
+    }
+    if (uLook > 0.5) {
+        // Sun highlights (Blinn-Phong): brighter texels read as smoother and shinier.
+        highp vec3 vv = normalize(uEyePos - vWorldPos);
+        vec3 hv = normalize(vv - uSunDir);
+        float gloss = mix(12.0, 70.0, lum);
+        float nh = clamp(dot(n, hv), 1e-4, 1.0);
+        float facing = (dot(ng, -uSunDir) > 0.0 ? 1.0 : 0.0) * (uMaterial == 3 ? 0.35 : 1.0);  // ground: a soft sheen
+        // nh^16 .. nh^64 by repeated squaring (cheaper than pow; and Mesa's llvmpipe, the PC test
+        // renderer, miscompiled any exp2/pow here - the whole frame came out wrong).
+        float p2 = nh * nh, p4 = p2 * p2, p8 = p4 * p4, p16 = p8 * p8, p32 = p16 * p16, p64 = p32 * p32;
+        float pw = mix(p16, mix(p32, p64, max(lum * 2.0 - 1.0, 0.0)), min(lum * 2.0, 1.0));
+        float sp = SPECEXPR;
+        rgb += uSunColor * clamp(sp * (gloss + 8.0) * 0.06, 0.0, 4.0);
     }
     if (uPointColor.r + uPointColor.g + uPointColor.b > 0.0) {
         // The game's point light: smooth falloff to its radius, half-wrapped so it reaches round.
@@ -318,7 +383,7 @@ void main() {
         float dep = uSeaLevel - vWorldPos.y;
         rgb = mix(rgb, uWaterColor * 0.8, clamp(0.12 + dep * 0.2, 0.0, 0.9));
     }
-    oColor = vec4(grade(mix(uFogColor, rgb, fog), 1.0), base.a);
+    oColor = vec4(grade(fogMix(rgb, fog, vWorldPos), 1.0), base.a);
 #ifdef DEBUG_SHADOW
     oColor = vec4(vec3(sh), 1.0);
 #endif
@@ -362,6 +427,8 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u) {
     }
     if (std::getenv("GVR_DEBUG_SHADOW")) define(fsrc, "#define DEBUG_SHADOW 1\n");
     if (std::getenv("GVR_DEBUG_REFL")) define(fsrc, "#define DEBUG_REFL 1\n");
+    if (const char* se = std::getenv("GVR_SPECEXPR")) define(fsrc, (std::string("#define SPECEXPR ") + se + "\n").c_str());
+    else define(fsrc, "#define SPECEXPR (pw * (0.03 + 0.22 * lum * lum) * sh * facing)\n");
     GLuint vs = compile(GL_VERTEX_SHADER, vsrc.c_str());
     GLuint fs = compile(GL_FRAGMENT_SHADER, fsrc.c_str());
     if (!vs || !fs) {
@@ -398,7 +465,7 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u) {
     for (int k = 0; k < 5; ++k) u.uTerr_[k] = L(tn[k]);
     u.uTerrDetail_ = L("uTerrDetail"); u.uSkyTint_ = L("uSkyTint"); u.uNight_ = L("uNight"); u.uBakedLight_ = L("uBakedLight");
     u.uPointPos_ = L("uPointPos"); u.uPointColor_ = L("uPointColor");
-    u.uViewProj_ = L("uViewProj"); u.uEyePosV_ = L("uEyePosV");
+    u.uViewProj_ = L("uViewProj"); u.uEyePosV_ = L("uEyePosV"); u.uLook_ = L("uLook");
     return prog;
 }
 
@@ -406,6 +473,7 @@ bool Renderer::init() {
     program_ = linkMain(false, mono_);
     if (!program_) return false;
     U_ = &mono_;
+    if (const char* lk = std::getenv("GVR_LOOK")) look_ = float(std::atoi(lk));  // 0: classic (comparisons)
     {
         const char* ext = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
         const bool mv = ext && std::strstr(ext, "GL_OVR_multiview2");
@@ -671,6 +739,7 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
         glBindTexture(GL_TEXTURE_2D, t);
     }
     glUniform1f(U_->uTerrDetail_, terrainDetail_ ? 1.0f : 0.0f);
+    glUniform1f(U_->uLook_, look_);
     glActiveTexture(GL_TEXTURE0);
 }
 
