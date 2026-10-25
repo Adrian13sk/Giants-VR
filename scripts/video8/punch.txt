@@ -1,0 +1,9 @@
+name v8_punch
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MARKSMEN 0
+duration 6
+reapers 1 1.5 0.5 99

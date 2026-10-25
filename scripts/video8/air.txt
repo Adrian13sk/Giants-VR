@@ -1,0 +1,10 @@
+name v8_air
+world Story2
+mission 2a_1_getmeat
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_AMBUSH_DUE 1.5
+env GVR_AMBUSH_AIR 1
+duration 9
+move 0 0.6 0 2
+pitch 18

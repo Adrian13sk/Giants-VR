@@ -1,0 +1,10 @@
+name v8_marksman
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MARKSMEN 1
+duration 7
+reapers 2 18 0.3 99
+pitch -2

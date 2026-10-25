@@ -1,0 +1,9 @@
+# Progress video 8 (rework): caption|world|mission|from frame|frames|env and harness args
+Get right up against a Reaper and he punches you (rpman_punch, unused before)|Story1|1c_1_firstmecc|0|430|--script scripts/video8/punch.txt
+Marksmen kneel to aim - the red line warns you before each shot|Story1|1c_1_firstmecc|60|440|--script scripts/video8/marksman.txt
+A third of the Reapers crouch to fire: a smaller target|Story1|1c_1_firstmecc|60|440|--script scripts/video8/crouch.txt
+The shotgun up close knocks a Reaper down - he scrambles up again|Story1|1c_1_firstmecc|200|500|GVR_CUTSCENE=none GVR_GOD=1 GVR_ARSENAL=1 GVR_WEAPON=4 GVR_MARKSMEN=0 --pitch -4 --spawn-reaper 9 --auto-aim --trigger-window 240 700 --trigger-pulse 100
+Ambush from the sky: Reapers drop in on hover packs|Story2|2a_1_getmeat|60|600|--script scripts/video8/air.txt
+Wave at the Smarties and they wave back|Story5|5a_killcharger|0|430|--script scripts/video8/wave.txt
+The danger over, the village cheers|Story5|5a_killcharger|60|500|--script scripts/video8/cheer.txt
+Kabuto: beat your chest - right, left, right - and he roars|Kstory1|k1a_smarties|30|330|--script scripts/video8/chest.txt

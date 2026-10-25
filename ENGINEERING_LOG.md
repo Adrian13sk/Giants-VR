@@ -1997,3 +1997,4 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   fighting; a light hit only flinches). Sweep 56/56 clean.
 - Bazooka Reapers fire with rpman_bzka_kneel_fire (they had the spear gun's standing clip) and count as kneeling for the hit box. Sweep 56/56 clean.
 - Between bursts a Reaper in cover or a croucher stays down (rpman_crouch_breathe, the low hit box). Sweep 56/56 clean.
+- The sky haze is off in the adaptive fallback (look 2) - back to the flat haze, which costs no texture lookup or trigonometry per pixel (its cost on the Quest is unmeasured).

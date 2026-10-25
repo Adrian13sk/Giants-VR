@@ -1,0 +1,11 @@
+name v8_crouch
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MARKSMEN 0
+env GVR_CROUCHERS 1
+duration 7
+reapers 2 14 0.3 99
+pitch -2

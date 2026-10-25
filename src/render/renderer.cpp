@@ -272,7 +272,7 @@ vec3 skyHaze(highp vec3 vd) {
     return grade(b + uSunColor * (pow(sd, 48.0) * 0.45 + pow(sd, 6.0) * 0.12), 0.25);
 }
 vec3 fogOut(vec3 rgb, float fog, highp vec3 wp, float sat) {
-    if (uLook < 0.5 || uSkyOn < 0.5) return grade(fogMix(rgb, fog, wp), sat);
+    if (uLook < 0.5 || uLook > 1.5 || uSkyOn < 0.5) return grade(fogMix(rgb, fog, wp), sat);  // (the adaptive fallback, look 2: the flat haze - cheaper)
     return mix(skyHaze(normalize(wp - uEyePos)), grade(rgb, sat), fog);
 }
 
