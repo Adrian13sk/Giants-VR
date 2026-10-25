@@ -84,7 +84,12 @@ if ($Sweep) {
     }
 }
 
-foreach ($script in $scripts) {
+# A test that ran but hardly drew (the headset dozing off as it started: 1-2 fps, "fps 0.0") runs once more.
+$queue = [System.Collections.Generic.Queue[string]]::new()
+foreach ($s in $scripts) { $queue.Enqueue($s) }
+$retried = @{}
+while ($queue.Count -gt 0) {
+    $script = $queue.Dequeue()
     if (-not (Test-Path $script)) { Write-Host "No such test: $script"; continue }
     $name = [IO.Path]::GetFileNameWithoutExtension($script)
     $dur = 20.0
@@ -94,6 +99,7 @@ foreach ($script in $scripts) {
     Write-Host ("[{0}] {1} ({2} s)" -f (Get-Date -Format 'HH:mm:ss'), $name, $dur)
 
     Adb shell am force-stop $pkg | Out-Null
+    Adb shell input keyevent KEYCODE_WAKEUP | Out-Null   # (each time: a long run or a pause lets the headset sleep)
     Adb shell rm -rf "$files/autotest_out" | Out-Null
     # Unix line endings for the app.
     $tmp = Join-Path $env:TEMP 'gvr_autotest.txt'
@@ -153,6 +159,14 @@ foreach ($script in $scripts) {
     $line = "{0}: {1}; {2}; {3}; {4} errors logged" -f $name, $status, $fps, $vrs, $errs
     Write-Host "   $line"
     $line | Add-Content $summary
+    $fpsNum = 99.0
+    if ($fps -match 'fps ([\d.]+)') { $fpsNum = [double]$Matches[1] }
+    if ($status -eq 'done' -and $fpsNum -lt 10 -and -not $retried.ContainsKey($script)) {
+        $retried[$script] = $true
+        Write-Host "   (it hardly drew - the headset was probably asleep; running it again)" -ForegroundColor Yellow
+        "${name}: hardly drew ($fpsNum fps) - run again" | Add-Content $summary
+        $queue.Enqueue($script)
+    }
 }
 
 Adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable | Out-Null

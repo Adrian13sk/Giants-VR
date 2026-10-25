@@ -94,7 +94,11 @@ public:
     // Play mode: you control the original Meccaryn (third person by default). Otherwise the
     // free camera (stick locomotion, Y = fly/noclip) is active. B toggles at runtime.
     // Fixed foveated rendering level the player chose (the platform layer applies it; -1 = leave alone).
-    int foveationWanted() const { return foveationOverride_ >= 0 ? foveationOverride_ : settings_.foveation; }
+    // The Options setting, one step stronger while the adaptive fallback is on (quality 1+: the
+    // scenes that miss 72 Hz on the headset are GPU-bound); test runs (GVR_FFR) pin it.
+    int foveationWanted() const {
+        return foveationOverride_ >= 0 ? foveationOverride_ : std::min(3, settings_.foveation + (quality_ >= 1 ? 1 : 0));
+    }
     void setFoveationOverride(int level) { foveationOverride_ = level; }
     bool playMode() const { return playMode_; }
     void setPlayMode(bool on, const InputFrame& in);

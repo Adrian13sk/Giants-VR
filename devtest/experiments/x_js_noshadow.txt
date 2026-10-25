@@ -1,0 +1,15 @@
+# GPU experiment (2026-10-25): rstory2_jetski_2, noshadow. Quality pinned (no adaptive steps mid-run); the only
+# screenshot at the end (after a screenshot the app's own GPU timer read high).
+name x_js_noshadow
+world Rstory2
+mission rstory2_jetski_2
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_QUALITY 0
+env GVR_SHADOWS 0
+duration 22
+perf 4 21
+hold trigger_r 6 10
+hold a 8 11
+move 0 1 11 15
+shot 21.5 end

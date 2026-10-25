@@ -2197,6 +2197,8 @@ void GameApp::writeCheckpoint() {
 }
 
 void GameApp::updateQuality(float dt) {
+    static const int pinned = std::getenv("GVR_QUALITY") ? std::atoi(std::getenv("GVR_QUALITY")) : -1;  // test hook: fixed level
+    if (pinned >= 0) { quality_ = std::min(3, pinned); return; }
     // Loading and the first seconds after it don't count: on the Quest the first 3-4 s of a level ran
     // at 35-50 fps (first use of its textures and shaders), which used to drop the quality for good.
     if (load_.phase != LoadPhase::Idle || cutsceneActive()) { perfIgnore_ = 6.0f; perfTime_ = 0; perfFrames_ = 0; return; }
