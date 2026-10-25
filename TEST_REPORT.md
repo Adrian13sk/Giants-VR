@@ -801,3 +801,4 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
   Visual checks on contact sheets of all 56 missions and 14 worlds: fog/haze colours match the skies; r1_saveyan
   starts with Yan in front (was inside him); 2b_2's wife rides on the back. **Not device-tested.**
 - e7e1721: APK built and copied to the PC (sha256 87477ac3... verified); devtest files kabuto_chest_beat, wave_smarties copied. Sweep 56/56 clean, unit tests pass. **Not device-tested.**
+- 7f771c1: all 21 devtest scripts run in the harness: exit 0, no errors, images normal; kabuto_grab_eat eats, grab_throw throws (55 m/s), climb_k34 completes the mission, delphi_parry deflects. **Not device-tested.**
