@@ -22,6 +22,7 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | VR feel | Two-handed aim: squeeze the other hand's grip near the barrel of a long gun and it aims along the line between your hands (half the kick). | HARNESS |
 | VR feel | Body holsters: right hip = handgun, over the right shoulder = long guns (again for the next), left hip = grenades; a tick in the controller at each. Right stick still cycles. | HARNESS |
 | VR feel | Punches: the free hand swung into a Reaper hurts him (harder the faster), knocks him back. | HARNESS |
+| Comfort | Getting hit flashes a red rim round the view instead of washing the whole view red. | HARNESS |
 | Comfort | Vignette while the stick moves or turns you (Options: off / low / high; default low); a lighter one while a cutscene camera travels. | HARNESS |
 | Combat | Reapers press in while firing (walk-fire), run faster, react sooner, pause less between bursts. | HARNESS |
 | Combat | Cover works: your real head sets your hit box (duck behind a rock and bolts pass over). Reapers who lose sight of you lob grenades (warned by the throw sound). | HARNESS |

@@ -337,7 +337,7 @@ void GameApp::renderHud() {
         const Vec3 eye = renderer_.currentView().eyePosition;
         renderer_.draw(quad, Mat4::translation(eye + fwd * 0.12f) * Mat4::rotation(headWorldRot_) * Mat4::scale({4, 4, 1}), dp);
     };
-    if (damageFlash_ > 0) flash({1.0f, 0.05f, 0.0f, std::min(0.5f, 0.35f * damageFlash_)});
+    if (damageFlash_ > 0 && settings_.classicLook) flash({1.0f, 0.05f, 0.0f, std::min(0.5f, 0.35f * damageFlash_)});  // (rework: a red rim instead, renderVignette)
     if (healFlash_ > 0) flash({0.2f, 1.0f, 0.3f, std::min(0.2f, 0.18f * healFlash_)});
 }
 

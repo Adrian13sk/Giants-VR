@@ -104,6 +104,8 @@ void GameApp::renderVignette() {
         const float beat = 0.65f + 0.35f * std::pow(std::max(0.0f, std::sin(float(time_) * (5.0f + 3.0f * low))), 4.0f);
         drawEyeRing(hurtRingMesh_, 0.25f + 0.45f * low, {0.45f, 0.0f, 0.0f}, (0.35f + 0.5f * low) * beat);
     }
+    // A hit (rework): a red rim that flares and fades - no full-view red wash in VR.
+    if (damageFlash_ > 0.02f && !settings_.classicLook && playMode_) drawEyeRing(hitRingMesh_, 0.3f + 0.35f * damageFlash_, {0.7f, 0.02f, 0.0f}, 0.75f * damageFlash_);
     if (vignette_ >= 0.02f) drawEyeRing(vignetteMesh_, vignette_, {0, 0, 0}, vignette_ * 1.1f);
 }
 
