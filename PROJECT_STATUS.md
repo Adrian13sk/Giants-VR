@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-25 night (APK d295fa1 delivered, device test pending. Branch `next`: bots now capture flags, multiplayer review fixes, Reapers drop ammo; also multiplayer - skirmish against computer players on the original's 12 multiplayer maps and LAN play between headsets; device-run summary; original-effects trails; Delphi's mine; review fixes)
+Last updated: 2026-10-25 midday (branch `next` merged into `main` at 7136b37 after headset runs: 12 tests + all 56 missions done with 0 errors; the slow missions now 69.8-71.8 fps. Device-verified today: unattended test launches, multiplayer with computer players, rocket trails, Delphi's mine, Reaper ammo drops. Next: play-test by the user, multiview rendering, finishing base building, two-headset play)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
