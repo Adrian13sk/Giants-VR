@@ -755,3 +755,9 @@ one machine (one Quest available).
 | rstory2_battle_1 | 59.2 | 67.9 | level 2 |
 | rstory2_jetski_2 / _3 | 57.3 / 56.6 | 66.0 / 66.3 | level 2; App GPU 13-15 ms, 10.7-11.9 at the end |
 0 errors in all eight.
+
+## Device run 20261025-123156 — APK 9ed3505, the eight slow missions, Quest 2
+kstory3_1 71.4 (was 57.6; its first try hit a dozing headset and was rerun by devtest.ps1 automatically - the retry
+works), kstory3_2/3/4 71.8, kstory5_4 70.6 (stepped down to level 1 at 69 fps), rstory2_battle_1 70.1,
+rstory2_jetski_2 69.8, rstory2_jetski_3 69.9 (all three Rstory2 runs stepped from 1 to 2 when the action started:
+Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to 1 without see-sawing.

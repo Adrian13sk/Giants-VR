@@ -2228,8 +2228,8 @@ void GameApp::updateQuality(float dt) {
         const std::string w = toLower(worldName_);
         auto it = worldQuality_.find(w);
         // Measured on the Quest 2 (2026-10-25 device runs): Kabuto's story 3 world held 72 Hz only at
-        // level 2, Reaper story 2's water (jet-ski races, the first battle) from level 1.
-        const int measured = w == "kstory3" ? 2 : (w == "rstory2" ? 1 : 0);
+        // level 2, and so did Reaper story 2 once its jet-ski races and first battle got going (it stepped down to 2 in all three, 9ed3505).
+        const int measured = (w == "kstory3" || w == "rstory2") ? 2 : 0;
         quality_ = std::max(measured, it != worldQuality_.end() ? it->second : 0);
         perfGood_ = 0;
         upHold_ = 0;

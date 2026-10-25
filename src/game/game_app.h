@@ -638,7 +638,7 @@ private:
     int perfGood_ = 0;          // full-rate windows in a row (quality back up after 3)
     int perfFrames_ = 0;
     // Each world starts at the level it needed last time (quality.txt next to the settings), else at
-    // the level measured on the Quest 2 (Kabuto 3 needs 2, Reaper 2 needs 1); a step back up that had
+    // the level measured on the Quest 2 (Kabuto 3 and Reaper 2 need 2); a step back up that had
     // to be undone within 10 s holds the level for the next 60 s (no see-sawing between two levels).
     std::string qualityWorld_;
     std::unordered_map<std::string, int> worldQuality_;
