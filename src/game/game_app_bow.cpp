@@ -124,7 +124,7 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
             const Bow* b = next >= 0 && next < kNumBows ? &bows_[next] : nullptr;
             timmyLine_ = next == kDelphiMine ? "MINES (" + std::to_string(mines_) + ") - TRIGGER SETS ONE DOWN"
                        : b ? std::string(b->name) + (b->ammo >= 0 ? " (" + std::to_string(b->ammo) + ")" : "") +
-                                 (firstPerson_ ? " - GRAB THE STRING WITH YOUR OTHER HAND, PULL, LET GO" : " - HOLD THE TRIGGER, LET GO")
+                                 (firstPerson_ ? " - BOW IN YOUR LEFT HAND: GRIP THE STRING WITH YOUR RIGHT, PULL BACK, LET GO" : " - HOLD THE TRIGGER, LET GO")
                            : "SWORD";
             timmyLineT_ = 3.0f;
             LOGI("Delphi: %s", next == kDelphiMine ? "mines" : b ? b->name : "sword");
@@ -134,11 +134,15 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
     if (delphiWeapon_ == kDelphiMine && !(mines_ > 0 && rpMineModel_)) delphiWeapon_ = -1;
     if (!delphiBow() || dying_) { bowDrawing_ = false; return; }
     Bow& bow = bows_[delphiWeapon_];
+    // Rework (user: "it shall be held in the left hand and the string pulled by the right hand"): first
+    // person, the bow is in the move hand (left; right when left-handed) and the turn hand draws the
+    // string - the arrow flies only when a drawn string is let go. (The stick still switches weapons.)
+    const int bowHand = firstPerson_ ? mh : gh, drawHand = firstPerson_ ? gh : mh;
     // Where the bow is: first person the bow hand's controller (riser in the fist, limbs vertical,
     // the back of the bow where it points); third person her right hand.
     Vec3 aimDir;
     if (firstPerson_) {
-        const ControllerState& c = in.hand[gh];
+        const ControllerState& c = in.hand[bowHand];
         if (!c.gripPoseValid) return;
         const Pose grip = rig_.toWorld(c.gripPose);
         const Pose aim = c.aimPoseValid ? rig_.toWorld(c.aimPose) : grip;
@@ -167,7 +171,7 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
     bool release = false;
     Vec3 nockAt = bowNockRest_;
     // Drawing by hand (first person): the other hand's grip near the string.
-    const ControllerState& oc = in.hand[mh];
+    const ControllerState& oc = in.hand[drawHand];
     const bool ogrip = oc.squeeze > 0.7f && oc.gripPoseValid && firstPerson_;
     const Vec3 ohand = oc.gripPoseValid ? rig_.toWorld(oc.gripPose).position : Vec3{};
     if (ogrip && !bowDrawing_ && !bowGripWas_)
@@ -182,11 +186,11 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
         const float pulled = dot(ohand - bowNockRest_, bowFwd_ * -1.0f);
         bowDraw_ = std::max(0.0f, std::min(1.0f, pulled / maxPull));
         nockAt = bowNockRest_ - bowFwd_ * (bowDraw_ * maxPull);
-        if (bowDraw_ > 0.2f && frand() < dt * 20.0f) haptics_.push_back({mh, 0.15f + 0.3f * bowDraw_, 0.02f});
+        if (bowDraw_ > 0.2f && frand() < dt * 20.0f) haptics_.push_back({drawHand, 0.15f + 0.3f * bowDraw_, 0.02f});
         if (!ogrip) release = true;
     }
-    // Drawing with the trigger (the bow hand; third person always).
-    const bool trig = in.hand[gh].trigger > 0.6f;
+    // Drawing with the trigger: third person only (first person, the string is drawn by hand).
+    const bool trig = in.hand[gh].trigger > 0.6f && !firstPerson_;
     if (!bowDrawing_ && trig && bowCooldown_ <= 0 && !bowTrigWas_) {
         bowDrawing_ = true;
         bowByHand_ = false;
@@ -246,8 +250,8 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
     if (bow.ammo > 0) --bow.ammo;
     bowCooldown_ = bow.interval * 0.6f;
     sfx(kBows[delphiWeapon_].shot, from, 1.0f, 0.95f + 0.1f * frand());
-    haptics_.push_back({gh, 0.4f + 0.5f * draw, 0.08f});
-    if (bowByHand_) haptics_.push_back({mh, 0.6f, 0.05f});
+    haptics_.push_back({bowHand, 0.4f + 0.5f * draw, 0.08f});
+    if (bowByHand_) haptics_.push_back({drawHand, 0.6f, 0.05f});
     LOGI("Arrow from the %s at %.0f%% draw (%s) from (%.1f %.1f %.1f) dir (%.2f %.2f %.2f)", bow.name, double(draw * 100.0f),
          bow.ammo >= 0 ? std::to_string(bow.ammo).c_str() : "unlimited", from.x, from.y, from.z, dir.x, dir.y, dir.z);
 }

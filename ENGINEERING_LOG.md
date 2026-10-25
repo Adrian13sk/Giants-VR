@@ -2031,3 +2031,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   held (eat at the mouth, thrown = killed on landing, slow release = set down). The X-button grab and the Reaper
   and boulder paths are unchanged. Harness: kabuto_tree -> uproot, throw (15 m/s), crash; kabuto_smartie_throw ->
   pick up, throw, "lands and dies"; grab_eat / grab_throw / climb unchanged. Sweep 56/56 clean.
+- Bow (user: left hand holds, right hand pulls, fire only on release): first person the bow is in the move hand
+  (left), the turn hand draws the string; the trigger draw is third person only; the fire bolt is off while a bow
+  is out (its trigger is the bow hand's). devtest delphi_bows rewritten: right hand to the string (0.09 m), pull
+  0.5 m, release -> "Arrow from the HOMING BOW at 76% draw", twice per bow; a trigger pull in between fires nothing.

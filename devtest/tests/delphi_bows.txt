@@ -1,4 +1,6 @@
-# Delphi's bows: the homing bow drawn with the trigger, then the power-up bow (right stick forward).
+# Delphi's bow (rework 2026-10-25): held in the LEFT hand; the RIGHT hand goes to the string, grips,
+# pulls back and lets go - the arrow flies only then. Homing bow, then the power-up bow (right stick
+# forward), each shot twice. (The trigger no longer draws in first person.)
 name delphi_bows
 world Rstory4
 mission r4a_buildbase
@@ -7,13 +9,21 @@ env GVR_GOD 1
 env GVR_BOWS 1
 env GVR_DELPHI_WEAPON 3
 view first
-duration 20
-perf 3 18
-aim 0 -2
-hold trigger_r 4 5
-shot 4.8 homing_drawn
-hold trigger_r 7 8
-turn 0 1 10 10.3
-hold trigger_r 12 13
-shot 12.8 powerup_drawn
-hold trigger_r 15 16
+duration 16
+perf 3 15
+hand_r -0.4 0 0.31 0.5 1.0
+hold grip_r 1.2 2.6
+hand_r 0 0 0.5 1.4 2.2
+hand_r 0 0 -0.5 2.8 3.2
+hold grip_r 3.4 4.8
+hand_r 0 0 0.5 3.6 4.4
+shot 4.3 homing_drawn
+hand_r 0 0 -0.5 5.0 5.4
+hold trigger_r 6 7
+turn 0 1 7.5 7.8
+hold grip_r 8.6 10
+hand_r 0 0 0.5 8.8 9.6
+shot 9.5 powerup_drawn
+hand_r 0 0 -0.5 10.2 10.6
+hold grip_r 11 12.4
+hand_r 0 0 0.5 11.2 12

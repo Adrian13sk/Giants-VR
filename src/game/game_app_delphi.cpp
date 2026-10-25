@@ -364,7 +364,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
     // Fire bolt: the move hand's trigger (first person: from that hand where it points; third
     // person: from her left hand toward the crosshair or straight ahead).
     boltCooldown_ -= dt;
-    const bool boltTrig = in.hand[mh].trigger > 0.6f;
+    const bool boltTrig = in.hand[mh].trigger > 0.6f && !(firstPerson_ && delphiBow());  // (first person the bow is in that hand)
     // Where her casting hand aims (first person: that hand where it points; third person: from her
     // left hand toward the crosshair or straight ahead).
     Vec3 from, dir;
