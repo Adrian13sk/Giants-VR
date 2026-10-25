@@ -26,11 +26,14 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Combat | Reapers press in while firing (walk-fire), run faster, react sooner, pause less between bursts. | HARNESS |
 | Combat | Cover works: your real head sets your hit box (duck behind a rock and bolts pass over). Reapers who lose sight of you lob grenades (warned by the throw sound). | HARNESS |
 | Effects | Muzzle flashes and explosions light up their surroundings for a moment. | HARNESS |
+| Combat | A hit Reaper's body flashes hot for a moment. | HARNESS |
+| Pacing | Ambushes: after 70-110 s on the move without a fight, a squad of 2-3 Reapers comes at you from ahead (Options: AMBUSHES). Not in base missions, races, multiplayer or as Kabuto. | HARNESS |
+| VR feel | Aim laser from the gun's muzzle to what it would hit (Options: AIM LASER, default on). Reach out with a hand to take a pickup. | HARNESS |
 | Guidance | Objective marker: a gold diamond toward the nearest unfinished objective with its distance (beyond 20 m). | HARNESS |
 | Performance | The adaptive quality fallback (level 2+) drops the per-pixel relief and highlights. | HARNESS |
 | Tools | `scripts/make_video.sh`: progress videos from the harness (spectator view, captions). | HARNESS |
 
-Harness regression: all 56 missions exit 0 with no errors (after the looks and VR-feel changes).
+Harness regression: all 56 missions exit 0 with no errors (latest run after ambushes and Reaper grenades).
 
 ## Next
 - Delphi and Kabuto hands: VR-native sword / bow / grab feel; Kabuto's slam and throw.

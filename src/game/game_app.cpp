@@ -3831,6 +3831,18 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         fwd = normalize(Vec3{f4.x, f4.y, f4.z});
         if (!firstPerson_ && tpAiming_) fwd = normalize(aimTarget_ - muzzle);  // shots go to the crosshair
         updateScope(muzzle, fwd, in.headValid ? rig_.toWorld(in.head).position : player_.position);
+        // The aim laser's end: what the shot would hit.
+        laserOn_ = firstPerson_ && settings_.aimLaser;
+        if (laserOn_) {
+            float t = 120.0f;
+            Vec3 n;
+            int tg = -1;
+            if (!(weapon_.raycast && weapon_.raycast(muzzle, fwd, 120.0f, t, n, tg))) t = 120.0f;
+            laserFrom_ = muzzle;
+            laserTo_ = muzzle + fwd * t;
+        }
+    } else {
+        laserOn_ = false;
     }
     const bool trigger = in.hand[gh].trigger > 0.6f;
     rocketCooldown_ -= dt;
@@ -4153,6 +4165,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     if (playMode_ && gunValid_ && !cut && !dying_) {
         drawModel(heldModel(), gunDrawXf(), false);
         drawScopeLens();
+        renderAimLaser();
     }
     if (playMode_ && !cut && !dying_ && !playerGibbed_) {  // the other weapon, holstered on the body
         if (holsterGun_) drawModel(gunModel_, holsterGunXf_, false);

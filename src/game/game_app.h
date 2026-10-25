@@ -1350,6 +1350,11 @@ private:  // the mission placed enemies: no test waves
     void addFlash(const Vec3& pos, const Vec3& color, float radius, float dur) { if (flashes_.size() < 16) flashes_.push_back({pos, color, radius, 0.0f, dur}); }
     void updateFlashes(float dt);
     MeshId markerMesh_ = 0;
+    // Aim laser (rework; Options): a thin red beam from the gun's muzzle to what it points at.
+    MeshId laserMesh_ = 0;
+    Vec3 laserFrom_, laserTo_;
+    bool laserOn_ = false;
+    void renderAimLaser();
     void renderObjectiveMarker();
     float playerHitTop() const;
     bool handReach(const Vec3& p, float r) const;

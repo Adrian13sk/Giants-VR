@@ -8,12 +8,14 @@
 #include "game/game_app.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
 #include "audio/mixer.h"
 #include "core/log.h"
+#include "game/arm_ik.h"
 #include "render/renderer.h"
 #include "scene/asset_world.h"
 
@@ -118,6 +120,27 @@ void GameApp::updateAmbush(float dt) {
         sfx2D("rs_attk2", 0.6f, 0.9f);
         LOGI("Ambush: %d Reapers %s", placed, "ahead of the player");
     }
+}
+
+void GameApp::renderAimLaser() {
+    if (!laserOn_) return;
+    if (!laserMesh_) laserMesh_ = renderer_.uploadMesh(prim::box({0.5f, 0.5f, 0.5f}, std::array<uint8_t, 4>{255, 255, 255, 255}.data()));
+    const Vec3 d = laserTo_ - laserFrom_;
+    const float len = length(d);
+    if (len < 0.05f) return;
+    const Quat r = rotationBetween({0, 0, -1}, d * (1.0f / len));
+    DrawParams dp;
+    dp.unlit = true;
+    dp.blend = BlendMode::Additive;
+    dp.depthWrite = false;
+    dp.noFog = true;
+    dp.tint = {1.4f, 0.12f, 0.08f, 1.0f};
+    renderer_.draw(laserMesh_, Mat4::translation(laserFrom_ + d * 0.5f) * Mat4::rotation(r) * Mat4::scale({0.0025f, 0.0025f, len}), dp);
+    // The dot where it lands (constant angular size).
+    const Vec3 eye = renderer_.currentView().eyePosition;
+    const float s = std::max(0.02f, 0.006f * length(laserTo_ - eye));
+    dp.tint = {2.0f, 0.25f, 0.15f, 1.0f};
+    renderer_.draw(laserMesh_, Mat4::translation(laserTo_) * Mat4::rotation(headWorldRot_) * Mat4::scale({s, s, s * 0.2f}), dp);
 }
 
 void GameApp::updateFlashes(float dt) {
