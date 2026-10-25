@@ -1,28 +1,35 @@
 # Play-test checklist (Quest 2)
 
+Install the newest APK (`GiantsVR-dev.apk`), put the headset on and play. The automated runs on your Quest (2026-10-25)
+already showed every mission loads and runs at 69-72 fps with no errors - what they can't tell is **how it feels**.
+That's what this list is for.
+
 Use **Main menu -> MISSION** (left/right, trigger) to jump to a mission; numbers below are its place in that list.
 Turn on **Options -> FRAME RATE: SHOWN** and note the number wherever it drops below 70 (green = 70+).
-Everything here passed the desktop test harness; none of it has run on the headset yet unless marked.
-
 For each item: works / doesn't / how it feels. A phone photo of anything that looks wrong helps a lot.
 
-## 00. Multiplayer (branch `next`, newest work - not in the d295fa1 APK)
+## The five things that matter most
+1. **Comfort:** turning (Options -> TURN: snap / smooth), moving, flying with the jetpack. Any sickness, and when?
+2. **Aiming and hitting:** do shots go where the gun points? Do Reapers react and die when hit?
+3. **Kabuto's size:** as Kabuto (**39-54**), does the world feel giant-scaled, is grabbing / throwing usable?
+4. **Hands:** do guns, bows, the sword and Kabuto's hands sit right and follow your hands?
+5. **Anything that looks wrong** (floating objects, holes in the ground, missing textures) - mission number + photo.
+
+## 00. Multiplayer (device-checked with computer players; two headsets not yet)
 **Main menu -> MULTIPLAYER < WITH COMPUTER PLAYERS | HOST A WI-FI GAME | JOIN A WI-FI GAME >**, then MAP and
 YOUR TEAM (left/right), trigger to start. The original's 12 multiplayer maps: 3-WAY (Meccaryns vs Sea Reapers vs
-Kabuto), MECCARYN (two Meccaryn sides) and REAPER (two Reaper sides). Each side has a base with its flag holder
-(a Smartie with a flag) at its base's build pad, among the base's buildings (on Reaper bases: in front of the
-command centre, which stands on the pad). Take an enemy flag home to your own (while yours is home): a capture. 3 captures or 30
-kills win; then a new round. Dead: back at your base after 5 s. Score panel top left; kills and flag news in the
-middle; team-coloured names over the others when you look at them.
-- **Computer players:** do they find their way (no one stuck for long)? Do they fight sensibly, too well, too badly?
-  They should now take flags and score (escorting a carrier; the defenders go after a thief). A round on the
-  3-way and Reaper maps takes 10-20 minutes; on the big Meccaryn maps longer.
-- **Reapers dropping ammo** (campaign): now and then a killed Reaper leaves a box (rockets, shells, clips) for a
-  weapon you carry that isn't full - walk over it.
-- **Frame rate** with 6-8 of them about (Options -> FRAME RATE).
-- **Hosting / joining** (needs a second Quest on the same Wi-Fi): one picks HOST A WI-FI GAME and a map; the other
-  JOIN A WI-FI GAME - the host's game should appear within a few seconds ("GAME: < 3-WAY 1 AT 192.168.x.x >").
-  Do you see each other move and shoot? Do hits count? Do kills and flag captures show on both?
+Kabuto), MECCARYN (two Meccaryn sides) and REAPER (two Reaper sides). Each side's base stands with its flag holder
+(a Smartie with a flag) at the build pad (on Reaper bases: in front of the command centre). Take an enemy flag home
+while yours is home: a capture. 3 captures or 30 kills win; then a new round. Dead: back at your base after 5 s.
+- [ ] **Computer players:** do they find their way, fight sensibly (too well / too badly)? They take flags, escort
+      a carrier, chase a thief. A round on the 3-way and Reaper maps takes 10-20 minutes.
+- [ ] **Two headsets** (when you have a second Quest, same Wi-Fi): one picks HOST A WI-FI GAME and a map; its score
+      panel shows "HOSTING AT 192.168.x.y". The other picks JOIN A WI-FI GAME: the game should appear as
+      "GAME: < 3-WAY 1 AT ... >" - trigger. If it never appears (some routers keep headsets apart), go down to
+      **OR HOST'S ADDRESS**, set the last number to the host's (left/right) and trigger.
+      Do you see each other move and shoot? Do hits, kills and flag captures show on both?
+- [ ] **Reapers dropping ammo** (campaign): now and then a killed Reaper leaves a box for a weapon you carry that
+      isn't full - walk over it.
 
 ## 0. Meccaryn weapons
 **Changed from earlier builds:** the rocket launcher no longer comes in 1c - the game's data gives the **shotgun**
@@ -64,6 +71,12 @@ there; the launcher comes in Story 3's launcher mission (or from a Shop).
 - [ ] One raider grabs **Borjoyzee** and carries him off: kill it and he walks home. Let it escape: MISSION FAILED,
       the mission restarts.
 - [ ] Upgrade a finished building (its sign says UPGRADE TO ...).
+- [ ] **Party House** done: Borjoyzee says "PARTY HOUSE COMPLETE! Check your shop for new weapons!" - a pop-up bomb
+      is on the shop counter (Delphi: the power-up bow).
+- [ ] Let raiders wreck the **Pub** (Delphi: the **Persuader**): nothing else gets built ("Can't build - Repair the
+      Pub!!!") until you rebuild it on the pad.
+- [ ] **Gates** let you walk through; walls don't. Delphi's **Shield Generator** makes the raiders' damage slower;
+      her **Persuader** speeds building while it has souls (it eats one every 30 s).
 - [ ] Base complete (Pub + Workshop + Giftshop + Party House): you get a **POP-UP BOMB** (weapon strip, 5th cell).
 - [ ] Pop-up bomb by the army barracks: right stick forward to pick it, trigger to set it down, run - it destroys
       the barracks (only the bomb can).
@@ -81,11 +94,12 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
 ## 4. Races
 - [ ] Lose a Reaperski race (**30-33**, **35**): the rival's winning cutscene plays, then the race restarts.
 
-## 5. Earlier work still waiting for a headset check
+## 5. Hands-on checks the automated runs can't do
 - Story 1 (**1-5**): Timmy, Rippers, jetpack, the wax Smarties, the Shop.
 - Kabuto (**39-54**): growing by eating, throwing boulders and Reapers (hold X), magnifying glass (**45**, **47**).
 - Delphi: sword swings, fire wall, bubble; Reaperski races (**30-33**).
-- Frame rate in Story 1's village, at a tower collapse, in flight, and in a base mission with buildings up.
+- Frame rate: the game now lowers detail by itself where the headset can't keep up (Kabuto story 3 and Reaper
+  story 2 start lower). Does anything look noticeably worse there, or flicker between two looks?
 
 ## Reporting
 Anything odd: the mission number and what you did just before. If the Quest is plugged in, the automated runner
