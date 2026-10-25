@@ -25,8 +25,10 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Comfort | Vignette while the stick moves or turns you (Options: off / low / high; default low). | HARNESS |
 | Combat | Reapers press in while firing (walk-fire), run faster, react sooner, pause less between bursts. | HARNESS |
 | Combat | Cover works: your real head sets your hit box (duck behind a rock and bolts pass over). Reapers who lose sight of you lob grenades (warned by the throw sound). | HARNESS |
-| Effects | Muzzle flashes and explosions light up their surroundings for a moment. | HARNESS |
-| Combat | A hit Reaper's body flashes hot for a moment. | HARNESS |
+| Effects | Muzzle flashes and explosions light up their surroundings for a moment; explosions get a swelling fireball and thrown embers. | HARNESS |
+| Atmosphere | Floating motes: dust in the light by day, pulsing fireflies at night. | HARNESS |
+| Looks | Textures up to 256 px are doubled and sharpened when loaded (crisper up close; +~1 s level load on the PC). | HARNESS |
+| Combat | A hit Reaper's (or Ripper's) body flashes hot for a moment. Low health: a pulsing dark red rim and a heartbeat in both hands. | HARNESS |
 | Pacing | Ambushes: after 70-110 s on the move without a fight, a squad of 2-3 Reapers comes at you from ahead (Options: AMBUSHES). Not in base missions, races, multiplayer or as Kabuto. | HARNESS |
 | VR feel | Aim laser from the gun's muzzle to what it would hit (Options: AIM LASER, default on). Reach out with a hand to take a pickup. | HARNESS |
 | Guidance | Objective marker: a gold diamond toward the nearest unfinished objective with its distance (beyond 20 m). | HARNESS |
