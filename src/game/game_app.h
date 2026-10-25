@@ -1084,6 +1084,11 @@ private:  // the mission placed enemies: no test waves
     void kabutoAte(int what);  // 0 Smartie, 1 Vimp, 2 other
     // His story powers (game_app_kbpowers.cpp): growth-gated gates, adrenaline, Offspring.
     float kbAdren_ = 0, kbAdrenT_ = -1, kbGateMsgT_ = 0, kbYHold_ = 0;
+    // Chest beat (rework): fists struck on the chest, left and right in turn, three times = the roar.
+    Vec3 kbBeatPrev_[2];
+    bool kbBeatPrevOk_[2] = {false, false}, kbBeatIn_[2] = {false, false};
+    int kbBeatN_ = 0, kbBeatLast_ = -1;
+    float kbBeatT_ = 0;
     int kbOffspringCharges_ = 0;
     bool kbGripsWas_ = false, kbYLaid_ = false;
     struct OffspringPal {

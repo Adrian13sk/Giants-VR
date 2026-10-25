@@ -1,0 +1,15 @@
+# Rework (2026-10-25): Kabuto beats his chest with his fists, right, left, right -> the roar (Reapers knocked back).
+name kabuto_chest_beat
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE none
+env GVR_GOD 1
+duration 5
+hand_r -0.2 0.09 0.25 1.0 1.12
+hand_r .2 -0.09 -0.25 1.25 1.4
+hand_l 0.2 0.09 0.25 1.5 1.62
+hand_l -.2 -0.09 -0.25 1.75 1.9
+hand_r -0.2 0.09 0.25 2.0 2.12
+hand_r .2 -0.09 -0.25 2.25 2.4
+hand_l 0.2 0.09 0.25 2.5 2.62
+hand_l -.2 -0.09 -0.25 2.75 2.9

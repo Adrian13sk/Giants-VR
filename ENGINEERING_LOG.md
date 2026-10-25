@@ -1965,3 +1965,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   four direction changes, each within 0.8 s, = a wave (4 s cool-down). VillagerDirector::waveBack puts the calm
   villagers within 30 m into their Wave state (sm_wave), the nearest calls out (gsmNN voice). Harness: 5a village 0,
   scripted wave -> "Wave gesture (hand 1): 6 Smarties wave back". Device test wave_smarties.
+- Kabuto's chest beat: in tracking space (the user's own metres) a hand reaching within 0.2 m of the chest point
+  (head -0.36 m, 0.1 m forward) while closing at > 0.9 m/s is a blow; three blows alternating hands, each within
+  0.9 s = the roar (the Y roar's code path, its cool-down and ground rules). Harness: kabuto_chest_beat -> three
+  blows, "Kabuto roars". Device test kabuto_chest_beat.

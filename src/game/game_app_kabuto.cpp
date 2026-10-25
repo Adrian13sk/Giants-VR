@@ -488,13 +488,42 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
         kbYHold_ += dt;
         if (kbYHold_ > 0.6f && !kbYLaid_ && kbOffspringCharges_ > 0) { kbYLaid_ = true; layOffspring(); haptics_.push_back({mh, 0.6f, 0.2f}); }
     }
-    const bool roarNow = !y && k.yWas && kbYHold_ < 0.5f && !kbYLaid_;
+    bool roarNow = !y && k.yWas && kbYHold_ < 0.5f && !kbYLaid_;
+    // Chest beat (rework, first person): a fist driven onto the chest (tracking space, the user's own
+    // metres), left and right in turn, three blows each within 0.9 s of the last = the roar.
+    kbBeatT_ += dt;
+    if (firstPerson_ && in.headValid && dt > 0) {
+        const Vec3 hf = in.head.orientation.rotate(Vec3{0, 0, -1});
+        Vec3 flat{hf.x, 0, hf.z};
+        flat = length(flat) > 1e-3f ? normalize(flat) : Vec3{0, 0, -1};
+        const Vec3 chest = in.head.position + Vec3{0, -0.36f, 0} + flat * 0.1f;
+        for (int h = 0; h < 2; ++h) {
+            const ControllerState& c = in.hand[h];
+            if (!c.gripPoseValid) { kbBeatPrevOk_[h] = false; continue; }
+            const Vec3 p = c.gripPose.position;
+            const float d = length(p - chest);
+            const float closing = kbBeatPrevOk_[h] ? (length(kbBeatPrev_[h] - chest) - d) / dt : 0.0f;
+            kbBeatPrev_[h] = p;
+            kbBeatPrevOk_[h] = true;
+            if (d > 0.3f) { kbBeatIn_[h] = false; continue; }
+            if (kbBeatIn_[h] || d > 0.2f || closing < 0.9f) continue;
+            kbBeatIn_[h] = true;
+            kbBeatN_ = (kbBeatT_ < 0.9f && kbBeatLast_ == 1 - h) ? kbBeatN_ + 1 : 1;
+            kbBeatLast_ = h;
+            kbBeatT_ = 0;
+            sfx2D("ka_pnch1", 0.6f, 0.75f + 0.1f * frand());  // a thump
+            haptics_.push_back({h, 0.8f, 0.07f});
+            LOGI("Kabuto beats his chest (%d)", kbBeatN_);
+            if (kbBeatN_ >= 3) { roarNow = true; kbBeatN_ = 0; }
+        }
+    }
     if (!y) { kbYHold_ = 0; kbYLaid_ = false; }
     if (roarNow && k.roarCool <= 0 && !busy && player_.onGround) {
         player_.startAction(PlayerAnim::Cast, std::min(3.0f, std::max(0.5f, player_.oneShot[int(PlayerAnim::Cast)])));
         static const char* roars[] = {"ka_roar1", "ka_roar2", "ka_roar3", "ka_roar4"};
         sfx2D(roars[int(frand() * 3.99f)], 1.0f);
         k.roarCool = 6.0f;
+        LOGI("Kabuto roars");
         haptics_.push_back({kLeft, 0.6f, 0.6f});
         haptics_.push_back({kRight, 0.6f, 0.6f});
         const float R = 1.6f * H;
