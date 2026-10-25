@@ -79,12 +79,12 @@ AIM LASER, LIGHTING. With the headset on USB, the usual tests plus the rework's 
 cd $env:USERPROFILE\Documents\GiantsQuestVR\devtest
 powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Apk ..\GiantsVR-rework-<commit>.apk
 powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Set experiments -Tests x_village_base,x_village_look0,x_village_msaa0,x_village_up0,x_k3_base,x_k3_look0,x_k3_msaa0,x_k3_up0,x_village_nograss
-powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Tests kabuto_grab_eat,kabuto_grab_throw,delphi_parry
+powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Tests kabuto_grab_eat,kabuto_grab_throw,delphi_parry,delphi_throw_bolt,kabuto_climb,kabuto_climb_k34,kabuto_chest_beat,wave_smarties
 ```
 
 The second compares the rework's look (`_base`) with the classic lighting (`_look0`), no anti-aliasing
 (`_msaa0`), no texture sharpening (`_up0`) and no grass (`_nograss`) in demanding scenes, so the cost of
-each shows. The last line runs the new hand mechanics (Kabuto's grab, Delphi's parry) on the headset.
+each shows. The last line runs the new hand mechanics on the headset (Kabuto's grab, climb and chest beat; Delphi's parry and thrown bolt; waving at Smarties).
 
 ## Next
 - More combat rework: hit reactions, enemy variety in behaviour.
