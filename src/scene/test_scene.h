@@ -14,6 +14,7 @@ public:
     void render(Renderer& r, const VrRig& rig, const InputFrame& input);
     // Controller indicators only (used on top of original-content scenes).
     void renderControllers(Renderer& r, const VrRig& rig, const InputFrame& input);
+    void renderPointers(Renderer& r, const VrRig& rig, const InputFrame& input);
 
 private:
     MeshId floor_ = 0, marker_ = 0, pillar_ = 0, sphere_ = 0, box_ = 0, ray_ = 0, giant_ = 0;

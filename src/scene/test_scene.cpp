@@ -64,6 +64,39 @@ void TestScene::render(Renderer& r, const VrRig& rig, const InputFrame& in) {
     renderControllers(r, rig, in);
 }
 
+// Menu pointers (rework): a slim glowing beam from each controller, brighter while the trigger is
+// pulled, and a small dark puck where the hand is - no debug boxes.
+void TestScene::renderPointers(Renderer& r, const VrRig& rig, const InputFrame& in) {
+    for (int h = 0; h < 2; ++h) {
+        const ControllerState& c = in.hand[h];
+        if (c.gripPoseValid) {
+            const Pose g = rig.toWorld(c.gripPose);
+            DrawParams dp;
+            dp.tint = {0.08f, 0.09f, 0.11f, 1};
+            r.draw(sphere_, Mat4::trs(g.position, g.orientation, {0.022f, 0.022f, 0.03f}), dp);
+        }
+        if (!c.aimPoseValid) continue;
+        const Pose a = rig.toWorld(c.aimPose);
+        const float k = 0.5f + 0.5f * c.trigger;
+        for (int seg = 0; seg < 4; ++seg) {  // fading toward the far end
+            DrawParams rp;
+            rp.unlit = true;
+            rp.blend = BlendMode::Additive;
+            rp.depthWrite = false;
+            rp.noFog = true;
+            const float f = 1.0f - 0.24f * float(seg);
+            rp.tint = Vec4{0.45f * k * f, 0.75f * k * f, 1.0f * k * f, 1};
+            r.draw(ray_, Mat4::fromPose(a) * Mat4::translation({0, 0, -0.25f - 0.5f * float(seg) * 0.5f}) * Mat4::scale({0.6f, 0.6f, 0.5f}), rp);
+        }
+        DrawParams tip;
+        tip.unlit = true;
+        tip.blend = BlendMode::Additive;
+        tip.depthWrite = false;
+        tip.tint = {0.5f * k, 0.8f * k, 1.0f * k, 1};
+        r.draw(sphere_, Mat4::trs(a.position, a.orientation, {0.006f, 0.006f, 0.006f}), tip);
+    }
+}
+
 void TestScene::renderControllers(Renderer& r, const VrRig& rig, const InputFrame& in) {
     // Controllers: grip box (colour = trigger/squeeze), aim ray, button indicator spheres.
     for (int h = 0; h < 2; ++h) {

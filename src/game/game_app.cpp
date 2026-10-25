@@ -4270,7 +4270,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     if (briefHeld_ && !cut && playMode_) renderBriefOverlay();
     if (menuOpen_ && !cut) renderMenu();
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
-    else if (!(playMode_ && firstPerson_ && playerModel_ && hero_ == Hero::Mecc)) testScene_.renderControllers(renderer_, rig_, lastInput_);
+    else if (menuOpen_ || title_ || !playMode_ || briefHeld_) testScene_.renderPointers(renderer_, rig_, lastInput_);  // (in play: your hero's own hands)
     if (load_.phase == LoadPhase::FadeOut) renderLoading();
     endUiFrame();
     // Death: fade to black before the respawn, and back in after it.
