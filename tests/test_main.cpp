@@ -1888,6 +1888,28 @@ static void testBinaural() {
     CHECK(peakL > peakR + 10);  // ~0.5 ms later in the far ear (24+ samples at 48 kHz)
 }
 
+static void testReverb() {
+    // A click 20 m off: with no reverb the output is silent after it; with a canyon's reverb a tail rings on.
+    for (int wetOn = 0; wetOn < 2; ++wetOn) {
+        AudioMixer m(48000);
+        WavData w;
+        w.rate = 48000;
+        w.channels = 1;
+        w.mono.assign(400, 0.0f);
+        w.mono[10] = 1.0f;
+        CHECK(m.addSound("click", std::move(w)));
+        m.setListener({0, 0, 0}, Quat{0, 0, 0, 1});
+        m.setReverb(wetOn ? 0.4f : 0.0f);
+        std::vector<float> out(2 * 4800);
+        m.mix(out.data(), 4800);  // (100 ms: the reverb level glides in)
+        m.play("click", {0, 0, -20}, 1.0f, 1.0f, false, true);
+        m.mix(out.data(), 4800);
+        float tail = 0;
+        for (int i = 2400; i < 4800; ++i) tail = std::max(tail, std::fabs(out[2 * i]));  // 50-100 ms after it
+        CHECK(wetOn ? tail > 1e-4f : tail < 1e-7f);
+    }
+}
+
 static void testUpscale() {
     Image img;
     img.width = img.height = 16;
@@ -1916,6 +1938,7 @@ static void testUpscale() {
 int main() {
     testUpscale();
     testBinaural();
+    testReverb();
     testSkirmish();
     testSkNav();
     testSkNet();

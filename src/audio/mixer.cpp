@@ -112,6 +112,20 @@ void AudioMixer::setListener(const Vec3& pos, const Quat& rot) {
     listenerRot_ = rot;
 }
 
+void AudioMixer::setReverb(float wet) {
+    std::lock_guard<std::mutex> lk(mu_);
+    revTarget_ = std::max(0.0f, std::min(0.6f, wet));
+}
+
+void AudioMixer::initReverb() {
+    static const int combT[4] = {1116, 1188, 1277, 1356}, apT[2] = {556, 441};
+    const float k = float(outRate_) / 44100.0f;
+    for (int ch = 0; ch < 2; ++ch) {
+        for (int c = 0; c < 4; ++c) comb_[ch][c].buf.assign(size_t(float(combT[c] + ch * 23) * k), 0.0f);
+        for (int a = 0; a < 2; ++a) ap_[ch][a].buf.assign(size_t(float(apT[a] + ch * 23) * k), 0.0f);
+    }
+}
+
 void AudioMixer::setMasterVolume(float v) {
     std::lock_guard<std::mutex> lk(mu_);
     master_ = v;
@@ -225,6 +239,13 @@ void AudioMixer::mix(float* out, uint32_t frames) {
         musicCursor_ += double(b.rate) / double(outRate_);
         ++musicFrames_;
     }
+    // Reverb on? (glides toward its target; the delay lines are built on first use)
+    revWet_ += (revTarget_ - revWet_) * std::min(1.0f, float(frames) / float(outRate_));
+    const bool sendOn = revWet_ > 0.002f;
+    if (sendOn) {
+        if (comb_[0][0].buf.empty()) initReverb();
+        revIn_.assign(frames, 0.0f);
+    }
     for (auto& v : voices_) {
         const Sound& s = *v.sound;
         const double step = double(s.rate) / double(outRate_) * double(v.pitch);
@@ -238,6 +259,9 @@ void AudioMixer::mix(float* out, uint32_t frames) {
         // Linear gain ramp over the block (no zipper noise when sources move).
         const float dl = (tl - v.gainL) / float(frames), dr = (tr - v.gainR) / float(frames);
         const size_t len = s.data.size();
+        // Reverb send: positional sounds, more of them the farther off (2D ones - your own gun - a little).
+        const float dist = v.positional ? length(v.pos - listenerPos_) : 0.0f;
+        const float send = v.positional ? 0.5f + 0.5f * std::min(1.0f, dist / 40.0f) : 0.25f;
         for (uint32_t i = 0; i < frames; ++i) {
             size_t i0 = size_t(v.cursor);
             if (i0 + 1 >= len) {
@@ -262,6 +286,7 @@ void AudioMixer::mix(float* out, uint32_t frames) {
             v.gainR += dr;
             out[2 * i] += v.lpL * v.gainL;
             out[2 * i + 1] += v.lpR * v.gainR;
+            if (sendOn) revIn_[i] += (v.lpL * v.gainL + v.lpR * v.gainR) * send;
             v.cursor += step;
         }
         v.gainL = tl;
@@ -273,6 +298,29 @@ void AudioMixer::mix(float* out, uint32_t frames) {
     voices_.erase(std::remove_if(voices_.begin(), voices_.end(),
                                  [](const Voice& v) { return !v.loop && v.cursor + 1.0 >= double(v.sound->data.size()); }),
                   voices_.end());
+    if (sendOn) {
+        const float feedback = 0.80f, damp = 0.25f, gain = 0.015f * 4.0f;
+        for (uint32_t i = 0; i < frames; ++i) {
+            const float in = revIn_[i] * gain;
+            for (int ch = 0; ch < 2; ++ch) {
+                float acc = 0;
+                for (auto& c : comb_[ch]) {
+                    const float y = c.buf[c.at];
+                    c.store = y * (1.0f - damp) + c.store * damp;
+                    c.buf[c.at] = in + c.store * feedback;
+                    if (++c.at >= c.buf.size()) c.at = 0;
+                    acc += y;
+                }
+                for (auto& a : ap_[ch]) {
+                    const float b = a.buf[a.at];
+                    a.buf[a.at] = acc + b * 0.5f;
+                    if (++a.at >= a.buf.size()) a.at = 0;
+                    acc = b - acc;
+                }
+                out[2 * i + size_t(ch)] += acc * revWet_;  // (the send already carries the master volume)
+            }
+        }
+    }
     // Soft clip so many simultaneous sounds do not hard-clip.
     for (uint32_t i = 0; i < frames * 2; ++i) out[i] = std::tanh(out[i]);
 }

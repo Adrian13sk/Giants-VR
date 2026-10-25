@@ -47,6 +47,9 @@ public:
     bool playing(uint32_t id) const;
     void setListener(const Vec3& pos, const Quat& orientation);
     void setMasterVolume(float v);
+    // Rework: room echo - how much of the sounds come back as reverb (0 dry .. ~0.5 a canyon), glided
+    // to over a second. The game sets it from how enclosed the listener is.
+    void setReverb(float wet);
 
     // Music: interleaved stereo buffers (any rate) played back to back without gaps.
     void queueMusic(std::vector<float>&& stereo, uint32_t rate);
@@ -93,6 +96,14 @@ private:
     double musicCursor_ = 0;  // source frame position in music_.front()
     float musicVolume_ = 0.5f;
     uint64_t musicFrames_ = 0;
+    // Reverb (Schroeder/Moorer: four damped combs and two all-passes per ear, Freeverb's tunings).
+    struct Comb { std::vector<float> buf; size_t at = 0; float store = 0; };
+    struct AllPass { std::vector<float> buf; size_t at = 0; };
+    Comb comb_[2][4];
+    AllPass ap_[2][2];
+    std::vector<float> revIn_;
+    float revWet_ = 0, revTarget_ = 0;
+    void initReverb();
 };
 
 }  // namespace gvr

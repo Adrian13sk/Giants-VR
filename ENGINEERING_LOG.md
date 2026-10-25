@@ -1998,3 +1998,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Bazooka Reapers fire with rpman_bzka_kneel_fire (they had the spear gun's standing clip) and count as kneeling for the hit box. Sweep 56/56 clean.
 - Between bursts a Reaper in cover or a croucher stays down (rpman_crouch_breathe, the low hit box). Sweep 56/56 clean.
 - The sky haze is off in the adaptive fallback (look 2) - back to the flat haze, which costs no texture lookup or trigonometry per pixel (its cost on the Quest is unmeasured).
+- Room echo: AudioMixer gets a reverb bus (four damped combs + two all-passes per ear, Freeverb tunings scaled to 48
+  kHz, feedback 0.80, damping 0.25); positional voices send 0.5-1.0 (more with distance), 2D ones 0.25.
+  GameApp::updateRoomEcho casts 12 level rays (40 m x sqrt(hero scale)) and one up every 0.25 s: wet = 0.05 + 0.32
+  x enclosed^2 (+0.15 under a roof), glided over ~1 s. Harness (--audio-out, GVR_ECHO_TRACE): 1a open 0.05,
+  kstory5_2 0.27, kstory3_2 / 1d 0.32, 2b_2's cave 0.52; a fight's audio there peaks at 15238/32767, no clipping.
+  Unit test testReverb (tail rings only with reverb on). Sweep 56/56 clean.

@@ -1053,11 +1053,39 @@ void GameApp::setAudio(AudioMixer* mixer) {
     initMusic();
 }
 
+// Rework: room echo. Every quarter second, twelve level rays from the eyes (40 m, more for a giant) and
+// one straight up: walls all round (a canyon, a gorge) and a roof (a cave, a hall) bring the sounds
+// back as reverb; open ground is nearly dry. GVR_ECHO_TRACE logs it.
+void GameApp::updateRoomEcho(float dt) {
+    echoT_ -= dt;
+    if (echoT_ > 0) return;
+    echoT_ = 0.25f;
+    if (!worldRay_ || !assetWorld_ || cutsceneActive() || !lastInput_.headValid) { audio_->setReverb(0.05f); return; }
+    const Vec3 eye = rig_.toWorld(lastInput_.head).position;
+    const float reach = 40.0f * std::sqrt(std::max(1.0f, heroScale_));
+    int walls = 0;
+    for (int k = 0; k < 12; ++k) {
+        const float a = float(k) * 0.5236f;
+        float t;
+        Vec3 n;
+        if (worldRay_(eye, Vec3{std::sin(a), 0.08f, std::cos(a)}, reach, t, n)) ++walls;
+    }
+    float t;
+    Vec3 n;
+    const bool roof = worldRay_(eye, Vec3{0, 1, 0}, 30.0f * std::sqrt(std::max(1.0f, heroScale_)), t, n);
+    const float enclosed = float(walls) / 12.0f;
+    const float wet = 0.05f + 0.32f * enclosed * enclosed + (roof ? 0.15f : 0.0f);
+    audio_->setReverb(wet);
+    static const bool trace = std::getenv("GVR_ECHO_TRACE") != nullptr;
+    if (trace) LOGI("echo: %d/12 walls, roof %d -> reverb %.2f", walls, int(roof), wet);
+}
+
 void GameApp::updateAudio(float dt) {
     updateMusic(dt);
     if (!audio_) return;
     hurtCooldown_ -= dt;
     audio_->setListener(rig_.toWorld(lastInput_.head).position, headWorldRot_);
+    updateRoomEcho(dt);
     if (!playMode_) {
         if (jetLoop_) { audio_->stop(jetLoop_); jetLoop_ = 0; }
         if (slideLoop_) { audio_->stop(slideLoop_); slideLoop_ = 0; }

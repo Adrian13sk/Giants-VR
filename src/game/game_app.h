@@ -1438,6 +1438,8 @@ private:  // the mission placed enemies: no test waves
     float touchT_[2] = {0, 0};
     // Waving (rework): a raised hand waved side to side; Smarties nearby wave back (game_app_vr.cpp).
     void updateWaveGesture(float dt);
+    void updateRoomEcho(float dt);
+    float echoT_ = 0;
     bool villageThreatWas_ = false;
     size_t villageThreats_ = 0;   // living threats anywhere last frame (a cheer needs one to have died, not walked off)  // Reapers or Rippers near a village last frame (they cheer when it's over)
     float waveLastX_[2] = {0, 0}, waveFlipT_[2] = {0, 0}, waveCool_ = 0;
