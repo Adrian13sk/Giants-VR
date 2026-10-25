@@ -1352,6 +1352,7 @@ private:  // the mission placed enemies: no test waves
     MeshId markerMesh_ = 0;
     void renderObjectiveMarker();
     float playerHitTop() const;
+    bool handReach(const Vec3& p, float r) const;
     float rpGrenadeCool_ = 0;
     void updateReaperGrenades(float dt);
     // Holsters on the body and punches (game_app_vr.cpp).

@@ -68,6 +68,15 @@ void GameApp::updateReaperGrenades(float dt) {
     }
 }
 
+// A hand within `r` (human-scale metres) of a point: reach out to take a pickup (rework).
+bool GameApp::handReach(const Vec3& p, float r) const {
+    for (int h = 0; h < 2; ++h) {
+        const ControllerState& c = lastInput_.hand[h];
+        if (c.gripPoseValid && length(rig_.toWorld(c.gripPose).position - p) < r * rig_.comfort.worldScale) return true;
+    }
+    return false;
+}
+
 void GameApp::updateFlashes(float dt) {
     float best = 0;
     const Flash* pick = nullptr;

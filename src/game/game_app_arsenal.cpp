@@ -378,7 +378,7 @@ void GameApp::updateAmmoPickups(float dt) {
     for (auto& p : ammoPickups_) {
         p.t += dt;
         const Vec3 d = p.pos - player_.position;
-        if (d.x * d.x + d.z * d.z > 1.4f * 1.4f || std::fabs(d.y) > 2.2f) continue;
+        if ((d.x * d.x + d.z * d.z > 1.4f * 1.4f || std::fabs(d.y) > 2.2f) && !handReach(p.pos, 0.45f)) continue;
         // The first weapon carried that this pickup feeds and that has room (its ammo item names the pickup).
         auto feeds = [&](int item) {
             const ItemDef* it = weaponDefs_.item(item);

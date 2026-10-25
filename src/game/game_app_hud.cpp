@@ -453,7 +453,7 @@ void GameApp::updatePickups(float dt, const InputFrame& in) {
         if (std::floor(p.t * 5.0f) != std::floor(before * 5.0f) && length(p.pos - player_.position) < 80.0f)
             smokePuff(FxTex::FireGreen, p.pos + Vec3{0, 0.35f, 0}, Vec3{0, 0.6f, 0}, 0.7f, 0.25f, 0.7f, 0.55f, 0.3f);
         const Vec3 d = p.pos - player_.position;
-        if (syringes_ < kMaxSyringes && d.x * d.x + d.z * d.z < 1.4f * 1.4f && std::fabs(d.y) < 2.2f) {
+        if (syringes_ < kMaxSyringes && ((d.x * d.x + d.z * d.z < 1.4f * 1.4f && std::fabs(d.y) < 2.2f) || handReach(p.pos, 0.45f))) {
             ++syringes_;
             p.t = -1e9f;
             pickupFlash_ = 1.0f;
