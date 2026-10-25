@@ -1054,6 +1054,12 @@ private:  // the mission placed enemies: no test waves
     bool tornadoOwned() const;
     void initSpells();
     bool smartieInAim(const Vec3& from, const Vec3& dir, int& index) const;
+    void castTornado(const Vec3& dir);
+    void castFireWall(const Vec3& dir);
+    void updateSpellGestures(float dt, const InputFrame& in, const Vec3& dir);
+    bool spellGestureCast_ = false, gestPrevValid_ = false;
+    float gestCircle_ = 0, gestSweep_ = 0, gestT_ = 0, gestPrevAng_ = 0;
+    Vec3 gestPrev_;
     bool updateSpells(float dt, bool trig, const Vec3& from, const Vec3& dir, bool aimOk);
     void stepSpells(float dt);
     void renderSpells();

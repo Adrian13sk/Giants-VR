@@ -395,6 +395,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
         }
     }
     // A held trigger charges a spell (game_app_spells.cpp); a tap released is the fire bolt.
+    updateSpellGestures(dt, in, dir);
     const bool consumed = updateSpells(dt, boltTrig, from, dir, ok);
     float boltSpeed = 28.0f;
     if (firstPerson_ && length(castHandVel_) > 1.8f) {

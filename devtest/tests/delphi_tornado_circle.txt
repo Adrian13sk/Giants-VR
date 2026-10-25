@@ -1,0 +1,27 @@
+# Rework (2026-10-25): Delphi draws a circle above her head with the left (casting) hand, trigger held -> the tornado.
+name delphi_tornado_circle
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BASE 0
+duration 6
+hold trigger_l 0.9 4.5
+hand_l 0.200 0.700 0.050 0.3 0.8
+hand_l -0.212 0.000 0.088 1.00 1.10
+hand_l -0.088 0.000 0.212 1.10 1.20
+hand_l 0.088 0.000 0.212 1.20 1.30
+hand_l 0.212 0.000 0.088 1.30 1.40
+hand_l 0.212 0.000 -0.088 1.40 1.50
+hand_l 0.088 0.000 -0.212 1.50 1.60
+hand_l -0.088 0.000 -0.212 1.60 1.70
+hand_l -0.212 0.000 -0.088 1.70 1.80
+hand_l -0.212 0.000 0.088 1.80 1.90
+hand_l -0.088 0.000 0.212 1.90 2.00
+hand_l 0.088 0.000 0.212 2.00 2.10
+hand_l 0.212 0.000 0.088 2.10 2.20
+hand_l 0.212 0.000 -0.088 2.20 2.30
+hand_l 0.088 0.000 -0.212 2.30 2.40
+hand_l -0.088 0.000 -0.212 2.40 2.50
+hand_l -0.212 0.000 -0.088 2.50 2.60

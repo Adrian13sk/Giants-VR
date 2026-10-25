@@ -1,0 +1,12 @@
+# Rework (2026-10-25): Delphi sweeps her left (casting) hand fast across her body, trigger held -> the fire wall.
+name delphi_firewall_sweep
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BASE 0
+duration 6
+hold trigger_l 0.9 2.5
+hand_l -0.3 0 0 0.5 0.8
+hand_l 0.9 0 0 1.2 1.45

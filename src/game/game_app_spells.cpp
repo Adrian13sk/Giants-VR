@@ -61,11 +61,98 @@ bool GameApp::smartieInAim(const Vec3& from, const Vec3& dir, int& index) const 
     return index >= 0;
 }
 
+void GameApp::castTornado(const Vec3& dir) {
+    Tornado t;
+    t.pos = player_.position + Vec3{dir.x, 0, dir.z} * 4.0f;
+    Vec3 d{dir.x, 0, dir.z};
+    t.dir = length(d) > 1e-3f ? normalize(d) : Vec3{0, 0, -1};
+    t.age = 0;
+    tornadoes_.push_back(t);
+    sfx("sr_spfsh", t.pos, 1.0f, 0.6f);
+    sfx("ex_woods", t.pos, 0.7f, 0.5f);
+    LOGI("Delphi casts the TORNADO");
+}
+
+void GameApp::castFireWall(const Vec3& dir) {
+    // A wall of rolling fire across her aim, sweeping forward.
+    Vec3 d{dir.x, 0, dir.z};
+    d = length(d) > 1e-3f ? normalize(d) : Vec3{0, 0, -1};
+    const Vec3 side{-d.z, 0, d.x};
+    FireWall w;
+    w.dir = d;
+    w.age = 0;
+    for (int k = -3; k <= 3; ++k) w.seg.push_back(player_.position + d * 3.0f + side * (float(k) * 1.4f));
+    fireWalls_.push_back(w);
+    sfx("sr_spfsh", player_.position + d * 3.0f, 1.0f, 0.8f);
+    LOGI("Delphi casts the FIRE WALL");
+}
+
+// Rework: spells by gesture, first person, while the casting hand's trigger is held - a circle drawn
+// with that hand above your head calls the tornado (where she has it); a fast sweep of it across
+// you, low, throws the fire wall. Holding the trigger to charge them still works. GVR_SPELL_TRACE.
+void GameApp::updateSpellGestures(float dt, const InputFrame& in, const Vec3& dir) {
+    const int mh = rig_.moveHand();
+    const ControllerState& c = in.hand[mh];
+    static const bool trace = std::getenv("GVR_SPELL_TRACE") != nullptr;
+    if (!firstPerson_ || !c.gripPoseValid || !in.headValid || c.trigger < 0.6f || spellGestureCast_ || dt <= 0) {
+        gestCircle_ = 0;
+        gestSweep_ = 0;
+        gestT_ = 0;
+        gestPrevValid_ = false;
+        return;
+    }
+    const Vec3 h = c.gripPose.position, head = in.head.position;
+    const Vec3 rel{h.x - head.x, 0, h.z - head.z};
+    const float ang = std::atan2(rel.x, rel.z);
+    gestT_ += dt;
+    if (gestPrevValid_) {
+        // Circling overhead: the angle round the head, summed while the hand stays above it.
+        if (h.y > head.y + 0.03f && length(rel) > 0.08f) {
+            float d = ang - gestPrevAng_;
+            while (d > 3.14159f) d -= 6.28318f;
+            while (d < -3.14159f) d += 6.28318f;
+            gestCircle_ += d;
+        } else {
+            gestCircle_ *= 0.9f;
+        }
+        // Sweeping across, low (below the chin): sideways speed relative to the head's facing.
+        const Vec3 f = in.head.orientation.rotate(Vec3{0, 0, -1});
+        Vec3 side{-f.z, 0, f.x};
+        side = length(side) > 1e-3f ? normalize(side) : Vec3{1, 0, 0};
+        const float vs = dot(h - gestPrev_, side) / dt;
+        if (h.y < head.y - 0.15f && std::fabs(vs) > 2.2f) gestSweep_ += std::fabs(vs) * dt;
+        else gestSweep_ = std::max(0.0f, gestSweep_ - 2.0f * dt);
+    }
+    gestPrev_ = h;
+    gestPrevAng_ = ang;
+    gestPrevValid_ = true;
+    const Vec3 fwd = Vec3{dir.x, 0, dir.z};
+    if (std::fabs(gestCircle_) > 6.28318f * 1.1f && tornadoOwned()) {
+        castTornado(length(fwd) > 1e-3f ? fwd : Vec3{-std::sin(player_.yaw), 0, -std::cos(player_.yaw)});
+        if (trace) LOGI("spell gesture: circle overhead (%.0f deg) -> tornado", std::fabs(gestCircle_) * 57.3f);
+    } else if (gestSweep_ > 0.55f) {
+        castFireWall(length(fwd) > 1e-3f ? fwd : Vec3{-std::sin(player_.yaw), 0, -std::cos(player_.yaw)});
+        if (trace) LOGI("spell gesture: sweep (%.2f m) -> fire wall", gestSweep_);
+    } else {
+        return;
+    }
+    spellGestureCast_ = true;
+    spellCharge_ = 0;
+    gestCircle_ = gestSweep_ = 0;
+    haptics_.push_back({mh, 0.9f, 0.15f});
+}
+
 // Returns true if it consumed the trigger (a spell was cast or is charging); the caller casts the
 // fire bolt on a short tap otherwise.
 bool GameApp::updateSpells(float dt, bool trig, const Vec3& from, const Vec3& dir, bool aimOk) {
     initSpells();
     bool cast = false;
+    if (spellGestureCast_) {
+        // A gesture cast the spell during this pull of the trigger: nothing more until it is let go.
+        spellCharge_ = 0;
+        if (!trig) spellGestureCast_ = false;
+        return true;
+    }
     if (trig) {
         spellCharge_ += dt;
         if (spellCharge_ > 0.25f && int(spellCharge_ * 8) != int((spellCharge_ - dt) * 8))
@@ -74,28 +161,10 @@ bool GameApp::updateSpells(float dt, bool trig, const Vec3& from, const Vec3& di
         const float c = spellCharge_;
         spellCharge_ = 0;
         if (aimOk && c >= kTornadoCharge && tornadoOwned()) {
-            Tornado t;
-            t.pos = player_.position + Vec3{dir.x, 0, dir.z} * 4.0f;
-            Vec3 d{dir.x, 0, dir.z};
-            t.dir = length(d) > 1e-3f ? normalize(d) : Vec3{0, 0, -1};
-            t.age = 0;
-            tornadoes_.push_back(t);
-            sfx("sr_spfsh", t.pos, 1.0f, 0.6f);
-            sfx("ex_woods", t.pos, 0.7f, 0.5f);
-            LOGI("Delphi casts the TORNADO");
+            castTornado(dir);
             cast = true;
         } else if (aimOk && c >= kWallCharge) {
-            // A wall of rolling fire across her aim, sweeping forward.
-            Vec3 d{dir.x, 0, dir.z};
-            d = length(d) > 1e-3f ? normalize(d) : Vec3{0, 0, -1};
-            const Vec3 side{-d.z, 0, d.x};
-            FireWall w;
-            w.dir = d;
-            w.age = 0;
-            for (int k = -3; k <= 3; ++k) w.seg.push_back(player_.position + d * 3.0f + side * (float(k) * 1.4f));
-            fireWalls_.push_back(w);
-            sfx("sr_spfsh", player_.position + d * 3.0f, 1.0f, 0.8f);
-            LOGI("Delphi casts the FIRE WALL");
+            castFireWall(dir);
             cast = true;
         } else if (aimOk && c < kWallCharge) {
             int si;

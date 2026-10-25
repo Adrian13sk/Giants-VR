@@ -2004,3 +2004,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   x enclosed^2 (+0.15 under a roof), glided over ~1 s. Harness (--audio-out, GVR_ECHO_TRACE): 1a open 0.05,
   kstory5_2 0.27, kstory3_2 / 1d 0.32, 2b_2's cave 0.52; a fight's audio there peaks at 15238/32767, no clipping.
   Unit test testReverb (tail rings only with reverb on). Sweep 56/56 clean.
+- Delphi's spell gestures (updateSpellGestures, tracking space): with the casting trigger held, the hand's angle
+  round the head summed while it is above the head - past 1.1 turns = tornado (if owned); sideways speed > 2.2 m/s
+  below the chin accumulated past 0.55 m = fire wall. castTornado/castFireWall factored out of updateSpells; a
+  gesture cast blocks the release cast and the bolt for that pull. Harness: delphi_tornado_circle -> "circle
+  overhead (400 deg) -> tornado"; delphi_firewall_sweep -> "sweep (0.60 m) -> fire wall". Sweep 56/56 clean.
