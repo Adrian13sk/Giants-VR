@@ -140,6 +140,11 @@ public:
             const float d = length(c.pos - player_.position);
             if (d < best) { best = d; chest = c.pos + Vec3{0, 0.45f * c.scale, 0}; found = true; }
         }
+        for (const auto& c : chars_) {  // mission bosses: the middle of the body (Kabuto's weak spot)
+            if (!c.boss || c.hp <= 0) continue;
+            const float d = length(c.pos - player_.position);
+            if (d < best) { best = d; chest = c.pos + Vec3{0, 0.48f * c.bossH, 0}; found = true; }
+        }
         return found;
     }
     float weaponLastHitDistance() const { return weapon_.lastHitDistance(); }
