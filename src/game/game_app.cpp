@@ -3086,6 +3086,14 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int
         if (killed && enemies_.enemies[i].objective >= 0) completeObjective(enemies_.enemies[i].objective);
         bleed(enemies_.enemies[i].pos + Vec3{0, 1.0f, 0}, normalize(enemies_.enemies[i].pos - at + Vec3{0, 0.5f, 0}), killed, 1.0f);
         if (killed) blood_.pool(enemies_.enemies[i].pos, 1.3f);
+        // Rework: the blast throws him back (alive: a shove; killed: the body slides away with it).
+        {
+            Enemy& en = enemies_.enemies[i];
+            Vec3 away = en.pos - at;
+            away.y = 0;
+            const float k = (1.0f - d / radius) * std::min(14.0f, 4.0f + damage * 0.08f);
+            en.vel = en.vel + normalize(away + Vec3{1e-3f, 0, 0}) * k;
+        }
     }
     skirmishBlast(at, radius, damage);
     enemies_.alertNear(at, 30.0f);

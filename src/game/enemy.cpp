@@ -408,7 +408,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 break;
         }
         // Shoved by a blast: slides, the push dying away quickly.
-        if (e.state != EnemyState::Falling && e.state != EnemyState::Dead && (e.vel.x != 0 || e.vel.z != 0)) {
+        if (e.state != EnemyState::Falling && (e.state != EnemyState::Dead || (e.stateTime < 1.5f && !e.posted)) && (e.vel.x != 0 || e.vel.z != 0)) {
             tryMove(e, Vec3{e.vel.x, 0, e.vel.z} * dt);
             e.vel = e.vel * std::max(0.0f, 1.0f - 5.0f * dt);
             if (std::fabs(e.vel.x) + std::fabs(e.vel.z) < 0.05f) e.vel = {0, 0, 0};
