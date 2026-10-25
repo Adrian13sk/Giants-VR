@@ -328,7 +328,11 @@ void GameApp::renderFireballs() {
     for (const auto& f : fireballs_) {
         const float k = f.t / 0.55f;
         const float size = f.radius * (0.6f + 1.4f * std::sqrt(k)) * 1.6f;
-        const float a = (1.0f - k);
+        float a = (1.0f - k);
+        // Never a wall of fire over the eyes: fade one whose billboard would surround the viewer.
+        const float eyeD = length(f.pos - renderer_.currentView().eyePosition);
+        a *= std::min(1.0f, std::max(0.0f, (eyeD - 0.5f * size) / (0.7f * size)));
+        if (a <= 0.01f) continue;
         // A white-hot core turning orange, then dark red as it fades.
         const Vec3 col = Vec3{1.0f, 0.75f - 0.45f * k, 0.45f - 0.4f * k} * (a * 1.0f);
         const uint8_t rgba[4] = {uint8_t(255 * col.x), uint8_t(255 * std::max(0.0f, col.y)), uint8_t(255 * std::max(0.0f, col.z)), 255};

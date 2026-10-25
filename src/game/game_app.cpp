@@ -1513,6 +1513,7 @@ void GameApp::initGore(AssetWorld* w, ModelCache* mc) {
         return std::max(w->terrain().heightAt(x, z, y) ? y : -20.0f, -0.3f);
     };
     enemies_.params.corpsesPersist = true;
+    if (const char* m = std::getenv("GVR_MARKSMEN")) enemies_.params.marksmen = float(std::atof(m));  // test hook: share of marksmen
     creatures_.params.corpsesPersist = true;
 }
 
@@ -3138,7 +3139,8 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
 
 void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int hurtsPlayer) {
     addFlash(at + Vec3{0, 1.0f, 0}, fire ? Vec3{2.6f, 1.5f, 0.6f} : Vec3{1.8f, 1.5f, 1.2f}, std::min(30.0f, 4.0f + radius * 3.0f), 0.45f);
-    if (fire || damage > 0) addFireball(at + Vec3{0, 0.4f, 0}, radius);
+    // Fireballs for fire, grenades and rockets - not Kabuto's quakes and bursting boulders (one at his own feet filled the view).
+    if (fire || hurtsPlayer == 1 || (damage > 0 && hero_ != Hero::Kabuto)) addFireball(at + Vec3{0, 0.4f, 0}, radius);
     if (at.y < player_.seaLevel + 1.0f && (!enemies_.groundHeight || enemies_.groundHeight(at.x, at.z) < player_.seaLevel - 0.2f))
         waterSplash(at, std::min(3.0f, 0.5f * radius), 2);  // in (or just over) the water
     creatures_.disturb(at, std::max(15.0f, radius * 4.0f));  // the ground shakes: buried Rippers come up
