@@ -2007,6 +2007,8 @@ void GameApp::updateSun(float dt) {
 
 void GameApp::renderShadows() {
     renderer_.setTerrainDetail(quality_ < 2);  // the adaptive fallback drops the extra terrain layers too
+    // ...and the rework's per-pixel relief and highlights (keeping its tone and haze).
+    if (renderer_.look() != 0) renderer_.setLook(quality_ >= 2 ? 2 : 1);
     buildBatches();
     pushUnscaledRig(lastInput_.head, lastInput_.headValid);  // HUD at human scale (Kabuto)
     buildHud();

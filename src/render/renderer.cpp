@@ -186,7 +186,7 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d) {
         float g = texture(uTerrNoise, xz * 1.7).g;  // grain up close (fades out by 30 m)
         col *= mix(1.0, 0.82 + 0.36 * g, 1.0 - smoothstep(10.0, 30.0, d));
     }
-    if (uLook > 0.5 && d < 60.0) {
+    if (uLook > 0.5 && uLook < 1.5 && d < 60.0) {
         // Rework: two more octaves of detail (clumps ~2.3 m, grit ~0.3 m) so the ground under your
         // feet isn't one blurred texel; fades with distance.
         float c1 = texture(uTerrNoise, xz * 0.43 + vec2(0.13, 0.57)).r;
@@ -334,7 +334,7 @@ void main() {
     if (!gl_FrontFacing) n = -n;
     float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
     vec3 ng = n;  // the geometric normal (shadow lookups)
-    if (uLook > 0.5 && d < 45.0) {
+    if (uLook > 0.5 && uLook < 1.5 && d < 45.0) {
         // Relief up close (fades out by 45 m: no shimmer far away). Terrain a little deeper.
         float k = (uMaterial == 3 ? 0.10 : 0.025) * (1.0 - smoothstep(25.0, 45.0, d));
         // Terrain: the relief of its detail noise (the ground textures are too soft to read from).
@@ -351,12 +351,12 @@ void main() {
         rgb = base.rgb * mix(0.36, 1.0, sh) * (0.86 + 0.32 * ndl * sh) * uBakedLight;
     } else {
         // Sky light from above, darker bounce from below; warm sun; a faint rim of sky light.
-        vec3 amb = uAmbient * mix(vec3(0.62, 0.58, 0.52), vec3(1.08, 1.1, 1.18), n.y * 0.5 + 0.5) * (1.0 + 0.25 * uLook);
+        vec3 amb = uAmbient * mix(vec3(0.62, 0.58, 0.52), vec3(1.08, 1.1, 1.18), n.y * 0.5 + 0.5) * (uLook > 0.5 ? 1.25 : 1.0);
         highp vec3 v = normalize(uEyePos - vWorldPos);
         float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.25;
         rgb = base.rgb * (amb + uSunColor * ndl * sh) + uSkyHorizon * rim * base.rgb;
     }
-    if (uLook > 0.5) {
+    if (uLook > 0.5 && uLook < 1.5) {
         // Sun highlights (Blinn-Phong): brighter texels read as smoother and shinier.
         highp vec3 vv = normalize(uEyePos - vWorldPos);
         vec3 hv = normalize(vv - uSunDir);
