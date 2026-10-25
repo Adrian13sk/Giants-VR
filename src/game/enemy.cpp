@@ -442,7 +442,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                         const Vec3 f{-std::sin(e.yaw), 0, -std::cos(e.yaw)};
                         tryMove(e, f * (params.walkSpeed * dt));
                     } else {
-                        setClip(e, marks ? EnemyClip::KneelFire : (e.role == 2 || e.inCover ? EnemyClip::CrouchFire : EnemyClip::Fire), true);  // (a marksman kneels to aim; a croucher crouches)
+                        setClip(e, e.weapon == 1 ? EnemyClip::BzkaFire : marks ? EnemyClip::KneelFire : (e.role == 2 || e.inCover ? EnemyClip::CrouchFire : EnemyClip::Fire), true);  // (a marksman kneels to aim; a croucher crouches)
                     }
                     const bool facing = std::fabs(angleDelta(e.yaw, faceYaw)) < 0.35f;
                     if (e.fireCooldown <= 0 && facing) {

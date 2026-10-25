@@ -1995,3 +1995,4 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Knockdowns: a non-lethal hit of 45+ (head shots, close shotgun, blast edges) plays rpman_hit_big then
   rpman_hit_big_getup before he fights on; bodyHeight 0.45 / 0.75 of his height meanwhile. Unit test (down, up,
   fighting; a light hit only flinches). Sweep 56/56 clean.
+- Bazooka Reapers fire with rpman_bzka_kneel_fire (they had the spear gun's standing clip) and count as kneeling for the hit box. Sweep 56/56 clean.
