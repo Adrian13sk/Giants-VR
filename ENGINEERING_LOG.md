@@ -1927,3 +1927,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   three runs then complete (the third leaves a guard 12 m below a cliff edge - terrain, not a bug).
   rstory3_pre_race_1: all 12 guard objectives done across runs. Harness: --auto-aim now applies after a script's
   hand poses; GVR_AUTOAIM_HAND=l; GVR_ENEMY_DUMP; GVR_HIT_TRACE names the world object hit.
+- Fog colour byte order: the world record 41 colour was read B,G,R (an unverified assumption since the start). Measured
+  against each story world's sky texture (average of its four row bands): R,G,B matches in 14/14 (Story3 orange
+  123/64/26 vs sky 136/67/24; Rstory1 teal 45/101/78 vs 96/154/150; Kstory4 blue 76/143/225 vs 96/154/199), B,G,R in
+  none. Fixed - every world's distant haze, clear colour and the water's sky colours now match its sky (Rstory1's
+  horizon had been a flat olive plane against a teal sky).

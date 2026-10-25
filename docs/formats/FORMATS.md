@@ -82,7 +82,7 @@ Verified ops:
     mwb/mwbend, mlb/mlbend.
 
 Status: **33/33 world streams walk to the 0xFF terminator** (w_menus ends 2 bytes before its stated length). The fog
-colour byte order is unverified.
+colour bytes are R,G,B (2026-10-25: all 14 story worlds' fog colours match the lower band of their sky texture in that order).
 
 ## Object definitions (section 3 of any 0x1A0002E5 .bin) — V
 Container: section offset table index 3 → `u32 size; blob[size]`; offsets below are relative to the blob.

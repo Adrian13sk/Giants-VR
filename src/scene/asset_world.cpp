@@ -90,13 +90,14 @@ bool AssetWorld::loadWorld(const std::string& name, Renderer& r) {
         r.setTerrainLayers(wall ? wall : ground, sand, grass2, rock2, noiseTex);
     }
 
-    // Fog / sky colour from the world definition. ASSUMPTION (unverified): colour bytes are
-    // stored B,G,R like a D3D colour word. Needs comparison with the original renderer.
+    // Fog / sky colour from the world definition: bytes R,G,B (checked against each world's sky
+    // texture - all 14 story worlds' fog matches the lower sky in that order; read as B,G,R, as
+    // before 2026-10-25, Rstory1's teal haze came out olive and Story3's orange one blue).
     EnvironmentParams& env = r.environment();
     if (world_.hasFog && world_.fogFar > world_.fogNear) {
         env.fogNear = world_.fogNear * gGameUnitsToMeters;
         env.fogFar = world_.fogFar * gGameUnitsToMeters;
-        env.fogColor = {world_.fogRGB[2] / 255.0f, world_.fogRGB[1] / 255.0f, world_.fogRGB[0] / 255.0f};
+        env.fogColor = {world_.fogRGB[0] / 255.0f, world_.fogRGB[1] / 255.0f, world_.fogRGB[2] / 255.0f};
     } else {
         env.fogNear = 300.0f;
         env.fogFar = 2500.0f;
