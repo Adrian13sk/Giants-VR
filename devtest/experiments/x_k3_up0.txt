@@ -1,0 +1,16 @@
+# Rework A/B (2026-10-25): as x_k3_base with GVR_UPSCALE=0.
+# GPU experiment (2026-10-25): kstory3_1, base. Quality pinned (no adaptive steps mid-run); the only
+# screenshot at the end (after a screenshot the app's own GPU timer read high).
+name x_k3_up0
+env GVR_UPSCALE 0
+world Kstory3
+mission kstory3_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_QUALITY 0
+duration 22
+perf 4 21
+hold trigger_r 6 10
+hold a 8 11
+move 0 1 11 15
+shot 21.5 end

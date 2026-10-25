@@ -1,0 +1,7 @@
+# Progress video 2 (rework): caption|world|mission|from frame|frames|env and harness args
+Meccaryn: aim laser, recoil, hit flashes on Reapers|Story1|1c_1_firstmecc|0|720|GVR_CUTSCENE=none GVR_GOD=1 --pitch -18 --spawn-reaper 12 --auto-aim --trigger-window 90 720 --trigger-pulse 10
+Ambush: a Reaper squad comes at you after a quiet stretch|Story2|2a_1_getmeat|0|900|GVR_CUTSCENE=none GVR_GOD=1 GVR_AMBUSH_DUE=2 --move 0 0.6
+Kabuto: starts at his village, 14 m/s stride|Kstory1|k1a_smarties|0|600|GVR_CUTSCENE=none --move 0 1
+Kabuto: grown enough, smashes the wooden gate|Kstory1|k1a_smarties|0|900|GVR_CUTSCENE=none GVR_KABUTO_GROW=0.75 --third-person --at -96 -680 --look-at -96 -737 --move 0 0.4 --trigger-window 100 900 --trigger-pulse 30
+Delphi: starts at her own mission start (Reaper battle beach)|Rstory2|rstory2_battle_1|0|600|GVR_CUTSCENE=none GVR_GOD=1 --move 0 0.5
+Base defence: turrets fire at raiders|Story5|5c_securebase|14400|720|GVR_CUTSCENE=none GVR_GOD=1 GVR_BASE_ORDER=all GVR_RAID_SOON=1
