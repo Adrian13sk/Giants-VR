@@ -76,7 +76,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     if (params.jumper) {
         // A jump on the button's press, from the ground (or the water's surface).
         if (in.jet && !jumpHeld_ && (onGround || swimming_) && stun_ <= 0) {
-            velocity.y = params.jumpSpeed * (swimming_ ? 0.7f : 1.0f);
+            velocity.y = params.jumpSpeed * (swimming_ ? 0.7f : 1.0f) * in.jumpBoost;
             onGround = false;
             jumpEvent_ = true;
         }

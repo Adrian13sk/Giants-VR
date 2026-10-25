@@ -692,6 +692,26 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.sprint = in.hand[mh].squeeze > 0.5f && !twoHand_;    // move-hand grip (not while it steadies a gun)
     if (hero_ == Hero::Kabuto && kbGrabHand_ == mh) pi.sprint = false;  // that grip holds something
     if (!reachPath_.empty()) reachWalkInput(pi.move, pi.viewYaw, pi.jet, dt);  // test hook GVR_REACH_WALK
+    // Rework: Kabuto leaps when you jump - a quick rise of your real head from standing (first person)
+    // springs him up half as high again as the button's jump.
+    kbLeapCool_ = std::max(0.0f, kbLeapCool_ - dt);
+    if (hero_ == Hero::Kabuto && firstPerson_ && in.headValid && dt > 0) {
+        const float y = in.head.position.y;
+        const float vy = kbHeadValid_ ? (y - kbHeadPrevY_) / dt : 0.0f;
+        kbHeadVelY_ = kbHeadVelY_ * 0.5f + vy * 0.5f;
+        kbHeadPrevY_ = y;
+        kbHeadValid_ = true;
+        if (kbHeadVelY_ > 1.3f && y > userEye_ - 0.05f && player_.onGround && kbLeapCool_ <= 0 && !pi.jet) {
+            pi.jet = true;
+            pi.jumpBoost = 1.25f;  // (x1.25 speed: ~1.5 x the height)
+            kbLeapCool_ = 1.2f;
+            haptics_.push_back({kLeft, 0.8f, 0.15f});
+            haptics_.push_back({kRight, 0.8f, 0.15f});
+            LOGI("Kabuto leaps (your head rose at %.1f m/s)", kbHeadVelY_);
+        }
+    } else {
+        kbHeadValid_ = false;
+    }
     if (hero_ == Hero::Delphi && delphiBow() && firstPerson_ && (bowDrawing_ || (in.hand[mh].gripPoseValid &&
         length(rig_.toWorld(in.hand[mh].gripPose).position - bowNockRest_) < 0.3f)))
         pi.sprint = false;  // that grip is drawing her bowstring, not running

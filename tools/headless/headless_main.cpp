@@ -250,6 +250,14 @@ int main(int argc, char** argv) {
             in.hand[kLeft].gripPose.position = in.hand[kLeft].gripPose.position + Vec3{lDx, lDy, lDz} * k;
             in.hand[kLeft].aimPose.position = in.hand[kLeft].aimPose.position + Vec3{lDx, lDy, lDz} * k;
         }
+        {   // GVR_HEAD_JUMP=<frame>: the head rises 0.3 m over 8 frames from there, then settles back (a real jump)
+            static const int hj = std::getenv("GVR_HEAD_JUMP") ? std::atoi(std::getenv("GVR_HEAD_JUMP")) : -1;
+            if (hj >= 0) {
+                const int d = f - hj;
+                const float up = d < 0 ? 0.0f : d < 8 ? 0.3f * float(d) / 8.0f : d < 24 ? 0.3f * float(24 - d) / 16.0f : 0.0f;
+                in.head.position.y = headHeight + up;
+            }
+        }
         if (f == hurtAt) app.debugHurt(hurtAmount, hurtYaw);
         if (f == completeAt || (completeEvery > 0 && f > 0 && f % completeEvery == 0)) app.debugCompleteMission();
         if (f == 0 && vimpMeat >= 0) app.debugSetVimpMeat(vimpMeat);

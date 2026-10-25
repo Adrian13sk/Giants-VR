@@ -1112,6 +1112,8 @@ private:  // the mission placed enemies: no test waves
     // Rework: first-person grab with either hand's grip (game_app_kbgrab.cpp). kbGrabHand_: the hand
     // holding kbHold_ (-1: held by X, or nothing).
     int kbGrabHand_ = -1;
+    float kbHeadPrevY_ = 0, kbHeadVelY_ = 0, kbLeapCool_ = 0;  // Kabuto's real-jump leap
+    bool kbHeadValid_ = false;
     bool kbGripWas_[2] = {false, false};
     void updateKabutoHandGrab(const InputFrame& in);
     void checkReachObjectives();  // test hook GVR_REACH_CHECK (game_app_reach.cpp)

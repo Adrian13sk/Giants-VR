@@ -24,6 +24,7 @@ struct PlayerInput {
     bool sprint = false;  // sprint held
     bool aiming = false;  // third person: face aimYaw instead of the travel direction
     float aimYaw = 0;
+    float jumpBoost = 1.0f;  // a jumper's take-off speed x this (Kabuto's real-jump leap)
 };
 
 struct PlayerParams {
