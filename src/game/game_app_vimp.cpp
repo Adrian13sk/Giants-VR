@@ -118,7 +118,8 @@ bool GameApp::vimpRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& i
         const Vec3 oc = o - c;
         const float b = dot(oc, d), cc = dot(oc, oc) - r * r, disc = b * b - cc;
         if (disc < 0) continue;
-        const float tn = -b - std::sqrt(disc);
+        float tn = -b - std::sqrt(disc);
+        if (tn < 0 && cc <= 0) tn = 0;  // (fired from inside it, point blank: a hit)
         if (tn < 0 || tn > maxD || (hit && tn >= t)) continue;
         t = tn;
         index = int(i);
@@ -278,7 +279,8 @@ bool GameApp::bossRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& i
             const Vec3 oc = o - c;
             const float b = dot(oc, d), cc = dot(oc, oc) - r * r, disc = b * b - cc;
             if (disc < 0) continue;
-            const float tn = -b - std::sqrt(disc);
+            float tn = -b - std::sqrt(disc);
+            if (tn < 0 && cc <= 0) tn = 0;  // (fired from inside it, point blank: a hit)
             if (tn < 0 || tn > maxD || (hit && tn >= t)) continue;
             t = tn;
             index = int(i);

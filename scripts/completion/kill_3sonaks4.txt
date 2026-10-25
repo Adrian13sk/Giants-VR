@@ -1,0 +1,10 @@
+name c_kill_3sonaks4
+world Story3
+mission story3_3sonaks_4
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+duration 60
+at -791 -878
+look -791 -978
+hold trigger_r 1 58

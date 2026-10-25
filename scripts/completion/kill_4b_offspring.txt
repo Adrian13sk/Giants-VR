@@ -1,0 +1,11 @@
+name c_kill_4b_offspring
+world Story4
+mission 4b_bigfight
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_KB_TRACE 1
+duration 90
+at 169 647
+look 169 497
+hold trigger_r 1 88

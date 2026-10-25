@@ -118,6 +118,7 @@ public:
     size_t spitHits() const { return spitHits_; }
     size_t gibCount() const { return gibs_.size(); }
     const CreatureDirector& creatureDirector() const { return creatures_; }
+    const EnemyDirector& enemyDirector() const { return enemies_; }
     size_t enemyCount() const { return enemies_.enemies.size(); }
     float playerHealth() const { return playerHealth_; }
     // Test hook: feet position of any enemy (alive or dead).

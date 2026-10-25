@@ -792,3 +792,7 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
 - kstory3_4 (a8bc86e + the in-face hold): scripted two-hand climb from the sea at the plateau's foot (game -695, 3589):
   up to 110 m, then 6 s of walking -> "Objective 0 done", "Mission kstory3_4 complete". Kabuto's campaign is now
   completable end to end in the harness (gates, portals, bosses). Device test kabuto_climb_k34.
+- Completion checks (scripts/completion/, this build): popup_prison7, popup_4a, popup_5c, tornado_rstory2,
+  tornado_rstory5, tornado_rstory2_base, kill_4b_offspring, kill_5a_charger, kill_sonak1, kill_3sonaks4: each
+  "Mission ... complete"; kill_r1_raik1/3 each their objective. Before the fixes: 5a stuck at 50 hp (point-blank
+  misses), 3sonaks_4 at 14/15 (marker box). Sweep 56/56 clean, unit tests pass. **Not device-tested.**

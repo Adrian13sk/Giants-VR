@@ -267,18 +267,6 @@ int main(int argc, char** argv) {
             in.hand[kRight].gripPose.position = in.hand[kRight].gripPose.position + Vec3{handDx, handDy, handDz} * k;
             in.hand[kRight].aimPose.position = in.hand[kRight].aimPose.position + Vec3{handDx, handDy, handDz} * k;
         }
-        Vec3 chest;
-        if (autoAim && app.nearestEnemy(chest)) {
-            // World target -> tracking-space direction from the right controller.
-            const Pose& rigPose = app.rig().worldFromTracking;
-            const Vec3 ctrlWorld = app.rig().toWorld(in.hand[kRight].aimPose).position;
-            const Vec3 d = rigPose.orientation.conjugate().rotate(normalize(chest - ctrlWorld));
-            // GVR_AUTOAIM_MISS=<deg>: aim that far to the side of the target (near-miss tests).
-            static const float missDeg = std::getenv("GVR_AUTOAIM_MISS") ? float(std::atof(std::getenv("GVR_AUTOAIM_MISS"))) : 0.0f;
-            const float yaw = std::atan2(-d.x, -d.z) + missDeg * 3.14159265f / 180.0f, pitch = std::asin(std::max(-1.0f, std::min(1.0f, d.y)));
-            const Quat q = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, pitch);
-            in.hand[kRight].gripPose.orientation = in.hand[kRight].aimPose.orientation = q;
-        }
         if (useScript) {
             const float t = float(f) / 72.0f, tp = float(f - 1) / 72.0f;
             const Pose head = in.head;
@@ -291,6 +279,21 @@ int main(int argc, char** argv) {
                 else app.debugReapersAhead(e->n, e->dist);
             }
             for (const auto* s : script.shotsIn(tp, t)) LOGI("script: shot '%s' at %.1f s (device only)", s->label.c_str(), s->t);
+        }
+        // (after the script, so --auto-aim also steers a scripted run's right hand)
+        Vec3 chest;
+        // GVR_AUTOAIM_HAND=l steers the left controller instead (Delphi's casting hand).
+        static const int aimHand = std::getenv("GVR_AUTOAIM_HAND") && std::getenv("GVR_AUTOAIM_HAND")[0] == 'l' ? kLeft : kRight;
+        if (autoAim && app.nearestEnemy(chest)) {
+            // World target -> tracking-space direction from the right controller.
+            const Pose& rigPose = app.rig().worldFromTracking;
+            const Vec3 ctrlWorld = app.rig().toWorld(in.hand[aimHand].aimPose).position;
+            const Vec3 d = rigPose.orientation.conjugate().rotate(normalize(chest - ctrlWorld));
+            // GVR_AUTOAIM_MISS=<deg>: aim that far to the side of the target (near-miss tests).
+            static const float missDeg = std::getenv("GVR_AUTOAIM_MISS") ? float(std::atof(std::getenv("GVR_AUTOAIM_MISS"))) : 0.0f;
+            const float yaw = std::atan2(-d.x, -d.z) + missDeg * 3.14159265f / 180.0f, pitch = std::asin(std::max(-1.0f, std::min(1.0f, d.y)));
+            const Quat q = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, pitch);
+            in.hand[aimHand].gripPose.orientation = in.hand[aimHand].aimPose.orientation = q;
         }
         if (f == killPlayerAt) app.debugKillPlayer(killCause);
         if (f == blastFrame) {
@@ -410,6 +413,11 @@ int main(int argc, char** argv) {
         LOGI("combat: %zu/%zu Reapers alive, %zu creatures alive (%zu characters), nearest %.1f m (yaw %.0f deg), "
              "player health %.0f", app.enemiesAlive(), app.enemyCount(), app.creaturesAlive(), app.characterCount(), nd,
              std::atan2(-rel.x, -rel.z) * 180.0f / kPi, app.playerHealth());
+        if (std::getenv("GVR_ENEMY_DUMP"))  // the Reapers still alive: where, what state, which objective
+            for (const auto& e : app.enemyDirector().enemies)
+                if (e.state != EnemyState::Dead)
+                    LOGI("  Reaper %u state %d pos (%.1f %.1f %.1f) = game (%.0f, %.0f) dist %.1f objective %d posted %d", e.uid, int(e.state), e.pos.x,
+                         e.pos.y, e.pos.z, -e.pos.x / 0.2f, e.pos.z / 0.2f, length(e.pos - p.position), e.objective, int(e.posted));
         if (std::getenv("GVR_CREATURE_DUMP"))
             for (const auto& c : app.creatureDirector().creatures)
                 LOGI("  creature state %d clip %d pos (%.1f %.1f %.1f) dist %.1f speed %.2f spitWait %.1f blocked %.2f detour %.2f",

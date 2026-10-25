@@ -1,0 +1,12 @@
+name c_tornado_rstory2
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BASE 0
+
+duration 16
+at 1566 -775
+look 1566 -885
+hold trigger_l 2 4.2

@@ -594,6 +594,9 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
             triggers_.push_back(t);
         }
         if (name.empty() || isInvisibleHelper(name)) { ++hidden; continue; }
+        // Group spawners (class 97: "1tsonak_4guards" and the like) are markers - the game layer spawns
+        // the Sonak and its guards there; their 8-triangle box is neither drawn nor solid (it stopped shots).
+        if (const ObjectType* gt = registry_.type(p.type); gt && gt->objectClass == 97) { ++hidden; continue; }
         if (p.mission && (isCharacter(registry_, p.type, name) || !p.hold.empty()) && fs_.exists(name + ".skn")) {
             // Animated by the game layer (AI or ambient loop), not baked into a static pose.
             const ObjectType* t = registry_.type(p.type);

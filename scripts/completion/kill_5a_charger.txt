@@ -1,0 +1,11 @@
+name c_kill_5a_charger
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_KB_TRACE 1
+duration 30
+at -1382 -1640
+look -1382 -1790
+hold trigger_r 1 88

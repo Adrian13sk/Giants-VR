@@ -1917,3 +1917,13 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   near the eyes), and the hit feedback was a full-view red wash (now a red rim; classic lighting keeps the wash).
   Marksmen never showed their charge (the cool-down ran out with the burst empty): each burst now starts 0.7 s
   off with a red aiming line from the gun. Delphi also jumps on a real jump.
+- Meccaryn/Delphi completion checks (scripts/completion/): pop-up bomb -> prison_7, 4a gate, 5c barracks; tornado ->
+  rstory2_battle_1 and rstory5_battle_2 barracks (GVR_BASE=0), and rstory2_battle_1 again with the base built first
+  (GVR_BASE_ORDER=all: "Base: complete" then the tornado). Bosses with --auto-aim: 5a's Charger stalled at 50 hp
+  once it stood over the player - bossRay (and the vimp and nest sphere tests) rejected rays starting inside the
+  sphere; now a hit at t=0. 4b's two Offspring, r1's three Raiks (one only from its hill's own level), sonak_1 done.
+  story3_3sonaks_4 left one guard alive in every run: shots hit "1tsonak_4guards", the class-97 group spawner's
+  8-triangle marker box, which was loaded as solid scenery - class 97 is now skipped like other helpers; two of
+  three runs then complete (the third leaves a guard 12 m below a cliff edge - terrain, not a bug).
+  rstory3_pre_race_1: all 12 guard objectives done across runs. Harness: --auto-aim now applies after a script's
+  hand poses; GVR_AUTOAIM_HAND=l; GVR_ENEMY_DUMP; GVR_HIT_TRACE names the world object hit.

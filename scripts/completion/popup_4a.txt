@@ -1,0 +1,12 @@
+name c_popup_4a
+world Story4
+mission 4a_gainaccess
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_POPUP 1
+env GVR_POPUP_SEL 1
+duration 16
+at 60 -1184
+look 60 -1234
+hold trigger_r 2 4.2

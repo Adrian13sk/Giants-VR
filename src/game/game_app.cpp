@@ -356,7 +356,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     const Vec3 oc = o - c;
                     const float b = dot(oc, d), cc = dot(oc, oc) - r * r, disc = b * b - cc;
                     if (disc < 0) continue;
-                    const float tn = -b - std::sqrt(disc);
+                    float tn = -b - std::sqrt(disc);
+                    if (tn < 0 && cc <= 0) tn = 0;  // (fired from inside it, point blank: a hit)
                     if (tn < 0 || tn > maxD || (he && tn >= te)) continue;
                     he = true; te = tn; ne = normalize(o + d * tn - c); ie = kNestTarget + int(k);
                 }
@@ -381,7 +382,9 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             weapon_.onHit = [this](int target, const Vec3& p, const Vec3& shotDir) {
                 const float hm = hitMul_ * weapon_.hitDamage();  // the gun that fired it (sniper, machine gun) x the hero's power
                 static const bool hitTrace = std::getenv("GVR_HIT_TRACE") != nullptr;
-                if (hitTrace) LOGI("hit trace: target %d at %.1f m, damage x%.1f", target, length(p - player_.position), hm);
+                if (hitTrace)
+                    LOGI("hit trace: target %d at %.1f m (%.1f %.1f %.1f), damage x%.1f, world object %s", target, length(p - player_.position), p.x, p.y, p.z, hm,
+                         lastWorldTag_ >= 0 && assetWorld_ && size_t(lastWorldTag_) < assetWorld_->worldObjects().size() ? assetWorld_->worldObjects()[size_t(lastWorldTag_)].name.c_str() : "-");
                 if (target >= kObjectTarget) {
                     const int item = target - kObjectTarget;
                     damageObject(item, 25.0f * hm, false, player_.position);
@@ -1266,7 +1269,8 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             const std::string lm = toLower(ch.model);
             const int kind = ch.objectClass == 4 || lm.rfind("offspring", 0) == 0 ? 2 : (lm == "charger" ? 3 : 0);
             if (kind) { ci.model = std::move(m); setupBossAI(ci, kind); m = std::move(ci.model); }
-            LOGI("Objective: kill %s (%.0f hp, %.1f m tall%s)", ch.model.c_str(), ci.hp, ci.bossH, kind ? ", fights" : "");
+            LOGI("Objective: kill %s (%.0f hp, %.1f m tall%s) at game (%.0f, %.0f)", ch.model.c_str(), ci.hp, ci.bossH, kind ? ", fights" : "",
+                 -ch.position.x / gGameUnitsToMeters, ch.position.z / gGameUnitsToMeters);
         }
         ci.time = frand() * 3.0f;
         Mat4 hand;
