@@ -19,6 +19,7 @@
 #include "game/skirmish.h"
 #include "game/sk_net.h"
 #include "scene/model_cache.h"
+#include "assets/image.h"
 #include "core/math.h"
 #include "game/test_script.h"
 #include "game/arm_ik.h"
@@ -1803,7 +1804,35 @@ static void testSkNet() {
     net.stop();
 }
 
+// Texture upscaling (rework): a smooth ramp stays a smooth, monotonic ramp at twice the size (a tap
+// offset bug once made every other column come from the wrong place - blocky ground).
+static void testUpscale() {
+    Image img;
+    img.width = img.height = 16;
+    img.rgba.resize(16 * 16 * 4);
+    for (int y = 0; y < 16; ++y)
+        for (int x = 0; x < 16; ++x) {
+            uint8_t* p = &img.rgba[size_t(y * 16 + x) * 4];
+            const float t = std::sin(float(x) / 16.0f * 6.2831853f);  // (periodic: the upscale wraps)
+            p[0] = p[1] = p[2] = uint8_t(128 + 100 * t);
+            p[3] = 255;
+        }
+    upscaleSharpen(img);
+    CHECK(img.width == 32 && img.height == 32);
+    // Between neighbouring outputs the change follows the sine's slope: no zigzag.
+    int reversals = 0;
+    for (int x = 1; x + 1 < 32; ++x) {
+        const int a = img.rgba[size_t(5 * 32 + x - 1) * 4], b = img.rgba[size_t(5 * 32 + x) * 4], c = img.rgba[size_t(5 * 32 + x + 1) * 4];
+        if ((b - a) * (c - b) < -4) ++reversals;  // a turn that isn't the sine's own peak or trough
+    }
+    CHECK(reversals <= 2);
+    // Output 2x+1 sits at source x + 0.25: close to source x for a smooth ramp.
+    const int src = 128 + int(100 * std::sin(4.25f / 16.0f * 6.2831853f));
+    CHECK(std::abs(int(img.rgba[size_t(5 * 32 + 9) * 4]) - src) < 12);
+}
+
 int main() {
+    testUpscale();
     testSkirmish();
     testSkNav();
     testSkNet();

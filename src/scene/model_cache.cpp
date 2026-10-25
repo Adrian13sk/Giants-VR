@@ -200,7 +200,10 @@ void upscaleSharpen(Image& img) {
     const int w = img.width, h = img.height, W = w * 2, H = h * 2;
     // The two output phases of a 2x Catmull-Rom (samples at +-0.25 texel): fixed 4-tap weights.
     float k0[4], k1[4];
-    for (int i = 0; i < 4; ++i) { k0[i] = cubicW(-0.25f - float(i - 1)); k1[i] = cubicW(0.25f - float(i - 1)); }
+    // Output 2x samples at x - 0.25 from taps x-2..x+1 (distances 1.75, 0.75, -0.25, -1.25); output
+    // 2x+1 at x + 0.25 from taps x-1..x+2 (1.25, 0.25, -0.75, -1.75). (Fixed: k0 was one tap off, so
+    // every other output row/column came from the wrong place - the ground looked blocky.)
+    for (int i = 0; i < 4; ++i) { k0[i] = cubicW(1.75f - float(i)); k1[i] = cubicW(1.25f - float(i)); }
     // Horizontal pass: w x h -> W x h; then vertical: W x h -> W x H (separable, wrapping).
     std::vector<float> hor(size_t(W) * h * 4), up(size_t(W) * H * 4);
     for (int y = 0; y < h; ++y)
@@ -247,7 +250,7 @@ void upscaleSharpen(Image& img) {
                 if (c < 3) {
                     const float blur = 0.25f * (bh[size_t(yu * W + x) * 3 + size_t(c)] + bh[size_t(yd * W + x) * 3 + size_t(c)]) +
                                        0.5f * bh[size_t(y * W + x) * 3 + size_t(c)];
-                    r = v + 0.7f * (v - blur);
+                    r = v + 0.45f * (v - blur);
                 }
                 out[size_t(y * W + x) * 4 + size_t(c)] = uint8_t(std::max(0.0f, std::min(255.0f, r + 0.5f)));
             }

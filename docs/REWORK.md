@@ -27,7 +27,7 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Combat | Cover works: your real head sets your hit box (duck behind a rock and bolts pass over). Reapers who lose sight of you lob grenades (warned by the throw sound). | HARNESS |
 | Effects | Muzzle flashes and explosions light up their surroundings for a moment; explosions get a swelling fireball and thrown embers. | HARNESS |
 | Atmosphere | Floating motes: dust in the light by day, pulsing fireflies at night. | HARNESS |
-| Looks | Textures up to 256 px are doubled and sharpened when loaded (crisper up close; +~1 s level load on the PC). | HARNESS |
+| Looks | Textures up to 256 px are doubled and sharpened when loaded (crisper up close; +~1 s level load on the PC). **Fixed after APK 68003c5:** a tap-offset bug in the doubling made every other row and column come from the wrong place, so magnified ground looked blocky - in every rework APK until then. Now smooth (unit test added). | HARNESS |
 | Combat | A hit Reaper's (or Ripper's) body flashes hot for a moment. Low health: a pulsing dark red rim (the heartbeat in both hands was already there - a second one the rework had added is gone). | HARNESS |
 | Pacing | Ambushes: after 70-110 s on the move without a fight, a squad of 2-3 Reapers comes at you from ahead (Options: AMBUSHES). Not in base missions, races, multiplayer or as Kabuto. | HARNESS |
 | VR feel | Aim laser from the gun's muzzle to what it would hit (Options: AIM LASER, default on). Reach out with a hand to take a pickup. | HARNESS |
