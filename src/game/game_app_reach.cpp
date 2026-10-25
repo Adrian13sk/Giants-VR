@@ -174,6 +174,21 @@ bool GameApp::planReach(int objective, bool log) {
             LOGI("reach check: map written to %s (%dx%d, heights %.0f..%.0f m)", dump, W, H, mn, mx);
         }
     }
+    if (std::getenv("GVR_REACH_PROFILE")) {
+        // Heights in rings round the objective's centre (every 15 degrees, out to 120 m): where's the way up?
+        for (int a = 0; a < 24; ++a) {
+            const float ang = float(a) * 0.2618f;
+            std::string line;
+            for (int r = 0; r <= 120; r += 8) {
+                float y = -99;
+                assetWorld_->terrain().heightAt(c.x + std::cos(ang) * float(r), c.z + std::sin(ang) * float(r), y);
+                char b[16];
+                std::snprintf(b, sizeof b, " %4.0f", y);
+                line += b;
+            }
+            LOGI("reach profile %3d deg:%s", a * 15, line.c_str());
+        }
+    }
     if (log)
         LOGI("reach check: objective %d at game (%.0f, %.0f): %s (nearest walk %.0f m from its centre)", objective, -c.x / gGameUnitsToMeters,
              c.z / gGameUnitsToMeters, goal >= 0 ? "REACHABLE" : "NOT reachable on foot", goal >= 0 ? 0.0f : best);
