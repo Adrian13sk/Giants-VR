@@ -1,0 +1,13 @@
+# The missions below 69 fps in the 2026-10-25 headset sweep, as the sweep plays them (adaptive quality on),
+# with the only screenshot at the end.
+name slow_kstory3_2
+world Kstory3
+mission kstory3_2
+env GVR_CUTSCENE none
+env GVR_GOD 1
+duration 22
+perf 4 21
+hold trigger_r 6 10
+hold a 8 11
+move 0 1 11 15
+shot 21.5 end

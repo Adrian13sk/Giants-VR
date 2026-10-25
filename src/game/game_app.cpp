@@ -2206,15 +2206,15 @@ void GameApp::updateQuality(float dt) {
     if (dt <= 0 || dt > 0.05f) return;  // a single hitch
     perfTime_ += dt;
     ++perfFrames_;
-    if (perfTime_ < 4.0f) return;
+    if (perfTime_ < 2.0f) return;  // (2 s windows: on the headset a 4 s window let a scene run at 36 fps for 8-12 s first)
     const float avg = perfTime_ / float(perfFrames_);
     if (avg > 1.0f / 65.0f && quality_ < 3) {
         ++quality_;
         perfGood_ = 0;
         LOGW("perf: %.1f fps average, effects quality down to level %d", 1.0f / avg, quality_);
     } else if (avg < 1.0f / 71.0f && quality_ > 0) {
-        // Back up after 12 s at full rate (three windows in a row).
-        if (++perfGood_ >= 3) {
+        // Back up after 12 s at full rate (six windows in a row).
+        if (++perfGood_ >= 6) {
             --quality_;
             perfGood_ = 0;
             LOGI("perf: %.1f fps average, effects quality back up to level %d", 1.0f / avg, quality_);
@@ -4068,6 +4068,8 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
             const float wide = f.scale * (0.45f + 0.85f * std::sqrt(k));
             const float tall = f.scale * 1.25f * std::sin(3.14159f * std::min(1.0f, k * 1.1f));
             if (tall < 0.01f) continue;
+            // Not with the eye inside the crown (a full view of translucent sheets: the jet-ski spray).
+            if (length(Vec3{f.pos.x - v.eyePosition.x, 0, f.pos.z - v.eyePosition.z}) < wide * 1.3f && v.eyePosition.y < f.pos.y + tall * 1.5f) continue;
             m->pose(renderer_, 0.0f);
             const float spin = std::fmod(f.pos.x * 7.3f + f.pos.z * 3.1f, 6.28f);
             m->render(renderer_, Mat4::translation(f.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, spin + k * 0.6f)) *
@@ -4075,6 +4077,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
             continue;
         }
         m->pose(renderer_, std::min(f.age, m->animDuration() * 0.999f));
+        if (length(f.pos - v.eyePosition) < 0.6f * f.scale) continue;  // (a ring seen from inside its own spray)
         m->render(renderer_, Mat4::translation(f.pos) * Mat4::scale(Vec3{1, 1, 1} * f.scale));
     }
     if (pirSwim_) {

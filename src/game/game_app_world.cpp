@@ -531,12 +531,23 @@ void GameApp::buildBatches() {
         const uint8_t col[4] = {255, 255, 255, uint8_t(a * 255.0f)};
         bloodBatch_[std::max(0, std::min(2, d.texture))].add(q, col);
     }
+    // Blood the same way: piranha bites spray it right at the player's own legs and chest, and drops
+    // and sprays at the eye filled the view red - on the headset the jet-ski race and wading after a
+    // fight took 19-23 ms of GPU a frame there. Near the eye they fade, and are skipped inside.
     const uint8_t opaque[4] = {255, 255, 255, 255};
-    for (const auto& dr : blood_.drops) bloodBatch_[3].addBillboard(dr.pos, dr.size, right, up, 0.0f, opaque);
+    for (const auto& dr : blood_.drops) {
+        const float ang = dr.size / std::max(0.05f, length(dr.pos - eye));
+        if (ang > 0.25f) continue;  // (opaque: no fading; a drop this big on screen is a red disc)
+        bloodBatch_[3].addBillboard(dr.pos, dr.size, right, up, 0.0f, opaque);
+    }
     for (const auto& sp : blood_.sprays) {
         const float f = sp.age / sp.life;
-        const uint8_t col[4] = {255, 255, 255, uint8_t((1.0f - f) * 255.0f)};
-        bloodBatch_[4].addBillboard(sp.pos, sp.size * (0.6f + 1.2f * f), right, up, sp.age * 2.0f, col);
+        const float size = sp.size * (0.6f + 1.2f * f);
+        const float ang = size / std::max(0.05f, length(sp.pos - eye));
+        if (ang > 1.0f) continue;
+        const float near = ang > 0.5f ? (1.0f - ang) / 0.5f : 1.0f;
+        const uint8_t col[4] = {255, 255, 255, uint8_t((1.0f - f) * near * 255.0f)};
+        bloodBatch_[4].addBillboard(sp.pos, size, right, up, sp.age * 2.0f, col);
     }
     for (auto& b : fxBatch_) b.upload(renderer_);
     for (auto& b : bloodBatch_) b.upload(renderer_);
