@@ -101,14 +101,7 @@ void GameApp::renderVignette() {
 
 void GameApp::updateFeel(float dt, const InputFrame& in) {
     updateVignette(dt, in);
-    // Low health: a heartbeat in both hands (rework).
-    if (playMode_ && !dying_ && playerHealth_ > 0 && playerHealth_ < 30.0f) {
-        heartT_ -= dt;
-        if (heartT_ <= 0) {
-            heartT_ = 0.75f + 0.5f * playerHealth_ / 30.0f;
-            for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.35f, 0.05f});
-        }
-    }
+    // (Low health: the heartbeat below - the rework had added a second one on top of it.)
     // --- Rumble.
     auto both = [&](float a, float s) {
         haptics_.push_back({kLeft, a, s});
