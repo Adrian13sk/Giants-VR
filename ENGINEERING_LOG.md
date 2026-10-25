@@ -1937,3 +1937,13 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   the sky's tint, sun glow and grading) instead of the flat fog colour; fully fogged ground matches the sky drawn
   behind it. Sky texture on unit 10 (Renderer::setSkyTexture). Skipped where fog > 0.995. GVR_SKY_HAZE=0 restores
   the flat colour; classic look unchanged. Sweep 56/56 clean.
+- Regression caught by eye, not by the sweep: after 6209b36 a "skip the sky lookup when fog > 0.995" early return in
+  fogOut() made Mesa render every textured surface white and drop the terrain and hands (no compile error, exit 0,
+  sweep clean). Removed (the look3 contact sheet was rendered before that line went in). The harness now logs
+  "image: mean N, white P %, black Q %" and the sweep prints it per mission, so a broken frame shows in the sweep.
+  Also: a disk-full during that build (make_video.sh never deleted its multi-GB frame folders - it does now) truncated
+  an object file; the host build was cleaned and rebuilt.
+- Palms (ptree*, canopy*, *palm*) sway: DrawParams::sway < 0 bends the whole tree in world space by -sway m at 10 m up
+  (quadratic in the height above its origin, phase from its position), mapped back to model space for the mono
+  path. Rework look only, not in the reflection. Two frames 2 s apart in 1a show the fronds moved; sweep 56/56 clean,
+  image stats normal (no white frames).

@@ -512,6 +512,21 @@ int main(int argc, char** argv) {
                 std::memcpy(&sbs[(size_t(y) * w * 2 + size_t(eye) * w) * 4], &eyePx[size_t(y) * w * 4], size_t(w) * 4);
         }
     }
+    {
+        // Image sanity for the sweeps (a broken shader shows here, not in the exit code): mean
+        // brightness and the share of near-white and near-black pixels.
+        double sum = 0;
+        size_t white = 0, black = 0;
+        const size_t n = size_t(w) * 2 * size_t(h);
+        for (size_t i = 0; i < n; ++i) {
+            const uint8_t* q = &sbs[i * 4];
+            const int l = (q[0] * 2 + q[1] * 5 + q[2]) / 8;
+            sum += l;
+            if (q[0] > 245 && q[1] > 245 && q[2] > 245) ++white;
+            if (l < 6) ++black;
+        }
+        LOGI("image: mean %.0f, white %.1f %%, black %.1f %%", sum / double(n), 100.0 * double(white) / double(n), 100.0 * double(black) / double(n));
+    }
     if (!writePng(out, w * 2, h, sbs.data(), true)) {
         LOGE("PNG write failed");
         return 6;

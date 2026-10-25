@@ -645,6 +645,7 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
         wo.type = p.type;
         wo.name = toLower(name);
         wo.scale = p.scale;
+        if (wo.name.rfind("ptree", 0) == 0 || wo.name.find("palm") != std::string::npos || wo.name.rfind("canopy", 0) == 0) wo.sway = -0.12f;
         worldObjects_.push_back(wo);
         // Solid unless it is vegetation the original lets you walk through.
         const std::string ln = toLower(name);
@@ -728,6 +729,8 @@ void AssetWorld::render(Renderer& r, bool reflection) {
     if (hasTerrain_) terrain_.render(r);
     const Vec3 eye = r.currentView().eyePosition;
     const float maxDist = r.environment().fogFar;
+    static const bool noWind = std::getenv("GVR_NO_WIND") != nullptr;
+    windOn_ = !noWind && r.look() == 1 && !reflection;
     for (const auto& o : worldObjects_) {
         if (o.hidden) continue;
         if (!hiddenTypes_.empty() && std::find(hiddenTypes_.begin(), hiddenTypes_.end(), int(o.type)) != hiddenTypes_.end()) continue;
@@ -755,6 +758,7 @@ void AssetWorld::render(Renderer& r, bool reflection) {
                 const float b = std::min(1.0f, o.burn);
                 dp.tint = {1.0f - 0.72f * b, 1.0f - 0.8f * b, 1.0f - 0.88f * b, dp.tint.w};
             }
+            if (windOn_ && o.burn < 0.3f) dp.sway = o.sway;
             r.draw(part.mesh, o.transform, dp);
         }
         if (o.burn > 0.01f && burnTex_[0] && !reflection) {

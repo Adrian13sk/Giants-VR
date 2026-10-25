@@ -119,6 +119,7 @@ public:
         float radius;
         uint32_t type = 0;
         std::string name;     // model name (lower case)
+        float sway = 0;       // rework: palms bend in the wind (DrawParams::sway, negative)
         Mat4 placement;       // original transform
         float scale = 1;
         int collision = -1;   // CollisionWorld index (-1: not solid)
@@ -153,6 +154,7 @@ private:
     std::vector<SkinnedPlaced> skinned_;
     Renderer* renderer_ = nullptr;
     float time_ = 0.0f;
+    bool windOn_ = true;  // rework look: trees sway (GVR_NO_WIND=1: still)
     AssetFS fs_;
     std::unique_ptr<ModelCache> cache_;
     std::vector<Placed> placed_;

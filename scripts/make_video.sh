@@ -9,6 +9,7 @@ LIST=${2:-}
 HR=${HR:-build/host/headless_render}
 cd "$(dirname "$0")/.."
 WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT  # (the clips take gigabytes)
 FONT=$(fc-match -f '%{file}' 'DejaVu Sans:bold' 2>/dev/null || echo /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf)
 if [ -z "$LIST" ]; then
   LIST=$WORK/clips.txt

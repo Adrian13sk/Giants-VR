@@ -1,0 +1,7 @@
+# Progress video 7 (rework): caption|world|mission|from frame|frames|env and harness args
+Before: distant ground ended in a flat band of fog colour (here with the colour fix, without the sky haze)|Rstory1|r1_saveyan|0|360|GVR_CUTSCENE=none GVR_SKY_HAZE=0 --move 0 1
+Now: the haze takes the sky's colour behind it - the land dissolves into the sky|Rstory1|r1_saveyan|0|360|GVR_CUTSCENE=none --move 0 1
+Story 3 coast with the sky haze (the fog colour had red and blue swapped in every world)|Story3|story3_bunker_3|0|360|GVR_CUTSCENE=none --move 0 1
+Meccaryn's pop-up bomb takes down the prison (story3_prison_7)|Story3|story3_prison_7|100|620|--script scripts/completion/popup_prison7.txt
+Delphi's tornado wrecks the Reaper barracks (rstory2_battle_1)|Rstory2|rstory2_battle_1|120|700|--script scripts/completion/tornado_rstory2.txt
+The Charger up close: point-blank shots now hit it (they passed through before)|Story5|5a_killcharger|0|1500|--script scripts/completion/kill_5a_charger.txt --auto-aim

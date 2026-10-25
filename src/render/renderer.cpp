@@ -63,6 +63,17 @@ void main() {
         p.x += k * (sin(ph) * 0.8 + sin(ph * 2.3 + 1.3) * 0.35);
         p.z += k * (cos(ph * 0.9 + 0.4) * 0.5);
     }
+    if (uSway.x < 0.0) {
+        // Trees (rework): the whole palm bends in the wind, more the higher up (quadratic in the
+        // height above its base, -uSway.x metres at 10 m); each tree's own phase from its position.
+        highp vec3 w0 = (uModel * vec4(p, 1.0)).xyz;
+        highp float h = clamp(w0.y - uModel[3].y, 0.0, 14.0);
+        highp float ph = uSway.y * 1.1 + uModel[3].x * 0.07 + uModel[3].z * 0.05;
+        highp float k = -uSway.x * h * h * 0.01;
+        highp vec3 d = vec3(k * (sin(ph) * 0.7 + sin(ph * 2.6 + 1.1) * 0.3), 0.0, k * cos(ph * 0.8 + 0.5) * 0.45);
+        // World offset -> model space (rotation and uniform scale: the transpose over the scale squared).
+        p += transpose(mat3(uModel)) * d / max(dot(uModel[0].xyz, uModel[0].xyz), 1e-6);
+    }
     vec4 wp = uModel * vec4(p, 1.0);
     vWorldPos = wp.xyz;
     vNormal = mat3(uModel) * aNormal;
@@ -261,7 +272,6 @@ vec3 skyHaze(highp vec3 vd) {
 }
 vec3 fogOut(vec3 rgb, float fog, highp vec3 wp, float sat) {
     if (uLook < 0.5 || uSkyOn < 0.5) return grade(fogMix(rgb, fog, wp), sat);
-    if (fog > 0.995) return grade(rgb, sat);  // (near: no haze - skip the sky lookup)
     return mix(skyHaze(normalize(wp - uEyePos)), grade(rgb, sat), fog);
 }
 
@@ -788,7 +798,7 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
     }
     glUniformMatrix4fv(U_->uModel_, 1, GL_FALSE, model.m);
     glUniform4f(U_->uTint_, p.tint.x, p.tint.y, p.tint.z, p.tint.w);
-    glUniform2f(U_->uSway_, p.sway, p.sway > 0 ? std::fmod(env_.time, 1000.0f) : 0.0f);
+    glUniform2f(U_->uSway_, p.sway, p.sway != 0 ? std::fmod(env_.time, 1000.0f) : 0.0f);
     // Light mode: lit, baked (unlit but shadowed), emissive (additive effects and overlays).
     const bool emissive = p.unlit && (p.blend == BlendMode::Additive || p.noFog || !p.depthTest);
     glUniform1f(U_->uUnlit_, emissive ? 2.0f : (p.unlit ? 1.0f : 0.0f));
