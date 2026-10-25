@@ -1,6 +1,8 @@
 // GameApp: the in-headset options menu (left controller menu button) and applying the settings.
 #include "game/game_app.h"
 
+#include <cstdlib>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -12,7 +14,7 @@
 namespace gvr {
 
 namespace {
-enum MenuRow { kRowResume, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -21,6 +23,7 @@ void GameApp::applySettings() {
     rig_.comfort.snapTurnDegrees = s.turn == 1 ? 45.0f : 30.0f;
     rig_.comfort.smoothTurnDegPerSec = s.turn == 3 ? 150.0f : 90.0f;
     rig_.comfort.leftHanded = s.leftHanded;
+    if (!std::getenv("GVR_LOOK")) renderer_.setLook(s.classicLook ? 0 : (quality_ >= 2 ? 2 : 1));
     if (audio_) {
         audio_->setMasterVolume(0.85f * float(s.volume) / 9.0f);
         audio_->setMusicVolume(0.8f * float(s.music) / 8.0f);
@@ -70,6 +73,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowVignette: s.vignette = (s.vignette + dx + 3) % 3; changed = true; break;
             case kRowAmbush: s.ambushes = !s.ambushes; changed = true; break;
             case kRowLaser: s.aimLaser = !s.aimLaser; changed = true; break;
+            case kRowLook: s.classicLook = !s.classicLook; changed = true; break;
             case kRowHand: s.leftHanded = !s.leftHanded; changed = true; break;
             case kRowView: s.thirdPerson = !s.thirdPerson; firstPerson_ = !s.thirdPerson; changed = true; break;
             case kRowHud: s.hudSize = std::max(0, std::min(2, s.hudSize + dx)); changed = true; break;
@@ -140,6 +144,7 @@ void GameApp::renderMenu() {
         {"COMFORT VIGNETTE", s.vignette == 0 ? "OFF" : (s.vignette == 1 ? "LOW" : "HIGH")},
         {"AMBUSHES", s.ambushes ? "ON" : "OFF"},
         {"AIM LASER", s.aimLaser ? "ON" : "OFF"},
+        {"LIGHTING", s.classicLook ? "CLASSIC" : "REWORK"},
         {"MAIN HAND", s.leftHanded ? "LEFT" : "RIGHT"},
         {"VIEW", firstPerson_ ? "FIRST PERSON" : "THIRD PERSON"},
         {"HUD SIZE", huds[s.hudSize]},
@@ -152,7 +157,7 @@ void GameApp::renderMenu() {
         {"EFFECTS", s.originalFx ? "ORIGINAL (TEST)" : "SIMPLE"},
         {"NEW GAME", newGame},
     };
-    const float rowH = 0.085f, w = 1.15f, h = rowH * float(kRowCount + 2) + 0.1f;
+    const float rowH = 0.066f, w = 1.15f, h = rowH * float(kRowCount + 2) + 0.1f;
     text_.drawPanel(base, w, h, {0, 0, 0, 0.86f});
     float tw, th;
     if (const MeshId t = text_.mesh("OPTIONS", 0.06f, 1.0f, &tw, &th))
@@ -162,11 +167,11 @@ void GameApp::renderMenu() {
         const bool sel = i == menuRow_;
         if (sel) text_.drawPanel(base * Mat4::translation({0, y, 0.002f}), w - 0.06f, rowH * 0.9f, {0.25f, 0.55f, 0.25f, 0.6f});
         const Vec4 col = sel ? Vec4{1, 1, 0.8f, 1} : Vec4{0.85f, 0.85f, 0.85f, 1};
-        if (const MeshId m = text_.mesh(rows[i][0], 0.05f, 0.7f, &tw, &th))
+        if (const MeshId m = text_.mesh(rows[i][0], 0.042f, 0.7f, &tw, &th))
             text_.draw(m, base * Mat4::translation({-0.5f * w + 0.06f + 0.5f * tw, y, 0.004f}), col);
         if (!rows[i][1].empty()) {
             const std::string v = sel && menuNewGame_ <= 0.05f ? "< " + rows[i][1] + " >" : rows[i][1];
-            if (const MeshId m = text_.mesh(v, 0.05f, 0.7f, &tw, &th))
+            if (const MeshId m = text_.mesh(v, 0.042f, 0.7f, &tw, &th))
                 text_.draw(m, base * Mat4::translation({0.5f * w - 0.06f - 0.5f * tw, y, 0.004f}), col);
         }
     }

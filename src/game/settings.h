@@ -16,6 +16,7 @@ struct UserSettings {
     bool showFps = false;    // frame-rate counter at the top of the view
     bool dayNight = true;    // false: always day
     bool originalFx = false;  // effects from the game's fx.bin (experimental) instead of our particles
+    bool classicLook = false; // rework: the classic lighting instead of the rework's (to compare)
     bool aimLaser = true;    // rework: a red laser from the gun's muzzle
     bool ambushes = true;    // rework: Reaper squads come at you after a long quiet stretch
     int vignette = 1;        // comfort tunnel while moving / turning: 0 off, 1 low, 2 high

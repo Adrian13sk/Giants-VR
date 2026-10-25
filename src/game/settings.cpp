@@ -31,6 +31,7 @@ bool loadSettings(const std::string& path, UserSettings& out) {
         else if (k == "vignette") s.vignette = std::max(0, std::min(2, v));
         else if (k == "ambushes") s.ambushes = v != 0;
         else if (k == "aim_laser") s.aimLaser = v != 0;
+        else if (k == "classic_look") s.classicLook = v != 0;
     }
     out = s;
     return true;
@@ -42,7 +43,7 @@ bool writeSettings(const std::string& path, const UserSettings& s) {
         std::ofstream f(tmp, std::ios::trunc);
         if (!f) return false;
         f << "turn=" << s.turn << "\nleft_handed=" << int(s.leftHanded) << "\nthird_person=" << int(s.thirdPerson)
-          << "\nhud_size=" << s.hudSize << "\nvolume=" << s.volume << "\nmusic=" << s.music << "\nsubtitles=" << int(s.subtitles) << "\nshow_fps=" << int(s.showFps) << "\nday_night=" << int(s.dayNight) << "\noriginal_fx=" << int(s.originalFx) << "\nfoveation=" << s.foveation << "\nvignette=" << s.vignette << "\nambushes=" << int(s.ambushes) << "\naim_laser=" << int(s.aimLaser) << "\n";
+          << "\nhud_size=" << s.hudSize << "\nvolume=" << s.volume << "\nmusic=" << s.music << "\nsubtitles=" << int(s.subtitles) << "\nshow_fps=" << int(s.showFps) << "\nday_night=" << int(s.dayNight) << "\noriginal_fx=" << int(s.originalFx) << "\nfoveation=" << s.foveation << "\nvignette=" << s.vignette << "\nambushes=" << int(s.ambushes) << "\naim_laser=" << int(s.aimLaser) << "\nclassic_look=" << int(s.classicLook) << "\n";
         if (!f.good()) return false;
     }
     return std::rename(tmp.c_str(), path.c_str()) == 0;
