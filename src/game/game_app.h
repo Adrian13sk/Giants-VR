@@ -1355,6 +1355,8 @@ private:  // the mission placed enemies: no test waves
     MeshId laserMesh_ = 0;
     Vec3 laserFrom_, laserTo_;
     bool laserOn_ = false;
+    int laserTarget_ = -1;
+    float laserOnT_ = 0, dodgeCool_ = 0;
     void renderAimLaser();
     // Floating motes (rework, atmosphere): dust in the sunlight by day, fireflies at night, drifting
     // within ~9 m of the eyes - gives the air depth in VR.

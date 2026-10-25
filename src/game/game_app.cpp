@@ -3849,10 +3849,26 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             float t = 120.0f;
             Vec3 n;
             int tg = -1;
-            if (!(weapon_.raycast && weapon_.raycast(muzzle, fwd, 120.0f, t, n, tg))) t = 120.0f;
+            if (!(weapon_.raycast && weapon_.raycast(muzzle, fwd, 120.0f, t, n, tg))) { t = 120.0f; tg = -1; }
             laserFrom_ = muzzle;
             laserTo_ = muzzle + fwd * t;
+            // A Reaper who sees the laser resting on him for a moment dives aside (rework).
+            if (tg >= 0 && size_t(tg) < enemies_.enemies.size() && tg == laserTarget_) {
+                laserOnT_ += dt;
+                Enemy& e = enemies_.enemies[size_t(tg)];
+                if (laserOnT_ > 0.45f && e.aware && e.state != EnemyState::Dead && !e.posted && e.grenadeCool < 7.0f && dodgeCool_ <= 0) {
+                    const Vec3 side = normalize(cross(fwd, Vec3{0, 1, 0})) * (frand() < 0.5f ? -1.0f : 1.0f);
+                    enemies_.push(tg, side * 7.0f);
+                    dodgeCool_ = 1.5f;
+                    laserOnT_ = 0;
+                    LOGI("Reaper %u dodges the laser", e.uid);
+                }
+            } else {
+                laserOnT_ = 0;
+            }
+            laserTarget_ = tg;
         }
+        dodgeCool_ = std::max(0.0f, dodgeCool_ - dt);
     } else {
         laserOn_ = false;
     }
