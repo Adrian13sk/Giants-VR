@@ -35,6 +35,19 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 
 Harness regression: all 56 missions exit 0 with no errors (latest run after ambushes and Reaper grenades).
 
+## Trying it on the Quest
+Install the newest `GiantsVR-rework-<commit>.apk` like the others. New in Options: COMFORT VIGNETTE, AMBUSHES,
+AIM LASER. With the headset on USB, the usual tests plus the rework's cost comparisons:
+
+```powershell
+cd $env:USERPROFILE\Documents\GiantsQuestVR\devtest
+powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Apk ..\GiantsVR-rework-<commit>.apk
+powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Set experiments -Tests x_village_base,x_village_look0,x_village_msaa0,x_village_up0,x_k3_base,x_k3_look0,x_k3_msaa0,x_k3_up0
+```
+
+The second compares the rework's look (`_base`) with the classic lighting (`_look0`), no anti-aliasing
+(`_msaa0`) and no texture sharpening (`_up0`) in two demanding scenes, so the cost of each shows.
+
 ## Next
 - Delphi and Kabuto hands: VR-native sword / bow / grab feel; Kabuto's slam and throw.
 - More combat rework: hit reactions, enemy variety in behaviour, cover, grenades from Reapers.
