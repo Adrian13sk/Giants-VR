@@ -68,7 +68,7 @@ struct Enemy {
     bool weaponOn = false;
     Mat4 weaponXf = Mat4::identity();
     float rocketCool = 0;
-    float hiddenT = 0, grenadeCool = 0, flinchCool = 0;  // (flinchCool: near misses, game_app_vr.cpp)
+    float hiddenT = 0, grenadeCool = 0, flinchCool = 0, retreatT = 0;  // (retreatT: badly hurt, falling back)  // (flinchCool: near misses, game_app_vr.cpp)
     float hitFlash = 0;     // rework: > 0 just hit (the body flashes)  // rework: the player out of sight this long -> a grenade (game layer)
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };

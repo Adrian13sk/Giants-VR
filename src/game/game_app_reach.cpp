@@ -182,6 +182,17 @@ bool GameApp::planReach(int objective, bool log) {
     std::vector<Vec3> rev;
     for (int k = goal; k >= 0; k = parent[size_t(k)]) rev.push_back(Vec3{lo.x + (k % W) * kCell, 0, lo.z + (k / W) * kCell});
     for (size_t k = rev.size(); k-- > 0;) reachPath_.push_back(rev[k]);
+    if (log && std::getenv("GVR_REACH_STEEP")) {  // the path's steep climbs (game coordinates)
+        for (size_t k = 1; k < reachPath_.size(); ++k) {
+            float a, b;
+            if (!assetWorld_->terrain().heightAt(reachPath_[k - 1].x, reachPath_[k - 1].z, a) || !assetWorld_->terrain().heightAt(reachPath_[k].x, reachPath_[k].z, b)) continue;
+            const float run = length(reachPath_[k] - reachPath_[k - 1]);
+            if (b - a > run * 1.19f)
+                LOGI("reach steep: game (%.0f %.0f) -> (%.0f %.0f): %.1f m up over %.1f m (%.0f deg)", -reachPath_[k - 1].x / gGameUnitsToMeters,
+                     reachPath_[k - 1].z / gGameUnitsToMeters, -reachPath_[k].x / gGameUnitsToMeters, reachPath_[k].z / gGameUnitsToMeters, b - a, run,
+                     std::atan2(b - a, run) * 57.3f);
+        }
+    }
     return true;
 }
 
@@ -243,7 +254,8 @@ bool GameApp::reachWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt) {
             reachTarget_ = -1;
             return false;
         }
-        LOGI("reach walk: stuck at (%.0f %.0f %.0f), replanned (%d): %zu waypoints", player_.position.x, player_.position.y, player_.position.z,
+        LOGI("reach walk: stuck at (%.0f %.0f %.0f)%s%s%s, waypoint (%.0f %.0f), replanned (%d): %zu waypoints", player_.position.x, player_.position.y,
+             player_.position.z, player_.onGround ? " ground" : " air", player_.swimming() ? " swimming" : "", player_.sliding() ? " sliding" : "", w.x, w.z,
              reachReplans_, reachPath_.size());
     }
     if (++reachLog_ % 600 == 0)

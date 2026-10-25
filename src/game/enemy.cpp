@@ -290,12 +290,19 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 e.flankTimer -= dt;
                 const Vec3 dirTo = to * (1.0f / std::max(dist, 1e-3f));
                 const Vec3 side{-dirTo.z, 0, dirTo.x};
-                const Vec3 goal{player.x + side.x * e.flank - dirTo.x * params.fireRange - e.pos.x, 0,
-                                player.z + side.z * e.flank - dirTo.z * params.fireRange - e.pos.z};
+                Vec3 goal{player.x + side.x * e.flank - dirTo.x * params.fireRange - e.pos.x, 0,
+                          player.z + side.z * e.flank - dirTo.z * params.fireRange - e.pos.z};
+                // Rework: badly hurt, he falls back - away from the player and to one side - before he
+                // turns to fight again.
+                const bool retreating = e.retreatT > 0;
+                if (retreating) {
+                    e.retreatT -= dt;
+                    goal = Vec3{-dirTo.x * 12.0f + side.x * e.flank, 0, -dirTo.z * 12.0f + side.z * e.flank};
+                }
                 const float goalDist = std::sqrt(goal.x * goal.x + goal.z * goal.z);
                 const bool arrived = goalDist < 1.0f || dist <= params.fireRange;
                 // Stop to shoot when in range and the current run has lasted long enough (or arrived).
-                if (dist <= params.shootRange && (arrived || e.flankTimer <= 0)) {
+                if (!retreating && dist <= params.shootRange && (arrived || e.flankTimer <= 0)) {
                     e.state = EnemyState::Fire;
                     e.stateTime = 0;
                     e.burstLeft = params.burstSize;
@@ -374,6 +381,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     e.stateTime = 0;
                     e.flank = (float(nextRand() % 2001) / 1000.0f - 1.0f) * 10.0f;
                     e.flankTimer = 1.0f + float(nextRand() % 1500) / 1000.0f;
+                    if (e.health < 35.0f && !e.posted && nextRand() % 10 < 6) e.retreatT = 2.0f + float(nextRand() % 1500) / 1000.0f;
                 }
                 break;
             case EnemyState::Falling: {
