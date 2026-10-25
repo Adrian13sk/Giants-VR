@@ -26,8 +26,11 @@ void QuadBatch::add(const Vec3 c[4], const uint8_t rgba[4]) {
 }
 
 void QuadBatch::add(const Vec3 c[4], const float uv[4][2], const uint8_t rgba[4]) {
+    add(c, uv, rgba, normalize(cross(c[1] - c[0], c[2] - c[0])));
+}
+
+void QuadBatch::add(const Vec3 c[4], const float uv[4][2], const uint8_t rgba[4], const Vec3& n) {
     if (count_ >= capacity_) return;
-    const Vec3 n = normalize(cross(c[1] - c[0], c[2] - c[0]));
     for (int k = 0; k < 4; ++k) {
         Vertex& v = verts_[count_ * 4 + size_t(k)];
         v.pos[0] = c[k].x; v.pos[1] = c[k].y; v.pos[2] = c[k].z;

@@ -179,11 +179,14 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
         }
     for (auto& r : kbRocks_) r.grow = std::min(1.0f, r.grow + dt * 1.5f);
 
-    // Where his grabbing hand is.
+    // Rework, VR grab: in first person either hand's grip closes on what is in reach of that hand.
+    updateKabutoHandGrab(in);
+    // Where his grabbing hand is (the hand that grabbed; else the move hand, X's).
     const ControllerState& c = in.hand[mh];
+    const ControllerState& hc = in.hand[kbGrabHand_ >= 0 ? kbGrabHand_ : mh];
     Vec3 hand;
-    if (firstPerson_ && c.gripPoseValid) {
-        const Pose g = rig_.toWorld(c.gripPose);
+    if (firstPerson_ && hc.gripPoseValid) {
+        const Pose g = rig_.toWorld(hc.gripPose);
         hand = g.position + g.orientation.rotate(Vec3{0, 0.02f * H, -0.09f * H});  // in front of the fingers
     } else {
         hand = player_.position + fwd * (0.15f * H) + Vec3{0, 0.95f * H, 0};  // raised over his head
@@ -199,6 +202,7 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
     // X: grab (the eating in updateKabuto handles taps on Smarties, Vimps and creatures).
     const bool x = c.primary && playMode_ && !dying_;
     if (x && !kbXWas_ && kbHold_ == HoldNone && kb_.eatT < 0) {
+        kbGrabHand_ = -1;
         // The nearest loose boulder within reach, else a Reaper in front.
         float best = 0.6f * H;
         int bi = -1;
@@ -284,14 +288,31 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
             }
         }
     }
-    // Let go: throw (or, a quick tap on a Reaper, eat it).
-    const bool tap = kbHold_ == HoldReaper && kbHoldT_ < kTapTime;
-    if (!x && kbXWas_ && kbHold_ != HoldNone) {
+    // A Reaper held in the hand and brought up to his mouth: eaten.
+    static const bool mouthTrace = std::getenv("GVR_GRAB_TRACE") != nullptr;
+    if (mouthTrace && kbGrabHand_ >= 0 && in.headValid)
+        LOGI("grab trace: held %.1f m from the mouth (limit %.1f)", length(hand - rig_.toWorld(in.head).position - Vec3{0, 0.06f * H, 0}), 0.22f * H);
+    if (kbGrabHand_ >= 0 && kbHold_ == HoldReaper && in.headValid &&
+        length(hand - (rig_.toWorld(in.head).position - Vec3{0, 0.06f * H, 0})) < 0.22f * H && kb_.eatT < 0) {
+        LOGI("Kabuto: a Reaper brought to his mouth");
+        enemies_.enemies[size_t(kbHeld_)].state = EnemyState::Hit;
+        kabutoEat(kbHeld_);
+        haptics_.push_back({kbGrabHand_, 0.8f, 0.2f});
+        kbHold_ = HoldNone;
+        kbHeld_ = -1;
+        kbHeldUid_ = 0;
+        kbGrabHand_ = -1;
+    }
+    // Let go: throw (or, a quick tap on a Reaper, eat it). A hand grab lets go when the grip opens.
+    const bool byHand = kbGrabHand_ >= 0;
+    const bool tap = !byHand && kbHold_ == HoldReaper && kbHoldT_ < kTapTime;
+    const bool letGo = byHand ? in.hand[kbGrabHand_].squeeze < 0.35f : (!x && kbXWas_);
+    if (letGo && kbHold_ != HoldNone) {
         Vec3 vel;
         bool thrown = true;
         if (tap) {
             // (eaten below)
-        } else if (firstPerson_ && c.gripPoseValid) {
+        } else if (firstPerson_ && hc.gripPoseValid) {
             const float S = std::max(1.0f, rig_.comfort.worldScale);
             const float real = length(kbHandVel_) / S;  // the user's own hand speed (m/s)
             if (real < 1.2f) thrown = false;             // just let go: it drops
@@ -324,7 +345,7 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
             b.vel = thrown ? vel : Vec3{0, 0, 0};
             b.state = thrown ? Boulder::Thrown : Boulder::Loose;
             b.spin = Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} * 4.0f;
-            if (thrown) { sfx2D("ka_throw", 1.0f); haptics_.push_back({mh, 1.0f, 0.15f}); }
+            if (thrown) { sfx2D("ka_throw", 1.0f); haptics_.push_back({byHand ? kbGrabHand_ : mh, 1.0f, 0.15f}); }
             LOGI("Kabuto %s a boulder (%.0f m/s)", thrown ? "throws" : "drops", length(b.vel));
         } else {
             Enemy& e = enemies_.enemies[size_t(kbHeld_)];
@@ -341,7 +362,9 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
         kbHold_ = HoldNone;
         kbHeld_ = -1;
         kbHeldUid_ = 0;
+        kbGrabHand_ = -1;
     }
+    if (kbHold_ == HoldNone) kbGrabHand_ = -1;
     kbXWas_ = x;
 
     // Boulders in flight.

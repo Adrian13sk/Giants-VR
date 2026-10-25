@@ -1099,6 +1099,11 @@ private:  // the mission placed enemies: no test waves
     int targetOfUid(int kindOf, uint32_t uid) const;  // that kind's target with this uid now (-1: gone)
     float kbHoldT_ = 0, boulderSize_ = 1;
     bool kbXWas_ = false, kbHandValid_ = false;
+    // Rework: first-person grab with either hand's grip (game_app_kbgrab.cpp). kbGrabHand_: the hand
+    // holding kbHold_ (-1: held by X, or nothing).
+    int kbGrabHand_ = -1;
+    bool kbGripWas_[2] = {false, false};
+    void updateKabutoHandGrab(const InputFrame& in);
     Vec3 kbHandPrev_, kbHandVel_;
     const RenderModel* boulderModel_ = nullptr;
     void initThrows();
@@ -1378,6 +1383,15 @@ private:  // the mission placed enemies: no test waves
     void renderFireballs();
     TextureId glowTexture();
     void renderMotes();
+    // Grass tufts near the player (game_app_grass.cpp).
+    void initGrass();
+    void updateGrass();
+    void renderGrass();
+    bool grassOn_ = false;
+    const AssetWorld* grassWorld_ = nullptr;
+    Vec3 grassCentre_{1e9f, 0, 1e9f}, grassColor_{0.3f, 0.4f, 0.2f};
+    TextureId grassTex_ = 0;
+    QuadBatch grassBatch_;
     void renderObjectiveMarker();
     float playerHitTop() const;
     bool handReach(const Vec3& p, float r) const;

@@ -680,6 +680,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.viewYaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : camYaw_;
     pi.jet = in.hand[th].primary;              // A
     pi.sprint = in.hand[mh].squeeze > 0.5f && !twoHand_;    // move-hand grip (not while it steadies a gun)
+    if (hero_ == Hero::Kabuto && kbGrabHand_ == mh) pi.sprint = false;  // that grip holds something
     if (hero_ == Hero::Delphi && delphiBow() && firstPerson_ && (bowDrawing_ || (in.hand[mh].gripPoseValid &&
         length(rig_.toWorld(in.hand[mh].gripPose).position - bowNockRest_) < 0.3f)))
         pi.sprint = false;  // that grip is drawing her bowstring, not running
@@ -770,6 +771,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateReaperGrenades(dt);
     updateAmbush(dt);
     updateMotes(dt);
+    updateGrass();
     updateCreatureFlashes(dt);
     updateFireballs(dt);
     updateCombat(dt);
@@ -4415,6 +4417,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     }
     renderFx();
     renderDataFx();
+    if (playMode_) renderGrass();
     if (playMode_ && !cut) renderMotes();
     renderFireballs();
     if (title_) renderTitle();

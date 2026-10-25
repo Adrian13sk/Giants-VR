@@ -16,6 +16,8 @@ public:
     void release(Renderer& r);  // frees the GPU meshes (switching worlds)
     // Ground height in runtime metres at runtime (x, z); returns false outside the terrain.
     bool heightAt(float rx, float rz, float& outY) const;
+    // The baked lightmap's colour modulation at runtime (x, z) (as the ground's vertex colour, 0..1).
+    Vec3 lightAt(float rx, float rz) const;
     // Runtime-space bounds of the valid terrain.
     Vec3 boundsMin() const { return bmin_; }
     Vec3 boundsMax() const { return bmax_; }

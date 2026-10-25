@@ -288,7 +288,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
     for (int h = 0; h < 2; ++h) {
         k.fistCool[h] = std::max(0.0f, k.fistCool[h] - dt);
         const ControllerState& c = in.hand[h];
-        if (!firstPerson_ || !c.gripPoseValid || dt <= 0 || (h == mh && kbHold_ != HoldNone)) { k.fistValid[h] = false; continue; }  // (a hand carrying something throws it, doesn't punch)
+        if (!firstPerson_ || !c.gripPoseValid || dt <= 0 || ((h == mh && kbHold_ != HoldNone && kbGrabHand_ < 0) || h == kbGrabHand_)) { k.fistValid[h] = false; continue; }  // (a hand carrying something throws it, doesn't punch)
         const Vec3 fist = rig_.toWorld(c.gripPose).position;
         // The swing is the user's own hand (tracking space): where the body went meanwhile (a respawn,
         // a snap turn, a fall) is not a punch. Its path is drawn in the world as the rig stands now.

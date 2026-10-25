@@ -141,6 +141,17 @@ bool Terrain::heightAt(float rx, float rz, float& outY) const {
     return true;
 }
 
+Vec3 Terrain::lightAt(float rx, float rz) const {
+    if (t_.gridW == 0 || !(t_.flags & 2)) return {1, 1, 1};
+    const float fx = (-rx / gGameUnitsToMeters - t_.minX) / t_.stretch + 1.0f;
+    const float fy = (rz / gGameUnitsToMeters - t_.minY) / t_.stretch + 1.0f;
+    if (fx < 0 || fy < 0 || fx >= float(t_.gridW - 1) || fy >= float(t_.gridH - 1)) return {1, 1, 1};
+    const uint32_t x = uint32_t(fx + 0.5f), y = uint32_t(fy + 0.5f);
+    const uint8_t* l = &t_.light[(size_t(y) * t_.gridW + x) * 3];
+    auto m = [](uint8_t v) { return float(std::min(255, 56 + int(2.4f * float(v)))) / 255.0f; };
+    return {m(l[0]), m(l[1]), m(l[2])};
+}
+
 Vec3 Terrain::suggestSpawn() const {
     // Land cell (height well above sea level) with the flattest neighbourhood closest to the
     // centroid of all land cells.
