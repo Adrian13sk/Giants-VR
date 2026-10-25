@@ -686,5 +686,8 @@ one machine (one Quest available).
   stopped and restarted 40 s later: the joiner logged "lost the host", knocked again and rejoined.
 - Reaper ammo: GVR_AMMO_DROP_AHEAD=4 with GVR_ARSENAL=half in Story3: 4 drops rendered with their own models, walked
   through: rockets x2, sniper rounds, shells taken.
-- ASan / UBSan, the 12 maps and network under ASan, and the 56-mission sweep: see below (filled in when done).
+- ASan / UBSan build (`build/asan`): unit tests 0 failures, 0 reports; all 12 maps 90 s with firing (and 3-way L1 as
+  teams 2 and 3): exit 0, 0 errors, 0 sanitizer reports; host + joiner under ASan: joined, 0 reports.
+- Campaign sweep (plain build, 56 missions x 500 frames): 56/56 exit 0, 0 errors.
+- APK e4c2818: `scripts/build_apk.sh` exit 0, 0 warnings; zipalign + v3 signature verified by the build.
 - **Not verified:** anything on a headset; play between two headsets.
