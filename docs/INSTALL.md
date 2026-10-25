@@ -68,7 +68,7 @@ burnt dry), syringe + number = health injections carried, the weapon in hand, an
 Red flash = you were hit; a red wedge around the middle of the view points to where the hit came from. Below 35 health
 you trail smoke. Switching weapons drops the weapon strip in at the top of the view.
 
-**Health injections:** green syringes float over the ground in some missions (1c, 1d...) and some Reapers drop one.
+**Health injections:** green syringes float over the ground in some missions (1c, 1d...) and some Reapers drop one. Others drop a box of ammo for a weapon you carry that isn't full (rockets, shells, clips) - walk over it.
 Walk over one to take it (up to 3, the game's own limit). First person: press **X** to take one into your left hand, then **push it into
 your chest**; it heals 50 over a second (green flash). Press X again to put it away. Third person: **X** plays the
 Meccaryn's injection animation and heals.

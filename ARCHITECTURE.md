@@ -40,7 +40,11 @@ GameApp (game_app_skirmish.cpp): the multiplayer maps (w_M_*), bodies, hits, HUD
        joiner: a mirror Skirmish filled from snapshots; sends its own player 30 Hz
 ```
 Authority: each headset owns its player's movement and health (it reports hits it lands and its
-own death); the host owns the computer players, flags, scores and the round. Not compatible with
+own death); the host owns the computer players, flags, scores and the round. Protocol version 2:
+states and snapshots are numbered (late ones dropped); events go oldest first; a snapshot fits one
+1400-byte frame. A player who leaves is `gone` (slot reused by the next joiner); a joiner that
+loses the host knocks again every 4 s. Bots learn impassable cells (stuck reports) and check once
+which flags their side can reach; the route grid is on the water's surface. Not compatible with
 the original game's network play (DirectPlay, native code, not decoded).
 
 The headless harness (`tools/headless`) drives the identical `GameApp` with scripted poses on

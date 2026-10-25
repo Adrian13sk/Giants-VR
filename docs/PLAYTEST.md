@@ -10,10 +10,15 @@ For each item: works / doesn't / how it feels. A phone photo of anything that lo
 **Main menu -> MULTIPLAYER < WITH COMPUTER PLAYERS | HOST A WI-FI GAME | JOIN A WI-FI GAME >**, then MAP and
 YOUR TEAM (left/right), trigger to start. The original's 12 multiplayer maps: 3-WAY (Meccaryns vs Sea Reapers vs
 Kabuto), MECCARYN (two Meccaryn sides) and REAPER (two Reaper sides). Each side has a base with its flag holder
-(a Smartie with a flag) at its base's build pad, among the base's buildings. Take an enemy flag home to your own (while yours is home): a capture. 3 captures or 30
+(a Smartie with a flag) at its base's build pad, among the base's buildings (on Reaper bases: in front of the
+command centre, which stands on the pad). Take an enemy flag home to your own (while yours is home): a capture. 3 captures or 30
 kills win; then a new round. Dead: back at your base after 5 s. Score panel top left; kills and flag news in the
 middle; team-coloured names over the others when you look at them.
 - **Computer players:** do they find their way (no one stuck for long)? Do they fight sensibly, too well, too badly?
+  They should now take flags and score (escorting a carrier; the defenders go after a thief). A round on the
+  3-way and Reaper maps takes 10-20 minutes; on the big Meccaryn maps longer.
+- **Reapers dropping ammo** (campaign): now and then a killed Reaper leaves a box (rockets, shells, clips) for a
+  weapon you carry that isn't full - walk over it.
 - **Frame rate** with 6-8 of them about (Options -> FRAME RATE).
 - **Hosting / joining** (needs a second Quest on the same Wi-Fi): one picks HOST A WI-FI GAME and a map; the other
   JOIN A WI-FI GAME - the host's game should appear within a few seconds ("GAME: < 3-WAY 1 AT 192.168.x.x >").

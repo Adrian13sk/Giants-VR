@@ -1,6 +1,6 @@
 # Project status — GiantsVR (unofficial Quest 2 port)
 
-Last updated: 2026-10-25 (APK d295fa1 delivered, device test pending. Branch `next` (not delivered): multiplayer - skirmish against computer players on the original's 12 multiplayer maps and LAN play between headsets; device-run summary; original-effects trails; Delphi's mine; review fixes)
+Last updated: 2026-10-25 night (APK d295fa1 delivered, device test pending. Branch `next`: bots now capture flags, multiplayer review fixes, Reapers drop ammo; also multiplayer - skirmish against computer players on the original's 12 multiplayer maps and LAN play between headsets; device-run summary; original-effects trails; Delphi's mine; review fixes)
 
 **Summary:** A native Quest APK (OpenXR + GLES 3, arm64) runs on the user's Quest 2 at 72 fps. It loads the user's
 original Giants data and renders the original worlds in stereo.
@@ -33,8 +33,11 @@ original Giants data and renders the original worlds in stereo.
 machine):** Main menu -> MULTIPLAYER. The original's 12 multiplayer maps (3-way, Meccaryn, Reaper) with teams,
 flag holders, captures and kills; computer players that route over the terrain, fight, take and return flags.
 HOST / JOIN a game on the same Wi-Fi (our own protocol; not the original's network play). Next: the user's
-headset check of the skirmish; two-headset test when possible; then bases in multiplayer (the original's
-"starting base level"), and balance.
+headset check of the skirmish; two-headset test when possible; balance.
+**2026-10-25 night fixes (host verified):** bots take and capture flags (0 -> 11-19 captures per 12 maps x 10
+minutes): Reaper flags stood inside the command centre, the route grid ignored the water's surface, stuck cells
+are learnt. A review of the multiplayer code: 13 findings fixed (players who left, late packets, lost events,
+kill credit, joiner bodies, reconnect). Reapers drop ammo for a weapon carried.
 
 **Branch `next`, 2026-10-24 evening (host verified, not device-tested; master stays at the d295fa1 APK the user tests):**
 `tools/py/review_results.py` summarises a device run on one page and compares it with earlier runs. Original
@@ -48,7 +51,7 @@ gun (story3_bunker_3), rocket launcher (story3_launcher_5, was 1c - an earlier m
 machine gun and grenades (5a; thrown by hand), with damage / rate / ammo from the records; the sniper's side screen
 shows a 4x zoom when raised to the eye. Delphi gets her bows from the same table (bow, RPG bow, sniper bow; drawn
 by hand in VR). Since then: the launcher's rockets are counted (8, 12 most), mines are sold in Shops, and the Spellshop sells
-Delphi's homing and power-up bows; Delphi's mine is on branch `next`. Still to do: Reapers dropping ammo.
+Delphi's homing and power-up bows; Delphi's mine and Reapers dropping ammo are on branch `next`.
 **Base building v1, 2026-10-24 (host verified, not device-tested):** mission 5c builds the Meccaryn base from the
 game's own template and build animations; Build Pad sign menu touched by hand, Vimp meat store. Next: collision,
 base attacks, pop-up bomb, Delphi's base (r4a).

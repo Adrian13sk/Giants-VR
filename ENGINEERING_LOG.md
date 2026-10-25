@@ -1804,3 +1804,45 @@ User: "Do this: Multiplayer, from the original game"; chose "Bots first, then on
   done). The flag holder stands at the build pad ("The Command Center protects your build pad and your flag
   holder"); captures are scored there. 5 minutes on six maps: 2-10 kills each, flags taken on four, no captures
   (carriers die on the long way home), 0 errors.
+
+## 2026-10-25 (night) — fixes on branch `next`: bot captures, a multiplayer review, Reapers' ammo
+No new device results on the PC since 2026-10-24's runs, so the known issues were worked on (host only).
+- **Bots never captured** (12 maps x 10 minutes, before: 13 flags taken, 0 captures). Causes found with a per-bot
+  trace (GVR_SK_DEBUG=<id>) and the flag state in the 15 s trace:
+  - On every Reaper side the flag stood inside the command centre (RP_command: 42 m across, its floor ~8 m up;
+    its collision profile measured along the pad). The bots walked into it for the whole match. Now the flag stands
+    at the nearest spot by the pad that is open sky (no floor overhead), where a capsule stands free and can walk
+    out (a clear line outwards), searched first towards the base's middle: 18 m in front on all 8 Reaper bases;
+    Meccaryn pads (open, 3 m) unchanged. Ours.
+  - The harness's first map set up the mission before the player had ground / sea (a menu start on the device
+    already had them): bots had no sea and walked on the -20 m floor off the island. Moved before initMission.
+  - The route grid measured steps from the sea floor: a swimmer could never climb out. Now surface to surface.
+  - Buildings blocked their axis-aligned bounds (a turned base blocked its own flag); now their turned footprint;
+    a goal in a blocked cell is still enterable; no diagonal steps past a building's corner (review finding).
+  - Rocks and ledges the terrain grid doesn't know: a bot stuck going into a cell marks it for its kind of mover
+    (costlier, impassable after 3), and getting no nearer a waypoint for 5 s counts as stuck (swimming along a
+    bank moved enough not to count before).
+  - Flags no route reaches (checked once per side at the start, unbounded search, 1-27 ms) are left alone; a bot
+    with no route anywhere hunts for 10 s.
+  - Behaviour: attackers no longer all run home when their flag is taken (defenders do, and attackers within
+    150 m); attackers escort a team-mate carrying a flag; carriers and travellers keep sprinting / jet-hopping
+    under fire; a partial route's last 40 m are walked straight.
+  - **After:** 11-19 captures and 64-70 flags taken per 12 x 10 minutes over runs; rounds won on 3-way L1 and
+    Reaper L1. Still slow: Mecc L1-L3 (600 m between bases, about one capture in 10 minutes), Reaper Lw1 and 3-way
+    Lw1 (bases behind banks; a flag carried by minute 10).
+- **Review of the multiplayer code** (an independent agent, read-only; 13 findings, each checked against the code
+  before fixing): players who left came back at the next round as frozen killable figures and their slots were
+  never reused (after 3 rejoins a full game refused everyone) -> a `gone` flag, slots reused, hidden; late UDP
+  packets could kill a joiner twice or restart its round -> sequence numbers on states and snapshots (protocol 2);
+  events beyond 12 were lost -> oldest first; snapshots could exceed 2 KB -> kept to one 1400-byte frame; stale
+  attackers credited falls -> only damage in the last 10 s counts; bolts froze through the win screen; the host drew
+  its own shots twice; joiners gave everyone a 1.8 m body (Kabuto hit only at the ankles) -> their hero's size;
+  a joiner's player stood at its spawn while it loaded and arrived to a pile of stored hits -> out of the game
+  until it reports; a lost joiner stayed frozen -> knocks again every 4 s (rejoined a restarted host on loopback);
+  host input limits (no negative damage, 4 shots a state, 96 in flight), joiner index checks, only known maps;
+  joiners listen on the game port (hear beacons). Not done: manual IP entry; models still load synchronously
+  when someone joins (a hitch on the host).
+- **Reapers drop ammo** (ours: after the 35 % injection, 30 % ammo): a pickup for a weapon carried that isn't
+  full, with the original's pickup object and model (weapondefs ammo item -> pickup type -> GameObj model:
+  mc_pickup_rockets / _shells / _clips; sniper rounds are type 787, whose model is the sniper gun itself - as the
+  data says). Placed ammo pickups show their own model now (all were the shells box).

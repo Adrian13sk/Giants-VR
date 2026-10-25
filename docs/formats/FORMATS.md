@@ -314,3 +314,11 @@ blasts). Parser: ObjectRegistry::addSoundTable; `gzptool fx` prints the names.
   _flag_kidnap / _flag_fly (carried by a Meccaryn) / _flag_fly_rp (by a Reaper); flags sm_flag1/2/3 (types 952-954,
   animated sm_flag.anm), base_flag_red/blue (835/836), Mcflag (+ Mcflag_flap.anm), kabutopad (1334, kabutopad.anm).
   How the original's game logic used them is native code (not decoded).
+- Measured (V): RP_command (the Reaper command centre, on the build pad) is 42 m across and 56 m high with its
+  walkable floor about 8 m up (collision profile along the pad) - the pad's centre is inside it. Ours: the flag
+  stands at the nearest open spot in front (18 m). The Meccaryn pad (wood_command) is a 3 m pad.
+- Ammo pickups (V, weapondefs + GameObj): ammo item -> pickup type -> model: 37 shells -> 647 mc_pickup_shells,
+  38 bullet clip -> 648 mc_pickup_clips, 39 sniper clip -> 787 (the sniper gun's own type, mc_snipergun_l0),
+  40-43 rockets / homing / proximity / mortar -> 801 mc_pickup_rockets, grenades -> 650 mc_pickup_grenades,
+  mines -> 1123 mc_pickup_mines. Unused by the data's items: MC_pickup_sn_Clips, mc_pickup_homing / _proximity /
+  _lbombs.

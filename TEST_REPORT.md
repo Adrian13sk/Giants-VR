@@ -675,3 +675,16 @@ one machine (one Quest available).
 - Whole-campaign sweep with the multiplayer branch (56 missions): 56/56 exit 0, 0 errors.
 - Android build compiles (no warnings); not delivered.
 - Device-test script `devtest/tests/skirmish_3way.txt` dry-run in the harness.
+
+## Branch `next` fixes — host verification, 2026-10-25 night
+- Unit tests (host): all pass, including new `testSkNav` (water exit, turned building footprint, blocked goal,
+  learnt cells) and the extended `testSkNet` (an event backlog of 30 arrives complete and in order; a joiner leaves,
+  its player is gone and not respawned, the next joiner takes its slot).
+- Bot matches, 12 maps x 10 minutes (`GVR_SKIRMISH=0,3`, harness player idle): before 0 captures / 13 flags taken /
+  166 kills; after (three runs) 11-19 captures / 61-70 taken / 201-210 kills, 0 errors.
+- LAN on loopback (two harnesses, GVR_REALTIME=1): joined, the host's bot killed the joiner and both logged it; a host
+  stopped and restarted 40 s later: the joiner logged "lost the host", knocked again and rejoined.
+- Reaper ammo: GVR_AMMO_DROP_AHEAD=4 with GVR_ARSENAL=half in Story3: 4 drops rendered with their own models, walked
+  through: rockets x2, sniper rounds, shells taken.
+- ASan / UBSan, the 12 maps and network under ASan, and the 56-mission sweep: see below (filled in when done).
+- **Not verified:** anything on a headset; play between two headsets.
