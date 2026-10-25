@@ -334,7 +334,16 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 if (!sees) { e.state = EnemyState::Idle; break; }
                 e.fireCooldown -= dt;
                 if (e.burstLeft > 0) {
-                    setClip(e, EnemyClip::Fire, true);
+                    // Rework: pressing in - a Reaper not yet at his stand-off distance walks at you while
+                    // he fires (rpman_walk_fire), instead of standing still to be shot.
+                    const bool press = params.pressIn && !e.posted && dist > params.fireRange + 2.0f;
+                    if (press) {
+                        setClip(e, EnemyClip::Walk, true);
+                        const Vec3 f{-std::sin(e.yaw), 0, -std::cos(e.yaw)};
+                        tryMove(e, f * (params.walkSpeed * dt));
+                    } else {
+                        setClip(e, EnemyClip::Fire, true);
+                    }
                     const bool facing = std::fabs(angleDelta(e.yaw, faceYaw)) < 0.35f;
                     if (e.fireCooldown <= 0 && facing) {
                         shooters.push_back(int(i));

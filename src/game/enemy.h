@@ -75,8 +75,9 @@ struct EnemyParams {
     float sightRange = 60.0f;     // m: sees the player in front with a clear line (was 50, any side)
     float shootRange = 30.0f;     // m: stops running to shoot when this close
     float fireRange = 10.0f;      // m: closest stand-off distance
-    float runSpeed = 3.7f;        // m/s (rpman_bzka_run stride: 18.4 units/s)
-    float walkSpeed = 1.65f;      // m/s (rpman_walk_fire stride, unused by the current AI)
+    float runSpeed = 4.2f;        // m/s (rpman_bzka_run stride: 18.4 units/s = 3.7; the rework runs them faster)
+    float walkSpeed = 1.65f;      // m/s (rpman_walk_fire stride: pressing in while firing)
+    bool pressIn = true;          // rework: walk at the player while firing (false: the classic stand-and-fire)
     int burstsPerStop = 2;        // bursts fired at each stop before running to a new spot
     float maxSlope = 1.19f;       // rise/run: steeper uphill ground blocks them (50 deg, like the player)
     float maxStepUp = 0.8f;       // m
@@ -84,7 +85,7 @@ struct EnemyParams {
     float turnRate = 5.0f;        // rad/s
     float fireInterval = 0.35f;   // s between shots in a burst
     int burstSize = 3;
-    float burstPause = 1.4f;      // s
+    float burstPause = 1.1f;      // s (rework; was 1.4)
     float radius = 0.45f, height = 2.2f;  // capsule (m)
     float crossfade = 0.2f;
     float corpseTime = 10.0f;     // s before the body sinks away
@@ -93,7 +94,7 @@ struct EnemyParams {
     // a moment of turning to look before it advances. Until then a short patrol near home.
     float noticeAngle = 1.4f;     // rad either side of facing
     float hearRange = 14.0f;      // m: noticed from any direction this close
-    float noticeDelay = 0.7f;     // s from noticing to acting
+    float noticeDelay = 0.45f;    // s from noticing to acting (rework; was 0.7)
     float patrolRadius = 6.0f;    // m around home
     float patrolSpeed = 1.1f;     // m/s (walk clip)
 };

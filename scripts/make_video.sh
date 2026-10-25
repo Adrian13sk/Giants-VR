@@ -3,7 +3,6 @@
 # head, 1280x720, 4x MSAA, 24 fps of the 72 Hz simulation) joined with captions.
 # usage: GVR_BIN=<Bin> scripts/make_video.sh <out.mp4> [clip list file]
 # Clip list lines: <caption>|<world>|<mission>|<from frame>|<frames>|<env and harness args...>
-set -u
 B="${GVR_BIN:?set GVR_BIN to the Bin folder}"
 OUT=${1:?output mp4}
 LIST=${2:-}
@@ -27,13 +26,13 @@ while IFS='|' read -r cap world mission from frames args; do
   [ -z "$cap" ] && continue
   case "$cap" in \#*) continue;; esac
   d=$WORK/c$n; mkdir -p "$d"
-  envs=(); harg=()
+  envs=""; harg=""
   for a in $args; do
-    case "$a" in GVR_*=*) envs+=("$a");; *) harg+=("$a");; esac
+    case "$a" in GVR_*=*) envs="$envs $a";; *) harg="$harg $a";; esac
   done
   total=$((from + frames))
-  env "${envs[@]}" GVR_MISSION="$mission" timeout 3000 "$HR" --data "$B" --world "$world" --play --frames $total \
-      --video "$d" 3 --video-from "$from" --out "$d/final.png" "${harg[@]}" > "$d/log" 2>&1
+  env $envs GVR_MISSION="$mission" timeout 3000 "$HR" --data "$B" --world "$world" --play --frames $total \
+      --video "$d" 3 --video-from "$from" --out "$d/final.png" $harg > "$d/log" 2>&1
   echo "clip $n: $cap ($(ls "$d"/f*.png 2>/dev/null | wc -l) frames, exit $?)"
   esc=$(printf '%s' "$cap" | sed "s/:/\\\\:/g; s/'/\\\\'/g")
   ffmpeg -loglevel error -y -framerate 24 -i "$d/f%05d.png" \
