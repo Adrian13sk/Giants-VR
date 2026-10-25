@@ -1379,9 +1379,14 @@ static void testVimps() {
     // 20 hp: a 25-damage shot kills, a 10 only hurts.
     CHECK(!d.damage(0, 10.0f, {5, 0, 0}) && d.vimps[0].state == VimpState::Hit);
     CHECK(d.damage(1, 25.0f, {5, 0, 0}) && d.vimps[1].state == VimpState::Dead && d.aliveCount() == 3);
-    // Carcasses go after a while.
+    // Rework: the dead are born again after a while - small, and not huntable until grown.
+    d.params.rebirthTime = 20.0f;
+    d.params.growTime = 30.0f;
     for (int f = 0; f < 72 * 25; ++f) d.update(1.0f / 72.0f, {}, {});
-    CHECK(d.vimps.size() == 3);
+    CHECK(d.vimps.size() == 4 && d.vimps[1].state != VimpState::Dead && d.vimps[1].growth < 1.0f);
+    CHECK(!VimpDirector::killable(d.vimps[1]) && !d.damage(1, 100.0f, {5, 0, 0}));
+    for (int f = 0; f < 72 * 50; ++f) d.update(1.0f / 72.0f, {}, {});
+    CHECK(VimpDirector::killable(d.vimps[1]) && d.damage(1, 100.0f, {5, 0, 0}));
 }
 
 static void testVillagers() {

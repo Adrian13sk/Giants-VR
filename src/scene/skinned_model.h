@@ -68,6 +68,8 @@ public:
     void render(Renderer& r, const Mat4& world, const Vec4& tint) const;
     void renderShadow(Renderer& r, const Mat4& world) const;
     // Unlit, self-illuminated draw (effects such as the Rippers' spit balls).
+    // A see-through, glowing copy (additive, no depth write): a soul or a ghost.
+    void renderGhost(Renderer& r, const Mat4& world, const Vec3& rgb) const;
     void renderGlow(Renderer& r, const Mat4& world, float brightness = 1.0f) const;
     const std::string& name() const { return base_; }
     uint32_t boundVertices() const { return bound_; }

@@ -1306,6 +1306,7 @@ private:  // the mission placed enemies: no test waves
     float meatFlash_ = 0, meatHintT_ = 0;
     void initVimps(AssetWorld* w, ModelCache* mc);
     void updateVimps(float dt);
+    std::unique_ptr<SkinnedModel> vimpSoulModel_;  // rework: the souls over the dead
     void renderVimps(bool shadow, const Vec3& eye, float range);
     bool vimpRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
     void hitVimp(int i, float amount, const Vec3& at, const Vec3& dir);

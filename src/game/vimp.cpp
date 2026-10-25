@@ -108,9 +108,26 @@ void VimpDirector::update(float dt, const std::vector<Vec3>& threats, const std:
     for (auto& v : vimps) {
         v.stateTime += dt;
         v.clipTime += dt * v.rate;
+        if (v.state != VimpState::Dead && v.growth < 1.0f) v.growth = std::min(1.0f, v.growth + dt * 0.7f / params.growTime);
         switch (v.state) {
             case VimpState::Dead:
-                if (v.stateTime > params.corpseTime) v.remove = true;
+                if (v.stateTime > params.rebirthTime) {
+                    // Born again by its herd: small, it grows (killable once grown).
+                    Vec3 c = v.herd >= 0 && size_t(v.herd) < herds.size() ? herds[size_t(v.herd)].centre : v.pos;
+                    for (int tries = 0; tries < 6; ++tries) {
+                        const Vec3 p = c + Vec3{(rand01() - 0.5f) * params.herdRadius, 0, (rand01() - 0.5f) * params.herdRadius};
+                        if (!walkable || walkable(p.x, p.z)) { c = p; break; }
+                    }
+                    if (groundHeight) c.y = groundHeight(c.x, c.z);
+                    v.pos = c;
+                    v.hp = 20;
+                    v.growth = 0.3f;
+                    v.eaten = false;
+                    v.stateTime = 0;
+                    v.state = VimpState::Graze;
+                    v.duration = 3.0f;
+                    setClip(v, VimpClip::Graze);
+                }
                 break;
             case VimpState::Hit:
                 if (v.stateTime > 0.8f) {
@@ -158,10 +175,19 @@ void VimpDirector::update(float dt, const std::vector<Vec3>& threats, const std:
     vimps.erase(std::remove_if(vimps.begin(), vimps.end(), [](const Vimp& v) { return v.remove; }), vimps.end());
 }
 
+void VimpDirector::eat(int i) {
+    if (i < 0 || size_t(i) >= vimps.size()) return;
+    Vimp& v = vimps[size_t(i)];
+    v.state = VimpState::Dead;
+    v.eaten = true;
+    v.stateTime = 0;
+    setClip(v, VimpClip::Die);
+}
+
 bool VimpDirector::damage(int i, float amount, const Vec3& from) {
     if (i < 0 || size_t(i) >= vimps.size()) return false;
     Vimp& v = vimps[size_t(i)];
-    if (v.state == VimpState::Dead) return false;
+    if (v.state == VimpState::Dead || v.growth < 1.0f) return false;  // (a newborn can't be hunted)
     v.hp -= amount;
     if (v.hp <= 0) {
         v.state = VimpState::Dead;

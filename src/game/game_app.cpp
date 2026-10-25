@@ -3329,7 +3329,7 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int
     for (size_t i = 0; i < vimps_.vimps.size(); ++i) {
         const Vimp& v = vimps_.vimps[i];
         const float dv = length(v.pos + Vec3{0, 2.0f, 0} - at);
-        if (v.state != VimpState::Dead && dv < radius + 1.5f)
+        if (VimpDirector::killable(v) && dv < radius + 1.5f)
             hitVimp(int(i), damage * (1.0f - 0.6f * std::min(1.0f, dv / (radius + 1.5f))), v.pos + Vec3{0, 2.0f, 0}, normalize(v.pos - at + Vec3{0, 0.5f, 0}));
     }
     // Rework: Smarties in the blast.
@@ -3482,7 +3482,7 @@ void GameApp::updateRockets(float dt) {
                 if (creatures_.creatures[i].state != CreatureState::Dead)
                     consider(creatures_.creatures[i].pos + Vec3{0, 0.5f * creatures_.creatures[i].scale, 0}, kCreatureTarget + int(i));
             for (size_t i = 0; i < vimps_.vimps.size(); ++i)
-                if (vimps_.vimps[i].state != VimpState::Dead) consider(vimps_.vimps[i].pos + Vec3{0, 2.0f, 0}, kVimpTarget + int(i));
+                if (VimpDirector::killable(vimps_.vimps[i])) consider(vimps_.vimps[i].pos + Vec3{0, 2.0f, 0}, kVimpTarget + int(i));
             if (bestD < 1.0f && bestId >= 0 && weapon_.onHit) {
                 // Close enough: it strikes the foe it was chasing (and bursts).
                 hitMul_ = r.dmg;

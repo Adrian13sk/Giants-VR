@@ -300,6 +300,19 @@ void SkinnedModel::renderShadow(Renderer& r, const Mat4& world) const {
         if (!p.glass) r.drawShadow(p.mesh, world);
 }
 
+void SkinnedModel::renderGhost(Renderer& r, const Mat4& world, const Vec3& rgb) const {
+    for (const Part& p : parts_) {
+        DrawParams dp;
+        dp.texture = p.texture;
+        dp.blend = BlendMode::Additive;
+        dp.unlit = true;
+        dp.depthWrite = false;
+        dp.noFog = false;
+        dp.tint = {rgb.x, rgb.y, rgb.z, 1.0f};
+        r.draw(p.mesh, world, dp);
+    }
+}
+
 void SkinnedModel::renderGlow(Renderer& r, const Mat4& world, float brightness) const {
     for (const Part& p : parts_) {
         DrawParams dp;

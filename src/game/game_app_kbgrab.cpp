@@ -76,7 +76,7 @@ void GameApp::updateKabutoHandGrab(const InputFrame& in) {
             if (d < best) { best = d; kind = 3; idx = kVillagerTargetG + int(i); }
         }
         for (size_t i = 0; i < vimps_.vimps.size(); ++i) {
-            if (vimps_.vimps[i].state == VimpState::Dead) continue;
+            if (!VimpDirector::killable(vimps_.vimps[i])) continue;
             const float d = flat(vimps_.vimps[i].pos);
             if (d < best) { best = d; kind = 3; idx = kVimpTargetG + int(i); }
         }

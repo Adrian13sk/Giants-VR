@@ -105,13 +105,18 @@ void GameApp::initVimps(AssetWorld* w, ModelCache* mc) {
         }
         LOGI("Vimp herd %zu: %d at game (%.0f, %.0f)", h, n, -c.x / gGameUnitsToMeters, c.z / gGameUnitsToMeters);
     }
+    // Rework: the souls' model - standing, the idle clip.
+    if (!vimps_.vimps.empty()) {
+        auto sm = std::make_unique<SkinnedModel>();
+        if (sm->load(w->fs(), *mc, renderer_, "vp_l1", "vp_idle.anm")) vimpSoulModel_ = std::move(sm);
+    }
 }
 
 bool GameApp::vimpRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const {
     bool hit = false;
     for (size_t i = 0; i < vimps_.vimps.size(); ++i) {
         const Vimp& v = vimps_.vimps[i];
-        if (v.state == VimpState::Dead) continue;
+        if (!VimpDirector::killable(v)) continue;  // (dead, or a newborn: shots pass)
         // A sphere round the body (about 3 m long, the back 3 m up).
         const float r = 1.5f;
         const Vec3 c = v.pos + Vec3{0, 2.0f, 0};
@@ -175,6 +180,7 @@ void GameApp::updateVimps(float dt) {
             if (v.state != VimpState::Dead && length(v.pos - player_.position) < 60.0f)
                 sfx(v.state == VimpState::Flee ? "vi_squi1" : (frand() < 0.5f ? "vi_moo1" : "vi_moo2"), v.pos + Vec3{0, 2, 0}, 0.8f);
         }
+        if (vimpSoulModel_) vimpSoulModel_->pose(renderer_, float(time_));  // (one idle pose for every soul)
         for (const auto& v : vimps_.vimps) {
             if (v.slot < 0 || length(v.pos - player_.position) > 120.0f) continue;
             const int clip = vimpClip_[int(v.clip)];
@@ -240,12 +246,25 @@ void GameApp::updateVimps(float dt) {
 
 void GameApp::renderVimps(bool shadow, const Vec3& eye, float range) {
     for (const auto& v : vimps_.vimps) {
-        if (v.slot < 0 || length(v.pos - eye) > range) continue;
-        const Mat4 xf = Mat4::translation(v.pos + Vec3{0, vimpLift_, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, v.yaw));
+        if (v.slot < 0 || v.eaten || length(v.pos - eye) > range) continue;
+        const Mat4 xf = Mat4::translation(v.pos + Vec3{0, vimpLift_ * v.growth, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, v.yaw)) *
+                        Mat4::scale(Vec3{v.growth, v.growth, v.growth});
         if (shadow) vimpModels_[size_t(v.slot)]->renderShadow(renderer_, xf);
         else vimpModels_[size_t(v.slot)]->render(renderer_, xf);
     }
     if (shadow) return;
+    // Rework: the souls of the dead stand over their bodies (see-through, glowing, a slow sway),
+    // fading in and fading out before the Vimp is born again.
+    if (vimpSoulModel_ && !renderer_.inReflectionPass())
+        for (const auto& v : vimps_.vimps) {
+            if (v.state != VimpState::Dead || length(v.pos - eye) > range) continue;
+            const float t = v.stateTime, T = vimps_.params.rebirthTime;
+            const float k = std::min(1.0f, std::max(0.0f, (t - 1.0f) / 1.5f)) * std::min(1.0f, std::max(0.0f, (T - t) / 4.0f));
+            if (k <= 0.01f) continue;
+            const float bob = 0.25f * std::sin(float(time_) * 1.3f + float(v.uid));
+            const Mat4 xf = Mat4::translation(v.pos + Vec3{0, vimpLift_ + 0.6f + bob, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, v.yaw));
+            vimpSoulModel_->renderGhost(renderer_, xf, Vec3{0.25f, 0.45f, 0.75f} * k);
+        }
     for (const auto& m : meat_) {
         if (m.t < 0 || length(m.pos - eye) > range) continue;
         drawModel(meatModel_[m.model], Mat4::translation(m.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, m.yaw)), false);

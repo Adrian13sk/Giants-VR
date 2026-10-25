@@ -404,7 +404,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
                 consider(kCreatureTargetK + int(i), creatures_.creatures[i].pos);
         for (size_t i = 0; i < villagers_.villagers.size(); ++i) consider(kVillagerTargetK + int(i), villagers_.villagers[i].pos);
         for (size_t i = 0; i < vimps_.vimps.size(); ++i)
-            if (vimps_.vimps[i].state != VimpState::Dead) consider(kVimpTargetK + int(i), vimps_.vimps[i].pos);
+            if (VimpDirector::killable(vimps_.vimps[i])) consider(kVimpTargetK + int(i), vimps_.vimps[i].pos);
         if (best >= 0 && best < kCreatureTargetK) {
             // A Reaper: updateThrows grabs it.
         } else if (best >= 0) {
@@ -429,9 +429,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
             if (k.eatTarget >= kVimpTargetK) {
                 const size_t vi = size_t(k.eatTarget - kVimpTargetK);
                 if (vi < vimps_.vimps.size() && vimps_.vimps[vi].state != VimpState::Dead) {
-                    vimps_.vimps[vi].remove = true;
-                    vimps_.vimps[vi].state = VimpState::Dead;
-                    vimps_.vimps[vi].slot = -1;
+                    vimps_.eat(int(vi));  // (rework: no body; its soul stands there, and it is born again later)
                     ate = true;
                 }
             } else if (k.eatTarget >= kVillagerTargetK) {

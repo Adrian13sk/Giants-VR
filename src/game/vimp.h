@@ -28,6 +28,10 @@ struct Vimp {
     int slot = -1;        // model slot (game layer)
     bool remove = false;
     uint32_t uid = 0;     // stable id (the list shrinks)
+    // Rework (user): killed, the body lies with its soul standing over it; later it is born again by
+    // its herd, small, and grows - killable again once grown. eaten: no body (the giant ate it).
+    float growth = 1.0f;
+    bool eaten = false;
 };
 
 struct VimpHerd {
@@ -45,7 +49,9 @@ struct VimpParams {
     float fleeDistance = 60.0f;                  // m: how far a stampede runs
     float calmAfter = 8.0f;
     float turnRate = 3.0f;
-    float corpseTime = 20.0f;                    // s a carcass stays
+    float corpseTime = 20.0f;                    // s a carcass stays (unused since the rework: see rebirth)
+    float rebirthTime = 60.0f;                   // s until a killed Vimp is born again (rework)
+    float growTime = 90.0f;                      // s from newborn to grown (rework)
 };
 
 class VimpDirector {
@@ -63,6 +69,9 @@ public:
     // Damage; true if it died now.
     bool damage(int i, float amount, const Vec3& from);
     size_t aliveCount() const;
+    // Grown and alive: can be hunted (a newborn can't).
+    static bool killable(const Vimp& v) { return v.state != VimpState::Dead && v.growth >= 1.0f; }
+    void eat(int i);  // taken whole by the giant: no body, reborn later
 
 private:
     uint32_t rng_ = 4242u;

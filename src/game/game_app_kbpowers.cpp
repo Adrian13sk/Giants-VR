@@ -236,7 +236,7 @@ void GameApp::updateKabutoPowers(float dt, const InputFrame& in) {
                 if (d < best) { best = d; o.target = 10000 + int(i); }
             }
             for (size_t i = 0; i < vimps_.vimps.size(); ++i)
-                if (vimps_.vimps[i].state != VimpState::Dead) { const float d = length(vimps_.vimps[i].pos - o.pos); if (d < best) { best = d; o.target = 20000 + int(i); } }
+                if (VimpDirector::killable(vimps_.vimps[i])) { const float d = length(vimps_.vimps[i].pos - o.pos); if (d < best) { best = d; o.target = 20000 + int(i); } }
             for (size_t i = 0; i < villagers_.villagers.size(); ++i) { if (!VillagerDirector::alive(villagers_.villagers[i])) continue; const float d = length(villagers_.villagers[i].pos - o.pos); if (d < best) { best = d; o.target = 30000 + int(i); } }
         }
         Vec3 goal = player_.position;

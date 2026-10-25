@@ -2047,3 +2047,10 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   a gun or bow aimed within ~6 degrees for 0.4 s -> hands up. Offspring and name tags skip the dead. Harness: 5a,
   aiming -> "Smartie 5 puts its hands up"; a blast -> two killed; kabuto_smartie_throw -> killed on landing. Unit test
   extended. Sweep 56/56 clean.
+- Vimps (user: body drops, soul stands on it, they respawn and grow, killable when adult): VimpDirector keeps the
+  dead (no removal), rebirth after 60 s at the herd centre with growth 0.3 -> 1 over 90 s; damage and the targeting
+  (vimpRay, auto-aim, explosions, Kabuto's grab/eat, the Offspring) use VimpDirector::killable (alive and grown).
+  Eaten by Kabuto: VimpDirector::eat (no body, soul and rebirth as usual). The soul: one extra vp_l1 posed with
+  vp_idle, drawn at each dead Vimp with SkinnedModel::renderGhost (additive, blue-white, no depth write), bobbing,
+  fading in after 1 s and out over the last 4 s. Harness 2a_1: a blast kills one, its soul stands over the body.
+  Unit test: reborn small, not huntable, grown, huntable. Sweep 56/56 clean.
