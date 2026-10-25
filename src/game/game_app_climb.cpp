@@ -74,6 +74,22 @@ void GameApp::updateClimb(float dt, const InputFrame& in) {
         if (trace) LOGI("climb: hand %d takes hold (grade %.2f)", h, grade);
         ++holding;
     }
+    // A one-time hint: pushing the stick into ground too steep to walk, getting nowhere.
+    static bool hinted = false;
+    if (can && !hinted && holding == 0) {
+        const Vec2 mv = in.hand[rig_.moveHand()].thumbstick;
+        float ya, y0;
+        const Vec3 f{-std::sin(player_.yaw), 0, -std::cos(player_.yaw)};
+        const Vec3 ahead = player_.position + f * (0.3f * H);
+        const bool steepAhead = assetWorld_->terrain().heightAt(ahead.x, ahead.z, ya) &&
+                                assetWorld_->terrain().heightAt(player_.position.x, player_.position.z, y0) && ya - y0 > 0.3f * H * 1.2f;
+        climbStuckT_ = (mv.y > 0.6f && player_.horizontalSpeed() < 0.5f && steepAhead) ? climbStuckT_ + dt : 0.0f;
+        if (climbStuckT_ > 1.5f) {
+            hinted = true;
+            timmyLine_ = "TOO STEEP TO WALK - PUT A HAND ON IT, SQUEEZE THE GRIP AND PULL YOURSELF UP";
+            timmyLineT_ = 5.0f;
+        }
+    }
     if (holding > 0) {
         if (holding == 2) move = move * 0.5f;  // (both hands: their average)
         const float l = length(move);

@@ -1406,7 +1406,7 @@ private:  // the mission placed enemies: no test waves
     void updateClimb(float dt, const InputFrame& in);
     bool climbGripWas_[2] = {false, false}, climbHold_[2] = {false, false};
     Vec3 climbAnchor_[2];
-    float climbT_ = 0;
+    float climbT_ = 0, climbStuckT_ = 0;
     bool touch_[2] = {false, false};
     float touchT_[2] = {0, 0};
     QuadBatch fireBatch_;
