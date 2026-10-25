@@ -143,7 +143,7 @@ vec3 fogMix(vec3 rgb, float fog, highp vec3 wp) {
     if (uLook < 0.5) return mix(uFogColor, rgb, fog);
     highp vec3 vd = normalize(wp - uEyePos);
     float sunward = pow(max(dot(vd, -normalize(uSunDir)), 0.0), 6.0);
-    vec3 haze = uFogColor + uSunColor * sunward * 0.45;
+    vec3 haze = uFogColor + uSunColor * sunward * 0.22;
     return mix(haze, rgb, fog);
 }
 
@@ -222,14 +222,13 @@ float sunShadow(highp vec3 wp, vec3 n) {
 // an S-shaped contrast, warm highlights / cool shadows, exposure.
 vec3 grade(vec3 c, float satScale) {
     if (uLook > 0.5) {
-        // Filmic: exposure, the ACES curve (Narkowicz's fit) for highlights that roll off instead of
-        // clipping, then saturation and a warm/cool split.
-        c = max(c * uGrade.w * 1.6, vec3(0.0));
-        c = clamp((c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14), 0.0, 1.0);
-        float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-        c = mix(vec3(l), c, mix(1.0, uGrade.x * 1.08, satScale));
-        c += (l - 0.35) * uGrade.z * 0.6 * vec3(1.0, 0.3, -0.8);
-        return max(c, vec3(0.0));
+        // Rework: the painted textures' mid-tones as they were; only highlights roll off softly
+        // (sun glints, bright sky) instead of clipping, by luminance so hues hold.
+        float L = dot(c, vec3(0.2126, 0.7152, 0.0722));
+        if (L > 0.6) {
+            float Lc = 0.6 + (L - 0.6) / (1.0 + (L - 0.6) / 0.55);
+            c *= Lc / L;
+        }
     }
     vec3 g = sqrt(max(c * uGrade.w, vec3(0.0)));
     float l = dot(g, vec3(0.299, 0.587, 0.114));
