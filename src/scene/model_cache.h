@@ -39,6 +39,9 @@ struct RenderModel {
     uint32_t missingTextures = 0;
 };
 
+// Doubles a small texture (Catmull-Rom) and sharpens its colour (rework; GVR_UPSCALE=0: off).
+void upscaleSharpen(Image& img);
+
 class ModelCache {
 public:
     ModelCache(const AssetFS& fs, Renderer& r) : fs_(fs), renderer_(r) {}

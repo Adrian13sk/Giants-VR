@@ -1,5 +1,8 @@
 #include "scene/model_cache.h"
 
+#include <cmath>
+#include <cstdlib>
+
 #include <algorithm>
 #include <map>
 
@@ -179,6 +182,81 @@ bool bakeDefaultSkinPose(const AssetFS& fs, const std::string& base, const std::
     return bound > 0;
 }
 
+namespace {
+// Rework: the original textures are small (mostly 64-256 px) and look soft up close in VR. Each one
+// up to 256 px is doubled (Catmull-Rom) and its colour sharpened (unsharp mask, alpha left as is),
+// so the extra texels carry crisper detail into the GPU's filtering. GVR_UPSCALE=0 turns it off.
+float cubicW(float x) {
+    x = std::fabs(x);
+    if (x < 1.0f) return 1.5f * x * x * x - 2.5f * x * x + 1.0f;
+    if (x < 2.0f) return -0.5f * x * x * x + 2.5f * x * x - 4.0f * x + 2.0f;
+    return 0.0f;
+}
+}  // namespace
+
+void upscaleSharpen(Image& img) {
+    static const bool off = [] { const char* e = std::getenv("GVR_UPSCALE"); return e && e[0] == '0'; }();
+    if (off || img.width < 8 || img.height < 8 || img.width > 256 || img.height > 256) return;
+    const int w = img.width, h = img.height, W = w * 2, H = h * 2;
+    // The two output phases of a 2x Catmull-Rom (samples at +-0.25 texel): fixed 4-tap weights.
+    float k0[4], k1[4];
+    for (int i = 0; i < 4; ++i) { k0[i] = cubicW(-0.25f - float(i - 1)); k1[i] = cubicW(0.25f - float(i - 1)); }
+    // Horizontal pass: w x h -> W x h; then vertical: W x h -> W x H (separable, wrapping).
+    std::vector<float> hor(size_t(W) * h * 4), up(size_t(W) * H * 4);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x)
+            for (int c = 0; c < 4; ++c) {
+                float a = 0, b = 0;
+                for (int i = 0; i < 4; ++i) {
+                    // Output 2x reads around x - 0.25 (taps x-2..x+1), 2x+1 around x + 0.25 (taps x-1..x+2).
+                    const int xa = ((x - 2 + i) % w + w) % w, xb = ((x - 1 + i) % w + w) % w;
+                    a += k0[i] * float(img.rgba[size_t(y * w + xa) * 4 + size_t(c)]);
+                    b += k1[i] * float(img.rgba[size_t(y * w + xb) * 4 + size_t(c)]);
+                }
+                hor[size_t(y * W + 2 * x) * 4 + size_t(c)] = a;
+                hor[size_t(y * W + 2 * x + 1) * 4 + size_t(c)] = b;
+            }
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < W; ++x)
+            for (int c = 0; c < 4; ++c) {
+                float a = 0, b = 0;
+                for (int i = 0; i < 4; ++i) {
+                    const int ya = ((y - 2 + i) % h + h) % h, yb = ((y - 1 + i) % h + h) % h;
+                    a += k0[i] * hor[size_t(ya * W + x) * 4 + size_t(c)];
+                    b += k1[i] * hor[size_t(yb * W + x) * 4 + size_t(c)];
+                }
+                up[size_t(2 * y * W + x) * 4 + size_t(c)] = a;
+                up[size_t((2 * y + 1) * W + x) * 4 + size_t(c)] = b;
+            }
+    // Unsharp mask on colour (blur [1 2 1] x [1 2 1], separable); alpha as upscaled.
+    std::vector<float> bh(size_t(W) * H * 3);
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x)
+            for (int c = 0; c < 3; ++c) {
+                const int xl = (x - 1 + W) % W, xr = (x + 1) % W;
+                bh[size_t(y * W + x) * 3 + size_t(c)] = 0.25f * (up[size_t(y * W + xl) * 4 + size_t(c)] + up[size_t(y * W + xr) * 4 + size_t(c)]) +
+                                                        0.5f * up[size_t(y * W + x) * 4 + size_t(c)];
+            }
+    std::vector<uint8_t> out(size_t(W) * H * 4);
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x) {
+            const int yu = (y - 1 + H) % H, yd = (y + 1) % H;
+            for (int c = 0; c < 4; ++c) {
+                const float v = up[size_t(y * W + x) * 4 + size_t(c)];
+                float r = v;
+                if (c < 3) {
+                    const float blur = 0.25f * (bh[size_t(yu * W + x) * 3 + size_t(c)] + bh[size_t(yd * W + x) * 3 + size_t(c)]) +
+                                       0.5f * bh[size_t(y * W + x) * 3 + size_t(c)];
+                    r = v + 0.7f * (v - blur);
+                }
+                out[size_t(y * W + x) * 4 + size_t(c)] = uint8_t(std::max(0.0f, std::min(255.0f, r + 0.5f)));
+            }
+        }
+    img.width = W;
+    img.height = H;
+    img.rgba.swap(out);
+}
+
 TextureId ModelCache::texture(const std::string& name, bool* hadAlpha) {
     std::string key = toLower(name);
     auto it = textures_.find(key);
@@ -197,6 +275,7 @@ TextureId ModelCache::texture(const std::string& name, bool* hadAlpha) {
         Image img;
         std::string err;
         if (decodeImage(bytes.data(), bytes.size(), img, &err)) {
+            upscaleSharpen(img);
             e.id = renderer_.uploadTexture(img.width, img.height, img.rgba.data(), true, true);
             e.alpha = img.hadAlpha;
         } else {
