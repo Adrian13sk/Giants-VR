@@ -48,35 +48,34 @@ void GameApp::updateVignette(float dt, const InputFrame& in) {
     if (trace) LOGI("vignette %.2f (want %.2f, setting %d)", vignette_, want, settings_.vignette);
 }
 
-void GameApp::renderVignette() {
-    if (vignette_ < 0.02f || !lastInput_.headValid) return;
-    // An annulus 1 m ahead of the eyes: clear inside, a soft edge, black outside.
+// An annulus 1 m ahead of the eyes: clear inside, a soft edge, `rgb` outside; `k` (0..1) closes it in.
+void GameApp::drawEyeRing(MeshId& mesh, float k, const Vec3& rgb, float alpha) {
     const int seg = 48;
-    const float inner = std::tan((60.0f - 32.0f * vignette_) * kPi / 180.0f);
-    const float soft = std::tan((75.0f - 30.0f * vignette_) * kPi / 180.0f);
+    const float inner = std::tan((60.0f - 32.0f * k) * kPi / 180.0f);
+    const float soft = std::tan((75.0f - 30.0f * k) * kPi / 180.0f);
     const float outer = std::tan(85.0f * kPi / 180.0f);
     MeshData md;
+    const uint8_t r8 = uint8_t(std::min(1.0f, rgb.x) * 255.0f), g8 = uint8_t(std::min(1.0f, rgb.y) * 255.0f), b8 = uint8_t(std::min(1.0f, rgb.z) * 255.0f);
     for (int i = 0; i < seg; ++i) {
         const float a = 2.0f * kPi * float(i) / float(seg);
         const float c = std::cos(a), s = std::sin(a);
         const float rs[3] = {inner, std::max(inner + 0.05f, soft), outer};
         const uint8_t al[3] = {0, 255, 255};
-        for (int k = 0; k < 3; ++k) {
+        for (int q = 0; q < 3; ++q) {
             Vertex v{};
-            v.pos[0] = c * rs[k]; v.pos[1] = s * rs[k]; v.pos[2] = -1.0f;
+            v.pos[0] = c * rs[q]; v.pos[1] = s * rs[q]; v.pos[2] = -1.0f;
             v.normal[2] = 1.0f;
-            v.color[3] = al[k];
+            v.color[0] = r8; v.color[1] = g8; v.color[2] = b8;
+            v.color[3] = al[q];
             md.vertices.push_back(v);
         }
     }
     for (int i = 0; i < seg; ++i) {
         const uint32_t a = uint32_t(i * 3), b = uint32_t(((i + 1) % seg) * 3);
-        for (uint32_t k = 0; k < 2; ++k) {
-            md.indices.insert(md.indices.end(), {a + k, b + k, b + k + 1, a + k, b + k + 1, a + k + 1});
-        }
+        for (uint32_t q = 0; q < 2; ++q) md.indices.insert(md.indices.end(), {a + q, b + q, b + q + 1, a + q, b + q + 1, a + q + 1});
     }
-    if (!vignetteMesh_) vignetteMesh_ = renderer_.uploadMesh(md);
-    else renderer_.updateMeshVertices(vignetteMesh_, md.vertices);
+    if (!mesh) mesh = renderer_.uploadMesh(md);
+    else renderer_.updateMeshVertices(mesh, md.vertices);
     const Pose head = rig_.toWorld(lastInput_.head);
     DrawParams dp;
     dp.unlit = true;
@@ -85,15 +84,31 @@ void GameApp::renderVignette() {
     dp.depthWrite = false;
     dp.doubleSided = true;
     dp.noFog = true;
-    dp.tint = {1, 1, 1, std::min(1.0f, vignette_ * 1.1f)};
-    static bool once = false;
-    if (!once) { once = true; LOGI("Comfort vignette drawn (mesh %u, %.2f, head %.1f %.1f %.1f)", vignetteMesh_, vignette_, head.position.x, head.position.y, head.position.z); }
-    renderer_.draw(vignetteMesh_, Mat4::translation(head.position) * Mat4::rotation(head.orientation) *
-                                      Mat4::scale(Vec3{1, 1, 1} * rig_.comfort.worldScale), dp);
+    dp.tint = {1, 1, 1, std::min(1.0f, alpha)};
+    renderer_.draw(mesh, Mat4::translation(head.position) * Mat4::rotation(head.orientation) * Mat4::scale(Vec3{1, 1, 1} * rig_.comfort.worldScale), dp);
+}
+
+void GameApp::renderVignette() {
+    if (!lastInput_.headValid) return;
+    // Hurt (rework): below 40 health a dark red rim that beats like a pulse, stronger the lower.
+    if (playMode_ && !dying_ && playerHealth_ > 0 && playerHealth_ < 40.0f) {
+        const float low = (40.0f - playerHealth_) / 40.0f;
+        const float beat = 0.65f + 0.35f * std::pow(std::max(0.0f, std::sin(float(time_) * (5.0f + 3.0f * low))), 4.0f);
+        drawEyeRing(hurtRingMesh_, 0.25f + 0.45f * low, {0.45f, 0.0f, 0.0f}, (0.35f + 0.5f * low) * beat);
+    }
+    if (vignette_ >= 0.02f) drawEyeRing(vignetteMesh_, vignette_, {0, 0, 0}, vignette_ * 1.1f);
 }
 
 void GameApp::updateFeel(float dt, const InputFrame& in) {
     updateVignette(dt, in);
+    // Low health: a heartbeat in both hands (rework).
+    if (playMode_ && !dying_ && playerHealth_ > 0 && playerHealth_ < 30.0f) {
+        heartT_ -= dt;
+        if (heartT_ <= 0) {
+            heartT_ = 0.75f + 0.5f * playerHealth_ / 30.0f;
+            for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.35f, 0.05f});
+        }
+    }
     // --- Rumble.
     auto both = [&](float a, float s) {
         haptics_.push_back({kLeft, a, s});

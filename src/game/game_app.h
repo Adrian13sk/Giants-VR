@@ -1384,7 +1384,9 @@ private:  // the mission placed enemies: no test waves
     void updateMelee(float dt, const InputFrame& in);
     // Comfort vignette (rework): the view's edges darken while the stick moves or turns you.
     float vignette_ = 0;
-    MeshId vignetteMesh_ = 0;
+    MeshId vignetteMesh_ = 0, hurtRingMesh_ = 0;
+    float heartT_ = 0;
+    void drawEyeRing(MeshId& mesh, float k, const Vec3& rgb, float alpha);
     void updateVignette(float dt, const InputFrame& in);
     void renderVignette();
     void updateGunKick(float dt);
