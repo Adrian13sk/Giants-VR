@@ -745,3 +745,13 @@ one machine (one Quest available).
 - rstory2_jetski_2: base 12-14 standing, 19-23 racing / 56.4; FFR 3 61.1; no reflections 60.9; no shadows 61.4;
   quality 2 15-16 racing / 65.7. The racing frames: blood (piranha bites) and splash crowns at the eye.
 - Fixes in 8b7371d (near-eye fade for blood and splashes; 2 s fallback windows); device check: `-Set slow`.
+
+## Device run 20261025-115756 — APK 8b7371d, the eight slow missions (`-Set slow`), Quest 2
+| Mission | before (1634bb8) | now | notes |
+|---|---|---|---|
+| kstory3_1 | 44.9 | 57.6 | 37.5 fps for the first 4 s while the fallback stepped 1-2-3; 71.7 fps from 15 s (App GPU 10.5 ms) |
+| kstory3_2 / _3 / _4 | 64.6 / 66.0 / 66.0 | 69.2 / 70.5 / 70.6 | level 1 |
+| kstory5_4 | 68.3 | 68.1 | never stepped down (68 fps is above the 65 fps trigger) |
+| rstory2_battle_1 | 59.2 | 67.9 | level 2 |
+| rstory2_jetski_2 / _3 | 57.3 / 56.6 | 66.0 / 66.3 | level 2; App GPU 13-15 ms, 10.7-11.9 at the end |
+0 errors in all eight.
