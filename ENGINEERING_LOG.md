@@ -1880,3 +1880,13 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   kstory4_2, kstory5_1/2/3), giantwall4 with the magnifying glass (kstory3_3, kstory4_1); kstory5_4's boss (the
   other Kabuto, 2500 hp) falls to punches in 17 hits. Not checked: walking to the "reach" objectives (portals in
   k1b, k2d, kstory3_4, kstory4_3) along the terrain; growth from eating to the sizes the gates need in play.
+- Kabuto's portals ("reach" objectives in k1b, k2d, kstory3_4, kstory4_3): a flood fill over the terrain
+  (src/game/game_app_reach.cpp, GVR_REACH_CHECK) mirroring the controller - 50-degree uphill limit, a giant's
+  stride window, jumps only onto ground he can stand on, swimming everywhere (off the terrain is sea with a
+  -20 m floor, as for the player), scenery a body would be pushed out of. kstory3_4's portal stands on an
+  island ringed by cliffs: unreachable below a 68-degree limit. Decision: Kabuto climbs up to 68 degrees
+  (maxSlope 2.5), judged over 0.35 x his height (slopeWindow) - a giant scrambles where a man can't.
+  GVR_REACH_WALK then walks the path in play with the real controller (stuck: jump; still stuck: mark the
+  spot blocked, plan again). Walked to the portal and completed the objective: k1b (at the old limit),
+  k2d_offspring, kstory4_3. kstory3_4: on the island, out of frames (30 000) before the portal. The walker
+  is crude (many replans on rough ground), so "not arrived" is weak evidence; "arrived" is strong.

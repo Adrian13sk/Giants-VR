@@ -75,7 +75,9 @@ void reachFill(const AssetWorld& world, const PlayerController& pc, bool giant, 
         const int c = q.front();
         q.pop_front();
         const int cx = c % W, cz = c / W;
-        const float hc = hgt[size_t(c)];
+        // Where he stands: on the bed, or afloat with his feet at floatDepth below the surface.
+        auto stand = [&](float h) { return std::max(h, sea - pc.floatDepth); };
+        const float hc = stand(hgt[size_t(c)]);
         for (int dz = -1; dz <= 1; ++dz)
             for (int dx = -1; dx <= 1; ++dx) {
                 if (!dx && !dz) continue;
@@ -83,8 +85,9 @@ void reachFill(const AssetWorld& world, const PlayerController& pc, bool giant, 
                 if (x < 0 || z < 0 || x >= W || z >= H) continue;
                 const int k = z * W + x;
                 if (seen[size_t(k)]) continue;
-                const float hk = hgt[size_t(k)];
-                if (std::isnan(hk) || hk < sea - wade) continue;
+                const float hk0 = hgt[size_t(k)];
+                if (std::isnan(hk0) || hk0 < sea - wade) continue;
+                const float hk = stand(hk0);
                 const float run = kCell * ((dx && dz) ? 1.4142f : 1.0f);
                 const bool steepUp = hk - hc > run * maxSlope;
                 if (pure && steepUp) continue;
