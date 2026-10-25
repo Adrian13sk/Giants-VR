@@ -252,6 +252,7 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
             gun.cool = gun.interval;
             haptics_.push_back({gh, 1.0f, 0.15f});
             gunKick(0.35f);
+            addFlash(muzzle, {2.0f, 1.3f, 0.6f}, 8.0f, 0.15f);
             sfx("me_mtrsh", muzzle, 1.0f, 0.95f + 0.1f * frand());
             smokePuff(FxTex::Smoke, muzzle + fwd * 0.3f, fwd * 1.0f + Vec3{0, 0.5f, 0}, 0.3f, 1.4f, 1.0f, 0.5f, 0.2f);
             LOGI("Millenium bomb lobbed (%d left)", gun.ammo);
@@ -269,6 +270,7 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
             gun.cool = gun.interval;
             haptics_.push_back({gh, 0.8f, 0.1f});
             gunKick(0.40f);
+            addFlash(muzzle, {2.4f, 1.5f, 0.6f}, 9.0f, 0.12f);
             sfx("me_rsgsh", muzzle, 1.0f, 0.95f + 0.1f * frand());
             LOGI("Shotgun shell fired (%d left)", gun.ammo);
             smokePuff(FxTex::Smoke, muzzle + fwd * 0.2f, fwd * 1.5f, 0.15f, 0.9f, 0.6f, 0.5f, 0.15f);
@@ -294,10 +296,12 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
         if (g == kGunSniper) {
             haptics_.push_back({gh, 0.9f, 0.1f});
             gunKick(0.30f);
+            addFlash(muzzle, {2.0f, 1.6f, 1.0f}, 8.0f, 0.10f);
             sfx("me_sprsh", muzzle, 1.0f, 0.97f + 0.06f * frand());
         } else {
             haptics_.push_back({gh, 0.3f, 0.03f});
             gunKick(0.06f);
+            addFlash(muzzle, {2.0f, 1.2f, 0.5f}, 6.0f, 0.06f);
             if (!mgLoop_ && audio_) {
                 sfx("me_mchst", muzzle, 0.8f);
                 mgLoop_ = audio_->play2D("me_mchlp", 0.6f, 1.0f, true);

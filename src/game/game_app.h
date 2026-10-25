@@ -1343,6 +1343,12 @@ private:  // the mission placed enemies: no test waves
     float gunKick_ = 0, gunKickV_ = 0;
     bool twoHand_ = false;
     void gunKick(float strength);
+    // Light flashes (rework): muzzle flashes and explosions light their surroundings for a moment
+    // (the renderer's one point light goes to the brightest; the jetpack keeps it otherwise).
+    struct Flash { Vec3 pos, color; float radius, t, dur; };
+    std::vector<Flash> flashes_;
+    void addFlash(const Vec3& pos, const Vec3& color, float radius, float dur) { if (flashes_.size() < 16) flashes_.push_back({pos, color, radius, 0.0f, dur}); }
+    void updateFlashes(float dt);
     // Holsters on the body and punches (game_app_vr.cpp).
     int holsterZone_ = -1;
     bool holsterGrabHeld_ = false;

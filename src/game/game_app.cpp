@@ -659,6 +659,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         updateDeath(dt, in);
         updateCombat(dt);
         { GVR_PROF("audio"); updateAudio(dt); }
+        updateFlashes(dt);
         return;
     }
     { GVR_PROF("jetski world"); updateJetskiWorld(dt, in); }
@@ -668,6 +669,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         { GVR_PROF("feel"); updateFeel(dt, in); }
         updateCombat(dt);
         { GVR_PROF("audio"); updateAudio(dt); }
+        updateFlashes(dt);
         return;
     }
     PlayerInput pi;
@@ -764,6 +766,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     { GVR_PROF("rescue"); updateRescue(dt, in); }
     updateCombat(dt);
     { GVR_PROF("audio"); updateAudio(dt); }
+        updateFlashes(dt);
 }
 
 void GameApp::updateRescue(float dt, const InputFrame& in) {
@@ -3023,6 +3026,7 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
 }
 
 void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int hurtsPlayer) {
+    addFlash(at + Vec3{0, 1.0f, 0}, fire ? Vec3{2.6f, 1.5f, 0.6f} : Vec3{1.8f, 1.5f, 1.2f}, std::min(30.0f, 4.0f + radius * 3.0f), 0.45f);
     if (at.y < player_.seaLevel + 1.0f && (!enemies_.groundHeight || enemies_.groundHeight(at.x, at.z) < player_.seaLevel - 0.2f))
         waterSplash(at, std::min(3.0f, 0.5f * radius), 2);  // in (or just over) the water
     creatures_.disturb(at, std::max(15.0f, radius * 4.0f));  // the ground shakes: buried Rippers come up
@@ -3809,6 +3813,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             rocketCooldown_ = 1.0f;
             haptics_.push_back({gh, 0.9f, 0.12f});
             gunKick(0.30f);
+            addFlash(muzzle, {2.2f, 1.4f, 0.6f}, 9.0f, 0.18f);
             sfx("me_msls1", muzzle, 1.0f, 0.95f + 0.1f * frand());
         }
         rocketTriggerHeld_ = trigger;
@@ -3819,6 +3824,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     if (weapon_.update(dt, trigger && gunValid_, muzzle, fwd)) {
         haptics_.push_back({gh, 0.35f, 0.04f});
         gunKick(0.10f);
+        addFlash(muzzle, {1.6f, 0.6f, 1.3f}, 5.0f, 0.08f);
         sfx((weapon_.shotsFired() & 1) ? "me_peas1" : "me_peas2", muzzle, 0.7f, 0.95f + 0.1f * frand());
     }
 }

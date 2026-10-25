@@ -13,6 +13,7 @@
 
 #include "audio/mixer.h"
 #include "core/log.h"
+#include "render/renderer.h"
 
 namespace gvr {
 
@@ -26,6 +27,28 @@ const Vec3 kHolster[3] = {
 };
 constexpr float kHolsterRadius = 0.17f;
 }  // namespace
+
+void GameApp::updateFlashes(float dt) {
+    float best = 0;
+    const Flash* pick = nullptr;
+    for (auto& f : flashes_) {
+        f.t += dt;
+        const float k = 1.0f - f.t / f.dur;
+        const float w = k * (f.color.x + f.color.y + f.color.z) * f.radius;
+        if (k > 0 && w > best) { best = w; pick = &f; }
+    }
+    EnvironmentParams& env = renderer_.environment();
+    const float cur = (env.pointLightColor.x + env.pointLightColor.y + env.pointLightColor.z) * env.pointLightRadius;
+    if (pick && best > cur) {
+        const float k = 1.0f - pick->t / pick->dur;
+        env.pointLightPos = pick->pos;
+        env.pointLightColor = pick->color * (k * k);
+        env.pointLightRadius = pick->radius;
+    } else if (cur <= 0) {
+        env.pointLightRadius = 6.0f;
+    }
+    flashes_.erase(std::remove_if(flashes_.begin(), flashes_.end(), [](const Flash& f) { return f.t >= f.dur; }), flashes_.end());
+}
 
 void GameApp::updateHolsters(float dt, const InputFrame& in) {
     (void)dt;
