@@ -4482,6 +4482,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     if (playMode_) renderGrass();
     if (playMode_ && !cut) renderMotes();
     renderFireballs();
+    renderSwordTrail();
     if (title_) renderTitle();
     beginUiFrame(eyes, n);  // the HUD, menu and hands at human scale (Kabuto)
     if (cut) renderCutscene();

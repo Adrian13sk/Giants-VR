@@ -41,9 +41,10 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Pacing | Ambushes only in missions that have Reapers of their own. | HARNESS |
 | VR feel | Holsters follow your body's direction (your head's yaw within a neck's turn), not just the room. | HARNESS |
 | Options | LIGHTING: REWORK / CLASSIC (the same as `GVR_LOOK=0`). | HARNESS |
-| Looks | Grass: tufts on gentle grassy ground within 16 m of you, coloured and lit like the ground under them, swaying in gusts. Not on red earth, sand, rock or as Kabuto; off with the classic lighting and the adaptive fallback. | HARNESS |
+| Looks | Grass (a smaller patch at the first adaptive-quality step): tufts on gentle grassy ground within 16 m of you, coloured and lit like the ground under them, swaying in gusts. Not on red earth, sand, rock or as Kabuto; off with the classic lighting and the adaptive fallback. | HARNESS |
 | Kabuto | Hands: in first person, reach down and squeeze a grip on what is at your feet. A Reaper or a boulder stays in that hand - swing and open it to throw, or bring it up to your mouth to eat it; a Smartie, a Vimp or a small creature is scooped up and eaten. (X still grabs as before.) | HARNESS |
 | Delphi | Sword parry: a Reaper bolt meeting the blade is knocked away with a spark and a ping; met with a swing, it goes back at the Reaper it came from. | HARNESS |
+| Delphi | A faint blue trail follows her blade on fast swings. | HARNESS |
 | Delphi | Throw your fire bolt: let go of the trigger in a throwing motion and the bolt flies along your throw, faster (40 m/s instead of 28), with a kick in the hand. A still tap fires along your aim as before. | HARNESS |
 | Effects | Shots striking scenery throw a soft glow and quick sparks (the old flash sprite was blocky up close). | HARNESS |
 | Cutscenes | Two shots that stayed black for 10 s (Delphi's jetski arrival at the volcano, the Story 3 prison lift) now show. Shot cameras looking steeply down or up at their actors swing round them to a comfortable angle (your view never tilts by itself). All 30 opening cutscenes and the 17 other cutscenes reviewed on contact sheets (a flyover's far look-at point is left alone). | HARNESS |

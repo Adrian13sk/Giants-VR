@@ -1013,6 +1013,14 @@ private:  // the mission placed enemies: no test waves
     // Rework: deflect enemy bolts with a blade from hilt to tip (game_app_parry.cpp); returns how many.
     int parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& tipVel, int hand, float dt);
     int parries_ = 0;
+    // Delphi's sword trail (game_app_parry.cpp).
+    struct SwordTrailPt { Vec3 inner, outer; float age, strength; };
+    std::vector<SwordTrailPt> swordTrail_;
+    Vec3 swordTrailTip_;
+    bool swordTrailValid_ = false;
+    QuadBatch trailBatch_;
+    void updateSwordTrail(const Vec3& hilt, const Vec3& tip, float dt);
+    void renderSwordTrail();
     Vec3 castHandPrev_, castHandVel_;  // Delphi's casting hand (tracking space): a thrown fire bolt
     bool castHandValid_ = false;
     std::vector<std::pair<int, float>> swordCool_;  // target -> seconds until it can be hit again

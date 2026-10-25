@@ -111,3 +111,43 @@ int GameApp::parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& tipVel, i
 }
 
 }  // namespace gvr
+
+namespace gvr {
+
+// Sword trail (rework): while Delphi's blade moves fast, a fading ribbon follows its edge.
+void GameApp::updateSwordTrail(const Vec3& hilt, const Vec3& tip, float dt) {
+    for (auto& s : swordTrail_) s.age += dt;
+    while (!swordTrail_.empty() && swordTrail_.front().age > 0.16f) swordTrail_.erase(swordTrail_.begin());
+    const float speed = swordTrailValid_ && dt > 0 ? length(tip - swordTrailTip_) / dt : 0.0f;
+    swordTrailTip_ = tip;
+    swordTrailValid_ = true;
+    if (speed > 4.0f && swordTrail_.size() < 24) swordTrail_.push_back({hilt + (tip - hilt) * 0.35f, tip, 0.0f, std::min(1.0f, (speed - 4.0f) / 6.0f)});
+}
+
+void GameApp::renderSwordTrail() {
+    if (hero_ != Hero::Delphi || !swordValid_ || !firstPerson_) { swordTrail_.clear(); swordTrailValid_ = false; return; }
+    if (swordTrail_.size() < 2 || renderer_.inReflectionPass()) return;
+    static bool init = false;
+    if (!init) { init = true; trailBatch_.init(renderer_, 32); }
+    trailBatch_.clear();
+    for (size_t i = 1; i < swordTrail_.size(); ++i) {
+        const SwordTrailPt& a = swordTrail_[i - 1];
+        const SwordTrailPt& b = swordTrail_[i];
+        const float k = (1.0f - b.age / 0.16f) * b.strength;
+        if (k <= 0.01f) continue;
+        const Vec3 q[4] = {a.inner, b.inner, b.outer, a.outer};
+        static const float uv[4][2] = {{0.5f, 0.5f}, {0.5f, 0.5f}, {0.5f, 0.0f}, {0.5f, 0.0f}};
+        const uint8_t rgba[4] = {uint8_t(170 * k), uint8_t(210 * k), uint8_t(255 * k), 255};
+        trailBatch_.add(q, uv, rgba);
+    }
+    trailBatch_.upload(renderer_);
+    DrawParams dp;
+    dp.texture = glowTexture();
+    dp.unlit = true;
+    dp.blend = BlendMode::Additive;
+    dp.depthWrite = false;
+    dp.doubleSided = true;
+    trailBatch_.draw(renderer_, dp);
+}
+
+}  // namespace gvr
