@@ -1912,3 +1912,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   Reapers (1 in 4: 26 m stand-off, single aimed shots at a third of the spread, a glow for 0.7 s before
   each); binaural sound in the mixer (interaural delay up to 0.65 ms, head-shadow low-pass on the far ear,
   duller from behind and with distance); Kabuto's physical ground pound (a quick crouch).
+- a8bc86e delivered (with video 6). Two bugs found making the video: Kabuto's ground pound put a fireball at his
+  own feet (every damaging explosion had been given one; now fire, grenades and rockets only, and fireballs fade
+  near the eyes), and the hit feedback was a full-view red wash (now a red rim; classic lighting keeps the wash).
+  Marksmen never showed their charge (the cool-down ran out with the burst empty): each burst now starts 0.7 s
+  off with a red aiming line from the gun. Delphi also jumps on a real jump.
