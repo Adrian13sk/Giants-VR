@@ -777,3 +777,8 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
 - Cutscenes: contact sheets of all 30 opening cutscenes; rstory3_pre_race_1 (10 s black) and story3_prison_6's
   second shot (10 s black) now show their scenes.
 - Unit tests: all passed.
+- After Kabuto's climbing change (1c49eac): sweep 56/56 clean; the seven special gates (adrenaline / glass) all done again.
+- Reach objectives (GVR_REACH_CHECK, every mission): all reachable from the start except 1a_1_timmy / mission1
+  objective 3 (a box smaller than the 2 m grid, 2 m off: a grid artifact). Walked in play (GVR_REACH_WALK) and
+  objective completed: k1b_portal, k2d_offspring, kstory4_3. kstory3_4: reachable by the fill only with the
+  68-degree climb; the walker reached the island but not the portal within 30 000 frames.
