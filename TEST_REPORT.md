@@ -718,3 +718,12 @@ one machine (one Quest available).
 - **fx_trails:** the rockets carry FX_rocket from fx.bin (logged per rocket), 71.6 fps. **delphi_mine:** the mine in
   her hand and set down ("Mine set ... 4 left"), 71.7 fps. Screenshots not yet looked at by a person.
 - Still unverified on a headset: play between two headsets; Reaper ammo drops (no test kills Reapers yet).
+
+## Device run 20261025-103335 — APK 1634bb8, the two new tests, Quest 2
+- **reaper_ammo: Reapers dropping ammo DEVICE VERIFIED.** Six Reapers spawned 8 m ahead, blasts at 5 s: 4 ammo drops
+  (rockets x2, machine-gun clips, sniper rounds), walked over: an injection and 3 sniper rounds picked up. 0 errors.
+  68.9 fps: the slow frames are at the start (load) and at 18-19 s, where the GPU took 21-22 ms - the walk ends in the
+  sea after the blasts; the harness replay of that moment shows a red full-screen tint and large translucent sheets
+  right at the camera (overdraw). Not yet traced.
+- **perf_1d_tower** with the Rippers passive: 71.4 fps (was 70.5 with them in the face), GPU 11.8 ms mean; 7.5-8 ms
+  before the blasts, ~12.5 ms from 7 s on.
