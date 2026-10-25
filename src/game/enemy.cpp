@@ -114,6 +114,7 @@ bool EnemyDirector::damage(int i, float amount, bool blast) {
     Enemy& e = enemies[size_t(i)];
     if (e.state == EnemyState::Dead) return false;
     e.health -= amount;
+    e.hitFlash = 1.0f;
     e.aware = true;
     if (e.health <= 0) {
         e.state = EnemyState::Dead;
@@ -138,6 +139,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
     for (size_t i = 0; i < enemies.size(); ++i) {
         Enemy& e = enemies[i];
         e.stateTime += dt;
+        e.hitFlash = std::max(0.0f, e.hitFlash - dt * 6.0f);
         const Vec3 to{player.x - e.pos.x, 0, player.z - e.pos.z};
         const float dist = std::sqrt(to.x * to.x + to.z * to.z);
         const float faceYaw = std::atan2(-to.x, -to.z);

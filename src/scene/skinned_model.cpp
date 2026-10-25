@@ -267,15 +267,18 @@ bool SkinnedModel::boneVertexBounds(const std::string& name, Vec3& mn, Vec3& mx)
     return any;
 }
 
-void SkinnedModel::render(Renderer& r, const Mat4& world) const {
+void SkinnedModel::render(Renderer& r, const Mat4& world) const { render(r, world, Vec4{1, 1, 1, 1}); }
+
+void SkinnedModel::render(Renderer& r, const Mat4& world, const Vec4& tint) const {
     for (const Part& p : parts_) {
         DrawParams dp;
+        dp.tint = tint;
         dp.texture = p.texture;
         dp.blend = p.blend;
         dp.unlit = !p.lit;
         if (p.glass) {  // tinted see-through glass
             dp.blend = BlendMode::AlphaBlend;
-            dp.tint = {1, 1, 1, 0.3f};
+            dp.tint = {tint.x, tint.y, tint.z, 0.3f};
         }
         r.draw(p.mesh, world, dp);
     }

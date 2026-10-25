@@ -4258,9 +4258,13 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
                                Mat4::scale({g.scale, g.scale, g.scale}),
                   false);
     for (const auto& e : enemies_.enemies)
-        if (e.slot >= 0)
+        if (e.slot >= 0) {
+            // A hit flashes the body hot for a moment (rework: you see every hit land).
+            const float f = e.hitFlash;
             enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
-                                                              Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
+                                                              Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)),
+                                               Vec4{1.0f + 2.2f * f, 1.0f + 0.9f * f, 1.0f + 0.5f * f, 1.0f});
+        }
     renderReaperWeapons(false, renderer_.currentView().eyePosition, 150.0f);
     // Reaper bolts: the spark in its own white (as the original's sea Reapermen fire).
     for (const auto& p : enemyFire_.projectiles()) {
