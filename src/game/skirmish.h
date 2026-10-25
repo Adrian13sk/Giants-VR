@@ -92,6 +92,8 @@ struct SkPlayer {
     int kills = 0, deaths = 0, captures = 0;
     int carrying = -1;           // the team whose flag this player has
     int lastAttacker = -1;
+    float lastHurtAt = -1e9f;    // game time of its last damage (a fall long after a hit is nobody's kill)
+    bool gone = false;           // left the game (a joiner): its slot can be taken by the next to join
     // Bot brain.
     enum Role { Attack, Defend } role = Attack;
     int target = -1;             // enemy player in sight
@@ -115,6 +117,7 @@ struct SkShot {                  // a bot's bolt or arrow
     float life = 0, damage = 10, gravity = 0;
     SkHero hero = SkHero::Mecc;
     bool visual = false;         // only drawn (another player's own shot: its hits come separately)
+    bool hostOwn = false;        // the host's own player's (its game draws the real one): for the joiners only
 };
 
 struct SkEvent {

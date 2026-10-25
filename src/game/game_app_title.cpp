@@ -153,11 +153,20 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
     if (skNetWant_ == 2) {
         if (skClient_.state == SkNetClient::State::Idle || skClient_.state == SkNetClient::State::Lost) skClient_.search();
         SkNetSelf none;
+        none.alive = false;  // (still in the menu / loading: not in the game yet)
         Skirmish scratch;
         skClient_.update(dt, none, scratch);
         skClient_.games.erase(std::remove_if(skClient_.games.begin(), skClient_.games.end(), [](const SkNetGame& g) { return g.age > 4.0f; }),
                               skClient_.games.end());
         titleSkGame_ = std::max(0, std::min(int(skClient_.games.size()) - 1, titleSkGame_));
+        // Only a map of ours (the host's word is all there is): else not joined.
+        bool knownMap = false;
+        for (const char* m : kSkMaps) knownMap = knownMap || toLower(m) == toLower(skClient_.map);
+        if (titleJoining_ && skClient_.state == SkNetClient::State::Joined && !knownMap) {
+            LOGW("Main menu: the host plays an unknown map - not joining");
+            skClient_.leave();
+            titleJoining_ = false;
+        }
         if (titleJoining_ && skClient_.state == SkNetClient::State::Joined) {
             titleJoining_ = false;
             skWantTeam_ = skClient_.myTeam;

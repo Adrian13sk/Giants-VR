@@ -12,6 +12,11 @@ namespace {
 enum Msg : uint8_t { kBeacon = 1, kProbe = 2, kJoin = 3, kWelcome = 4, kRefuse = 5, kState = 6, kSnapshot = 7, kBye = 8 };
 constexpr float kSnapshotEvery = 1.0f / 20.0f, kStateEvery = 1.0f / 30.0f, kTimeout = 15.0f;  // (a joiner loading the map is silent a while)
 constexpr size_t kMaxShots = 16, kMaxHits = 8, kMaxEvents = 12;
+constexpr size_t kMaxShotsIn = 4;        // a joiner's shots per state (its game sends at most 4)
+constexpr size_t kShotsInFlight = 96;    // everyone's, on the host
+constexpr size_t kSnapshotBudget = 1400; // bytes: one Wi-Fi frame, unfragmented (shots fill what's left)
+// Sequence numbers wrap: a is newer than b.
+bool newer(uint32_t a, uint32_t b) { return int32_t(a - b) > 0; }
 
 void header(NetWriter& w, Msg m) {
     w.u32(kSkNetMagic);
@@ -136,6 +141,7 @@ void SkNetHost::localShot(const SkShot& s) {
     if (!sk_) return;
     SkShot v = s;
     v.visual = true;
+    v.hostOwn = true;  // (the host's game draws its own projectile; this copy is for the joiners)
     sk_->shots.push_back(v);
 }
 
@@ -196,7 +202,9 @@ void SkNetHost::onPacket(const std::vector<uint8_t>& d, const NetAddr& from) {
         return;
     }
     if (m != kState) return;
-    r.u32();  // its sequence (newest wins on arrival: UDP order is close enough at 30 Hz)
+    const uint32_t seq = r.u32();
+    if (c->stateSeq != 0 && !newer(seq, c->stateSeq)) return;  // late (an older state overtaken by a newer)
+    c->stateSeq = seq;
     const uint32_t ack = r.u32();
     SkNetSelf s;
     s.pos = r.vec();
@@ -212,7 +220,7 @@ void SkNetHost::onPacket(const std::vector<uint8_t>& d, const NetAddr& from) {
     s.lastAttacker = int(r.u8()) - 1;
     s.aim = r.vec();
     if (!r.ok()) return;
-    c->eventAcked = std::max(c->eventAcked, ack);
+    if (newer(ack, c->eventAcked)) c->eventAcked = ack;
     if (SkPlayer* p = sk_->player(c->id)) {
         p->body.position = s.pos;
         p->body.velocity = s.vel;
@@ -225,7 +233,8 @@ void SkNetHost::onPacket(const std::vector<uint8_t>& d, const NetAddr& from) {
         p->hp = s.hp;
         p->aim = s.aim;
         if (!s.alive && p->alive) sk_->remoteDied(p->id, s.lastAttacker);
-        if (s.alive && !p->alive) { p->alive = true; p->deadT = 0; }  // it respawned
+        if (s.alive && !p->alive) { p->alive = true; p->deadT = 0; }  // it respawned (or arrived)
+        c->started = true;
     }
     // Its hits (each once), then its shots (for everyone to see).
     const int nh = r.u8();
@@ -234,20 +243,25 @@ void SkNetHost::onPacket(const std::vector<uint8_t>& d, const NetAddr& from) {
         const int target = r.u8() - 1;
         const float dmg = r.f32();
         const Vec3 at = r.vec();
-        if (!r.ok() || seq <= c->hitSeq) continue;
+        if (!r.ok() || !newer(seq, c->hitSeq)) continue;
         c->hitSeq = seq;
-        sk_->damage(target, std::min(dmg, 600.0f), c->id, at);
+        sk_->damage(target, std::max(0.0f, std::min(dmg, 600.0f)), c->id, at);
     }
     const int ns = r.u8();
+    const SkPlayer* me = sk_->player(c->id);
     for (int k = 0; k < ns && r.ok(); ++k) {
         SkShot sh = readShot(r);
-        if (r.ok()) { sh.shooter = c->id; sk_->shots.push_back(sh); }
+        if (!r.ok() || size_t(k) >= kMaxShotsIn || sk_->shots.size() >= kShotsInFlight || !me) continue;
+        sh.shooter = c->id;
+        sh.team = me->team;
+        sk_->shots.push_back(sh);
     }
 }
 
 void SkNetHost::sendSnapshot(Client& c) {
     NetWriter w;
     header(w, kSnapshot);
+    w.u32(++snapSeq_);
     w.u32(c.hitSeq);
     w.f32(sk_->time);
     w.u8(uint8_t(sk_->winner + 1));
@@ -260,7 +274,7 @@ void SkNetHost::sendSnapshot(Client& c) {
         w.u8(uint8_t(p.id));
         w.u8(uint8_t(p.team));
         w.str(p.name);
-        w.u8(uint8_t((p.bot ? 1 : 0) | (p.alive ? 2 : 0)));
+        w.u8(uint8_t((p.bot ? 1 : 0) | (p.alive ? 2 : 0) | (p.gone ? 4 : 0)));
         w.vec(p.body.position);
         w.vec(p.body.velocity);
         w.f32(p.body.yaw);
@@ -278,17 +292,19 @@ void SkNetHost::sendSnapshot(Client& c) {
         w.u16(uint16_t(p.deaths));
         w.vec(p.aim);
     }
-    // Shots in flight (the newest).
-    const size_t ns = std::min(sk_->shots.size(), kMaxShots);
-    w.u8(uint8_t(ns));
-    for (size_t k = sk_->shots.size() - ns; k < sk_->shots.size(); ++k) writeShot(w, sk_->shots[k]);
-    // Events it hasn't acknowledged (its own damage, and everyone's news).
+    // Events it hasn't acknowledged (its own damage, and everyone's news), the oldest first: what
+    // doesn't fit comes in the next ones (it acknowledges the newest it has).
     std::vector<const LoggedEvent*> ev;
     for (const auto& le : log_)
-        if (le.seq > c.eventAcked && (le.forPlayer < 0 || le.forPlayer == c.id)) ev.push_back(&le);
-    if (ev.size() > kMaxEvents) ev.erase(ev.begin(), ev.end() - long(kMaxEvents));
+        if (newer(le.seq, c.eventAcked) && (le.forPlayer < 0 || le.forPlayer == c.id) && ev.size() < kMaxEvents) ev.push_back(&le);
     w.u8(uint8_t(ev.size()));
     for (const auto* le : ev) writeEvent(w, le->seq, le->e);
+    // Shots in flight (the newest), as many as fit in one frame.
+    constexpr size_t kShotBytes = 2 + 12 + 12 + 4 + 1;
+    const size_t room = w.b.size() + 1 < kSnapshotBudget ? (kSnapshotBudget - w.b.size() - 1) / kShotBytes : 0;
+    const size_t ns = std::min({sk_->shots.size(), kMaxShots, room});
+    w.u8(uint8_t(ns));
+    for (size_t k = sk_->shots.size() - ns; k < sk_->shots.size(); ++k) writeShot(w, sk_->shots[k]);
     sock_.send(c.addr, w.b.data(), w.b.size());
 }
 
@@ -310,8 +326,9 @@ void SkNetHost::update(float dt) {
     }
     // Forget what everyone has.
     uint32_t minAck = eventSeq_;
-    for (const auto& c : clients_) minAck = std::min(minAck, c.eventAcked);
-    log_.erase(std::remove_if(log_.begin(), log_.end(), [&](const LoggedEvent& le) { return le.seq <= minAck; }), log_.end());
+    for (const auto& c : clients_)
+        if (newer(minAck, c.eventAcked)) minAck = c.eventAcked;
+    log_.erase(std::remove_if(log_.begin(), log_.end(), [&](const LoggedEvent& le) { return !newer(le.seq, minAck); }), log_.end());
     if (log_.size() > 256) log_.erase(log_.begin(), log_.end() - 256);
     // Joiners gone quiet: their players leave.
     for (size_t i = 0; i < clients_.size();) {
@@ -346,8 +363,9 @@ void SkNetHost::update(float dt) {
 // Joiner
 
 bool SkNetClient::search(uint16_t port) {
-    (void)port;
-    if (!sock_.isOpen() && !sock_.open(0)) return false;
+    // On the game's port the host's once-a-second beacons are heard too (else only answers to our
+    // probes); taken (a host on this same machine), any port.
+    if (!sock_.isOpen() && !sock_.open(port) && !sock_.open(0)) return false;
     state = State::Searching;
     games.clear();
     probeT_ = 0;
@@ -363,6 +381,11 @@ bool SkNetClient::join(const NetAddr& host, const std::string& name, int team) {
     quiet_ = 0;
     sendT_ = 0;
     myId = myTeam = -1;
+    // A fresh session (the host may have restarted: its numbers start again).
+    stateSeq_ = hitSeq_ = hitAcked_ = eventSeen_ = snapSeen_ = 0;
+    hits_.clear();
+    shotsOut_.clear();
+    events.clear();
     LOGI("Network: joining %s", host.str().c_str());
     return true;
 }
@@ -429,8 +452,11 @@ void SkNetClient::onPacket(const std::vector<uint8_t>& d, const NetAddr& from, S
         return;
     }
     if (m != kSnapshot || state != State::Joined) return;
-    hitAcked_ = std::max(hitAcked_, r.u32());
-    hits_.erase(std::remove_if(hits_.begin(), hits_.end(), [&](const Hit& h) { return h.seq <= hitAcked_; }), hits_.end());
+    const uint32_t snap = r.u32();
+    if (snapSeen_ != 0 && !newer(snap, snapSeen_)) return;  // late: a newer one is already in
+    snapSeen_ = snap;
+    if (const uint32_t ha = r.u32(); newer(ha, hitAcked_)) hitAcked_ = ha;
+    hits_.erase(std::remove_if(hits_.begin(), hits_.end(), [&](const Hit& h) { return !newer(h.seq, hitAcked_); }), hits_.end());
     sk.time = r.f32();
     sk.winner = int(r.u8()) - 1;
     const int nt = r.u8();
@@ -445,6 +471,7 @@ void SkNetClient::onPacket(const std::vector<uint8_t>& d, const NetAddr& from, S
         f.pos = r.vec();
         f.carrier = int(r.u8()) - 1;
         f.atHome = r.u8() != 0;
+        if (f.carrier >= 64) f.carrier = -1;
         if (size_t(t) < sk.flags.size()) { f.home = sk.flags[size_t(t)].home; sk.flags[size_t(t)] = f; }
     }
     const int np = r.u8();
@@ -462,11 +489,13 @@ void SkNetClient::onPacket(const std::vector<uint8_t>& d, const NetAddr& from, S
         const int kills = r.u16(), deaths = r.u16();
         const Vec3 aim = r.vec();
         if (!r.ok() || id > 63) break;
+        if (team >= int(sk.teams.size())) continue;  // (not a side of this map)
         SkPlayer& p = sk.mirrorPlayer(id);
         p.team = team;
         p.name = name;
         p.bot = flags & 1;
-        p.carrying = carrying;
+        p.gone = (flags & 4) != 0;
+        p.carrying = carrying < int(sk.flags.size()) ? carrying : -1;
         p.kills = kills;
         p.deaths = deaths;
         if (id == myId) { p.local = true; continue; }  // our own body is ours
@@ -486,6 +515,15 @@ void SkNetClient::onPacket(const std::vector<uint8_t>& d, const NetAddr& from, S
         p.hp = hp;
         p.aim = aim;
     }
+    const int ne = r.u8();
+    for (int k = 0; k < ne && r.ok(); ++k) {
+        uint32_t seq;
+        SkEvent e = readEvent(r, seq);
+        if (!r.ok() || (eventSeen_ != 0 && !newer(seq, eventSeen_))) continue;
+        eventSeen_ = seq;
+        if (e.team >= int(sk.teams.size())) e.team = -1;
+        events.push_back(e);
+    }
     const int ns = r.u8();
     std::vector<SkShot> shots;
     for (int k = 0; k < ns && r.ok(); ++k) {
@@ -493,14 +531,6 @@ void SkNetClient::onPacket(const std::vector<uint8_t>& d, const NetAddr& from, S
         if (s.shooter != myId) shots.push_back(s);  // (our own we draw ourselves)
     }
     if (r.ok()) sk.shots = shots;
-    const int ne = r.u8();
-    for (int k = 0; k < ne && r.ok(); ++k) {
-        uint32_t seq;
-        const SkEvent e = readEvent(r, seq);
-        if (!r.ok() || seq <= eventSeen_) continue;
-        eventSeen_ = seq;
-        events.push_back(e);
-    }
 }
 
 void SkNetClient::update(float dt, const SkNetSelf& self, Skirmish& sk) {

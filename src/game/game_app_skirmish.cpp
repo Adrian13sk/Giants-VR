@@ -26,6 +26,7 @@ namespace gvr {
 
 namespace {
 const char* kTeamUpper[3] = {"BLUE", "GREEN", "RED"};
+const char* teamUpper(int t) { return t >= 0 ? kTeamUpper[t % 3] : "NO"; }
 }  // namespace
 
 std::string GameApp::skText(const char* key, const char* fallback) const {
@@ -43,13 +44,19 @@ std::string GameApp::skName(int id) const {
 }
 
 bool GameApp::skAddBody(int id) {
-    const SkPlayer* p = sk_.player(id);
-    if (!p || p->local || !assetWorld_ || size_t(p->team) >= sk_.teams.size()) return false;
+    SkPlayer* p = sk_.player(id);
+    if (!p || p->local || p->gone || !assetWorld_ || size_t(p->team) >= sk_.teams.size()) return false;
     if (size_t(id) >= skBodies_.size()) skBodies_.resize(size_t(id) + 1);
     SkBody& b = skBodies_[size_t(id)];
-    if (b.model) return true;
     const SkHero sh = sk_.teams[size_t(p->team)].hero;
     const Hero h = sh == SkHero::Reaper ? Hero::Delphi : (sh == SkHero::Kabuto ? Hero::Kabuto : Hero::Mecc);
+    if (b.model && b.hero == h) return true;
+    b = SkBody{};  // (a slot taken by a player of another side: its hero's model)
+    if (sk_.mirror) {
+        // A joiner's copy of the others: their hero's size (hits, blasts and the flag on the back use it).
+        float scale = 1, lift = 0;
+        heroBody(h, p->body, scale, lift);
+    }
     AssetWorld* w = assetWorld_.get();
     b.hero = h;
     b.model = std::make_unique<SkinnedModel>();
@@ -69,13 +76,15 @@ bool GameApp::skAddBody(int id) {
 // A joiner's player on this host: on the side it asked for (else the one with fewest people),
 // moved by its own headset.
 int GameApp::skAddRemote(const std::string& name, int team) {
-    if (sk_.players.size() >= 16) return -1;
+    size_t present = 0, gone = 0;
+    for (const auto& p : sk_.players) (p.gone ? gone : present) += 1;
+    if (present >= 16 || (gone == 0 && sk_.players.size() >= 63)) return -1;
     if (team < 0 || size_t(team) >= sk_.teams.size()) {
         team = 0;
         size_t fewest = 1000;
         for (size_t t = 0; t < sk_.teams.size(); ++t) {
             size_t n = 0;
-            for (const auto& p : sk_.players) n += p.team == int(t) && !p.bot;
+            for (const auto& p : sk_.players) n += p.team == int(t) && !p.bot && !p.gone;
             if (n < fewest) { fewest = n; team = int(t); }
         }
     }
@@ -88,10 +97,15 @@ int GameApp::skAddRemote(const std::string& name, int team) {
     pc.groundHeight = player_.groundHeight;
     pc.seaLevel = player_.seaLevel;
     const int id = sk_.addPlayer(name, team, false, false, pc, 100.0f);
-    sk_.players[size_t(id)].remote = true;
-    sk_.players[size_t(id)].name = name + " " + std::to_string(id);  // (every headset says QUEST)
+    SkPlayer& np = sk_.players[size_t(id)];
+    np.remote = true;
+    np.name = name + " " + std::to_string(id);  // (every headset says QUEST)
+    // Not in the game until its headset reports (it loads the map first): nobody shoots a body
+    // standing at its spawn meanwhile, and nothing piles up to hurt it on arrival.
+    np.alive = false;
+    np.deadT = 5.0f;
     skAddBody(id);
-    skBanner_ = sk_.players[size_t(id)].name + " JOINED TEAM " + kTeamUpper[team % 3];
+    skBanner_ = np.name + " JOINED TEAM " + teamUpper(team);
     skBannerT_ = 3.0f;
     return id;
 }
@@ -251,6 +265,7 @@ void GameApp::initSkirmish() {
                 skClient_.join(a, "QUEST", myTeam);
                 // (in the harness: wait for the welcome here, as the menu does before loading)
                 SkNetSelf none;
+                none.alive = false;  // (still in the menu / loading: not in the game yet)
                 Skirmish scratch;
                 for (int k = 0; k < 300 && skClient_.state == SkNetClient::State::Joining; ++k) {
                     skClient_.update(0.01f, none, scratch);
@@ -421,7 +436,7 @@ void GameApp::skirmishBlast(const Vec3& at, float radius, float damage) {
 }
 
 void GameApp::skHandleEvent(const SkEvent& e) {
-    auto flagName = [](int team) { return std::string("THE ") + kTeamUpper[team % 3] + " FLAG"; };
+    auto flagName = [](int team) { return std::string("THE ") + teamUpper(team) + " FLAG"; };
     auto say = [&](const std::string& s, float secs) {
         skBanner_ = s;
         skBannerT_ = secs;
@@ -440,6 +455,7 @@ void GameApp::skHandleEvent(const SkEvent& e) {
         case SkEvent::HurtLocal:
             if (e.b != skLocal_) break;  // (a joiner's: the host sent it on)
             skLastHurtBy_ = e.a;
+            skLastHurtAt_ = sk_.time;
             hitFrom_ = e.at;
             hitDirTimer_ = 1.2f;
             damagePlayer(e.amount, DeathCause::Shot);
@@ -479,7 +495,7 @@ void GameApp::skHandleEvent(const SkEvent& e) {
             sfx("ka_stomp", e.at, 1.0f, 0.9f + 0.15f * frand());
             break;
         case SkEvent::Win:
-            say(std::string(kTeamUpper[e.team % 3]) + " TEAM WINS!", 10.0f);
+            say(std::string(teamUpper(e.team)) + " TEAM WINS!", 10.0f);
             sfx2D("pu_hlth", 1.0f, 0.6f);
             skRoundT_ = 0;
             break;
@@ -509,8 +525,9 @@ void GameApp::updateSkirmish(float dt) {
             for (auto& p : sk_.players) {
                 p.kills = p.deaths = p.captures = 0;
                 p.carrying = -1;
-                if (!p.local) sk_.spawn(p.id);
+                if (!p.local) sk_.spawn(p.id);  // (not those who left)
             }
+            sk_.shots.clear();
             sk_.winner = -1;
             skRoundT_ = 0;
             if (!dying_) teleportPlayer(sk_.spawnPoint(skLocal_), player_.yaw);
@@ -560,15 +577,36 @@ void GameApp::updateSkirmish(float dt) {
         self.fade = player_.fadeWeight();
         self.hp = playerHealth_;
         self.alive = !dying_ && playerHealth_ > 0;
-        self.lastAttacker = skLastHurtBy_;
+        self.lastAttacker = sk_.time - skLastHurtAt_ < 10.0f ? skLastHurtBy_ : -1;
         self.aim = gunValid_ ? normalize(Vec3{-gunXf_.m[8], -gunXf_.m[9], -gunXf_.m[10]}) : headWorldRot_.rotate(Vec3{0, 0, -1});
         skClient_.update(dt, self, sk_);
         for (const auto& e : skClient_.events) sk_.events.push_back(e);
         skClient_.events.clear();
+        // Joined again after a loss: the host's game may have given us another place.
+        if (skClient_.state == SkNetClient::State::Joined && skClient_.myId >= 0 && skClient_.myId != skLocal_) {
+            if (SkPlayer* old = sk_.player(skLocal_)) old->local = false;
+            skLocal_ = skClient_.myId;
+            SkPlayer& me = sk_.mirrorPlayer(skLocal_);
+            me.local = true;
+            me.alive = true;
+            me.gone = false;
+            me.name = "YOU";
+            if (size_t(skLocal_) < skBodies_.size()) skBodies_[size_t(skLocal_)] = SkBody{};
+            skBanner_ = "BACK IN THE GAME";
+            skBannerT_ = 3.0f;
+        }
         for (size_t i = 0; i < sk_.players.size(); ++i) skAddBody(int(i));  // new arrivals
         if (skClient_.state == SkNetClient::State::Lost) {
+            // Lost (the Wi-Fi dropped, the host restarted): knock again every few seconds.
             skLostT_ += dt;
-            if (skBannerT_ <= 0) { skBanner_ = "CONNECTION TO THE HOST LOST"; skBannerT_ = 3.0f; }
+            if (skBannerT_ <= 0) { skBanner_ = "CONNECTION TO THE HOST LOST - TRYING AGAIN"; skBannerT_ = 3.0f; }
+            if (skLostT_ > 4.0f) {
+                skLostT_ = 0;
+                const SkPlayer* me = sk_.player(skLocal_);
+                skClient_.join(skClient_.host(), "QUEST", me ? me->team : -1);
+            }
+        } else if (skClient_.state == SkNetClient::State::Joined) {
+            skLostT_ = 0;
         }
     }
     for (const auto& e : sk_.events) skHandleEvent(e);
@@ -612,7 +650,7 @@ void GameApp::updateSkirmish(float dt) {
         if (!skHolder_[t]) continue;
         const SkFlag& f = sk_.flags[t];
         const SkPlayer* c = sk_.player(f.carrier);
-        const int k = c ? (sk_.teams[size_t(c->team)].hero == SkHero::Reaper ? 2 : 1) : 0;
+        const int k = c && size_t(c->team) < sk_.teams.size() ? (sk_.teams[size_t(c->team)].hero == SkHero::Reaper ? 2 : 1) : 0;
         const int clip = skHolderClip_[t][k];
         const float d = std::max(0.1f, skHolder_[t]->animDuration(clip));
         skHolder_[t]->poseBlend(renderer_, clip, std::fmod(skAnimT_, d), clip, std::fmod(skAnimT_, d), 0.0f);
@@ -636,7 +674,7 @@ void GameApp::renderSkirmish(bool shadow, const Vec3& eye) {
         if (p.local || size_t(p.id) >= skBodies_.size()) continue;
         const SkBody& b = skBodies_[size_t(p.id)];
         if (!b.model) continue;
-        if (!p.alive && p.deadT > 4.0f) continue;  // the body is gone (the respawn comes at 5 s)
+        if (p.gone || (!p.alive && p.deadT > 4.0f)) continue;  // the body is gone (the respawn comes at 5 s)
         const float far = b.hero == Hero::Kabuto ? 700.0f : 200.0f;
         if (length(p.body.position - eye) > far) continue;
         if (shadow) {
@@ -660,7 +698,7 @@ void GameApp::renderSkirmish(bool shadow, const Vec3& eye) {
     if (shadow) return;
     // Their shots: the Meccaryn's bolt spark, the Reaper's arrow streak.
     for (const auto& s : sk_.shots) {
-        if (length(s.pos - eye) > 200.0f) continue;
+        if (s.hostOwn || length(s.pos - eye) > 200.0f) continue;  // (our own: the weapon draws it)
         const Vec3 f = normalize(s.vel);
         if (s.hero == SkHero::Reaper && arrowModel_) {
             const Quat look = Quat::fromAxisAngle({0, 1, 0}, std::atan2(-f.x, -f.z)) *

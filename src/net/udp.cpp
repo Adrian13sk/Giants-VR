@@ -64,7 +64,7 @@ bool UdpSocket::send(const NetAddr& to, const void* data, size_t n) {
 
 bool UdpSocket::recv(std::vector<uint8_t>& out, NetAddr& from) {
     if (fd_ < 0) return false;
-    uint8_t buf[2048];
+    uint8_t buf[4096];  // (a snapshot is kept under 1400 bytes; room for a larger one all the same)
     sockaddr_in a{};
     socklen_t len = sizeof a;
     const ssize_t n = ::recvfrom(fd_, buf, sizeof buf, 0, reinterpret_cast<sockaddr*>(&a), &len);

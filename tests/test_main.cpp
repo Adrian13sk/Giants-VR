@@ -1751,7 +1751,47 @@ static void testSkNet() {
     bool killMsg = false;
     for (const auto& e : cl.events) killMsg = killMsg || (e.kind == SkEvent::Kill && e.b == remoteId && e.a == me);
     CHECK(killMsg);
+    // A backlog of more news than one snapshot carries (12) all arrives, in order.
+    cl.events.clear();
+    for (int k = 0; k < 30; ++k) {
+        SkEvent e;
+        e.kind = SkEvent::FlagReturned;
+        e.team = 0;
+        e.amount = float(k);
+        host.events.push_back(e);
+    }
+    net.update(0.0f);
+    host.events.clear();
+    step(60);
+    std::vector<float> got;
+    for (const auto& e : cl.events)
+        if (e.kind == SkEvent::FlagReturned) got.push_back(e.amount);
+    CHECK(got.size() == 30);
+    for (size_t k = 0; k < got.size(); ++k) CHECK(got[k] == float(k));
+    // It leaves: its player is gone (not respawned by a new round, not drawn), and the next joiner
+    // takes its place.
+    net.removeRemote = [&](int id) { host.removePlayer(id); };
+    const size_t before = host.players.size();
     cl.leave();
+    step(30);
+    CHECK(net.clients() == 0 && host.players[size_t(remoteId)].gone && !host.players[size_t(remoteId)].alive);
+    host.spawn(remoteId);
+    CHECK(!host.players[size_t(remoteId)].alive);
+    const int left = remoteId;
+    SkNetClient cl2;
+    Skirmish mirror2;
+    mirror2.groundAt = host.groundAt;
+    mirror2.setup({SkHero::Mecc, SkHero::Mecc}, {{-60, 0, 0}, {60, 0, 0}}, {});
+    mirror2.mirror = true;
+    CHECK(cl2.join(where, "AGAIN", 0));
+    for (int i = 0; i < 60; ++i) {
+        host.update(1.0f / 60.0f);
+        net.update(1.0f / 60.0f);
+        host.events.clear();
+        cl2.update(1.0f / 60.0f, self, mirror2);
+    }
+    CHECK(cl2.state == SkNetClient::State::Joined && cl2.myId == left && host.players.size() == before && !host.players[size_t(left)].gone);
+    cl2.leave();
     net.stop();
 }
 

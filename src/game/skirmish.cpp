@@ -307,6 +307,8 @@ void Skirmish::prepareRoutes() {
 int Skirmish::addPlayer(const std::string& name, int team, bool bot, bool local, const PlayerController& proto, float maxHp) {
     SkPlayer p;
     p.id = int(players.size());
+    for (const auto& o : players)
+        if (o.gone) { p.id = o.id; break; }  // a slot someone left
     p.name = name;
     p.team = team;
     p.bot = bot;
@@ -316,10 +318,11 @@ int Skirmish::addPlayer(const std::string& name, int team, bool bot, bool local,
     p.body.collision = collision;
     p.maxHp = p.hp = maxHp;
     int mates = 0;
-    for (const auto& o : players) mates += o.team == team && o.bot;
+    for (const auto& o : players) mates += o.team == team && o.bot && !o.gone;
     p.role = (mates % 2 == 0) ? SkPlayer::Attack : SkPlayer::Defend;
     p.think = 0.1f * float(p.id);
-    players.push_back(p);
+    if (size_t(p.id) < players.size()) players[size_t(p.id)] = p;
+    else players.push_back(p);
     spawn(p.id);
     return p.id;
 }
@@ -347,7 +350,7 @@ Vec3 Skirmish::spawnPoint(int id) const {
 
 void Skirmish::spawn(int id) {
     SkPlayer* p = player(id);
-    if (!p) return;
+    if (!p || p->gone) return;
     const Vec3 at = spawnPoint(id);
     // Facing the middle of the map.
     Vec3 mid;
@@ -358,6 +361,8 @@ void Skirmish::spawn(int id) {
     p->deadT = 0;
     p->carrying = -1;
     p->target = -1;
+    p->lastAttacker = -1;
+    p->lastHurtAt = -1e9f;
     p->moveTo = at;
     p->lastPos = at;
     p->stuckT = p->detourT = 0;
@@ -405,7 +410,7 @@ void Skirmish::setLocal(int id, const Vec3& pos, float yaw, float hp, bool alive
 
 void Skirmish::localDied(int id) {
     SkPlayer* p = player(id);
-    if (p && p->alive) kill(*p, p->lastAttacker);
+    if (p && p->alive) kill(*p, time - p->lastHurtAt < 10.0f ? p->lastAttacker : -1);
 }
 
 void Skirmish::remoteDied(int id, int killer) {
@@ -422,7 +427,9 @@ void Skirmish::removePlayer(int id) {
     p->alive = false;
     p->remote = false;
     p->bot = false;
-    p->deadT = -1e9f;  // (never respawned)
+    p->local = false;
+    p->gone = true;    // (never respawned; nobody's enemy; not drawn)
+    p->deadT = 0;
 }
 
 SkPlayer& Skirmish::mirrorPlayer(int id) {
@@ -442,6 +449,7 @@ void Skirmish::damage(int victim, float amount, int attacker, const Vec3& from) 
     const SkPlayer* a = player(attacker);
     if (a && a->id != v->id && a->team == v->team && !rules.friendlyFire) return;
     v->lastAttacker = attacker;
+    v->lastHurtAt = time;
     if (v->local || v->remote) {  // its own game applies it (a remote player's: sent over the network)
         SkEvent e;
         e.kind = SkEvent::HurtLocal;
@@ -824,7 +832,7 @@ void Skirmish::update(float dt) {
         updateShots(dt);
         return;
     }
-    if (winner >= 0) return;
+    if (winner >= 0) { shots.clear(); return; }  // (no bolts hanging in the air through the result)
     for (auto& p : players) {
         p.firing = false;
         if (!p.alive) {

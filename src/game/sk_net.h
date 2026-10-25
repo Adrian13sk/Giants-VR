@@ -23,7 +23,7 @@ namespace gvr {
 
 constexpr uint16_t kSkNetPort = 27350;   // ours
 constexpr uint32_t kSkNetMagic = 0x4E525647;  // "GVRN"
-constexpr uint16_t kSkNetVersion = 1;
+constexpr uint16_t kSkNetVersion = 2;  // 2: snapshots numbered, players that left marked
 
 // One message's bytes (little-endian; floats as IEEE bits).
 class NetWriter {
@@ -96,6 +96,8 @@ private:
         int id = -1;
         float quiet = 0;                 // seconds since its last packet
         uint32_t hitSeq = 0;             // its hits applied up to this
+        uint32_t stateSeq = 0;           // its newest state taken in (older ones arriving late are dropped)
+        bool started = false;            // a state came: its player is in the game (not while it loads the map)
         uint32_t eventAcked = 0;         // events it has
         bool wasAlive = true;
     };
@@ -105,7 +107,7 @@ private:
     std::string map_;
     std::vector<Client> clients_;
     std::vector<LoggedEvent> log_;
-    uint32_t eventSeq_ = 0;
+    uint32_t eventSeq_ = 0, snapSeq_ = 0;
     float beaconT_ = 0, snapT_ = 0;
     void onPacket(const std::vector<uint8_t>& d, const NetAddr& from);
     void sendSnapshot(Client& c);
@@ -130,6 +132,7 @@ public:
     std::vector<SkEvent> events;         // new since the game last drained them
     void hit(int target, float damage, const Vec3& at);  // a hit our weapons landed (resent until applied)
     void shot(const SkShot& s);          // a shot we fired (for the others to see)
+    const NetAddr& host() const { return host_; }
     float sinceHost() const { return quiet_; }
 
 private:
@@ -138,7 +141,7 @@ private:
     std::string name_;
     int wantTeam_ = -1;
     float sendT_ = 0, quiet_ = 0, probeT_ = 0;
-    uint32_t stateSeq_ = 0, hitSeq_ = 0, hitAcked_ = 0, eventSeen_ = 0;
+    uint32_t stateSeq_ = 0, hitSeq_ = 0, hitAcked_ = 0, eventSeen_ = 0, snapSeen_ = 0;
     struct Hit { uint32_t seq; int target; float damage; Vec3 at; };
     std::vector<Hit> hits_;
     std::vector<SkShot> shotsOut_;

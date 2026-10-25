@@ -928,6 +928,7 @@ private:  // the mission placed enemies: no test waves
     int titleSkGame_ = 0;          // the found game chosen to join
     bool titleJoining_ = false;
     int skLastHurtBy_ = -1;
+    float skLastHurtAt_ = -1e9f;   // (game time: a fall long after a hit is nobody's kill)
     size_t skShotsSeen_ = 0;
     float skLostT_ = 0;
     int skPrevWinner_ = -1;
