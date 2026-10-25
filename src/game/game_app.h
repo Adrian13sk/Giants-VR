@@ -1355,6 +1355,8 @@ private:  // the mission placed enemies: no test waves
     bool handReach(const Vec3& p, float r) const;
     float rpGrenadeCool_ = 0;
     void updateReaperGrenades(float dt);
+    float ambushT_ = 0, ambushDue_ = 0;
+    void updateAmbush(float dt);
     // Holsters on the body and punches (game_app_vr.cpp).
     int holsterZone_ = -1;
     bool holsterGrabHeld_ = false;

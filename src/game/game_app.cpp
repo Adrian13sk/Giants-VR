@@ -768,6 +768,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     { GVR_PROF("feel"); updateFeel(dt, in); }
     { GVR_PROF("rescue"); updateRescue(dt, in); }
     updateReaperGrenades(dt);
+    updateAmbush(dt);
     updateCombat(dt);
     { GVR_PROF("audio"); updateAudio(dt); }
         updateFlashes(dt);

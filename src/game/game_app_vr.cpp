@@ -15,6 +15,7 @@
 #include "audio/mixer.h"
 #include "core/log.h"
 #include "render/renderer.h"
+#include "scene/asset_world.h"
 
 namespace gvr {
 
@@ -75,6 +76,48 @@ bool GameApp::handReach(const Vec3& p, float r) const {
         if (c.gripPoseValid && length(rig_.toWorld(c.gripPose).position - p) < r * rig_.comfort.worldScale) return true;
     }
     return false;
+}
+
+// Ambushes (rework; ours - against long empty walks): when nothing has fought the player for a
+// while (70-110 s) in a mission with Reapers in it, a squad of 2-3 comes at him from ahead, 40-55 m
+// out on dry ground. Not in base missions (they have raids), races, multiplayer or as Kabuto.
+void GameApp::updateAmbush(float dt) {
+    if (!playMode_ || dying_ || cutsceneActive() || hero_ == Hero::Kabuto || skirmish_ || base_.on || riding_ || enemyPool_.empty() ||
+        !assetWorld_ || load_.phase != LoadPhase::Idle || std::getenv("GVR_NO_AMBUSH") || !settings_.ambushes)
+        return;
+    bool fighting = false;
+    for (const auto& e : enemies_.enemies)
+        if (e.state != EnemyState::Dead && e.aware && length(e.pos - player_.position) < 70.0f) { fighting = true; break; }
+    if (fighting) { ambushT_ = 0; return; }
+    if (ambushDue_ <= 0) ambushDue_ = std::getenv("GVR_AMBUSH_DUE") ? float(std::atof(std::getenv("GVR_AMBUSH_DUE"))) : 70.0f + 40.0f * frand();
+    if (player_.horizontalSpeed() > 0.5f || !player_.onGround) ambushT_ += dt;  // only while he's on the move
+    if (ambushT_ < ambushDue_) return;
+    ambushT_ = 0;
+    ambushDue_ = 0;
+    const float yaw = lastInput_.headValid ? yawOf(rig_.toWorld(lastInput_.head).orientation) : player_.yaw;
+    const int n = 2 + int(frand() * 1.99f);
+    int placed = 0;
+    for (int attempt = 0; attempt < 24 && placed < n; ++attempt) {
+        const float a = yaw + (frand() - 0.5f) * 2.1f;
+        const float r = 40.0f + 15.0f * frand();
+        Vec3 p = player_.position + Vec3{-std::sin(a) * r, 0, -std::cos(a) * r};
+        float h;
+        if (!assetWorld_->terrain().heightAt(p.x, p.z, h) || h < player_.seaLevel + 0.2f || std::fabs(h - player_.position.y) > 25.0f) continue;
+        const Vec3 to = player_.position - p;
+        const int ei = enemies_.spawn(Vec3{p.x, h, p.z}, std::atan2(-to.x, -to.z));
+        if (ei < 0) continue;
+        Enemy& e = enemies_.enemies[size_t(ei)];
+        e.aware = true;
+        e.alert = 0.3f;
+        e.home = e.patrolTo = player_.position;
+        ++placed;
+    }
+    if (placed) {
+        timmyLine_ = "REAPERS AHEAD!";
+        timmyLineT_ = 2.5f;
+        sfx2D("rs_attk2", 0.6f, 0.9f);
+        LOGI("Ambush: %d Reapers %s", placed, "ahead of the player");
+    }
 }
 
 void GameApp::updateFlashes(float dt) {

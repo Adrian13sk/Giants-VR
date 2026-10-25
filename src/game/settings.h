@@ -16,6 +16,7 @@ struct UserSettings {
     bool showFps = false;    // frame-rate counter at the top of the view
     bool dayNight = true;    // false: always day
     bool originalFx = false;  // effects from the game's fx.bin (experimental) instead of our particles
+    bool ambushes = true;    // rework: Reaper squads come at you after a long quiet stretch
     int vignette = 1;        // comfort tunnel while moving / turning: 0 off, 1 low, 2 high
     int foveation = 2;       // fixed foveated rendering 0 off .. 3 high (2: measured on the Quest 2 to hold 72 fps)
     float hudScale() const { return hudSize == 0 ? 0.8f : (hudSize == 2 ? 1.3f : 1.0f); }

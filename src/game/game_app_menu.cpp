@@ -12,7 +12,7 @@
 namespace gvr {
 
 namespace {
-enum MenuRow { kRowResume, kRowTurn, kRowVignette, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowTurn, kRowVignette, kRowAmbush, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -68,6 +68,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
         switch (menuRow_) {
             case kRowTurn: s.turn = (s.turn + dx + 4) % 4; changed = true; break;
             case kRowVignette: s.vignette = (s.vignette + dx + 3) % 3; changed = true; break;
+            case kRowAmbush: s.ambushes = !s.ambushes; changed = true; break;
             case kRowHand: s.leftHanded = !s.leftHanded; changed = true; break;
             case kRowView: s.thirdPerson = !s.thirdPerson; firstPerson_ = !s.thirdPerson; changed = true; break;
             case kRowHud: s.hudSize = std::max(0, std::min(2, s.hudSize + dx)); changed = true; break;
@@ -136,6 +137,7 @@ void GameApp::renderMenu() {
         {"RESUME", ""},
         {"TURNING", turns[s.turn]},
         {"COMFORT VIGNETTE", s.vignette == 0 ? "OFF" : (s.vignette == 1 ? "LOW" : "HIGH")},
+        {"AMBUSHES", s.ambushes ? "ON" : "OFF"},
         {"MAIN HAND", s.leftHanded ? "LEFT" : "RIGHT"},
         {"VIEW", firstPerson_ ? "FIRST PERSON" : "THIRD PERSON"},
         {"HUD SIZE", huds[s.hudSize]},
