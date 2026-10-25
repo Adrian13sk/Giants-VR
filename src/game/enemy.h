@@ -75,7 +75,9 @@ struct Enemy {
     // death); a one-shot action playing (a punch, a throw) holds his clip; the punch's blow pending.
     float hitHeight = 0.5f, actT = 0, punchCool = 0;
     bool punchPending = false;
-    bool dropping = false;  // rework: coming down on a hover pack (an ambush from the air)
+    bool dropping = false;
+    bool inCover = false;   // rework: running to / firing from coverAt
+    Vec3 coverAt, coverFrom; // the spot, and where the player was when it was chosen  // rework: coming down on a hover pack (an ambush from the air)
     float hitFlash = 0;     // rework: > 0 just hit (the body flashes)  // rework: the player out of sight this long -> a grenade (game layer)
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
@@ -84,6 +86,7 @@ struct EnemyParams {
     float sightRange = 60.0f;     // m: sees the player in front with a clear line (was 50, any side)
     float shootRange = 30.0f;     // m: stops running to shoot when this close
     float fireRange = 10.0f;      // m: closest stand-off distance
+    float coverShare = 0.6f;      // rework: chance a repositioning Reaper looks for cover
     float crouchers = 0.3f;       // rework: share of the others that fire from a crouch (a smaller target)
     float marksmen = 0.25f;       // rework: share of Reapers that are marksmen (0: none)
     float runSpeed = 4.2f;        // m/s (rpman_bzka_run stride: 18.4 units/s = 3.7; the rework runs them faster)
@@ -115,6 +118,9 @@ class EnemyDirector {
 public:
     EnemyParams params;
     std::function<float(float, float)> groundHeight;
+    // Rework: a spot in cover (behind a rock or a tree, to one side, as seen from the player) near
+    // `near`; false if there is none. Set by the game layer.
+    std::function<bool(const Vec3& near, const Vec3& player, Vec3& spot)> findCover;
     const CollisionWorld* collision = nullptr;
     float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     // The player hidden in his bush pack (2b): an unaware Reaper only finds him by walking up and

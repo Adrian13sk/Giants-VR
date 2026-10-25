@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
+#include "core/log.h"
 #include "game/player.h"  // angleDelta
 
 namespace gvr {
@@ -379,6 +381,9 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 // Rework: badly hurt, he falls back - away from the player and to one side - before he
                 // turns to fight again.
                 const bool retreating = e.retreatT > 0;
+                // Cover chosen: run to it (given up if the player has moved round it).
+                if (e.inCover && length(Vec3{player.x - e.coverFrom.x, 0, player.z - e.coverFrom.z}) > 10.0f) e.inCover = false;
+                if (e.inCover && !retreating) goal = Vec3{e.coverAt.x - e.pos.x, 0, e.coverAt.z - e.pos.z};
                 if (retreating) {
                     e.retreatT -= dt;
                     goal = Vec3{-dirTo.x * 12.0f + side.x * e.flank, 0, -dirTo.z * 12.0f + side.z * e.flank};
@@ -435,7 +440,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                         const Vec3 f{-std::sin(e.yaw), 0, -std::cos(e.yaw)};
                         tryMove(e, f * (params.walkSpeed * dt));
                     } else {
-                        setClip(e, marks ? EnemyClip::KneelFire : (e.role == 2 ? EnemyClip::CrouchFire : EnemyClip::Fire), true);  // (a marksman kneels to aim; a croucher crouches)
+                        setClip(e, marks ? EnemyClip::KneelFire : (e.role == 2 || e.inCover ? EnemyClip::CrouchFire : EnemyClip::Fire), true);  // (a marksman kneels to aim; a croucher crouches)
                     }
                     const bool facing = std::fabs(angleDelta(e.yaw, faceYaw)) < 0.35f;
                     if (e.fireCooldown <= 0 && facing) {
@@ -450,11 +455,26 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                             e.burstLeft = burstN;
                             if (marks) e.fireCooldown = 0.7f;
                         } else {
-                            // Reposition: pick a new flank spot and run there.
+                            // Reposition: pick a new flank spot and run there - behind cover if there's
+                            // some near it (rework).
                             e.flank = (float(nextRand() % 2001) / 1000.0f - 1.0f) * 10.0f;
                             e.flankTimer = 1.5f + float(nextRand() % 2000) / 1000.0f;
                             e.state = EnemyState::Advance;
                             e.stateTime = 0;
+                            e.inCover = false;
+                            if (findCover && !e.posted && float(nextRand() % 1000) < params.coverShare * 1000.0f) {
+                                const Vec3 side{-to.z / std::max(dist, 1e-3f), 0, to.x / std::max(dist, 1e-3f)};
+                                const Vec3 want = e.pos + side * e.flank;
+                                Vec3 spot;
+                                if (findCover(want, player, spot) && length(Vec3{spot.x - e.pos.x, 0, spot.z - e.pos.z}) < 18.0f) {
+                                    e.inCover = true;
+                                    e.coverAt = spot;
+                                    e.coverFrom = player;
+                                    e.flankTimer = 6.0f;
+                                    static const bool trace = std::getenv("GVR_COVER_TRACE") != nullptr;
+                                    if (trace) LOGI("Reaper %u takes cover %.1f m away", e.uid, length(Vec3{spot.x - e.pos.x, 0, spot.z - e.pos.z}));
+                                }
+                            }
                         }
                     }
                 }

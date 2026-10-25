@@ -1988,3 +1988,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   kneeling or crouched Reaper is firing, EnemyDirector::bodyHeight is 0.66 x his height - the hit capsule, the
   head-shot line and the hit-height death choice follow it. Harness: two crouchers firing crouched; auto-aim still
   hits (target 0 at 12 m). Unit tests pass, sweep 56/56 clean.
+- Cover: EnemyDirector::findCover (game layer) picks a solid world object of 0.7-6 m radius on the ground near the
+  Reaper's next flank spot, and a spot beside its far side from the player; on repositioning (60 %, GVR_COVER) he runs
+  there (Enemy::inCover) and fires crouched; abandoned when the player moves 10 m from where it was chosen.
+  Unit test: runs to the offered spot; harness 1c: "Reaper 1 takes cover 7.3 m away". Sweep 56/56 clean.

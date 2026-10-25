@@ -517,6 +517,23 @@ static void testEnemies() {
         }
         CHECK(punched == 1);  // one punch (then a cool-down)
         q.params.punch = false;  // (as Kabuto: none)
+        // Cover: after a burst, a repositioning Reaper runs to the cover spot the game offers.
+        EnemyDirector c;
+        c.groundHeight = r.groundHeight;
+        for (auto& cd : c.clipDuration) cd = 0.6f;
+        c.params.marksmen = 0;
+        c.params.crouchers = 0;
+        c.params.coverShare = 1.0f;
+        c.params.punch = false;
+        c.findCover = [](const Vec3&, const Vec3&, Vec3& spot) { spot = Vec3{6, 0, -14}; return true; };
+        c.spawn({0, 0, -15}, kPi);
+        c.enemies[0].aware = true;
+        bool tookCover = false;
+        for (int i = 0; i < 72 * 20 && !tookCover; ++i) {
+            c.update(1.0f / 72.0f, Vec3{0, 0, 0}, true, sh);
+            tookCover = c.enemies[0].inCover && length(c.enemies[0].pos - Vec3{6, 0, -14}) < 1.2f;
+        }
+        CHECK(tookCover);
     }
 
     EnemyDirector d;

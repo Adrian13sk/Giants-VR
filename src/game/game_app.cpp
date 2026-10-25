@@ -502,6 +502,33 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 return std::max(w->terrain().heightAt(x, z, y) ? y : -20.0f, -1.1f);
             };
             enemies_.collision = &w->collision();
+            // Rework: cover for Reapers - beside the far side of a solid object of rock / tree / hut size
+            // standing on the ground, as seen from the player.
+            enemies_.findCover = [w](const Vec3& near, const Vec3& player, Vec3& spot) {
+                float best = 12.0f;
+                bool found = false;
+                for (const auto& o : w->worldObjects()) {
+                    if (o.collision < 0 || o.hidden || o.radius < 0.7f || o.radius > 6.0f) continue;
+                    const Vec3 c{o.centre.x, 0, o.centre.z};
+                    const float dn = length(Vec3{c.x - near.x, 0, c.z - near.z});
+                    if (dn > best) continue;
+                    float gy;
+                    if (!w->terrain().heightAt(c.x, c.z, gy) || o.centre.y - gy > 1.5f * o.radius) continue;  // (in the air: a bridge, a roof)
+                    Vec3 away{c.x - player.x, 0, c.z - player.z};
+                    const float da = length(away);
+                    if (da < 6.0f || da > 40.0f) continue;
+                    away = away * (1.0f / da);
+                    const Vec3 perp{-away.z, 0, away.x};
+                    const float sideSign = dot(Vec3{near.x - c.x, 0, near.z - c.z}, perp) >= 0 ? 1.0f : -1.0f;
+                    Vec3 p = c + away * (0.6f * o.radius + 0.8f) + perp * (sideSign * 0.55f * o.radius);
+                    if (!w->terrain().heightAt(p.x, p.z, p.y)) continue;
+                    if (p.y < -0.5f) continue;  // (not in the sea)
+                    best = dn;
+                    spot = p;
+                    found = true;
+                }
+                return found;
+            };
             // Reaper grunt model pool with the original clips (order = EnemyClip).
             const char* eclips[] = {"rpman_stand_scan.anm", "rpman_walk_fire.anm", "rpman_stand_fire.anm",
                                     "rpman_hit_med.anm", "rpman_hit_med2.anm", "rpman_hit_med_die.anm",
@@ -1530,6 +1557,7 @@ void GameApp::initGore(AssetWorld* w, ModelCache* mc) {
     enemies_.params.corpsesPersist = true;
     if (const char* m = std::getenv("GVR_MARKSMEN")) enemies_.params.marksmen = float(std::atof(m));  // test hook: share of marksmen
     if (const char* c = std::getenv("GVR_CROUCHERS")) enemies_.params.crouchers = float(std::atof(c));  // test hook: share crouching to fire
+    if (const char* c = std::getenv("GVR_COVER")) enemies_.params.coverShare = float(std::atof(c));  // test hook: chance of seeking cover
     creatures_.params.corpsesPersist = true;
 }
 
