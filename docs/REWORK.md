@@ -42,8 +42,11 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Looks | Grass: tufts on gentle grassy ground within 16 m of you, coloured and lit like the ground under them, swaying in gusts. Not on red earth, sand, rock or as Kabuto; off with the classic lighting and the adaptive fallback. | HARNESS |
 | Kabuto | Hands: in first person, reach down and squeeze a grip on what is at your feet. A Reaper or a boulder stays in that hand - swing and open it to throw, or bring it up to your mouth to eat it; a Smartie, a Vimp or a small creature is scooped up and eaten. (X still grabs as before.) | HARNESS |
 | Delphi | Sword parry: a Reaper bolt meeting the blade is knocked away with a spark and a ping; met with a swing, it goes back at the Reaper it came from. | HARNESS |
+| Effects | Shots striking scenery throw a soft glow and quick sparks (the old flash sprite was blocky up close). | HARNESS |
+| Cutscenes | Two shots that stayed black for 10 s (Delphi's jetski arrival at the volcano, the Story 3 prison lift) now show. Shot cameras looking steeply down or up at their actors swing round them to a comfortable angle (your view never tilts by itself). All 30 opening cutscenes reviewed on contact sheets. | HARNESS |
+| Kabuto | Story check: every gate objective of his campaign breaks with its own mechanic (punches; adrenaline - both grips; the magnifying glass), and the other Kabuto in kstory5_4 falls to punches. Not yet checked: walking to the portals. | HARNESS |
 
-Harness regression: all 56 missions exit 0 with no errors (latest run after ambushes and Reaper grenades).
+Harness regression: all 56 missions exit 0 with no errors (latest run after the grass).
 
 ## Trying it on the Quest
 Install the newest `GiantsVR-rework-<commit>.apk` like the others. New in Options: COMFORT VIGNETTE, AMBUSHES,
@@ -63,5 +66,5 @@ each shows. The last line runs the new hand mechanics (Kabuto's grab, Delphi's p
 ## Next
 - More combat rework: hit reactions, enemy variety in behaviour.
 - Effects: impact sparks.
-- Cutscenes: check every one for misplaced actors (contact sheets per shot).
+- Cutscenes: the later (mid-mission) cutscenes; compare camera framing with the original on video.
 - Missions: play each objective chain in the harness (k1a → k1b done).
