@@ -796,3 +796,7 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
   tornado_rstory5, tornado_rstory2_base, kill_4b_offspring, kill_5a_charger, kill_sonak1, kill_3sonaks4: each
   "Mission ... complete"; kill_r1_raik1/3 each their objective. Before the fixes: 5a stuck at 50 hp (point-blank
   misses), 3sonaks_4 at 14/15 (marker box). Sweep 56/56 clean, unit tests pass. **Not device-tested.**
+- f69d09f (APK built, sha256 2684fc38..., copied to the PC and verified): sweep 56/56 clean with the new image stats
+  (no white or blank frames), unit tests pass, completion scripts pass (popup scripts now walk away: health 100).
+  Visual checks on contact sheets of all 56 missions and 14 worlds: fog/haze colours match the skies; r1_saveyan
+  starts with Yan in front (was inside him); 2b_2's wife rides on the back. **Not device-tested.**
