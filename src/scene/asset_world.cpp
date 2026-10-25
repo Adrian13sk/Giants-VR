@@ -486,19 +486,22 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
                 LOGI("Spawn at the player's own Kabuto (id 1): %.1f %.1f %.1f", p.x, p.y, p.z);
                 break;
             }
-        // Kabuto's missions (race 1) have no id-1 marker: each has one marker with id 3, where his
-        // story starts (k1a: the Smartie village of its opening cutscene; the Meccaryns' start is
-        // id 1, Delphi's missions use id 2). Without it he began at the terrain's default point,
-        // in a canyon far from everything (device test 2026-10-25).
-        if (!haveMarker && startObject_ < 0 && mission_.setup[0] == 1)
+        // The start marker's id goes with the mission's race: the Meccaryns' missions (race 2) use
+        // id 1, Delphi's (race 3) id 2, Kabuto's (race 1) id 3 - every Kabuto and Delphi mission has
+        // one (r1_saveyan two: the first is taken). Without it they began at the terrain's default
+        // point: Kabuto in k1a in an empty canyon with no Smarties to eat, so he could never grow
+        // enough for the wooden gate (device test 2026-10-25).
+        const int race = mission_.setup[0];
+        const int startId = race == 1 ? 3 : (race == 3 ? 2 : 1);
+        if (!haveMarker && startObject_ < 0 && startId != 1)
             for (const auto& o : mission_.objects) {
-                if (o.group != 3 || o.parent >= 0 || toLower(registry_.modelName(o.type)) != "marker") continue;
+                if (o.group != startId || o.parent >= 0 || toLower(registry_.modelName(o.type)) != "marker") continue;
                 Vec3 p = giantsToRuntime(o.x, o.y, o.z);
                 float gy;
                 if (terrain_.heightAt(p.x, p.z, gy)) p.y = gy;
                 spawn_ = p;
                 spawnYaw_ = o.yaw * kPi / 180.0f;
-                LOGI("Spawn from Kabuto's start marker (id 3): %.1f %.1f %.1f yaw %.0f deg", p.x, p.y, p.z, o.yaw);
+                LOGI("Spawn from the race %d start marker (id %d): %.1f %.1f %.1f yaw %.0f deg", race, startId, p.x, p.y, p.z, o.yaw);
                 break;
             }
         for (size_t oi = 0; oi < mission_.objects.size(); ++oi) {
