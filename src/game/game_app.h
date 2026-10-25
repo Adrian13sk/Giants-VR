@@ -768,8 +768,18 @@ private:
             int level = 0;            // 1: upgraded (stone / level 2)
             float posedT = -1;        // clip time of the current pose (re-posed only when it changes)
             float hitT = -1e9f;       // last damage time (sign shows its health a while)
+            // Below half health the data's damaged model (D_<model>: scorched, broken) stands instead.
+            const RenderModel* damaged = nullptr;
+            // Gates: the data's <gate>_open clip plays while you're near (shut, they're solid).
+            int openClip = -1;
+            float openT = 0;          // s into the open clip (0 shut)
+            // Turrets (ours): the head turns to the nearest Reaper and fires.
+            float aimYaw = 0, fireT = 0, posedYaw = 1e9f, posedOpen = -1;
+            uint32_t target = 0;
         };
         std::vector<Bldg> bldgs;
+        struct TurretShot { Vec3 pos, vel; float life; uint32_t target; };
+        std::vector<TurretShot> turretShots;
         struct Item { int def; Vec3 pos; };
         std::vector<Item> items;
         std::unique_ptr<SkinnedModel> firepit;
@@ -787,6 +797,10 @@ private:
     void orderUpgrade(int def);
     void orderBuilding(int def);
     void updateRaids(float dt);
+    void placeTurretSites(int def, const Mat4& baseXf);
+    void updateGates(float dt);
+    void updateTurrets(float dt);
+    void wreckBuilding(Base::Bldg& b);
     bool addCrewSmartie(const Vec3& at, bool fromHatch);
     std::unique_ptr<SkinnedModel> loadCrewModel();
     void initCrew();

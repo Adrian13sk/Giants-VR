@@ -27,6 +27,7 @@
 #include "core/log.h"
 #include "game/cutscene.h"
 #include "scene/asset_world.h"
+#include "game/arm_ik.h"
 #include "scene/model_cache.h"
 #include "scene/skinned_model.h"
 
@@ -54,6 +55,9 @@ const BldgDef kMecc[] = {
     {"woodwalla", "WOOD WALL A", "Wood_wall", "wood_wall_build.anm", "Wall_A1|Wall_A2|Wall_A3", 3, 12.0f, false},
     {"woodwallb", "WOOD WALL B", "Wood_wall", "wood_wall_build.anm", "Wall_B1|Wall_B2", 2, 10.0f, false},
     {"woodwallc", "WOOD WALL C", "Wood_wall", "wood_wall_build.anm", "Wall_C1|Wall_C2|Wall_C3", 3, 12.0f, false},
+    // The Bulldog Turret (GTextEnglish iconphmeccturret; s_mecc_turret in xx_mecc_base). The template
+    // has no turret slots: two sites are ours (placeTurretSites), and so is what it does.
+    {"turret", "BULLDOG TURRET", "s_mecc_turret", "s_mecc_turret.anm", "", 5, 15.0f, false},
 };
 
 // Delphi's base (r4a, "Sappho's Fleet"): RP_base_template_1 and xx_reaper_base.gzp. Names from
@@ -70,6 +74,7 @@ const BldgDef kReaper[] = {
     {"rpgenerator", "SHIELD GENERATOR", "RP_generator", "RP_generator.anm", "teleport", 6, 18.0f, false},
     {"weakgate", "REAPER GATE", "magic_gate1", "magic_gate1.anm", "Gate", 4, 14.0f, false},
     {"weakwall", "FORCEFIELDS", "magic_wall1", "magic_wall1.anm", "Wall_A1|Wall_B1|Wall_C1", 6, 16.0f, false},
+    {"turret", "HELLFIRE TURRET", "s_reaper_turret", "s_reaper_turret.anm", "", 5, 15.0f, false},  // iconphrpturret
 };
 // The race chosen in initBase.
 const BldgDef* kDefs = kMecc;
@@ -81,6 +86,9 @@ const char* kRes = "VIMP MEAT";
 // "Reaper Gate 2"). Costs ours; the Pub and Party Houses have no second level in the data.
 struct Upgrade { const char* key; const char* label; const char* model; const char* anim; int meat; };
 const Upgrade kUpgrades[] = {
+    // The Build Pad's own upgrade (basebldgmccomcenter "Comm Center", stone_command); what it does is
+    // ours: it warns you where a raid is coming from. (The Reapers' base has no Comm Center model.)
+    {"mccomhut", "COMM CENTER", "stone_command", "stone_command.anm", 8},
     {"mcworkshop", "STONE WORKSHOP", "stone_shop", "Stone_shop.anm", 8},
     {"giftshop1", "GIFTSHOP 2", "stone_gift", "stone_gift.anm", 10},
     {"woodgate", "STONE GATE", "Stone_gate", "stone_gate_build.anm", 6},
@@ -105,6 +113,12 @@ const char* bldgModel(int d, int level) {
     const Upgrade* u = level > 0 ? upgradeFor(d) : nullptr;
     return u ? u->model : kDefs[d].model;
 }
+const char* bldgAnim(int d, int level) {
+    const Upgrade* u = level > 0 ? upgradeFor(d) : nullptr;
+    return u ? u->anim : kDefs[d].anim;
+}
+bool isKey(int d, const char* key) { return std::string(kDefs[d].key) == key; }
+bool isGate(int d) { return std::string(kDefs[d].key).find("gate") != std::string::npos; }
 constexpr float kPadRadius = 4.0f;     // m: standing on the Build Pad
 constexpr float kDropRadius = 3.5f;    // m: the meat drop-off
 
@@ -290,6 +304,7 @@ void GameApp::initBase() {
     ModelCache* mc = assetWorld_->models();
     for (int d = 0; d < kNumDefs; ++d) {
         std::string slots = kDefs[d].slot;
+        if (slots.empty()) { placeTurretSites(d, baseXf); continue; }
         size_t s0 = 0;
         while (s0 <= slots.size()) {
             const size_t s1 = std::min(slots.find('|', s0), slots.size());
@@ -530,13 +545,24 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
             b.maxHp = b.hp = (kDefs[b.def].core ? 400.0f : 250.0f) * (b.level > 0 ? 1.6f : 1.0f);
             // Solid once standing: the building's own collision mesh (<model>_coll), else its model.
             ModelCache* mc = assetWorld_->models();
-            const RenderModel* coll = mc->get(std::string(bldgModel(b.def, b.level)) + "_coll.gbs", "", false);
+            const std::string collName = std::string(bldgModel(b.def, b.level)) + "_coll.gbs";
+            const RenderModel* coll = assetWorld_->fs().exists(collName) ? mc->get(collName, "", false) : nullptr;
             if (!coll || coll->collisionTris.empty()) coll = mc->get(std::string(bldgModel(b.def, b.level)) + ".gbs", "", false);
-            // A gate "allows you to quickly enter and exit your base" / "lets you pass with ease": not
-            // solid for the player (walls are).
-            const bool gate = std::string(kDefs[b.def].key).find("gate") != std::string::npos;
-            if (gate) {
-                LOGI("Base: %s stands open to you", bldgLabel(b.def, b.level));
+            // A gate "allows you to quickly enter and exit your base": solid while shut, it opens as
+            // you come up to it (updateGates). The Build Pad / Comm Center stays walkable (its menu).
+            if (isGate(b.def) && b.model && b.openClip < 0) {
+                b.openClip = b.model->addAnimation(assetWorld_->fs(), std::string(bldgModel(b.def, b.level)) + "_open.anm");
+                b.openT = 0;
+                b.posedOpen = -1;
+            }
+            // Its damaged look (D_<model> in its rest pose: the same building scorched and broken; the
+            // Pub's is its wreckage), shown below half health.
+            {
+                const std::string dn = std::string("D_") + bldgModel(b.def, b.level) + ".gbs";
+                b.damaged = assetWorld_->fs().exists(dn) ? mc->get(dn, bldgAnim(b.def, b.level), true) : nullptr;
+            }
+            if (b.def == 0) {
+                LOGI("Base: %s stands (walkable)", bldgLabel(b.def, b.level));
             } else if (b.collision >= 0) {
                 assetWorld_->collisionMutable().setEnabled(b.collision, true);  // rebuilt after a raid
             } else if (coll && !coll->collisionTris.empty()) {
@@ -602,9 +628,19 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
     }
     // Test hook: GVR_BASE_UPGRADE=1 upgrades every kind as soon as it stands.
     if (static const bool autoUp = std::getenv("GVR_BASE_UPGRADE") != nullptr; autoUp)
-        for (int d = 1; d < kNumDefs; ++d)
+        for (int d = 0; d < kNumDefs; ++d)
             if (baseKindState(d) == 3 && baseKindLevel(d) == 0 && upgradeFor(d)) { base_.food += upgradeFor(d)->meat; orderUpgrade(d); }
+    // Test hook: GVR_BASE_WRECK=<s> wrecks every standing building (not the pad) once, at that time;
+    // GVR_BASE_DAMAGE=<s> takes them to 40 % health instead (their damaged look).
+    if (static const char* wr = std::getenv("GVR_BASE_WRECK"); wr && base_.traceT >= float(std::atof(wr)) && base_.traceT - dt < float(std::atof(wr)))
+        for (auto& b : base_.bldgs)
+            if (b.def != 0 && b.state == 3) wreckBuilding(b);
+    if (static const char* dm = std::getenv("GVR_BASE_DAMAGE"); dm && base_.traceT >= float(std::atof(dm)) && base_.traceT - dt < float(std::atof(dm)))
+        for (auto& b : base_.bldgs)
+            if (b.def != 0 && b.state == 3) { b.hp = 0.4f * b.maxHp; b.hitT = float(time_); }
     updateRaids(dt);
+    updateGates(dt);
+    updateTurrets(dt);
     if (!base_.complete) {
         bool all = true;
         for (const auto& b : base_.bldgs) all = all && (!kDefs[b.def].core || b.state == 3);
@@ -638,12 +674,13 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
     // Every kind keeps its place (ordered ones show their state), so signs never slide under the hand.
     std::vector<int> offers;
     for (int d = 1; d < kNumDefs; ++d) offers.push_back(d);
-    // Within arm's reach without stepping: up to four per row, two rows, 0.8 m out.
+    if (upgradeFor(0)) offers.push_back(0);  // the pad's own upgrade (Comm Center), last
+    // Within arm's reach without stepping: up to four per row, three rows, 0.8 m out.
     for (size_t i = 0; i < offers.size(); ++i) {
         const size_t row = i / 4, col = i % 4;
         const float inRow = float(std::min<size_t>(4, offers.size() - row * 4));
         const float a = base_.menuYaw + (float(col) - 0.5f * (inRow - 1.0f)) * 0.55f;
-        base_.items.push_back({offers[i], base_.menuAt + Vec3{-std::sin(a) * 0.8f, row == 0 ? 1.35f : 1.0f, -std::cos(a) * 0.8f}});
+        base_.items.push_back({offers[i], base_.menuAt + Vec3{-std::sin(a) * 0.8f, 1.35f - 0.33f * float(row), -std::cos(a) * 0.8f}});
     }
     base_.touchCool = std::max(0.0f, base_.touchCool - dt);
     if (base_.touchCool > 0) return;
@@ -749,6 +786,27 @@ void GameApp::updateRaids(float dt) {
                 ++placed;
             }
             LOGI("Base raid %d: %d Reapers", base_.raids, placed);
+            // A standing Comm Center tells you where they come from, relative to where you face (ours).
+            if (placed > 0 && base_.bldgs.front().state == 3 && base_.bldgs.front().level > 0) {
+                Vec3 from;
+                int k = 0;
+                for (size_t i = base_.raiders.size() - size_t(placed); i < base_.raiders.size(); ++i)
+                    for (const auto& e : enemies_.enemies)
+                        if (e.uid == base_.raiders[i].uid) { from = from + e.pos; ++k; }
+                if (k) {
+                    from = from * (1.0f / float(k)) - player_.position;
+                    const float yawHead = lastInput_.headValid ? yawOf(rig_.toWorld(lastInput_.head).orientation) : player_.yaw;
+                    float rel = std::atan2(-from.x, -from.z) - yawHead;
+                    while (rel > kPi) rel -= 2 * kPi;
+                    while (rel < -kPi) rel += 2 * kPi;
+                    const char* side = std::fabs(rel) < 0.8f ? "AHEAD OF YOU" : std::fabs(rel) > 2.35f ? "BEHIND YOU" : rel > 0 ? "ON YOUR LEFT" : "ON YOUR RIGHT";
+                    timmyLine_ = "COMM CENTER: " + std::to_string(placed) + " REAPERS COMING - " + side + "!";
+                    LOGI("Base: %s", timmyLine_.c_str());
+                    timmyLineT_ = 5.0f;
+                    for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.6f, 0.15f});
+                    sfx2D("ph_selct", 1.0f, 0.7f);
+                }
+            }
         }
     }
     // March the raiders on the base (the patrol walk, kept going) and let them wreck what they reach.
@@ -891,21 +949,198 @@ void GameApp::updateRaids(float dt) {
                 static int line = 0;
                 smartieSay(base_.reaper ? "YAN" : "BORJOYZEE", lines[line++ % 4]);
             }
-            if (b.hp <= 0) {
-                b.state = 0;
-                b.progress = 0;
-                b.hp = 0;
-                if (b.collision >= 0) assetWorld_->collisionMutable().setEnabled(b.collision, false);
-                dustBurst(bp, 6.0f, 20);
-                explode(bp + Vec3{0, 2, 0}, 3.0f, 0.0f, true);  // the noise and flash, no damage
-                timmyLine_ = std::string(bldgLabel(b.def, b.level)) + " DESTROYED! REBUILD IT ON THE BUILD PAD.";
-                timmyLineT_ = 4.0f;
-                LOGI("Base: %s destroyed by raiders", bldgLabel(b.def, b.level));
-            }
+            if (b.hp <= 0) wreckBuilding(b);
             break;
         }
     }
     base_.raiders.swap(alive);
+}
+
+// Two turret sites (ours: the template has none): flanking the side the raids come from (the army
+// paths' ends, else the barracks, else the player's start), just outside the buildings, on ground
+// level with the base and clear of the other sites.
+void GameApp::placeTurretSites(int d, const Mat4& baseXf) {
+    (void)baseXf;
+    const MissionData& md = assetWorld_->mission();
+    const ObjectRegistry& reg = assetWorld_->registry();
+    // Each path's first and last point (per path id): the paths that end near the base point back
+    // to where the raids set out.
+    std::vector<std::pair<int, std::pair<Vec3, Vec3>>> paths;
+    for (const auto& o : md.objects) {
+        if (toLower(reg.modelName(o.type)) != "army_spline") continue;
+        auto it = std::find_if(paths.begin(), paths.end(), [&](const auto& e) { return e.first == o.group; });
+        const Vec3 p = giantsToRuntime(o.x, o.y, o.z);
+        if (it == paths.end()) paths.push_back({o.group, {p, p}});
+        else it->second.second = p;
+    }
+    Vec3 dir;
+    for (const auto& pp : paths) {
+        const Vec3 e{pp.second.second.x - base_.centre.x, 0, pp.second.second.z - base_.centre.z};
+        const Vec3 f{pp.second.first.x - base_.centre.x, 0, pp.second.first.z - base_.centre.z};
+        if (e.x * e.x + e.z * e.z < 150.0f * 150.0f && f.x * f.x + f.z * f.z > 1.0f) dir = dir + normalize(f);
+    }
+    if (dir.x * dir.x + dir.z * dir.z < 1.0f)
+        for (const auto& w : assetWorld_->worldObjects())
+            if (w.name == "guard_army_barracks") { dir = Vec3{w.centre.x - base_.centre.x, 0, w.centre.z - base_.centre.z}; break; }
+    if (dir.x * dir.x + dir.z * dir.z < 1.0f) dir = assetWorld_->spawnPoint() - base_.centre;
+    dir.y = 0;
+    if (dir.x * dir.x + dir.z * dir.z < 1e-4f) dir = Vec3{1, 0, 0};
+    dir = normalize(dir);
+    float reach = 0;
+    for (const auto& b : base_.bldgs) reach = std::max(reach, length(Vec3{b.xf.m[12] - base_.centre.x, 0, b.xf.m[14] - base_.centre.z}));
+    const float radius = std::max(12.0f, std::min(40.0f, reach + 6.0f));
+    const AssetFS& fs = assetWorld_->fs();
+    ModelCache* mc = assetWorld_->models();
+    const float a0 = std::atan2(dir.x, dir.z);
+    for (int side = -1; side <= 1; side += 2) {
+        bool placed = false;
+        for (int k = 0; k < 8 && !placed; ++k) {
+            const float a = a0 + float(side) * (0.6f + 0.15f * float(k));
+            for (float r = radius; r <= radius + 8.0f && !placed; r += 4.0f) {
+                Vec3 p = base_.centre + Vec3{std::sin(a) * r, 0, std::cos(a) * r};
+                float h;
+                if (!assetWorld_->terrain().heightAt(p.x, p.z, h) || h < player_.seaLevel - 0.3f || std::fabs(h - base_.centre.y) > 4.0f) continue;
+                bool clear = true;
+                for (const auto& o : base_.bldgs) clear = clear && length(Vec3{o.xf.m[12] - p.x, 0, o.xf.m[14] - p.z}) > 7.0f;
+                if (!clear) continue;
+                p.y = h;
+                Base::Bldg bl;
+                bl.def = d;
+                // Facing out, toward where the raids come from.
+                bl.xf = Mat4::translation(p) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, std::atan2(-(p.x - base_.centre.x), -(p.z - base_.centre.z)) + kPi));
+                auto sm = std::make_unique<SkinnedModel>();
+                if (!sm->load(fs, *mc, renderer_, kDefs[d].model, kDefs[d].anim)) { LOGW("Base: %s unavailable", kDefs[d].model); return; }
+                // The head (node "center" and what hangs from it) turns about its own pivot to aimYaw.
+                const size_t idx = base_.bldgs.size();
+                sm->setPoseModifier([this, idx](const AnmAnimation& clip, const std::vector<std::vector<int>>& children, std::vector<Mat4>& world) {
+                    if (idx >= base_.bldgs.size()) return;
+                    int c = -1;
+                    for (size_t i = 0; i < clip.nodes.size(); ++i)
+                        if (toLower(clip.nodes[i].name) == "center") { c = int(i); break; }
+                    if (c < 0 || size_t(c) >= world.size()) return;
+                    const Vec3 pv{world[size_t(c)].m[12], world[size_t(c)].m[13], world[size_t(c)].m[14]};
+                    const Mat4 rot = Mat4::translation(pv) * Mat4::rotation(Quat::fromAxisAngle({0, 0, 1}, base_.bldgs[idx].aimYaw)) * Mat4::translation(pv * -1.0f);
+                    std::vector<int> stack{c};
+                    while (!stack.empty()) {
+                        const int n = stack.back();
+                        stack.pop_back();
+                        world[size_t(n)] = rot * world[size_t(n)];
+                        if (size_t(n) < children.size()) for (int ch : children[size_t(n)]) stack.push_back(ch);
+                    }
+                });
+                bl.model = std::move(sm);
+                base_.bldgs.push_back(std::move(bl));
+                placed = true;
+                LOGI("Base: %s site at (%.1f %.1f %.1f)", kDefs[d].label, p.x, p.y, p.z);
+            }
+        }
+        if (!placed) LOGW("Base: no level ground for a %s on side %d", kDefs[d].label, side);
+    }
+}
+
+// A raided building falls: noise and dust, and its site is empty again (ordered again from the Build Pad).
+void GameApp::wreckBuilding(Base::Bldg& b) {
+    const Vec3 bp{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
+    b.state = 0;
+    b.progress = 0;
+    b.hp = 0;
+    b.openClip = -1;  // (a rebuilt gate loads its clip again)
+    b.openT = 0;
+    if (b.collision >= 0) assetWorld_->collisionMutable().setEnabled(b.collision, false);
+    b.damaged = nullptr;
+    dustBurst(bp, 6.0f, 20);
+    explode(bp + Vec3{0, 2, 0}, 3.0f, 0.0f, true);  // the noise and flash, no damage
+    timmyLine_ = std::string(bldgLabel(b.def, b.level)) + " DESTROYED! REBUILD IT ON THE BUILD PAD.";
+    timmyLineT_ = 4.0f;
+    LOGI("Base: %s destroyed by raiders", bldgLabel(b.def, b.level));
+}
+
+// Gates open while you're within 8 m (their _open clip, 1.6-3.3 s) and shut behind you; shut
+// (less than a third open) they are solid like the walls.
+void GameApp::updateGates(float dt) {
+    for (auto& b : base_.bldgs) {
+        if (b.state != 3 || b.openClip < 0 || !b.model) continue;
+        const float dur = b.model->animDuration(b.openClip);
+        const Vec3 site{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
+        const bool near = length(Vec3{player_.position.x - site.x, 0, player_.position.z - site.z}) < 8.0f &&
+                          std::fabs(player_.position.y - site.y) < 5.0f;
+        const float was = b.openT;
+        b.openT = std::max(0.0f, std::min(dur * 0.999f, b.openT + (near ? dt : -dt)));
+        if (was == 0.0f && b.openT > 0.0f) { sfx("ph_enter", site, 0.8f, 0.8f); LOGI("Base: %s opens", bldgLabel(b.def, b.level)); }
+        if (was > 0.0f && b.openT == 0.0f) LOGI("Base: %s shut", bldgLabel(b.def, b.level));
+        if (b.collision >= 0) assetWorld_->collisionMutable().setEnabled(b.collision, b.openT < dur * 0.33f);
+    }
+}
+
+// Turrets (ours): a standing turret turns its head to the nearest Reaper within 45 m that it can
+// see and fires a round every 0.7 s once lined up (18 damage: about five to drop a Reaper).
+void GameApp::updateTurrets(float dt) {
+    for (auto& b : base_.bldgs) {
+        if (b.state != 3 || !isKey(b.def, "turret")) continue;
+        const Vec3 site{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
+        const Vec3 muzzle = site + Vec3{0, 3.0f, 0};
+        const Enemy* tgt = nullptr;
+        float best = 45.0f * 45.0f;
+        for (const auto& e : enemies_.enemies) {
+            if (e.state == EnemyState::Dead || e.remove) continue;
+            const Vec3 v = e.pos + Vec3{0, 1.1f, 0} - muzzle;
+            const float d2 = dot(v, v);
+            if (d2 >= best) continue;
+            const float d = std::sqrt(d2);
+            float t;
+            Vec3 n;
+            const Vec3 dirv = v * (1.0f / std::max(d, 1e-3f));
+            if (worldRay_ && d > 3.0f && worldRay_(muzzle + dirv * 2.0f, dirv, d - 3.0f, t, n)) continue;  // behind a wall or a hill
+            best = d2;
+            tgt = &e;
+        }
+        b.fireT = std::max(0.0f, b.fireT - dt);
+        if (!tgt) { b.target = 0; continue; }
+        b.target = tgt->uid;
+        // The head's yaw in the model's own (game, Z-up) frame: its barrel points along -Y there.
+        const Mat4 inv = affineInverse(b.xf);
+        const Vec4 lv = inv * Vec4{tgt->pos.x - site.x, 0, tgt->pos.z - site.z, 0};
+        const float want = std::atan2(-lv.x, -lv.z);  // runtime local (-Z forward) = game -Y
+        float diff = want - b.aimYaw;
+        while (diff > kPi) diff -= 2 * kPi;
+        while (diff < -kPi) diff += 2 * kPi;
+        b.aimYaw += std::max(-2.5f * dt, std::min(2.5f * dt, diff));
+        if (std::fabs(diff) < 0.15f && b.fireT <= 0) {
+            b.fireT = 0.7f;
+            const Vec3 aim = tgt->pos + Vec3{0, 1.1f, 0} + Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} * 0.4f;
+            const Vec3 dv = normalize(aim - muzzle);
+            base_.turretShots.push_back({muzzle + dv * 1.5f, dv * 70.0f, 1.0f, tgt->uid});
+            sfx(base_.reaper ? "me_rtfr1" : "me_gtfr1", muzzle, 0.8f, 0.95f + 0.1f * frand());
+        }
+    }
+    // The rounds: a hit within 0.8 m of the target's body.
+    for (size_t i = 0; i < base_.turretShots.size();) {
+        auto& t = base_.turretShots[i];
+        const Vec3 from = t.pos;
+        t.pos = t.pos + t.vel * dt;
+        t.life -= dt;
+        bool done = t.life <= 0;
+        for (size_t k = 0; k < enemies_.enemies.size() && !done; ++k) {
+            const Enemy& e = enemies_.enemies[k];
+            if (e.uid != t.target || e.state == EnemyState::Dead) continue;
+            const Vec3 c = e.pos + Vec3{0, 1.1f, 0};
+            // Closest approach of this step's segment to the body.
+            const Vec3 seg = t.pos - from;
+            const float sl = std::max(1e-6f, dot(seg, seg));
+            const float u = std::max(0.0f, std::min(1.0f, dot(c - from, seg) / sl));
+            if (length(from + seg * u - c) > 0.8f) break;
+            const Vec3 hit = from + seg * u;
+            const bool killed = enemies_.damage(int(k), 18.0f);
+            if (killed && e.objective >= 0) completeObjective(e.objective);
+            if (killed) LOGI("Base: a turret shot Reaper %u", e.uid);
+            bleed(hit, normalize(t.vel), killed, 1.0f);
+            if (killed) blood_.pool(e.pos, 1.3f);
+            sfx(killed ? "rpman_die2" : "ex_bdys1", hit, killed ? 1.0f : 0.35f);
+            done = true;
+        }
+        if (done) { base_.turretShots[i] = base_.turretShots.back(); base_.turretShots.pop_back(); }
+        else ++i;
+    }
 }
 
 void GameApp::renderBase(const Vec3& eye) {
@@ -916,11 +1151,40 @@ void GameApp::renderBase(const Vec3& eye) {
         if (b.state == 0) continue;
         if (b.still) drawModel(b.still, b.xf, false);
         if (!b.model) continue;
+        // Below half health: the damaged model (a gate shows it only while shut).
+        if (b.state == 3 && b.damaged && b.hp < 0.5f * b.maxHp && b.openT <= 0.0f) {
+            drawModel(b.damaged, b.xf, false);
+            continue;
+        }
+        SkinnedModel* m = b.model.get();
+        if (b.state == 3 && b.openClip >= 0) {  // a gate: its open clip
+            if (std::fabs(b.openT - b.posedOpen) > 1e-3f) {
+                m->poseBlend(renderer_, b.openClip, b.openT, b.openClip, b.openT, 0.0f);
+                b.posedOpen = b.openT;
+            }
+            m->render(renderer_, b.xf);
+            continue;
+        }
         const float d = b.model->animDuration(0);
+        if (isKey(b.def, "turret") && b.state == 3 && std::fabs(b.aimYaw - b.posedYaw) > 0.01f) b.posedT = -1;  // re-aimed
         // Skinned on the CPU: only re-posed while it is going up (a standing building keeps its pose).
         const float pt = d > 0 ? std::min(d, b.progress * d) : 0.0f;
-        if (std::fabs(pt - b.posedT) > 1e-3f) { b.model->pose(renderer_, pt); b.posedT = pt; }
-        b.model->render(renderer_, b.xf);
+        if (std::fabs(pt - b.posedT) > 1e-3f) { b.posedYaw = b.aimYaw; m->pose(renderer_, pt); b.posedT = pt; }
+        m->render(renderer_, b.xf);
+    }
+    // Turret rounds: hot streaks (the Bulldog's orange, the Hellfire's red).
+    for (const auto& t : base_.turretShots) {
+        const Quat r = rotationBetween({0, 0, -1}, t.vel);
+        for (const auto& part : boltModel_ ? boltModel_->parts : std::vector<RenderModel::Part>{}) {
+            DrawParams dp;
+            dp.texture = part.texture;
+            dp.blend = BlendMode::Additive;
+            dp.unlit = true;
+            dp.depthWrite = false;
+            dp.doubleSided = true;
+            dp.tint = base_.reaper ? Vec4{2.6f, 0.6f, 0.3f, 1.0f} : Vec4{2.4f, 1.5f, 0.5f, 1.0f};
+            renderer_.draw(part.mesh, Mat4::translation(t.pos) * Mat4::rotation(r) * Mat4::scale({0.35f, 0.35f, 1.2f}), dp);
+        }
     }
     if (base_.firepit) {
         const float d = base_.firepit->animDuration(0);
