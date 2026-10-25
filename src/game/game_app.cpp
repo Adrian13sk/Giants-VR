@@ -709,6 +709,17 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
             haptics_.push_back({kRight, 0.8f, 0.15f});
             LOGI("Kabuto leaps (your head rose at %.1f m/s)", kbHeadVelY_);
         }
+        // ...and a quick drop of your head (a crouch slammed down) is a ground pound round his feet.
+        if (kbHeadVelY_ < -1.6f && y < userEye_ - 0.15f && player_.onGround && kbLeapCool_ <= 0) {
+            kbLeapCool_ = 1.2f;
+            float gy = player_.position.y;
+            if (player_.groundHeight) gy = player_.groundHeight(player_.position.x, player_.position.z);
+            kabutoQuake(Vec3{player_.position.x, gy, player_.position.z}, 0.45f * player_.height, 90.0f);
+            sfx2D("ka_stomp", 1.0f, 0.9f);
+            haptics_.push_back({kLeft, 1.0f, 0.2f});
+            haptics_.push_back({kRight, 1.0f, 0.2f});
+            LOGI("Kabuto slams the ground (your head dropped at %.1f m/s)", -kbHeadVelY_);
+        }
     } else {
         kbHeadValid_ = false;
     }

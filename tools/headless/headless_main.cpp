@@ -254,7 +254,8 @@ int main(int argc, char** argv) {
             static const int hj = std::getenv("GVR_HEAD_JUMP") ? std::atoi(std::getenv("GVR_HEAD_JUMP")) : -1;
             if (hj >= 0) {
                 const int d = f - hj;
-                const float up = d < 0 ? 0.0f : d < 8 ? 0.3f * float(d) / 8.0f : d < 24 ? 0.3f * float(24 - d) / 16.0f : 0.0f;
+                static const float sign = std::getenv("GVR_HEAD_DROP") ? -1.0f : 1.0f;  // GVR_HEAD_DROP=1: down instead (a crouch)
+                const float up = sign * (d < 0 ? 0.0f : d < 8 ? 0.3f * float(d) / 8.0f : d < 24 ? 0.3f * float(24 - d) / 16.0f : 0.0f);
                 in.head.position.y = headHeight + up;
             }
         }
