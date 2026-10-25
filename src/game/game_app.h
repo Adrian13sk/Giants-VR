@@ -1343,6 +1343,14 @@ private:  // the mission placed enemies: no test waves
     float gunKick_ = 0, gunKickV_ = 0;
     bool twoHand_ = false;
     void gunKick(float strength);
+    // Holsters on the body and punches (game_app_vr.cpp).
+    int holsterZone_ = -1;
+    bool holsterGrabHeld_ = false;
+    float punchCool_[2] = {0, 0};
+    Vec3 punchLast_[2];
+    bool punchHave_[2] = {false, false};
+    void updateHolsters(float dt, const InputFrame& in);
+    void updateMelee(float dt, const InputFrame& in);
     // Comfort vignette (rework): the view's edges darken while the stick moves or turns you.
     float vignette_ = 0;
     MeshId vignetteMesh_ = 0;

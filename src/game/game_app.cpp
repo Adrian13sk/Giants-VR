@@ -759,7 +759,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     { GVR_PROF("jetfx"); updateJetFx(dt); }
     if (hero_ == Hero::Delphi) updateDelphi(dt, in);
     else if (hero_ == Hero::Kabuto) { updateKabuto(dt, in); updateThrows(dt, in); updateKabutoPowers(dt, in); updateGlass(dt, in); }
-    else { GVR_PROF("weapon"); updateWeapon(dt, in); }
+    else { GVR_PROF("weapon"); updateHolsters(dt, in); updateWeapon(dt, in); updateMelee(dt, in); }
     { GVR_PROF("feel"); updateFeel(dt, in); }
     { GVR_PROF("rescue"); updateRescue(dt, in); }
     updateCombat(dt);
