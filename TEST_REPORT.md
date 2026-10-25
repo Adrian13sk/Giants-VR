@@ -739,3 +739,9 @@ one machine (one Quest available).
 - The app's own GPU timer read ~6 ms higher after each mid-run screenshot (t = 5 s in every sweep script; 7 s in the
   tower test); the system's App GPU didn't jump there. Its numbers after a screenshot are not trusted until explained.
 - Next: GPU experiments x_k3_* / x_js_* (APK d90c8b1: the fallback also raises foveation one step).
+
+## GPU experiments 20261025-114712 — APK d90c8b1, quality pinned, Quest 2 (system App GPU ms / fps)
+- kstory3_1: base 16.5 / 39; FFR 3 13.5 / 64.5; no reflections 13.7 / 64.0; no shadows 13.6 / 63.3; quality 2 10.8 / 71.8.
+- rstory2_jetski_2: base 12-14 standing, 19-23 racing / 56.4; FFR 3 61.1; no reflections 60.9; no shadows 61.4;
+  quality 2 15-16 racing / 65.7. The racing frames: blood (piranha bites) and splash crowns at the eye.
+- Fixes in 8b7371d (near-eye fade for blood and splashes; 2 s fallback windows); device check: `-Set slow`.
