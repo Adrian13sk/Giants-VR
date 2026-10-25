@@ -727,3 +727,15 @@ one machine (one Quest available).
   right at the camera (overdraw). Not yet traced.
 - **perf_1d_tower** with the Rippers passive: 71.4 fps (was 70.5 with them in the face), GPU 11.8 ms mean; 7.5-8 ms
   before the blasts, ~12.5 ms from 7 s on.
+
+## Device sweep 20261025-110318 — APK 1634bb8, 13 tests + all 56 missions (20 s each), Quest 2
+- 69 runs `done`, **0 app errors in all 69**; no crashes, no timeouts. Every mission loads and plays on the headset.
+- delphi_bows (the first run) drew at 1.6 fps: the headset was going to sleep as it launched (SLEEP transition);
+  the launch check passed. devtest.ps1 now wakes the headset before each test and reruns one that hardly drew.
+- Below 69 fps (GPU-bound, CPU 2-3 ms): kstory3_1 44.9, rstory2_jetski_3 56.6, rstory2_jetski_2 57.3,
+  rstory2_battle_1 59.2, kstory3_2 64.6, kstory3_3 66.0, kstory3_4 66.0, kstory5_4 68.3, 2b_2 69.3. All other missions
+  69-72. The system's App GPU time in kstory3_1: ~14 ms standing, 17-18 ms after moving (frames then halve to 36 fps);
+  rstory2_jetski_2: 12.5-13.5 ms, 17-21 ms after moving. The adaptive fallback reached level 2 (no reflections).
+- The app's own GPU timer read ~6 ms higher after each mid-run screenshot (t = 5 s in every sweep script; 7 s in the
+  tower test); the system's App GPU didn't jump there. Its numbers after a screenshot are not trusted until explained.
+- Next: GPU experiments x_k3_* / x_js_* (APK d90c8b1: the fallback also raises foveation one step).
