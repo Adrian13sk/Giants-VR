@@ -532,15 +532,10 @@ void GameApp::popUnscaledRig() {
     uiFrame_ = false;
 }
 
-void GameApp::beginUiFrame(const EyeRenderInfo& eye) {
+void GameApp::beginUiFrame(const EyeRenderInfo* eyes, int n) {
     pushUnscaledRig(lastInput_.head, lastInput_.headValid);
     if (!uiFrame_) return;
-    const Pose eyeWorld = rig_.toWorld(eye.trackingPose);
-    ViewParams v;
-    v.view = Mat4::fromPose(eyeWorld.inverse());
-    v.projection = Mat4::projectionFov(eye.fovLeft, eye.fovRight, eye.fovUp, eye.fovDown, 0.05f, 0.0f);
-    v.eyePosition = eyeWorld.position;
-    renderer_.beginView(v, eye.width, eye.height, false);
+    beginEyeViews(eyes, n, nullptr, false);
 }
 
 void GameApp::endUiFrame() { popUnscaledRig(); }

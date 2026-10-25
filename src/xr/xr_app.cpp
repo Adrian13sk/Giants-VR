@@ -1,7 +1,10 @@
 #include "xr/xr_app.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
+
+#include <EGL/egl.h>
 
 namespace gvr {
 
@@ -210,6 +213,7 @@ bool XrApp::setFoveation(int level, bool dynamic) {
     }
     bool ok = true;
     for (Swapchain& sc : swapchains_) {
+        if (sc.handle == XR_NULL_HANDLE) continue;
         XrSwapchainStateFoveationFB st{XR_TYPE_SWAPCHAIN_STATE_FOVEATION_FB};
         st.profile = profile;
         r = pfnUpdateSwapchain_(sc.handle, reinterpret_cast<const XrSwapchainStateBaseHeaderFB*>(&st));
@@ -276,6 +280,8 @@ bool XrApp::createSwapchains() {
         LOGW("No preferred swapchain format; using 0x%llx", static_cast<long long>(colorFormat_));
     }
     LOGI("Swapchain colour format 0x%llx", static_cast<long long>(colorFormat_));
+    layerViews_.assign(2, {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW});
+    if (createMultiviewSwapchain()) return checkGl("createSwapchains");
 
     for (int eye = 0; eye < 2; ++eye) {
         Swapchain& sc = swapchains_[eye];
@@ -319,8 +325,83 @@ bool XrApp::createSwapchains() {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         LOGI("Eye %d swapchain %dx%d, %u images", eye, sc.width, sc.height, count);
     }
-    layerViews_.assign(2, {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW});
     return checkGl("createSwapchains");
+}
+
+bool XrApp::createMultiviewSwapchain() {
+    // Both eyes in one pass: needs GL_OVR_multiview2 and equal eye sizes; GVR_MULTIVIEW=0 turns it
+    // off (A/B comparisons on the headset).
+    const char* ext = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+    const char* env = std::getenv("GVR_MULTIVIEW");
+    if (!ext || !std::strstr(ext, "GL_OVR_multiview2") || (env && env[0] == '0')) return false;
+    if (configViews_[0].recommendedImageRectWidth != configViews_[1].recommendedImageRectWidth ||
+        configViews_[0].recommendedImageRectHeight != configViews_[1].recommendedImageRectHeight) {
+        LOGW("Multiview: eyes differ in size; per-eye swapchains");
+        return false;
+    }
+    auto texMultiview = reinterpret_cast<PFNGLFRAMEBUFFERTEXTUREMULTIVIEWOVRPROC>(eglGetProcAddress("glFramebufferTextureMultiviewOVR"));
+    if (!texMultiview) {
+        LOGW("Multiview: glFramebufferTextureMultiviewOVR missing");
+        return false;
+    }
+    Swapchain& sc = swapchains_[0];
+    sc.width = static_cast<int>(configViews_[0].recommendedImageRectWidth);
+    sc.height = static_cast<int>(configViews_[0].recommendedImageRectHeight);
+    XrSwapchainCreateInfo ci{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    ci.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT;
+    ci.format = colorFormat_;
+    ci.sampleCount = 1;
+    ci.width = static_cast<uint32_t>(sc.width);
+    ci.height = static_cast<uint32_t>(sc.height);
+    ci.faceCount = 1;
+    ci.arraySize = 2;
+    ci.mipCount = 1;
+    XrResult r = xrCreateSwapchain(session_, &ci, &sc.handle);
+    if (XR_FAILED(r)) {
+        LOGW("Multiview: 2-layer swapchain refused (%s); per-eye swapchains", xrResultName(instance_, r));
+        sc = Swapchain{};
+        return false;
+    }
+    uint32_t count = 0;
+    xrEnumerateSwapchainImages(sc.handle, 0, &count, nullptr);
+    sc.images.assign(count, {XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_ES_KHR});
+    xrEnumerateSwapchainImages(sc.handle, count, &count, reinterpret_cast<XrSwapchainImageBaseHeader*>(sc.images.data()));
+    glGenTextures(1, &sc.depth);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, sc.depth);
+    glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_DEPTH_COMPONENT24, sc.width, sc.height, 2);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+    sc.framebuffers.resize(count);
+    sc.layerFbos.resize(size_t(count) * 2);
+    glGenFramebuffers(GLsizei(count), sc.framebuffers.data());
+    glGenFramebuffers(GLsizei(count * 2), sc.layerFbos.data());
+    bool ok = true;
+    for (uint32_t i = 0; i < count && ok; ++i) {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sc.framebuffers[i]);
+        texMultiview(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, sc.images[i].image, 0, 0, 2);
+        texMultiview(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, sc.depth, 0, 0, 2);
+        GLenum st = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+        if (st != GL_FRAMEBUFFER_COMPLETE) { LOGW("Multiview framebuffer %u incomplete: 0x%x", i, st); ok = false; }
+        for (int eye = 0; eye < 2 && ok; ++eye) {
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sc.layerFbos[i * 2 + eye]);
+            glFramebufferTextureLayer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, sc.images[i].image, 0, eye);
+            glFramebufferTextureLayer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, sc.depth, 0, eye);
+            st = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+            if (st != GL_FRAMEBUFFER_COMPLETE) { LOGW("Layer framebuffer %u/%d incomplete: 0x%x", i, eye, st); ok = false; }
+        }
+    }
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    if (!ok) {
+        glDeleteFramebuffers(GLsizei(sc.framebuffers.size()), sc.framebuffers.data());
+        glDeleteFramebuffers(GLsizei(sc.layerFbos.size()), sc.layerFbos.data());
+        glDeleteTextures(1, &sc.depth);
+        xrDestroySwapchain(sc.handle);
+        sc = Swapchain{};
+        while (glGetError() != GL_NO_ERROR) {}
+        return false;
+    }
+    multiview_ = true;
+    LOGI("Multiview swapchain %dx%d x2 layers, %u images (both eyes in one pass)", sc.width, sc.height, count);
+    return true;
 }
 
 void XrApp::applyRefreshRate() {
@@ -463,8 +544,8 @@ bool XrApp::beginFrame(XrFrameContext& frame) {
         ev.fovRight = views_[eye].fov.angleRight;
         ev.fovUp = views_[eye].fov.angleUp;
         ev.fovDown = views_[eye].fov.angleDown;
-        ev.width = swapchains_[eye].width;
-        ev.height = swapchains_[eye].height;
+        ev.width = swapchainFor(eye).width;
+        ev.height = swapchainFor(eye).height;
     }
     return true;
 }
@@ -478,8 +559,8 @@ void XrApp::overrideEyePoses(XrFrameContext& frame, const Pose eyes[2]) {
     }
 }
 
-XrApp::EyeBindResult XrApp::bindEyeFramebuffer(int eye) {
-    Swapchain& sc = swapchains_[eye];
+XrApp::EyeBindResult XrApp::acquire(Swapchain& sc, int eye) {
+    if (sc.acquired) return EyeBindResult::Ok;
     uint32_t index = 0;
     XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
     XrResult r = xrAcquireSwapchainImage(sc.handle, &ai, &index);
@@ -496,13 +577,38 @@ XrApp::EyeBindResult XrApp::bindEyeFramebuffer(int eye) {
         LOGE("xrWaitSwapchainImage(eye %d) failed: %s", eye, xrResultName(instance_, r));
         return EyeBindResult::Fatal;
     }
+    sc.index = index;
     sc.acquired = true;
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sc.framebuffers[index]);
     return EyeBindResult::Ok;
 }
 
+XrApp::EyeBindResult XrApp::bindEyeFramebuffer(int eye) {
+    Swapchain& sc = swapchainFor(eye);
+    const EyeBindResult res = acquire(sc, eye);
+    if (res != EyeBindResult::Ok) return res;
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, multiview_ ? sc.layerFbos[sc.index * 2 + uint32_t(eye)] : sc.framebuffers[sc.index]);
+    return EyeBindResult::Ok;
+}
+
+XrApp::EyeBindResult XrApp::bindStereoFramebuffer() {
+    if (!multiview_) return EyeBindResult::Skipped;
+    Swapchain& sc = swapchains_[0];
+    const EyeBindResult res = acquire(sc, 0);
+    if (res != EyeBindResult::Ok) return res;
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sc.framebuffers[sc.index]);
+    return EyeBindResult::Ok;
+}
+
+GLuint XrApp::eyeReadFramebuffer(int eye) const {
+    const Swapchain& sc = swapchains_[multiview_ ? 0 : eye];
+    if (!sc.acquired) return 0;
+    return multiview_ ? sc.layerFbos[sc.index * 2 + uint32_t(eye)] : sc.framebuffers[sc.index];
+}
+
 void XrApp::releaseEye(int eye) {
-    Swapchain& sc = swapchains_[eye];
+    // Multiview: the one image holds both eyes; it goes back after the second.
+    if (multiview_ && eye == 0) return;
+    Swapchain& sc = swapchainFor(eye);
     if (!sc.acquired) return;
     // Depth is not needed after rendering; tell the tiler not to resolve it to memory.
     const GLenum discard[] = {GL_DEPTH_ATTACHMENT};
@@ -512,6 +618,8 @@ void XrApp::releaseEye(int eye) {
     XR_LOG_FAIL(xrReleaseSwapchainImage(sc.handle, &ri));
     sc.acquired = false;
 }
+
+void XrApp::releaseStereo() { releaseEye(1); }
 
 bool XrApp::endFrame(const XrFrameContext& frame) {
     XrCompositionLayerProjection layer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
@@ -523,10 +631,10 @@ bool XrApp::endFrame(const XrFrameContext& frame) {
             pv = {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW};
             pv.pose = views_[eye].pose;
             pv.fov = views_[eye].fov;
-            pv.subImage.swapchain = swapchains_[eye].handle;
+            pv.subImage.swapchain = swapchainFor(eye).handle;
             pv.subImage.imageRect.offset = {0, 0};
-            pv.subImage.imageRect.extent = {swapchains_[eye].width, swapchains_[eye].height};
-            pv.subImage.imageArrayIndex = 0;
+            pv.subImage.imageRect.extent = {swapchainFor(eye).width, swapchainFor(eye).height};
+            pv.subImage.imageArrayIndex = multiview_ ? uint32_t(eye) : 0u;
         }
         layer.space = appSpace_;
         layer.viewCount = 2;
@@ -554,7 +662,11 @@ void XrApp::destroy() {
     for (Swapchain& sc : swapchains_) {
         if (!sc.framebuffers.empty())
             glDeleteFramebuffers(static_cast<GLsizei>(sc.framebuffers.size()), sc.framebuffers.data());
-        if (sc.depth) glDeleteRenderbuffers(1, &sc.depth);
+        if (!sc.layerFbos.empty()) glDeleteFramebuffers(GLsizei(sc.layerFbos.size()), sc.layerFbos.data());
+        if (sc.depth) {
+            if (multiview_) glDeleteTextures(1, &sc.depth);
+            else glDeleteRenderbuffers(1, &sc.depth);
+        }
         if (sc.handle) xrDestroySwapchain(sc.handle);
         sc = Swapchain{};
     }

@@ -50,6 +50,13 @@ public:
     enum class EyeBindResult { Ok, Skipped, Fatal };
     EyeBindResult bindEyeFramebuffer(int eye);
     void releaseEye(int eye);
+    // Both eyes in one pass: one swapchain with two layers (GL_OVR_multiview). bindEyeFramebuffer /
+    // releaseEye still work then (each eye's layer on its own), for a renderer without multiview.
+    bool multiview() const { return multiview_; }
+    EyeBindResult bindStereoFramebuffer();
+    void releaseStereo();
+    // A framebuffer to read one eye's finished image from (test screenshots); 0 if none bound.
+    GLuint eyeReadFramebuffer(int eye) const;
     // Returns false if the session/instance was lost.
     bool endFrame(const XrFrameContext& frame);
 
@@ -75,13 +82,18 @@ private:
         XrSwapchain handle = XR_NULL_HANDLE;
         int width = 0, height = 0;
         std::vector<XrSwapchainImageOpenGLESKHR> images;
-        std::vector<GLuint> framebuffers;
-        GLuint depth = 0;
+        std::vector<GLuint> framebuffers;   // per image (multiview: both layers)
+        std::vector<GLuint> layerFbos;      // multiview: per image and eye, one layer each
+        GLuint depth = 0;                   // renderbuffer (per eye) or 2-layer texture (multiview)
+        uint32_t index = 0;                 // the acquired image
         bool acquired = false;
     };
 
     bool hasExtension(const char* name) const;
     bool createSwapchains();
+    bool createMultiviewSwapchain();
+    EyeBindResult acquire(Swapchain& sc, int eye);
+    Swapchain& swapchainFor(int eye) { return swapchains_[multiview_ ? 0 : eye]; }
     bool createReferenceSpace();
     void handleSessionStateChange(const XrEventDataSessionStateChanged& e, bool& exitRequested);
     void applyRefreshRate();
@@ -99,7 +111,8 @@ private:
     std::vector<const char*> enabledExtensions_;
     std::vector<XrViewConfigurationView> configViews_;
     std::vector<XrView> views_;
-    Swapchain swapchains_[2];
+    Swapchain swapchains_[2];  // per eye, or [0] only (multiview)
+    bool multiview_ = false;
     int64_t colorFormat_ = 0;
     std::string runtimeName_;
     Config config_;

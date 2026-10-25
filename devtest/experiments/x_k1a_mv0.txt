@@ -1,0 +1,14 @@
+# Multiview A/B (2026-10-25): as x_k1a_base but each eye drawn on its own (GVR_MULTIVIEW=0).
+# GPU experiment: k1a, base
+name x_k1a_mv0
+env GVR_MULTIVIEW 0
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 24
+perf 4 22
+move 0 1 4 20
+shot 22 view
+env GVR_FFR 0

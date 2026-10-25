@@ -81,6 +81,8 @@ public:
     void debugSetVimpMeat(int n) { vimpMeat_ = n; }  // test hook (harness --vimp-meat)
     void update(float dt, const InputFrame& input);
     void renderEye(const EyeRenderInfo& eye);
+    // Both eyes in one pass into a two-layer framebuffer (renderer().multiviewSupported()).
+    void renderStereo(const EyeRenderInfo& left, const EyeRenderInfo& right);
     // Once per frame, before the eyes: the sun's shadow map around the player.
     void renderShadows();
     // Same, also given this frame's two eyes (their fields of view size the reflection camera).
@@ -1112,7 +1114,10 @@ private:  // the mission placed enemies: no test waves
     void kabutoQuake(const Vec3& at, float radius, float damage);
     void updateHeroScale();
     // Draw head-anchored UI unscaled: swap the rig to scale 1 about the head and re-begin the view.
-    void beginUiFrame(const EyeRenderInfo& eye);
+    void beginUiFrame(const EyeRenderInfo* eyes, int n);
+    void renderViews(const EyeRenderInfo* eyes, int n);
+    // Starts the view(s) for these eyes (n = 2: both at once); worldEyeOverride: all from one pose.
+    void beginEyeViews(const EyeRenderInfo* eyes, int n, const Pose* worldEyeOverride, bool clear);
     void endUiFrame();
     // Main menu (game_app_title.cpp): the original's title scene - night over the intro island
     // (w_intro_island), seen from where its menu camera rests (flk_intro_island_2), the 3D GIANTS

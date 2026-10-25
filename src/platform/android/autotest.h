@@ -35,7 +35,8 @@ public:
     void renderBegin();
     void renderEnd(double cpuMs, unsigned drawCalls);
     // After rendering an eye, before it is released: screenshots of the left eye.
-    void afterEye(int eye, int width, int height);
+    // readFbo: the framebuffer holding that eye's image (multiview: its layer).
+    void afterEye(int eye, int width, int height, unsigned readFbo);
     // True when the run is over (results written): the app should exit.
     bool finished() const { return finished_; }
     void endFrame(double now);

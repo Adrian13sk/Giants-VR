@@ -40,7 +40,14 @@ layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec3 aNormal;
 layout(location = 2) in vec2 aUv;
 layout(location = 3) in vec4 aColor;
+#ifdef MULTIVIEW
+layout(num_views = 2) in;
+uniform highp mat4 uViewProj[2];
+uniform highp vec3 uEyePosV[2];
+flat out highp vec3 vEyePos;
+#else
 uniform mat4 uMVP;
+#endif
 uniform mat4 uModel;
 out vec3 vWorldPos;
 out vec3 vNormal;
@@ -52,7 +59,12 @@ void main() {
     vNormal = mat3(uModel) * aNormal;
     vUv = aUv;
     vColor = aColor;
+#ifdef MULTIVIEW
+    vEyePos = uEyePosV[gl_ViewID_OVR];
+    gl_Position = uViewProj[gl_ViewID_OVR] * wp;
+#else
     gl_Position = uMVP * vec4(aPos, 1.0);
+#endif
 }
 )";
 
@@ -69,7 +81,12 @@ uniform vec3 uSunColor;
 uniform vec3 uAmbient;
 uniform vec3 uFogColor;
 uniform vec2 uFogRange;  // near, 1/(far-near)
+#ifdef MULTIVIEW
+flat in highp vec3 vEyePos;  // this eye's position (the vertex shader picks it by view)
+#define uEyePos vEyePos
+#else
 uniform highp vec3 uEyePos;
+#endif
 uniform float uUnlit;         // 0 lit, 1 baked (lightmaps / vertex colours), 2 emissive (effects, overlays)
 uniform float uAlphaRef;
 uniform int uMaterial;        // 0 standard, 1 water, 2 sky
@@ -336,72 +353,74 @@ GLuint compile(GLenum type, const char* src) {
 
 }  // namespace
 
-bool Renderer::init() {
-    GLuint vs = compile(GL_VERTEX_SHADER, kVertexShader);
-    std::string fsrc = kFragmentShader;
-    if (std::getenv("GVR_DEBUG_SHADOW")) fsrc.insert(fsrc.find('\n') + 1, "#define DEBUG_SHADOW 1\n");
-    if (std::getenv("GVR_DEBUG_REFL")) fsrc.insert(fsrc.find('\n') + 1, "#define DEBUG_REFL 1\n");
+GLuint Renderer::linkMain(bool multiview, Uniforms& u) {
+    std::string vsrc = kVertexShader, fsrc = kFragmentShader;
+    auto define = [](std::string& src, const char* line) { src.insert(src.find('\n') + 1, line); };
+    if (multiview) {  // (#extension has to come before any declaration)
+        define(vsrc, "#define MULTIVIEW 1\n#extension GL_OVR_multiview2 : require\n");
+        define(fsrc, "#define MULTIVIEW 1\n");
+    }
+    if (std::getenv("GVR_DEBUG_SHADOW")) define(fsrc, "#define DEBUG_SHADOW 1\n");
+    if (std::getenv("GVR_DEBUG_REFL")) define(fsrc, "#define DEBUG_REFL 1\n");
+    GLuint vs = compile(GL_VERTEX_SHADER, vsrc.c_str());
     GLuint fs = compile(GL_FRAGMENT_SHADER, fsrc.c_str());
-    if (!vs || !fs) return false;
-    program_ = glCreateProgram();
-    glAttachShader(program_, vs);
-    glAttachShader(program_, fs);
-    glLinkProgram(program_);
+    if (!vs || !fs) {
+        if (vs) glDeleteShader(vs);
+        if (fs) glDeleteShader(fs);
+        return 0;
+    }
+    GLuint prog = glCreateProgram();
+    glAttachShader(prog, vs);
+    glAttachShader(prog, fs);
+    glLinkProgram(prog);
     glDeleteShader(vs);
     glDeleteShader(fs);
     GLint ok = 0;
-    glGetProgramiv(program_, GL_LINK_STATUS, &ok);
+    glGetProgramiv(prog, GL_LINK_STATUS, &ok);
     if (!ok) {
         char log[2048];
-        glGetProgramInfoLog(program_, sizeof(log), nullptr, log);
-        LOGE("Program link failed: %s", log);
-        return false;
+        glGetProgramInfoLog(prog, sizeof(log), nullptr, log);
+        LOGE("Program link failed%s: %s", multiview ? " (multiview)" : "", log);
+        glDeleteProgram(prog);
+        return 0;
     }
-    uMVP_ = glGetUniformLocation(program_, "uMVP");
-    uModel_ = glGetUniformLocation(program_, "uModel");
-    uTint_ = glGetUniformLocation(program_, "uTint");
-    uSunDir_ = glGetUniformLocation(program_, "uSunDir");
-    uSunColor_ = glGetUniformLocation(program_, "uSunColor");
-    uAmbient_ = glGetUniformLocation(program_, "uAmbient");
-    uFogColor_ = glGetUniformLocation(program_, "uFogColor");
-    uFogRange_ = glGetUniformLocation(program_, "uFogRange");
-    uEyePos_ = glGetUniformLocation(program_, "uEyePos");
-    uUnlit_ = glGetUniformLocation(program_, "uUnlit");
-    uAlphaRef_ = glGetUniformLocation(program_, "uAlphaRef");
-    uTex_ = glGetUniformLocation(program_, "uTex");
-    uMaterial_ = glGetUniformLocation(program_, "uMaterial");
-    uTime_ = glGetUniformLocation(program_, "uTime");
-    uSeaLevel_ = glGetUniformLocation(program_, "uSeaLevel");
-    uWaterColor_ = glGetUniformLocation(program_, "uWaterColor");
-    uSkyHorizon_ = glGetUniformLocation(program_, "uSkyHorizon");
-    uSkyZenith_ = glGetUniformLocation(program_, "uSkyZenith");
-    uShadowMap_ = glGetUniformLocation(program_, "uShadowMap");
-    uShadowMat_ = glGetUniformLocation(program_, "uShadowMat");
-    uShadowOn_ = glGetUniformLocation(program_, "uShadowOn");
-    uShadowTexel_ = glGetUniformLocation(program_, "uShadowTexel");
-    uClipY_ = glGetUniformLocation(program_, "uClipY");
-    uGrade_ = glGetUniformLocation(program_, "uGrade");
-    uReflTex_ = glGetUniformLocation(program_, "uReflTex");
-    uReflDepth_ = glGetUniformLocation(program_, "uReflDepth");
-    uReflMat_ = glGetUniformLocation(program_, "uReflMat");
-    uReflEye_ = glGetUniformLocation(program_, "uReflEye");
-    uReflNear_ = glGetUniformLocation(program_, "uReflNear");
-    uReflOn_ = glGetUniformLocation(program_, "uReflOn");
-    uWaterDepth_ = glGetUniformLocation(program_, "uWaterDepth");
-    uWaterDepthRect_ = glGetUniformLocation(program_, "uWaterDepthRect");
-    uWaterDepthOn_ = glGetUniformLocation(program_, "uWaterDepthOn");
+    auto L = [prog](const char* n) { return glGetUniformLocation(prog, n); };
+    u.uMVP_ = L("uMVP"); u.uModel_ = L("uModel"); u.uTint_ = L("uTint"); u.uSunDir_ = L("uSunDir");
+    u.uSunColor_ = L("uSunColor"); u.uAmbient_ = L("uAmbient"); u.uFogColor_ = L("uFogColor"); u.uFogRange_ = L("uFogRange");
+    u.uEyePos_ = L("uEyePos"); u.uUnlit_ = L("uUnlit"); u.uAlphaRef_ = L("uAlphaRef"); u.uTex_ = L("uTex");
+    u.uMaterial_ = L("uMaterial"); u.uTime_ = L("uTime"); u.uSeaLevel_ = L("uSeaLevel"); u.uWaterColor_ = L("uWaterColor");
+    u.uSkyHorizon_ = L("uSkyHorizon"); u.uSkyZenith_ = L("uSkyZenith"); u.uShadowMap_ = L("uShadowMap");
+    u.uShadowMat_ = L("uShadowMat"); u.uShadowOn_ = L("uShadowOn"); u.uShadowTexel_ = L("uShadowTexel");
+    u.uClipY_ = L("uClipY"); u.uGrade_ = L("uGrade"); u.uReflTex_ = L("uReflTex"); u.uReflDepth_ = L("uReflDepth");
+    u.uReflMat_ = L("uReflMat"); u.uReflEye_ = L("uReflEye"); u.uReflNear_ = L("uReflNear"); u.uReflOn_ = L("uReflOn");
+    u.uWaterDepth_ = L("uWaterDepth"); u.uWaterDepthRect_ = L("uWaterDepthRect"); u.uWaterDepthOn_ = L("uWaterDepthOn");
+    const char* tn[5] = {"uTerrRock", "uTerrSand", "uTerrGrass2", "uTerrRock2", "uTerrNoise"};
+    for (int k = 0; k < 5; ++k) u.uTerr_[k] = L(tn[k]);
+    u.uTerrDetail_ = L("uTerrDetail"); u.uSkyTint_ = L("uSkyTint"); u.uNight_ = L("uNight"); u.uBakedLight_ = L("uBakedLight");
+    u.uPointPos_ = L("uPointPos"); u.uPointColor_ = L("uPointColor");
+    u.uViewProj_ = L("uViewProj"); u.uEyePosV_ = L("uEyePosV");
+    return prog;
+}
+
+bool Renderer::init() {
+    program_ = linkMain(false, mono_);
+    if (!program_) return false;
+    U_ = &mono_;
     {
-        const char* tn[5] = {"uTerrRock", "uTerrSand", "uTerrGrass2", "uTerrRock2", "uTerrNoise"};
-        for (int k = 0; k < 5; ++k) uTerr_[k] = glGetUniformLocation(program_, tn[k]);
-        uTerrDetail_ = glGetUniformLocation(program_, "uTerrDetail");
-        uSkyTint_ = glGetUniformLocation(program_, "uSkyTint");
-        uNight_ = glGetUniformLocation(program_, "uNight");
-        uBakedLight_ = glGetUniformLocation(program_, "uBakedLight");
-        uPointPos_ = glGetUniformLocation(program_, "uPointPos");
-        uPointColor_ = glGetUniformLocation(program_, "uPointColor");
-        // Anisotropic filtering where the GPU has it: ground and walls stay sharp at grazing angles.
         const char* ext = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
-        LOGI("GL_OVR_multiview2: %s", ext && std::strstr(ext, "GL_OVR_multiview2") ? "yes" : "no");
+        const bool mv = ext && std::strstr(ext, "GL_OVR_multiview2");
+        // Both eyes in one pass where the GPU has it (GVR_MULTIVIEW=0: per eye, for comparisons).
+        const char* env = std::getenv("GVR_MULTIVIEW");
+        if (mv && !(env && env[0] == '0')) {
+            programMV_ = linkMain(true, multi_);
+            if (programMV_ && (multi_.uViewProj_ < 0 || multi_.uEyePosV_ < 0)) {
+                LOGE("Multiview program lacks its view uniforms; per-eye rendering");
+                glDeleteProgram(programMV_);
+                programMV_ = 0;
+            }
+        }
+        LOGI("GL_OVR_multiview2: %s; both eyes in one pass: %s", mv ? "yes" : "no", programMV_ ? "yes" : "no");
+        // Anisotropic filtering where the GPU has it: ground and walls stay sharp at grazing angles.
         if (ext && std::strstr(ext, "GL_EXT_texture_filter_anisotropic")) {
             GLfloat mx = 0;
             glGetFloatv(0x84FF /* GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT */, &mx);
@@ -436,7 +455,8 @@ void Renderer::shutdown() {
     meshes_.clear();
     textures_.clear();
     if (program_) glDeleteProgram(program_);
-    program_ = 0;
+    if (programMV_) glDeleteProgram(programMV_);
+    program_ = programMV_ = 0;
 }
 
 MeshId Renderer::uploadMesh(const MeshData& data) {
@@ -538,20 +558,39 @@ void Renderer::destroyTexture(TextureId id) {
     t = GpuTexture{};
 }
 
-void Renderer::beginView(const ViewParams& view, int w, int h, bool clear) {
-    currentView_ = view;
-    viewProj_ = view.projection * view.view;
-    // Gribb-Hartmann plane extraction (column-major m[col*4+row]); far plane skipped (infinite).
-    const float* m = viewProj_.m;
-    auto row = [&](int r) { return Vec4{m[r], m[4 + r], m[8 + r], m[12 + r]}; };
-    const Vec4 r0 = row(0), r1 = row(1), r2 = row(2), r3 = row(3);
-    auto add = [](Vec4 a, Vec4 b, float s) { return Vec4{a.x + s * b.x, a.y + s * b.y, a.z + s * b.z, a.w + s * b.w}; };
-    planes_[0] = add(r3, r0, 1); planes_[1] = add(r3, r0, -1);
-    planes_[2] = add(r3, r1, 1); planes_[3] = add(r3, r1, -1);
-    planes_[4] = add(r3, r2, 1); planes_[5] = Vec4{0, 0, 0, 1};
-    for (int i = 0; i < 5; ++i) {
-        const float l = std::sqrt(planes_[i].x * planes_[i].x + planes_[i].y * planes_[i].y + planes_[i].z * planes_[i].z);
-        if (l > 0) planes_[i] = {planes_[i].x / l, planes_[i].y / l, planes_[i].z / l, planes_[i].w / l};
+void Renderer::beginView(const ViewParams& view, int w, int h, bool clear) { beginViews(&view, 1, w, h, clear); }
+
+void Renderer::beginStereoView(const ViewParams views[2], int w, int h, bool clear) {
+    if (!programMV_) {  // (callers check multiviewSupported(); never draw a mono program into layers)
+        LOGE("beginStereoView without multiview");
+        return;
+    }
+    beginViews(views, 2, w, h, clear);
+}
+
+void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool clear) {
+    stereo_ = n == 2;
+    U_ = stereo_ ? &multi_ : &mono_;
+    currentView_ = views[0];
+    Mat4 vp[2];
+    for (int k = 0; k < n; ++k) vp[k] = views[k].projection * views[k].view;
+    viewProj_ = vp[0];
+    if (stereo_) currentView_.eyePosition = (views[0].eyePosition + views[1].eyePosition) * 0.5f;
+    planeSets_ = n;
+    for (int k = 0; k < n; ++k) {
+        // Gribb-Hartmann plane extraction (column-major m[col*4+row]); far plane skipped (infinite).
+        const float* m = vp[k].m;
+        auto row = [&](int r) { return Vec4{m[r], m[4 + r], m[8 + r], m[12 + r]}; };
+        const Vec4 r0 = row(0), r1 = row(1), r2 = row(2), r3 = row(3);
+        auto add = [](Vec4 a, Vec4 b, float s) { return Vec4{a.x + s * b.x, a.y + s * b.y, a.z + s * b.z, a.w + s * b.w}; };
+        Vec4* pl = planes_[k];
+        pl[0] = add(r3, r0, 1); pl[1] = add(r3, r0, -1);
+        pl[2] = add(r3, r1, 1); pl[3] = add(r3, r1, -1);
+        pl[4] = add(r3, r2, 1); pl[5] = Vec4{0, 0, 0, 1};
+        for (int i = 0; i < 5; ++i) {
+            const float l = std::sqrt(pl[i].x * pl[i].x + pl[i].y * pl[i].y + pl[i].z * pl[i].z);
+            if (l > 0) pl[i] = {pl[i].x / l, pl[i].y / l, pl[i].z / l, pl[i].w / l};
+        }
     }
     glViewport(0, 0, w, h);
     glScissor(0, 0, w, h);
@@ -566,63 +605,72 @@ void Renderer::beginView(const ViewParams& view, int w, int h, bool clear) {
         glClearDepthf(1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
-    glUseProgram(program_);
+    glUseProgram(stereo_ ? programMV_ : program_);
+    if (stereo_) {
+        float m[32], e[6];
+        for (int k = 0; k < 2; ++k) {
+            std::memcpy(m + 16 * k, vp[k].m, sizeof(float) * 16);
+            e[3 * k] = views[k].eyePosition.x; e[3 * k + 1] = views[k].eyePosition.y; e[3 * k + 2] = views[k].eyePosition.z;
+        }
+        glUniformMatrix4fv(U_->uViewProj_, 2, GL_FALSE, m);
+        glUniform3fv(U_->uEyePosV_, 2, e);
+    }
     Vec3 sd = normalize(env_.sunDirection);
-    glUniform3f(uSunDir_, sd.x, sd.y, sd.z);
-    glUniform3f(uSunColor_, env_.sunColor.x, env_.sunColor.y, env_.sunColor.z);
-    glUniform3f(uAmbient_, env_.ambientColor.x, env_.ambientColor.y, env_.ambientColor.z);
-    glUniform3f(uFogColor_, env_.fogColor.x, env_.fogColor.y, env_.fogColor.z);
+    glUniform3f(U_->uSunDir_, sd.x, sd.y, sd.z);
+    glUniform3f(U_->uSunColor_, env_.sunColor.x, env_.sunColor.y, env_.sunColor.z);
+    glUniform3f(U_->uAmbient_, env_.ambientColor.x, env_.ambientColor.y, env_.ambientColor.z);
+    glUniform3f(U_->uFogColor_, env_.fogColor.x, env_.fogColor.y, env_.fogColor.z);
     const float fogSpan = env_.fogFar > env_.fogNear ? env_.fogFar - env_.fogNear : 1e9f;
-    glUniform2f(uFogRange_, env_.fogNear, 1.0f / fogSpan);
-    glUniform3f(uEyePos_, view.eyePosition.x, view.eyePosition.y, view.eyePosition.z);
-    glUniform1i(uTex_, 0);
-    glUniform1i(uMaterial_, 0);
-    glUniform1f(uTime_, env_.time);
-    glUniform1f(uSeaLevel_, env_.seaLevel);
-    glUniform3f(uWaterColor_, env_.waterColor.x, env_.waterColor.y, env_.waterColor.z);
-    glUniform3f(uSkyHorizon_, env_.skyHorizon.x, env_.skyHorizon.y, env_.skyHorizon.z);
-    glUniform3f(uSkyZenith_, env_.skyZenith.x, env_.skyZenith.y, env_.skyZenith.z);
-    glUniform1i(uShadowMap_, 1);
+    glUniform2f(U_->uFogRange_, env_.fogNear, 1.0f / fogSpan);
+    glUniform3f(U_->uEyePos_, views[0].eyePosition.x, views[0].eyePosition.y, views[0].eyePosition.z);
+    glUniform1i(U_->uTex_, 0);
+    glUniform1i(U_->uMaterial_, 0);
+    glUniform1f(U_->uTime_, env_.time);
+    glUniform1f(U_->uSeaLevel_, env_.seaLevel);
+    glUniform3f(U_->uWaterColor_, env_.waterColor.x, env_.waterColor.y, env_.waterColor.z);
+    glUniform3f(U_->uSkyHorizon_, env_.skyHorizon.x, env_.skyHorizon.y, env_.skyHorizon.z);
+    glUniform3f(U_->uSkyZenith_, env_.skyZenith.x, env_.skyZenith.y, env_.skyZenith.z);
+    glUniform1i(U_->uShadowMap_, 1);
     glActiveTexture(GL_TEXTURE1);
     const bool sh = shadowsActive_ && shadowTex_;
     glBindTexture(GL_TEXTURE_2D, sh ? shadowTex_ : dummyShadowTex_);
-    glUniform1f(uShadowOn_, sh ? 1.0f : 0.0f);
-    glUniformMatrix4fv(uShadowMat_, 1, GL_FALSE, shadowMat_.m);
-    glUniform1f(uShadowTexel_, shadowSize_ > 0 ? 1.0f / float(shadowSize_) : 0.0f);
-    glUniform1f(uClipY_, -1e9f);
-    glUniform4f(uGrade_, env_.grade.x, env_.grade.y, env_.grade.z, env_.grade.w);
-    glUniform3f(uSkyTint_, env_.skyTint.x, env_.skyTint.y, env_.skyTint.z);
-    glUniform1f(uNight_, env_.night);
-    glUniform3f(uBakedLight_, env_.bakedLight.x, env_.bakedLight.y, env_.bakedLight.z);
-    glUniform4f(uPointPos_, env_.pointLightPos.x, env_.pointLightPos.y, env_.pointLightPos.z,
+    glUniform1f(U_->uShadowOn_, sh ? 1.0f : 0.0f);
+    glUniformMatrix4fv(U_->uShadowMat_, 1, GL_FALSE, shadowMat_.m);
+    glUniform1f(U_->uShadowTexel_, shadowSize_ > 0 ? 1.0f / float(shadowSize_) : 0.0f);
+    glUniform1f(U_->uClipY_, -1e9f);
+    glUniform4f(U_->uGrade_, env_.grade.x, env_.grade.y, env_.grade.z, env_.grade.w);
+    glUniform3f(U_->uSkyTint_, env_.skyTint.x, env_.skyTint.y, env_.skyTint.z);
+    glUniform1f(U_->uNight_, env_.night);
+    glUniform3f(U_->uBakedLight_, env_.bakedLight.x, env_.bakedLight.y, env_.bakedLight.z);
+    glUniform4f(U_->uPointPos_, env_.pointLightPos.x, env_.pointLightPos.y, env_.pointLightPos.z,
                 1.0f / std::max(0.01f, env_.pointLightRadius * env_.pointLightRadius));
-    glUniform3f(uPointColor_, env_.pointLightColor.x, env_.pointLightColor.y, env_.pointLightColor.z);
+    glUniform3f(U_->uPointColor_, env_.pointLightColor.x, env_.pointLightColor.y, env_.pointLightColor.z);
     // Reflection (never sampled while rendering it) and water depth: units 2, 3, 4.
     const bool refl = reflActive_ && reflFbo_ && !inReflection_;
-    glUniform1i(uReflTex_, 2);
-    glUniform1i(uReflDepth_, 3);
-    glUniform1i(uWaterDepth_, 4);
+    glUniform1i(U_->uReflTex_, 2);
+    glUniform1i(U_->uReflDepth_, 3);
+    glUniform1i(U_->uWaterDepth_, 4);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, refl ? reflColor_ : whiteTexture_);
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, refl ? reflDepth_ : whiteTexture_);
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, waterDepthTex_ ? waterDepthTex_ : whiteTexture_);
-    glUniform1f(uReflOn_, refl ? 1.0f : 0.0f);
-    glUniformMatrix4fv(uReflMat_, 1, GL_FALSE, reflMat_.m);
-    glUniform3f(uReflEye_, reflEye_.x, reflEye_.y, reflEye_.z);
-    glUniform1f(uReflNear_, reflNear_);
-    glUniform1f(uWaterDepthOn_, waterDepthTex_ ? 1.0f : 0.0f);
-    glUniform4f(uWaterDepthRect_, waterRect_[0], waterRect_[1], waterRect_[2], waterRect_[3]);
+    glUniform1f(U_->uReflOn_, refl ? 1.0f : 0.0f);
+    glUniformMatrix4fv(U_->uReflMat_, 1, GL_FALSE, reflMat_.m);
+    glUniform3f(U_->uReflEye_, reflEye_.x, reflEye_.y, reflEye_.z);
+    glUniform1f(U_->uReflNear_, reflNear_);
+    glUniform1f(U_->uWaterDepthOn_, waterDepthTex_ ? 1.0f : 0.0f);
+    glUniform4f(U_->uWaterDepthRect_, waterRect_[0], waterRect_[1], waterRect_[2], waterRect_[3]);
     // Terrain layers: units 5..9.
     for (int k = 0; k < 5; ++k) {
-        glUniform1i(uTerr_[k], 5 + k);
+        glUniform1i(U_->uTerr_[k], 5 + k);
         glActiveTexture(GLenum(GL_TEXTURE5 + k));
         GLuint t = whiteTexture_;
         if (terrainTex_[k] != 0 && terrainTex_[k] <= textures_.size() && textures_[terrainTex_[k] - 1].live) t = textures_[terrainTex_[k] - 1].tex;
         glBindTexture(GL_TEXTURE_2D, t);
     }
-    glUniform1f(uTerrDetail_, terrainDetail_ ? 1.0f : 0.0f);
+    glUniform1f(U_->uTerrDetail_, terrainDetail_ ? 1.0f : 0.0f);
     glActiveTexture(GL_TEXTURE0);
 }
 
@@ -630,14 +678,16 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
     if (id == 0 || id > meshes_.size()) return;
     const GpuMesh& m = meshes_[id - 1];
     if (!m.live) return;
-    Mat4 mvp = viewProj_ * model;
-    glUniformMatrix4fv(uMVP_, 1, GL_FALSE, mvp.m);
-    glUniformMatrix4fv(uModel_, 1, GL_FALSE, model.m);
-    glUniform4f(uTint_, p.tint.x, p.tint.y, p.tint.z, p.tint.w);
+    if (!stereo_) {
+        const Mat4 mvp = viewProj_ * model;
+        glUniformMatrix4fv(U_->uMVP_, 1, GL_FALSE, mvp.m);
+    }
+    glUniformMatrix4fv(U_->uModel_, 1, GL_FALSE, model.m);
+    glUniform4f(U_->uTint_, p.tint.x, p.tint.y, p.tint.z, p.tint.w);
     // Light mode: lit, baked (unlit but shadowed), emissive (additive effects and overlays).
     const bool emissive = p.unlit && (p.blend == BlendMode::Additive || p.noFog || !p.depthTest);
-    glUniform1f(uUnlit_, emissive ? 2.0f : (p.unlit ? 1.0f : 0.0f));
-    glUniform1i(uMaterial_, int(p.material));
+    glUniform1f(U_->uUnlit_, emissive ? 2.0f : (p.unlit ? 1.0f : 0.0f));
+    glUniform1i(U_->uMaterial_, int(p.material));
     GLuint tex = whiteTexture_;
     if (p.texture != 0 && p.texture <= textures_.size() && textures_[p.texture - 1].live)
         tex = textures_[p.texture - 1].tex;
@@ -647,36 +697,36 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
         case BlendMode::Opaque:
             glDisable(GL_BLEND);
             glDepthMask(GL_TRUE);
-            glUniform1f(uAlphaRef_, -1.0f);
+            glUniform1f(U_->uAlphaRef_, -1.0f);
             break;
         case BlendMode::AlphaTest:
             glDisable(GL_BLEND);
             glDepthMask(GL_TRUE);
-            glUniform1f(uAlphaRef_, 0.5f);
+            glUniform1f(U_->uAlphaRef_, 0.5f);
             break;
         case BlendMode::AlphaBlend:
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             glDepthMask(GL_FALSE);
-            glUniform1f(uAlphaRef_, 0.004f);
+            glUniform1f(U_->uAlphaRef_, 0.004f);
             break;
         case BlendMode::Additive:
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE);
             glDepthMask(GL_FALSE);
-            glUniform1f(uAlphaRef_, 0.004f);
+            glUniform1f(U_->uAlphaRef_, 0.004f);
             break;
     }
     if (p.doubleSided) glDisable(GL_CULL_FACE); else glEnable(GL_CULL_FACE);
     if (!p.depthWrite) glDepthMask(GL_FALSE);
     if (!p.depthTest) glDisable(GL_DEPTH_TEST);
-    if (p.noFog) glUniform2f(uFogRange_, 1e9f, 0.0f);
+    if (p.noFog) glUniform2f(U_->uFogRange_, 1e9f, 0.0f);
     glBindVertexArray(m.vao);
     glDrawElements(GL_TRIANGLES, m.indexCount, GL_UNSIGNED_INT, nullptr);
     if (!p.depthTest) glEnable(GL_DEPTH_TEST);
     if (p.noFog) {
         const float fogSpan = env_.fogFar > env_.fogNear ? env_.fogFar - env_.fogNear : 1e9f;
-        glUniform2f(uFogRange_, env_.fogNear, 1.0f / fogSpan);
+        glUniform2f(U_->uFogRange_, env_.fogNear, 1.0f / fogSpan);
     }
     ++drawCalls_;
 }
@@ -863,7 +913,7 @@ void Renderer::beginReflectionPass(const ViewParams& view, float nearZ) {
     glClearDepthf(1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glFrontFace(GL_CW);  // the mirror flips the winding
-    glUniform1f(uClipY_, env_.seaLevel - 0.05f);
+    glUniform1f(U_->uClipY_, env_.seaLevel - 0.05f);
     reflMat_ = viewProj_;
     reflEye_ = view.eyePosition;
     reflNear_ = nearZ;
@@ -874,7 +924,7 @@ void Renderer::endReflectionPass() {
     glDisable(GL_BLEND);
     glDepthMask(GL_TRUE);
     glFrontFace(GL_CCW);
-    glUniform1f(uClipY_, -1e9f);
+    glUniform1f(U_->uClipY_, -1e9f);
     // Only the colour is sampled later; depth too (the per-eye correction): keep both.
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     inReflection_ = false;
@@ -898,9 +948,13 @@ void Renderer::setWaterDepthMap(int w, int h, const uint8_t* depth, float x0, fl
 }
 
 bool Renderer::sphereVisible(const Vec3& c, float r) const {
-    for (int i = 0; i < 5; ++i)
-        if (planes_[i].x * c.x + planes_[i].y * c.y + planes_[i].z * c.z + planes_[i].w < -r) return false;
-    return true;
+    for (int k = 0; k < planeSets_; ++k) {  // seen by either eye
+        bool in = true;
+        for (int i = 0; i < 5 && in; ++i)
+            if (planes_[k][i].x * c.x + planes_[k][i].y * c.y + planes_[k][i].z * c.z + planes_[k][i].w < -r) in = false;
+        if (in) return true;
+    }
+    return false;
 }
 
 void Renderer::endView() {

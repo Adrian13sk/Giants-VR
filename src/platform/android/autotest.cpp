@@ -182,13 +182,13 @@ void AutoTest::pollTimers() {
     }
 }
 
-void AutoTest::afterEye(int eye, int width, int height) {
+void AutoTest::afterEye(int eye, int width, int height, unsigned readFbo) {
     if (eye != 0 || pendingShots_.empty() || width <= 0 || height <= 0) return;
     // The eye image as rendered (sRGB-encoded values), halved for size.
     std::vector<uint8_t> px(size_t(width) * size_t(height) * 4);
     GLint drawFbo = 0;
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFbo);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, GLuint(drawFbo));
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, readFbo ? GLuint(readFbo) : GLuint(drawFbo));
     glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
     const int w2 = width / 2, h2 = height / 2;
     std::vector<uint8_t> half(size_t(w2) * size_t(h2) * 4);

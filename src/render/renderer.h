@@ -95,6 +95,12 @@ public:
 
     // Begin rendering a view into the currently bound framebuffer.
     void beginView(const ViewParams& view, int viewportWidth, int viewportHeight, bool clear = true);
+    // Both eyes in one pass (GL_OVR_multiview2): the bound framebuffer has two layers (a texture
+    // array), each draw goes to both with its eye's view. currentView() is then the point between
+    // the eyes (for the game's distance checks); culling keeps what either eye sees.
+    bool multiviewSupported() const { return programMV_ != 0; }
+    void beginStereoView(const ViewParams views[2], int viewportWidth, int viewportHeight, bool clear = true);
+    bool stereo() const { return stereo_; }
     void draw(MeshId mesh, const Mat4& model, const DrawParams& params = {});
     void endView();
     // Sun shadows: one depth map around the player, rendered once per frame before the eyes.
@@ -155,13 +161,23 @@ private:
     };
 
     GLuint program_ = 0;
-    GLint uMVP_ = -1, uModel_ = -1, uTint_ = -1, uSunDir_ = -1, uSunColor_ = -1, uAmbient_ = -1;
-    GLint uFogColor_ = -1, uFogRange_ = -1, uEyePos_ = -1, uUnlit_ = -1, uAlphaRef_ = -1, uTex_ = -1;
-    GLint uMaterial_ = -1, uTime_ = -1, uSeaLevel_ = -1, uWaterColor_ = -1, uSkyHorizon_ = -1, uSkyZenith_ = -1;
-    GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
-    GLint uClipY_ = -1, uGrade_ = -1, uReflTex_ = -1, uReflDepth_ = -1, uReflMat_ = -1, uReflEye_ = -1, uReflNear_ = -1,
-          uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
-    GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1;
+    // The main program's uniform locations; one set per program (mono, multiview).
+    struct Uniforms {
+        GLint uMVP_ = -1, uModel_ = -1, uTint_ = -1, uSunDir_ = -1, uSunColor_ = -1, uAmbient_ = -1;
+        GLint uFogColor_ = -1, uFogRange_ = -1, uEyePos_ = -1, uUnlit_ = -1, uAlphaRef_ = -1, uTex_ = -1;
+        GLint uMaterial_ = -1, uTime_ = -1, uSeaLevel_ = -1, uWaterColor_ = -1, uSkyHorizon_ = -1, uSkyZenith_ = -1;
+        GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
+        GLint uClipY_ = -1, uGrade_ = -1, uReflTex_ = -1, uReflDepth_ = -1, uReflMat_ = -1, uReflEye_ = -1, uReflNear_ = -1,
+              uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
+        GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1;
+        GLint uViewProj_ = -1, uEyePosV_ = -1;  // multiview: both eyes' view-projection and position
+    };
+    GLuint linkMain(bool multiview, Uniforms& u);
+    void beginViews(const ViewParams* views, int n, int w, int h, bool clear);
+    Uniforms mono_, multi_;
+    Uniforms* U_ = &mono_;
+    GLuint programMV_ = 0;
+    bool stereo_ = false;
     float anisotropy_ = 0;
     TextureId terrainTex_[5] = {};
     bool terrainDetail_ = true;
@@ -188,7 +204,8 @@ private:
     Mat4 viewProj_ = Mat4::identity();
     uint32_t drawCalls_ = 0;
     uint32_t culled_ = 0;
-    Vec4 planes_[6];
+    Vec4 planes_[2][6];
+    int planeSets_ = 1;
 };
 
 // Procedural geometry helpers (used for the engineering test scene and debug visualisation;

@@ -147,6 +147,12 @@ void android_main(android_app* app) {
     EglState egl;
     gvr::XrApp xr;
     gvr::GameApp game;
+    // A scripted test run (scripts/devtest.ps1 pushes files/autotest.txt): no save, no menu. Read
+    // first: its settings (GVR_MULTIVIEW, ...) decide how the swapchains are made.
+    gvr::AutoTest autotest;
+    const std::string filesDir = app->activity->externalDataPath ? app->activity->externalDataPath : "";
+    const bool scripted = !filesDir.empty() && autotest.load(filesDir);
+    if (scripted) autotest.applyEnvironment();
     bool ok = egl.init();
     ok = ok && xr.initLoader(app->activity->vm, app->activity->clazz);
     gvr::XrApp::Config cfg;
@@ -154,11 +160,7 @@ void android_main(android_app* app) {
     ok = ok && xr.createSession(egl.display, egl.config, egl.context);
     const std::string dataDir = dataDirectory(app);
     LOGI("Original data directory: %s", dataDir.c_str());
-    // A scripted test run (scripts/devtest.ps1 pushes files/autotest.txt): no save, no menu.
-    gvr::AutoTest autotest;
-    const std::string filesDir = app->activity->externalDataPath ? app->activity->externalDataPath : "";
-    if (!filesDir.empty() && autotest.load(filesDir)) {
-        autotest.applyEnvironment();
+    if (scripted) {
         xr.setTestMode(true);
         if (autotest.finished()) ok = false;  // a bad script: reported, exit
         ok = ok && game.init(dataDir, autotest.world());
@@ -261,19 +263,35 @@ void android_main(android_app* app) {
                 game.renderShadows(gvr::EyeRenderInfo{l.pose, l.fovLeft, l.fovRight, l.fovUp, l.fovDown, l.width, l.height},
                                    gvr::EyeRenderInfo{r.pose, r.fovLeft, r.fovRight, r.fovUp, r.fovDown, r.width, r.height});
             }
-            for (int eye = 0; eye < 2; ++eye) {
-                const auto bind = xr.bindEyeFramebuffer(eye);
+            if (xr.multiview() && game.renderer().multiviewSupported()) {
+                // Both eyes in one pass (GL_OVR_multiview2).
+                const auto bind = xr.bindStereoFramebuffer();
                 if (bind != gvr::XrApp::EyeBindResult::Ok) {
                     eyesOk = false;
                     if (bind == gvr::XrApp::EyeBindResult::Fatal) exitRequested = true;
-                    break;
+                } else {
+                    const gvr::EyeView& l = frame.eyes[0];
+                    const gvr::EyeView& r = frame.eyes[1];
+                    game.renderStereo(gvr::EyeRenderInfo{l.pose, l.fovLeft, l.fovRight, l.fovUp, l.fovDown, l.width, l.height},
+                                      gvr::EyeRenderInfo{r.pose, r.fovLeft, r.fovRight, r.fovUp, r.fovDown, r.width, r.height});
+                    if (autotest.active()) autotest.afterEye(0, l.width, l.height, xr.eyeReadFramebuffer(0));
+                    xr.releaseStereo();
                 }
-                const gvr::EyeView& ev = frame.eyes[eye];
-                gvr::EyeRenderInfo info{ev.pose, ev.fovLeft, ev.fovRight, ev.fovUp, ev.fovDown,
-                                        ev.width, ev.height};
-                game.renderEye(info);
-                if (autotest.active()) autotest.afterEye(eye, ev.width, ev.height);
-                xr.releaseEye(eye);
+            } else {
+                for (int eye = 0; eye < 2; ++eye) {
+                    const auto bind = xr.bindEyeFramebuffer(eye);
+                    if (bind != gvr::XrApp::EyeBindResult::Ok) {
+                        eyesOk = false;
+                        if (bind == gvr::XrApp::EyeBindResult::Fatal) exitRequested = true;
+                        break;
+                    }
+                    const gvr::EyeView& ev = frame.eyes[eye];
+                    gvr::EyeRenderInfo info{ev.pose, ev.fovLeft, ev.fovRight, ev.fovUp, ev.fovDown,
+                                            ev.width, ev.height};
+                    game.renderEye(info);
+                    if (autotest.active()) autotest.afterEye(eye, ev.width, ev.height, xr.eyeReadFramebuffer(eye));
+                    xr.releaseEye(eye);
+                }
             }
         }
         // Never submit a projection layer referencing a swapchain without a released image.

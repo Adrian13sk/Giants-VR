@@ -3961,19 +3961,36 @@ void GameApp::update(float dt, const InputFrame& in) {
     lastInput_ = in;
 }
 
-void GameApp::renderEye(const EyeRenderInfo& eye) {
-    {
+void GameApp::renderEye(const EyeRenderInfo& eye) { renderViews(&eye, 1); }
+
+void GameApp::renderStereo(const EyeRenderInfo& left, const EyeRenderInfo& right) {
+    const EyeRenderInfo eyes[2] = {left, right};
+    renderViews(eyes, 2);
+}
+
+void GameApp::beginEyeViews(const EyeRenderInfo* eyes, int n, const Pose* worldEyeOverride, bool clear) {
+    ViewParams vs[2];
+    for (int k = 0; k < n; ++k) {
+        const Pose ew = worldEyeOverride ? *worldEyeOverride : rig_.toWorld(eyes[k].trackingPose);
+        vs[k].view = Mat4::fromPose(ew.inverse());
+        vs[k].projection = Mat4::projectionFov(eyes[k].fovLeft, eyes[k].fovRight, eyes[k].fovUp, eyes[k].fovDown, 0.05f, 0.0f);
+        vs[k].eyePosition = ew.position;
+    }
+    if (n == 2) renderer_.beginStereoView(vs, eyes[0].width, eyes[0].height, clear);
+    else renderer_.beginView(vs[0], eyes[0].width, eyes[0].height, clear);
+}
+
+// n = 1: one eye into the bound framebuffer; n = 2: both eyes at once into a two-layer (multiview)
+// framebuffer. The game's own distance checks then use the point between the eyes.
+void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
+    for (int i = 0; i < n; ++i) {
         // Remember the eyes' fields of view (the reflection camera covers both).
+        const EyeRenderInfo& eye = eyes[i];
         const int k = eye.fovLeft < -eye.fovRight ? 0 : 1;
         eyeFov_[k][0] = eye.fovLeft; eyeFov_[k][1] = eye.fovRight; eyeFov_[k][2] = eye.fovUp; eyeFov_[k][3] = eye.fovDown;
         if (k == 1) haveFov_ = true;
         if (!haveFov_) { eyeFov_[1][0] = eye.fovLeft; eyeFov_[1][1] = eye.fovRight; eyeFov_[1][2] = eye.fovUp; eyeFov_[1][3] = eye.fovDown; }
     }
-    Pose eyeWorld = rig_.toWorld(eye.trackingPose);
-    ViewParams v;
-    v.view = Mat4::fromPose(eyeWorld.inverse());
-    v.projection = Mat4::projectionFov(eye.fovLeft, eye.fovRight, eye.fovUp, eye.fovDown, 0.05f, 0.0f);
-    v.eyePosition = eyeWorld.position;
     if (load_.phase == LoadPhase::Brief && load_.t > 0.3f && load_.t < 5.0f && assetWorld_ && assetWorld_->loaded() && !warmedThisFrame_) {
         // Warm-up behind the briefing (first eye only): draw the new level from where the player
         // starts, a different direction each frame, so the driver's first-use work on its textures
@@ -3982,11 +3999,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         Pose wp;
         wp.position = assetWorld_->spawnPoint() + Vec3{0, 1.7f * heroScale_, 0};
         wp.orientation = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, (warmFrame_ / 8) % 2 ? -0.35f : 0.0f);
-        ViewParams wv;
-        wv.view = Mat4::fromPose(wp.inverse());
-        wv.projection = v.projection;
-        wv.eyePosition = wp.position;
-        renderer_.beginView(wv, eye.width, eye.height, true);
+        beginEyeViews(eyes, n, &wp, true);
         assetWorld_->render(renderer_);
         for (const auto& c : chars_)
             if (c.visible && c.model && length(c.pos - wp.position) < 160.0f) c.model->render(renderer_, c.xf());
@@ -3995,7 +4008,8 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
         if (++warmFrame_ == 16) LOGI("Warm-up: the level drawn from the start in 16 directions");
     }
     if (load_.phase != LoadPhase::Brief) warmFrame_ = 0;
-    renderer_.beginView(v, eye.width, eye.height, true);
+    beginEyeViews(eyes, n, nullptr, true);
+    const ViewParams v = renderer_.currentView();  // (stereo: the point between the eyes)
     if (load_.phase != LoadPhase::Idle && load_.phase != LoadPhase::FadeOut) {
         renderLoading();  // the briefing on black, nothing else
         renderer_.endView();
@@ -4241,7 +4255,7 @@ void GameApp::renderEye(const EyeRenderInfo& eye) {
     renderFx();
     renderDataFx();
     if (title_) renderTitle();
-    beginUiFrame(eye);  // the HUD, menu and hands at human scale (Kabuto)
+    beginUiFrame(eyes, n);  // the HUD, menu and hands at human scale (Kabuto)
     if (cut) renderCutscene();
     else if (playMode_) renderHud();
     if (playMode_ && !cut) renderTags();

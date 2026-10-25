@@ -390,17 +390,50 @@ int main(int argc, char** argv) {
         ei.height = h;
     }
     app.renderShadows(eyes[0], eyes[1]);
-    for (int eye = 0; eye < 2; ++eye) {
-        const EyeRenderInfo& ei = eyes[eye];
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    auto texMultiview = reinterpret_cast<PFNGLFRAMEBUFFERTEXTUREMULTIVIEWOVRPROC>(eglGetProcAddress("glFramebufferTextureMultiviewOVR"));
+    if (app.renderer().multiviewSupported() && texMultiview) {
+        // Both eyes in one pass, as on the Quest: a two-layer colour + depth target.
+        GLuint arr = 0, darr = 0, mvFbo = 0, layerFbo = 0;
+        glGenTextures(1, &arr);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, arr);
+        glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_SRGB8_ALPHA8, w, h, 2);
+        glGenTextures(1, &darr);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, darr);
+        glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_DEPTH_COMPONENT24, w, h, 2);
+        glGenFramebuffers(1, &mvFbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, mvFbo);
+        texMultiview(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, arr, 0, 0, 2);
+        texMultiview(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, darr, 0, 0, 2);
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            LOGE("multiview FBO incomplete");
+            return 4;
+        }
         app.renderer().resetStats();
-        app.renderEye(ei);
-        LOGI("eye %d: %u draw calls (world objects %u, %u parts)", eye, app.renderer().drawCallsThisFrame(),
+        app.renderStereo(eyes[0], eyes[1]);
+        LOGI("both eyes (multiview): %u draw calls (world objects %u, %u parts)", app.renderer().drawCallsThisFrame(),
              app.assetWorld() ? app.assetWorld()->statObjects() : 0u, app.assetWorld() ? app.assetWorld()->statParts() : 0u);
-        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, eyePx.data());
-        if (!checkGl("readback")) return 5;
-        for (int y = 0; y < h; ++y)
-            std::memcpy(&sbs[(size_t(y) * w * 2 + size_t(eye) * w) * 4], &eyePx[size_t(y) * w * 4], size_t(w) * 4);
+        glGenFramebuffers(1, &layerFbo);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, layerFbo);
+        for (int eye = 0; eye < 2; ++eye) {
+            glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, arr, 0, eye);
+            glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, eyePx.data());
+            if (!checkGl("readback")) return 5;
+            for (int y = 0; y < h; ++y)
+                std::memcpy(&sbs[(size_t(y) * w * 2 + size_t(eye) * w) * 4], &eyePx[size_t(y) * w * 4], size_t(w) * 4);
+        }
+    } else {
+        for (int eye = 0; eye < 2; ++eye) {
+            const EyeRenderInfo& ei = eyes[eye];
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+            app.renderer().resetStats();
+            app.renderEye(ei);
+            LOGI("eye %d: %u draw calls (world objects %u, %u parts)", eye, app.renderer().drawCallsThisFrame(),
+                 app.assetWorld() ? app.assetWorld()->statObjects() : 0u, app.assetWorld() ? app.assetWorld()->statParts() : 0u);
+            glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, eyePx.data());
+            if (!checkGl("readback")) return 5;
+            for (int y = 0; y < h; ++y)
+                std::memcpy(&sbs[(size_t(y) * w * 2 + size_t(eye) * w) * 4], &eyePx[size_t(y) * w * 4], size_t(w) * 4);
+        }
     }
     if (!writePng(out, w * 2, h, sbs.data(), true)) {
         LOGE("PNG write failed");
