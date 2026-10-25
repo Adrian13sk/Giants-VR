@@ -17,7 +17,7 @@
 namespace gvr {
 
 enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, FallCycle, FallLand, Poke,
-                             KneelFire, Punch, DieHead, DieKnees, Throw, Hover, CrouchFire, HitBig, GetUp, BzkaFire, Count };  // (from KneelFire on: rework)
+                             KneelFire, Punch, DieHead, DieKnees, Throw, Hover, CrouchFire, HitBig, GetUp, BzkaFire, CrouchIdle, Count };  // (from KneelFire on: rework)
 enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead, Falling };
 
 struct Enemy {
@@ -122,7 +122,7 @@ public:
     // `near`; false if there is none. Set by the game layer.
     std::function<bool(const Vec3& near, const Vec3& player, Vec3& spot)> findCover;
     const CollisionWorld* collision = nullptr;
-    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     // The player hidden in his bush pack (2b): an unaware Reaper only finds him by walking up and
     // poking the bush (rpman_poke_bush); an engaged one loses him when he's far enough.
     bool playerHidden = false;
@@ -153,7 +153,7 @@ public:
     float bodyHeight(const Enemy& e) const {
         if (e.state == EnemyState::Hit && e.clip == EnemyClip::HitBig) return params.height * 0.45f;  // knocked down
         if (e.state == EnemyState::Hit && e.clip == EnemyClip::GetUp) return params.height * 0.75f;
-        return (e.clip == EnemyClip::CrouchFire || e.clip == EnemyClip::KneelFire || e.clip == EnemyClip::BzkaFire) && e.state == EnemyState::Fire ? params.height * 0.66f : params.height;
+        return (e.clip == EnemyClip::CrouchFire || e.clip == EnemyClip::KneelFire || e.clip == EnemyClip::BzkaFire || e.clip == EnemyClip::CrouchIdle) && e.state == EnemyState::Fire ? params.height * 0.66f : params.height;
     }
     // A one-shot action clip that holds until it ends (rework: the grenade throw).
     void playAction(int i, EnemyClip c);

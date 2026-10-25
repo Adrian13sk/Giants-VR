@@ -451,7 +451,8 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                         e.fireCooldown = e.burstLeft > 0 ? params.fireInterval : burstP;
                     }
                 } else {
-                    setClip(e, EnemyClip::Idle, true);
+                    // Between bursts: a Reaper in cover or a croucher stays down (rpman_crouch_breathe).
+                    setClip(e, (e.inCover || e.role == 2) && e.weapon != 1 ? EnemyClip::CrouchIdle : EnemyClip::Idle, true);
                     if (e.fireCooldown <= 0) {
                         if (--e.burstsLeft > 0) {
                             e.burstLeft = burstN;
