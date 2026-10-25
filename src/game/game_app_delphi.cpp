@@ -51,7 +51,7 @@ bool GameApp::loadDelphi() {
     // First person: her head hidden (the eyes sit inside it), her arms reaching for the
     // controllers (the same IK as the Meccaryn's; her chain is L_shoulder > L_arm01 > L_arm02 >
     // L_arm03, the hand). The eye point from the idle pose, as for him.
-    m->setHiddenBones({"head", "neck"});
+    m->setHiddenBones(SkinnedModel::headBones());
     m->setKeepFull(true);
     m->pose(renderer_, 0.0f);
     {

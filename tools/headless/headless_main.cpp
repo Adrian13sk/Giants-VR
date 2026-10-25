@@ -413,6 +413,7 @@ int main(int argc, char** argv) {
         LOGI("combat: %zu/%zu Reapers alive, %zu creatures alive (%zu characters), nearest %.1f m (yaw %.0f deg), "
              "player health %.0f", app.enemiesAlive(), app.enemyCount(), app.creaturesAlive(), app.characterCount(), nd,
              std::atan2(-rel.x, -rel.z) * 180.0f / kPi, app.playerHealth());
+        if (std::getenv("GVR_NEAR_DUMP")) app.debugDumpNear(3.0f);
         if (std::getenv("GVR_ENEMY_DUMP"))  // the Reapers still alive: where, what state, which objective
             for (const auto& e : app.enemyDirector().enemies)
                 if (e.state != EnemyState::Dead)

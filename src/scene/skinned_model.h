@@ -42,6 +42,19 @@ public:
     // Vertices bound to these bones (and their descendants' bones) collapse to a point when
     // hiding is enabled (first-person: hide the head the camera sits inside).
     void setHiddenBones(const std::vector<std::string>& lowerCaseNames);
+    // The bones on a head (eyes, lips, hair, jaw, teeth, tongue, brows): hidden with the head in
+    // first person, or an idle clip swings them into the eyes (Delphi's face, Kabuto's teeth).
+    static std::vector<std::string> headBones() {
+        std::vector<std::string> v = {"head", "neck", "l_eye01", "r_eye01", "lip_bottom", "lip_top", "jaw bottom", "jaw top", "l_eyebrow",
+                                      "r_eyebrow", "teeth bottom", "teeth top", "tongue1", "tongue2", "tongue3", "hair_back01", "hair_back02",
+                                      "hair_back03", "hair_back04"};
+        for (int k = 1; k <= 5; ++k) {
+            v.push_back("hair0" + std::to_string(k));
+            v.push_back("l_curl0" + std::to_string(k));
+            v.push_back("r_curl0" + std::to_string(k));
+        }
+        return v;
+    }
     void setHideEnabled(bool on) { hideEnabled_ = on; }
     // Centroid of the hidden-bone vertices in the last pose (model-local metres).
     Vec3 hiddenCentroid() const { return hiddenCentroid_; }

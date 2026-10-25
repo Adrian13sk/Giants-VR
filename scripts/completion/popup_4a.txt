@@ -10,3 +10,4 @@ duration 16
 at 60 -1184
 look 60 -1234
 hold trigger_r 2 4.2
+move 0 -1 2.6 6.5

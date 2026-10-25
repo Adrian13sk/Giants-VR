@@ -164,7 +164,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     }
                 }
             }
-            m->setHiddenBones({"head", "neck"});
+            m->setHiddenBones(SkinnedModel::headBones());
             m->pose(renderer_, 0.0f);
             if (first) {
                 eyeFromHead_ = eyeModel_ - m->hiddenCentroid();
@@ -819,6 +819,12 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateAmbush(dt);
     updateMotes(dt);
     updateGrass();
+    for (auto& c : chars_)
+        if (c.rider && playMode_) {  // on the back: behind the shoulders, facing the way the hero does
+            const Vec3 back{std::sin(player_.yaw), 0, std::cos(player_.yaw)};
+            c.pos = player_.position + back * (0.35f * heroScale_) + Vec3{0, 0.3f * player_.height, 0};
+            c.yaw = player_.yaw;
+        }
     {  // test hook: walkability of the "reach" objectives (game_app_reach.cpp), once, a second into play
         static const bool reach = std::getenv("GVR_REACH_CHECK") != nullptr;
         static float reachT = 0;
@@ -2842,6 +2848,26 @@ void GameApp::startCutscene(const std::string& first) {
     skipArmed_ = false;  // a trigger held when the cutscene starts must not skip it
 }
 
+// A start marker on top of a mission character (r1_saveyan: Delphi began inside Yan, whose wave
+// then put his face in hers): step back along the facing until there is room, the character in front.
+Vec3 GameApp::clearSpawn(Vec3 sp, float yaw) const {
+    if (hero_ == Hero::Kabuto || !assetWorld_) return sp;
+    const Vec3 back{std::sin(yaw), 0, std::cos(yaw)};
+    for (int step = 0; step < 6; ++step) {
+        bool crowded = false;
+        for (const auto& c : chars_)
+            if (c.visible && !c.rider && length(Vec3{c.pos.x - sp.x, 0, c.pos.z - sp.z}) < 1.1f) crowded = true;
+        for (const auto& r : rescue_.smarties)
+            if (length(Vec3{r.pos.x - sp.x, 0, r.pos.z - sp.z}) < 1.1f) crowded = true;
+        if (!crowded) break;
+        sp = sp + back * 0.5f;
+        float gy;
+        if (assetWorld_->terrain().heightAt(sp.x, sp.z, gy)) sp.y = std::max(gy, sp.y - 1.0f);
+        if (step == 0) LOGI("Spawn: a character stands on the start marker - stepping back");
+    }
+    return sp;
+}
+
 void GameApp::followHead(float dt, const InputFrame& in) {
     // Head-locked panels (subtitles, the mission briefing): yaw and pitch of the head, no roll,
     // eased toward the head so small head motions don't shake the text.
@@ -3135,7 +3161,7 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
         piranhaAttack_ = false;
         waterTime_ = 0;
         if (skirmish_) teleportPlayer(sk_.spawnPoint(skLocal_), player_.yaw);  // at his team's base
-        else teleportPlayer(assetWorld_->spawnPoint(), assetWorld_->spawnYaw());
+        else teleportPlayer(clearSpawn(assetWorld_->spawnPoint(), assetWorld_->spawnYaw()), assetWorld_->spawnYaw());
         respawnFade_ = 1.0f;
         LOGI("Player respawned");
     }
@@ -4103,8 +4129,18 @@ void GameApp::update(float dt, const InputFrame& in) {
     }
     if (needSpawn_ && in.headValid) {
         // A skirmish starts at the player's team's base (facing the way initSkirmish turned him).
-        const Vec3 sp = skirmish_ ? sk_.spawnPoint(skLocal_) : assetWorld_->spawnPoint();
         const float sy = skirmish_ ? player_.yaw : assetWorld_->spawnYaw();
+        if (!skirmish_ && hero_ != Hero::Kabuto) {
+            // An ambient character standing right on the start marker rides on the hero's back
+            // (2b_2: "the road home, with someone's wife on your back").
+            const Vec3 m = assetWorld_->spawnPoint();
+            for (auto& c : chars_)
+                if (c.ambient && c.rescue < 0 && !c.boss && length(Vec3{c.pos.x - m.x, 0, c.pos.z - m.z}) < 0.8f) {
+                    c.rider = true;
+                    LOGI("Character type %d rides on the hero's back", c.type);
+                }
+        }
+        const Vec3 sp = skirmish_ ? sk_.spawnPoint(skLocal_) : clearSpawn(assetWorld_->spawnPoint(), sy);
         rig_.teleportHead(in, sp, sy);
         if (playMode_) {
             teleportPlayer(sp, sy);
@@ -4273,7 +4309,14 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
         drawModel(n.model, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown), false);
     }
     if (assetWorld_ && assetWorld_->loaded()) renderSunRays();
-    if (playMode_ && playerModel_ && !cut && !playerGibbed_) playerModel_->render(renderer_, bodyXf_);
+    if (playMode_ && playerModel_ && !cut && !playerGibbed_) {
+        // First person: nothing of the body within reach of the eyes (an idle clip's lean brought
+        // Delphi's shoulder and face into view).
+        const bool cutNear = firstPerson_ && !dying_ && !renderer_.inReflectionPass();
+        if (cutNear) renderer_.setNearCut(renderer_.currentView().eyePosition, 0.14f * player_.height);
+        playerModel_->render(renderer_, bodyXf_);
+        if (cutNear) renderer_.setNearCut(Vec3{0, 0, 0}, 0.0f);
+    }
     if (playMode_ && !cut && !dying_) renderJetFx(firstPerson_);
     if (playMode_ && !cut && !dying_) renderBush();
     if (playMode_ && swordValid_ && swordModel_ && !cut && !dying_) drawModel(swordModel_, swordXf_, false);
@@ -4330,7 +4373,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
             drawModel(rocketModel_, Mat4::translation(r.pos) * Mat4::rotation(look) * Mat4::scale({0.6f, 0.6f, 0.6f}), false);
         }
     for (const auto& c : chars_) {
-        if (!c.visible || length(c.pos - v.eyePosition) > 160.0f) continue;
+        if (!c.visible || length(c.pos - v.eyePosition) > 160.0f || (c.rider && firstPerson_)) continue;
         if (cut && std::find(cutTypes.begin(), cutTypes.end(), c.type) != cutTypes.end()) continue;
         c.model->render(renderer_, c.xf(), Vec4{1.0f + 2.2f * c.flash, 1.0f + 0.9f * c.flash, 1.0f + 0.5f * c.flash, 1.0f});
     }

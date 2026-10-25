@@ -119,6 +119,16 @@ public:
     size_t gibCount() const { return gibs_.size(); }
     const CreatureDirector& creatureDirector() const { return creatures_; }
     const EnemyDirector& enemyDirector() const { return enemies_; }
+    // Test hook: what stands within r of the player (characters, rescue Smarties, villagers).
+    void debugDumpNear(float r) const {
+        const Vec3 p = player_.position;
+        for (size_t i = 0; i < chars_.size(); ++i)
+            if (length(chars_[i].pos - p) < r) LOGI("  near: character %zu type %d rescue %d at %.2f m (ambient %d visible %d)", i, chars_[i].type, chars_[i].rescue, length(chars_[i].pos - p), int(chars_[i].ambient), int(chars_[i].visible));
+        for (size_t i = 0; i < rescue_.smarties.size(); ++i)
+            if (length(rescue_.smarties[i].pos - p) < r) LOGI("  near: rescue Smartie %zu at %.2f m, state %d", i, length(rescue_.smarties[i].pos - p), int(rescue_.smarties[i].state));
+        for (size_t i = 0; i < villagers_.villagers.size(); ++i)
+            if (length(villagers_.villagers[i].pos - p) < r) LOGI("  near: villager %zu at %.2f m", i, length(villagers_.villagers[i].pos - p));
+    }
     size_t enemyCount() const { return enemies_.enemies.size(); }
     float playerHealth() const { return playerHealth_; }
     // Test hook: feet position of any enemy (alive or dead).
@@ -428,6 +438,7 @@ private:
         int type = -1;       // object type (hidden while a cutscene shows its own copy)
         int rescue = -1;     // index in rescue_ (1b's stranded Smarties); clipIndex = SmartieClip
         bool pooled = false; // a nest's Ripper model, lent to a hatched Ripper while it lives
+        bool rider = false;  // placed on the player's start marker (2b_2's wife "on your back"): rides along, unseen in first person
         // A mission target that is neither Reaper nor Ripper (death trigger: Offspring in 4b, the
         // Charger in 5a): shootable with the data's hit points; it doesn't fight back yet (ours).
         bool boss = false;
@@ -928,6 +939,7 @@ private:
     Vec3 subHead_;         // and head position
     bool subInit_ = false;
     void followHead(float dt, const InputFrame& in);
+    Vec3 clearSpawn(Vec3 sp, float yaw) const;
     void startCutscene(const std::string& first);
     void updateCutscene(float dt, const InputFrame& in);
     void renderCutscene();

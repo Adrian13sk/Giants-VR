@@ -9,3 +9,4 @@ duration 16
 at 1696 1839
 look 1696 1789
 hold trigger_r 2 4.2
+move 0 -1 2.6 6.5

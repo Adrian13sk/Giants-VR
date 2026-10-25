@@ -1951,3 +1951,13 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   placed in any mission without characters: end, kstory3_1, kstory5_4, rstory5_queen_4, rstory5_to_queen_3 - in
   kstory3_1 a second Kabuto stood in front of the player at the start. Now only with GVR_SHOWCASE=1. Found on a contact
   sheet of the remaining worlds. HUD backing plate: soft rounded texture instead of the white texture.
+- r1_saveyan: a white-and-brown shape filled the lower right of the view after ~6 s. GVR_NEAR_DUMP (new) showed the
+  rescue Smartie Yan 0.19 m from the player: the race-3 start marker is on top of him. clearSpawn() now steps the
+  spawn back along the facing (0.5 m steps) until no visible character / rescue Smartie is within 1.1 m (r1_saveyan:
+  1.57 m, Yan in front). 2b_2_returnwife's wife (type 216, ambient) stands on its marker too - the mission title says
+  she rides on your back: ambient characters within 0.8 m of the marker become riders (follow the hero's back, not
+  drawn in first person). Found while chasing that: Delphi's first-person body hid only head and neck - hair*, l/r_curl*,
+  eyes, lips (and Kabuto's jaw, teeth, tongue, brows) stayed; SkinnedModel::headBones() now hides them all, the eye
+  anchor uses head+neck only. Plus a near-eye cut for the own body (fragments within 0.14 x height of the eye are
+  discarded, Renderer::setNearCut). Popup completion scripts now walk away after setting the bomb (still complete,
+  health 100). Sweep 56/56 clean.

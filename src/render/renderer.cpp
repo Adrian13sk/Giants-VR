@@ -113,6 +113,7 @@ uniform int uMaterial;        // 0 standard, 1 water, 2 sky
 uniform highp float uTime;
 uniform highp float uSeaLevel;
 uniform highp float uClipY;   // reflection pass: nothing below the water surface
+uniform highp vec4 uNearCut;  // first person: the own body is not drawn within w of xyz (the eyes)
 uniform vec3 uWaterColor;
 uniform vec3 uSkyHorizon;
 uniform vec3 uSkyZenith;
@@ -277,6 +278,7 @@ vec3 fogOut(vec3 rgb, float fog, highp vec3 wp, float sat) {
 
 void main() {
     if (vWorldPos.y < uClipY) discard;
+    if (uNearCut.w > 0.0 && distance(vWorldPos, uNearCut.xyz) < uNearCut.w) discard;
     highp float d = length(vWorldPos - uEyePos);
     float fog = clamp(1.0 - (d - uFogRange.x) * uFogRange.y, 0.0, 1.0);
     if (uMaterial == 2) {
@@ -493,7 +495,7 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u) {
     u.uMaterial_ = L("uMaterial"); u.uTime_ = L("uTime"); u.uSeaLevel_ = L("uSeaLevel"); u.uWaterColor_ = L("uWaterColor");
     u.uSkyHorizon_ = L("uSkyHorizon"); u.uSkyZenith_ = L("uSkyZenith"); u.uShadowMap_ = L("uShadowMap");
     u.uShadowMat_ = L("uShadowMat"); u.uShadowOn_ = L("uShadowOn"); u.uShadowTexel_ = L("uShadowTexel");
-    u.uClipY_ = L("uClipY"); u.uGrade_ = L("uGrade"); u.uReflTex_ = L("uReflTex"); u.uReflDepth_ = L("uReflDepth");
+    u.uClipY_ = L("uClipY"); u.uNearCut_ = L("uNearCut"); u.uGrade_ = L("uGrade"); u.uReflTex_ = L("uReflTex"); u.uReflDepth_ = L("uReflDepth");
     u.uReflMat_ = L("uReflMat"); u.uReflEye_ = L("uReflEye"); u.uReflNear_ = L("uReflNear"); u.uReflOn_ = L("uReflOn");
     u.uWaterDepth_ = L("uWaterDepth"); u.uWaterDepthRect_ = L("uWaterDepthRect"); u.uWaterDepthOn_ = L("uWaterDepthOn");
     const char* tn[5] = {"uTerrRock", "uTerrSand", "uTerrGrass2", "uTerrRock2", "uTerrNoise"};
@@ -742,6 +744,7 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
     glUniformMatrix4fv(U_->uShadowMat_, 1, GL_FALSE, shadowMat_.m);
     glUniform1f(U_->uShadowTexel_, shadowSize_ > 0 ? 1.0f / float(shadowSize_) : 0.0f);
     glUniform1f(U_->uClipY_, -1e9f);
+    glUniform4f(U_->uNearCut_, 0, 0, 0, 0);
     glUniform4f(U_->uGrade_, env_.grade.x, env_.grade.y, env_.grade.z, env_.grade.w);
     glUniform3f(U_->uSkyTint_, env_.skyTint.x, env_.skyTint.y, env_.skyTint.z);
     glUniform1f(U_->uNight_, env_.night);
@@ -786,6 +789,10 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
     }
     glUniform1f(U_->uLook_, look_);
     glActiveTexture(GL_TEXTURE0);
+}
+
+void Renderer::setNearCut(const Vec3& centre, float radius) {
+    if (U_ && U_->uNearCut_ >= 0) glUniform4f(U_->uNearCut_, centre.x, centre.y, centre.z, radius);
 }
 
 void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {

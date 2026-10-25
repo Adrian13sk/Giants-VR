@@ -1,6 +1,7 @@
 #include "scene/skinned_model.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <unordered_map>
 
 #include "core/log.h"
@@ -160,9 +161,14 @@ void SkinnedModel::poseBlend(Renderer& r, int a, float ta, int b, float tb, floa
     Vec3 centre{0, 0, 0};
     if (!hideMask_.empty()) {
         // Collapse hidden vertices onto their centroid: their triangles become degenerate.
+        // The centroid from the first two named bones (the head and neck), so loose parts on the head
+        // (hair, a jaw while eating) don't move the eye point anchored to it.
         size_t n = 0;
         for (size_t i = 0; i < posed_.size(); ++i)
-            if (hideMask_[i]) { centre += posed_[i]; ++n; }
+            if (hideMask_[i] == 2) { centre += posed_[i]; ++n; }
+        if (n == 0)
+            for (size_t i = 0; i < posed_.size(); ++i)
+                if (hideMask_[i]) { centre += posed_[i]; ++n; }
         if (n) {
             centre = centre * (1.0f / float(n));
             hiddenCentroid_ = centre;
@@ -234,12 +240,17 @@ void SkinnedModel::renderShadowFull(Renderer& r, const Mat4& world) const {
 }
 
 void SkinnedModel::setHiddenBones(const std::vector<std::string>& names) {
+    if (std::getenv("GVR_BONES")) {  // debug: the bones and how many vertices each moves
+        std::vector<int> count(bones_.size(), 0);
+        for (const auto& b : bindings_) if (b.bone >= 0 && size_t(b.bone) < count.size()) ++count[size_t(b.bone)];
+        for (size_t k = 0; k < bones_.size(); ++k) LOGI("bone %zu %s: %d vertices", k, bones_[k].c_str(), count[k]);
+    }
     hideMask_.assign(bindings_.size(), 0);
     for (size_t i = 0; i < bindings_.size(); ++i) {
         const int b = bindings_[i].bone;
         if (b < 0) continue;
-        for (const auto& n : names)
-            if (bones_[size_t(b)] == n) hideMask_[i] = 1;
+        for (size_t k = 0; k < names.size(); ++k)
+            if (bones_[size_t(b)] == names[k]) hideMask_[i] = k < 2 ? 2 : 1;  // (the first two anchor the centroid)
     }
 }
 
