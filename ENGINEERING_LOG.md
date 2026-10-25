@@ -1969,3 +1969,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   (head -0.36 m, 0.1 m forward) while closing at > 0.9 m/s is a blow; three blows alternating hands, each within
   0.9 s = the roar (the Y roar's code path, its cool-down and ground rules). Harness: kabuto_chest_beat -> three
   blows, "Kabuto roars". Device test kabuto_chest_beat.
+- Reaper variety from unused original clips (rpman_snipe_kneel_fire, rpman_punch, rpman_hit_eye_die,
+  rpman_hit_to_knees_die, rpman_grenade appended to EnemyClip): marksmen fire kneeling; within 1.7 m a Reaper that
+  sees you punches (the blow at 42 % of the clip if you are within 2.1 m: 9 damage, a 3.5 m/s shove; 2 s between
+  punches; off for Kabuto); Enemy::hitHeight (set by the shot) picks the head or leg death; Reaper grenade throws play
+  the throw clip. One-shot actions hold the clip (Enemy::actT; hits, deaths and falls cancel them). Unit test: head /
+  leg / body deaths and exactly one punch in 2 s; harness: "Reaper 1 punches you"; sweep 56/56 clean.

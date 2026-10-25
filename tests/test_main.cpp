@@ -492,6 +492,33 @@ static void testEnemies() {
     CHECK(!rayCapsule({1, 1, 10}, {0, 0, -1}, 20, {0, 0.5f, 0}, {0, 1.8f, 0}, 0.5f, t));
     CHECK(!rayCapsule({0, 1, 10}, {0, 0, -1}, 5, {0, 0.5f, 0}, {0, 1.8f, 0}, 0.5f, t));  // out of range
 
+    {
+        // Rework: the death fits the hit (head / legs / body), and a Reaper right next to you punches.
+        EnemyDirector r;
+        r.groundHeight = [](float, float) { return 0.0f; };
+        for (auto& c : r.clipDuration) c = 0.6f;
+        r.params.marksmen = 0;
+        for (int k = 0; k < 3; ++k) r.spawn({float(k) * 5.0f, 0, -40}, kPi);
+        r.enemies[0].hitHeight = 0.9f;
+        r.enemies[1].hitHeight = 0.2f;
+        for (int k = 0; k < 3; ++k) CHECK(r.damage(k, 1000.0f));
+        CHECK(r.enemies[0].clip == EnemyClip::DieHead && r.enemies[1].clip == EnemyClip::DieKnees);
+        CHECK(int(r.enemies[2].clip) >= int(EnemyClip::Die1) && int(r.enemies[2].clip) <= int(EnemyClip::Die3));
+        EnemyDirector q;
+        q.groundHeight = r.groundHeight;
+        for (auto& c : q.clipDuration) c = 0.6f;
+        q.params.marksmen = 0;
+        q.spawn({0, 0, -1.2f}, kPi);
+        std::vector<int> sh;
+        int punched = 0;
+        for (int i = 0; i < 72 * 2; ++i) {
+            q.update(1.0f / 72.0f, Vec3{0, 0, 0}, true, sh);
+            punched += int(q.punches.size());
+        }
+        CHECK(punched == 1);  // one punch (then a cool-down)
+        q.params.punch = false;  // (as Kabuto: none)
+    }
+
     EnemyDirector d;
     d.groundHeight = [](float, float) { return 0.0f; };
     for (auto& c : d.clipDuration) c = 0.6f;

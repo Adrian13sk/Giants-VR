@@ -46,6 +46,7 @@ size_t EnemyDirector::aliveCount() const {
 }
 
 void EnemyDirector::setClip(Enemy& e, EnemyClip c, bool loop) {
+    if (e.actT > 0) return;  // an action (punch, throw) plays out first
     e.loopClip = loop;
     if (c == e.clip) return;
     e.prevClip = e.clip;
@@ -53,6 +54,16 @@ void EnemyDirector::setClip(Enemy& e, EnemyClip c, bool loop) {
     e.clip = c;
     e.clipTime = 0;
     e.fade = 0;
+}
+
+void EnemyDirector::playAction(int i, EnemyClip c) {
+    if (i < 0 || size_t(i) >= enemies.size()) return;
+    Enemy& e = enemies[size_t(i)];
+    if (e.state == EnemyState::Dead || e.state == EnemyState::Falling) return;
+    e.actT = 0;
+    setClip(e, c, false);
+    e.clipTime = 0;
+    e.actT = clipDuration[int(c)];
 }
 
 bool EnemyDirector::tryMove(Enemy& e, const Vec3& step) {
@@ -87,6 +98,8 @@ void EnemyDirector::knockOff(int i, const Vec3& v) {
     Enemy& e = enemies[size_t(i)];
     if (e.state == EnemyState::Dead || e.state == EnemyState::Falling) return;
     e.posted = false;
+    e.actT = 0;
+    e.punchPending = false;
     e.state = EnemyState::Falling;
     e.stateTime = 0;
     e.vel = v;
@@ -117,12 +130,21 @@ bool EnemyDirector::damage(int i, float amount, bool blast) {
     e.health -= amount;
     e.hitFlash = 1.0f;
     e.aware = true;
+    e.actT = 0;
+    e.punchPending = false;
     if (e.health <= 0) {
         e.state = EnemyState::Dead;
         e.stateTime = 0;
-        setClip(e, blast ? EnemyClip::Blown : EnemyClip(int(EnemyClip::Die1) + int(nextRand() % 3)), false);
+        // Rework: the death fits the hit - a head shot (rpman_hit_eye_die), the legs shot from under
+        // him (rpman_hit_to_knees_die), otherwise one of the three body-hit deaths.
+        EnemyClip die = EnemyClip(int(EnemyClip::Die1) + int(nextRand() % 3));
+        if (e.hitHeight > 0.8f) die = EnemyClip::DieHead;
+        else if (e.hitHeight < 0.4f) die = EnemyClip::DieKnees;
+        setClip(e, blast ? EnemyClip::Blown : die, false);
+        e.hitHeight = 0.5f;
         return true;
     }
+    e.hitHeight = 0.5f;
     e.state = EnemyState::Hit;
     e.stateTime = 0;
     const EnemyClip hc = (nextRand() & 1) ? EnemyClip::Hit1 : EnemyClip::Hit2;
@@ -136,6 +158,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
     shooters.clear();
     pokeStarted = pokeFound = false;
     landed.clear();
+    punches.clear();
     siegeShots.clear();
     for (size_t i = 0; i < enemies.size(); ++i) {
         Enemy& e = enemies[i];
@@ -176,6 +199,31 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
         const int burstN = marks ? 1 : params.burstSize;
         const float burstP = marks ? 2.6f : params.burstPause;
         (void)shootR; (void)fireR; (void)burstN; (void)burstP;
+        // Rework: an action clip (punch, throw) plays out; he turns to you meanwhile and the punch
+        // lands a little before the middle of the swing if you are still in reach.
+        e.punchCool = std::max(0.0f, e.punchCool - dt);
+        if (e.actT > 0 && e.state != EnemyState::Dead && e.state != EnemyState::Falling) {
+            e.actT -= dt;
+            turn(faceYaw);
+            if (e.punchPending && e.clip == EnemyClip::Punch && e.clipTime > clipDuration[int(EnemyClip::Punch)] * 0.42f) {
+                e.punchPending = false;
+                if (playerAlive && dist < 2.1f) punches.push_back(int(i));
+            }
+            e.clipTime += dt;
+            e.clipTime = std::min(e.clipTime, clipDuration[int(e.clip)] * 0.999f);
+            continue;
+        }
+        // Rework: you right up against him - he punches (rpman_punch) instead of firing point blank.
+        if (params.punch && playerAlive && sees && dist < 1.7f && e.punchCool <= 0 && !e.posted &&
+            (e.state == EnemyState::Advance || e.state == EnemyState::Fire || e.state == EnemyState::Idle)) {
+            setClip(e, EnemyClip::Punch, false);
+            e.clipTime = 0;
+            e.actT = clipDuration[int(EnemyClip::Punch)];
+            e.punchCool = e.actT + 1.4f;
+            e.punchPending = true;
+            e.aware = true;
+            continue;
+        }
         switch (e.state) {
             case EnemyState::Idle: {
                 if (!playerAlive) e.aware = false;
@@ -359,7 +407,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                         const Vec3 f{-std::sin(e.yaw), 0, -std::cos(e.yaw)};
                         tryMove(e, f * (params.walkSpeed * dt));
                     } else {
-                        setClip(e, EnemyClip::Fire, true);
+                        setClip(e, marks ? EnemyClip::KneelFire : EnemyClip::Fire, true);  // (a marksman kneels to aim)
                     }
                     const bool facing = std::fabs(angleDelta(e.yaw, faceYaw)) < 0.35f;
                     if (e.fireCooldown <= 0 && facing) {

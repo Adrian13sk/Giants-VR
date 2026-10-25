@@ -16,7 +16,8 @@
 
 namespace gvr {
 
-enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, FallCycle, FallLand, Poke, Count };
+enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, FallCycle, FallLand, Poke,
+                             KneelFire, Punch, DieHead, DieKnees, Throw, Count };  // (the last five: rework)
 enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead, Falling };
 
 struct Enemy {
@@ -70,6 +71,10 @@ struct Enemy {
     float rocketCool = 0;
     float hiddenT = 0, grenadeCool = 0, flinchCool = 0, retreatT = 0;
     int role = 0;           // rework: 1 = marksman (keeps his distance, single aimed shots, a glow before each)  // (retreatT: badly hurt, falling back)  // (flinchCool: near misses, game_app_vr.cpp)
+    // Rework: where the last hit landed (fraction of his height: a head shot or a leg shot picks the
+    // death); a one-shot action playing (a punch, a throw) holds his clip; the punch's blow pending.
+    float hitHeight = 0.5f, actT = 0, punchCool = 0;
+    bool punchPending = false;
     float hitFlash = 0;     // rework: > 0 just hit (the body flashes)  // rework: the player out of sight this long -> a grenade (game layer)
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
@@ -101,6 +106,7 @@ struct EnemyParams {
     float noticeDelay = 0.45f;    // s from noticing to acting (rework; was 0.7)
     float patrolRadius = 6.0f;    // m around home
     float patrolSpeed = 1.1f;     // m/s (walk clip)
+    bool punch = true;          // rework: close up he punches
 };
 
 class EnemyDirector {
@@ -108,7 +114,7 @@ public:
     EnemyParams params;
     std::function<float(float, float)> groundHeight;
     const CollisionWorld* collision = nullptr;
-    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     // The player hidden in his bush pack (2b): an unaware Reaper only finds him by walking up and
     // poking the bush (rpman_poke_bush); an engaged one loses him when he's far enough.
     bool playerHidden = false;
@@ -116,6 +122,7 @@ public:
     bool pokeStarted = false, pokeFound = false;  // this frame: a Reaper went to poke the bush / found him
     std::vector<Enemy> enemies;
     std::vector<int> landed;  // this frame: enemies killed by a fall (landed hard)
+    std::vector<int> punches;  // this frame (rework): enemies whose punch landed on the player
     std::vector<int> siegeShots;  // this frame: besieging enemies that fired at their target
 
     int spawn(const Vec3& pos, float yaw);
@@ -134,6 +141,8 @@ public:
     // Closest capsule hit along origin + dir * t (t <= maxDist); living and dead bodies.
     bool raycast(const Vec3& origin, const Vec3& dir, float maxDist, float& t, Vec3& normal, int& index) const;
     size_t aliveCount() const;
+    // A one-shot action clip that holds until it ends (rework: the grenade throw).
+    void playAction(int i, EnemyClip c);
 
 private:
     void setClip(Enemy& e, EnemyClip c, bool loop);

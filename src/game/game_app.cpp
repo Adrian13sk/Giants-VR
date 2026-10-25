@@ -456,6 +456,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 // heavier guns and head hits.
                 if (const float hl = std::sqrt(shotDir.x * shotDir.x + shotDir.z * shotDir.z); hl > 1e-3f)
                     enemies_.push(target, Vec3{shotDir.x / hl, 0, shotDir.z / hl} * ((head ? 3.0f : 1.8f) * std::min(3.0f, std::max(0.6f, hm))));
+                enemies_.enemies[size_t(target)].hitHeight = (p.y - enemies_.enemies[size_t(target)].pos.y) / std::max(0.5f, enemies_.params.height);
                 const bool killed = enemies_.damage(target, (head ? 62.5f : 25.0f) * hm);
                 if (killed && enemies_.enemies[size_t(target)].objective >= 0)
                     completeObjective(enemies_.enemies[size_t(target)].objective);
@@ -506,7 +507,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                                     "rpman_hit_med.anm", "rpman_hit_med2.anm", "rpman_hit_med_die.anm",
                                     "rpman_hit_spin_die.anm", "rpman_hit_gut_die.anm", "rpman_bzka_run.anm",
                                     "rpman_bzka_walk_scan.anm", "rpman_standing_alert_scan.anm", "rpman_hit_blowup.anm",
-                                    "rpman_hit_fall_cycle.anm", "rpman_hit_fall_land.anm", "rpman_poke_bush.anm"};
+                                    "rpman_hit_fall_cycle.anm", "rpman_hit_fall_land.anm", "rpman_poke_bush.anm",
+                                    // rework: kneeling marksman, punch, head-shot and leg-shot deaths, grenade throw
+                                    "rpman_snipe_kneel_fire.anm", "rpman_punch.anm", "rpman_hit_eye_die.anm",
+                                    "rpman_hit_to_knees_die.anm", "rpman_grenade.anm"};
             int poolSize = 6;
             {
                 int missionReapers = 0;
@@ -3633,7 +3637,18 @@ void GameApp::updateCombat(float dt) {
     respawnFade_ = std::max(0.0f, respawnFade_ - dt * 1.2f);
     damageFlash_ = std::max(0.0f, damageFlash_ - dt * 3.0f);
 
+    enemies_.params.punch = hero_ != Hero::Kabuto;
     { GVR_PROF("enemies"); enemies_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, shooters_); }
+    for (int i : enemies_.punches) {  // rework: a Reaper's punch landed
+        const Enemy& e = enemies_.enemies[size_t(i)];
+        hitFrom_ = e.pos;
+        hitDirTimer_ = 1.2f;
+        damagePlayer(9.0f, DeathCause::Shot);
+        sfx("ex_bdys1", player_.position + Vec3{0, 1.4f, 0}, 0.9f, 0.7f + 0.1f * frand());
+        Vec3 push{player_.position.x - e.pos.x, 0, player_.position.z - e.pos.z};
+        if (length(push) > 1e-3f) player_.velocity = player_.velocity + normalize(push) * 3.5f;  // knocked back a step
+        LOGI("Reaper %u punches you", e.uid);
+    }
     bushEvents();
     { GVR_PROF("skirmish"); updateSkirmish(dt); }
     // Model slots follow the enemies (the director removes sunk corpses).

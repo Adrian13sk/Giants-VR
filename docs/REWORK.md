@@ -65,6 +65,7 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Missions | A start marker on top of a mission character: r1_saveyan began with Delphi standing inside Yan (his face filled the view when he waved) - she now starts a step back with Yan in front of her. In 2b_2 the wife placed on the start marker rides on the Meccaryn's back ("the road home, with someone's wife on your back"), unseen in first person, instead of standing in the way. | HARNESS |
 | VR feel | Wave at the Smarties: raise a hand above your head and wave it side to side - the villagers around wave back and one calls out (Meccaryn and Delphi). | HARNESS |
 | Kabuto | Beat your chest: fists onto the chest, right, left, right (each within a second) and he roars - the same roar as Y, knocking Reapers back. A thump and a buzz at each blow. | HARNESS |
+| Combat | More life in the Reapers, from the original's unused clips: marksmen kneel to take their aimed shots; get right up against a Reaper and he punches you (a step back, some damage) instead of firing point blank; a head shot drops him with the eye-hit death, a leg shot with the to-the-knees death; grenade throwers actually throw. Not as Kabuto. | HARNESS (unit test) |
 | Combat | Shots fired from inside a big target's body (the Charger or an Offspring right on top of you) now hit it; before, they passed through and the fight stalled at close range. | HARNESS |
 | Missions | The invisible markers where a Sonak and its guards spawn were solid and stopped your shots at the guards (story3_3sonaks_4 could stall); they are now neither drawn nor solid. | HARNESS |
 | Missions | Meccaryn and Delphi story check: the pop-up bomb destroys the prison (story3_prison_7), the Torture Square gate (4a) and the barracks (5c); the tornado the barracks in both Reaper battles, also after building the base first; the Offspring (4b), the Charger (5a), the Raiks (r1_clusterspell), the Sonak guards (story3_sonak_1, story3_3sonaks_4) and all twelve guard objectives of rstory3_pre_race_1 fall to ordinary fighting. Scripts in `scripts/completion/`. | HARNESS |
@@ -87,7 +88,7 @@ The second compares the rework's look (`_base`) with the classic lighting (`_loo
 each shows. The last line runs the new hand mechanics on the headset (Kabuto's grab, climb and chest beat; Delphi's parry and thrown bolt; waving at Smarties).
 
 ## Next
-- More combat rework: hit reactions, enemy variety in behaviour.
+- More combat rework: cover use (rpman_behind_tree_*, rpman_crouch_*), Reapers on hover packs (rpman_hover).
 - Effects: impact sparks.
 - Cutscenes: the later (mid-mission) cutscenes; compare camera framing with the original on video.
 - Missions: play each objective chain in the harness (Kabuto end to end; Meccaryn/Delphi special objectives and bosses checked).

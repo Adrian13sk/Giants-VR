@@ -64,6 +64,7 @@ void GameApp::updateReaperGrenades(float dt) {
         Vec3 v = (aim - from) * (1.0f / t);
         v.y += 0.5f * 9.8f * t;
         rockets_.push_back({from, v, 0.0f, 6});
+        enemies_.playAction(int(&e - enemies_.enemies.data()), EnemyClip::Throw);  // (rework: rpman_grenade)
         e.grenadeCool = 9.0f;
         rpGrenadeCool_ = 3.5f;
         e.hiddenT = 0;
