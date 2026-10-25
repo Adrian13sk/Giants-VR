@@ -1898,3 +1898,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   second one) removed, and the cutscene camera swing limited to shots within 60 m of their target
   (intro_island_1's flyover had been swung down to the sea). The 17 cutscenes not seen at mission starts
   were reviewed on contact sheets (GVR_CUTSCENE=<first shot>).
+- 54cddc8 delivered (with progress video 4): Kabuto leaps when the user jumps (tracked head rising > 1.3 m/s
+  from standing; PlayerInput::jumpBoost), badly hurt Reapers fall back, touch haptics for hands in scenery,
+  a lighter comfort vignette while a cutscene camera travels (updateVignette now also runs in cutscenes),
+  menu panels restyled. kstory3_4's portal: a 109 m plateau whose surrounding faces exceed even Kabuto's new
+  68-degree limit in places - recorded as BLOCKERS B18 for the play-test.
