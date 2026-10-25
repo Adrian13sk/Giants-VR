@@ -39,8 +39,10 @@ bool AssetWorld::init(const std::string& dataDir, Renderer& r, const std::string
                 if (toLower(n) == toLower(m)) first = n;
         placeWorldObjects(first);
     }
-    // Test showcase (Smartie, Kabuto) only when the mission doesn't populate the level itself.
-    if (characters_.empty() && toLower(worldName).rfind("intro", 0) != 0) placeShowcase(spawn_ + Vec3{0, 0, -6.0f});
+    // Test showcase (Smartie, Kabuto, a turret, a palm by the terrain's spawn point): GVR_SHOWCASE=1 only.
+    // (It used to appear whenever a mission had no characters of its own - a stray giant Kabuto walking
+    // on the spot in kstory3_1, kstory5_4, rstory5_queen_4, rstory5_to_queen_3 and the end.)
+    if (std::getenv("GVR_SHOWCASE") && characters_.empty() && toLower(worldName).rfind("intro", 0) != 0) placeShowcase(spawn_ + Vec3{0, 0, -6.0f});
     status_ = "Mounted " + std::to_string(n) + " archives; world " + worldName +
               (hasTerrain_ ? " loaded" : " NOT loaded") + "; " + std::to_string(placed_.size()) +
               " static + " + std::to_string(skinned_.size()) + " animated original models placed";

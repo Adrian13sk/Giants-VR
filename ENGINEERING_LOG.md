@@ -1947,3 +1947,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   (quadratic in the height above its origin, phase from its position), mapped back to model space for the mono
   path. Rework look only, not in the reflection. Two frames 2 s apart in 1a show the fronds moved; sweep 56/56 clean,
   image stats normal (no white frames).
+- The development showcase (Smartie, kB_L1 walking in place, MC_turret, Ptree near Terrain::suggestSpawn) was still
+  placed in any mission without characters: end, kstory3_1, kstory5_4, rstory5_queen_4, rstory5_to_queen_3 - in
+  kstory3_1 a second Kabuto stood in front of the player at the start. Now only with GVR_SHOWCASE=1. Found on a contact
+  sheet of the remaining worlds. HUD backing plate: soft rounded texture instead of the white texture.
