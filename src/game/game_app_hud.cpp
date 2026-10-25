@@ -31,6 +31,20 @@ void GameApp::initHud(ModelCache* mc) {
         if (!hudTex_[k]) hudTex_[k] = whiteTex_;
         hudBatch_[k].init(renderer_, caps[k]);
     }
+    {
+        // The backing plates (layer 0): a soft-edged rounded rectangle rather than a hard-edged
+        // box (rework; it read like a debug panel at the wrist).
+        const int N = 64;
+        std::vector<uint8_t> px(size_t(N) * N * 4, 255);
+        for (int y = 0; y < N; ++y)
+            for (int x = 0; x < N; ++x) {
+                const float dx = std::max(0.0f, std::fabs(float(x) + 0.5f - N * 0.5f) - (N * 0.5f - 14.0f));
+                const float dy = std::max(0.0f, std::fabs(float(y) + 0.5f - N * 0.5f) - (N * 0.5f - 14.0f));
+                const float d = std::sqrt(dx * dx + dy * dy);  // distance into the 14-px rounded border
+                px[size_t(y * N + x) * 4 + 3] = uint8_t(255.0f * std::clamp((13.0f - d) / 9.0f, 0.0f, 1.0f));
+            }
+        if (const TextureId t = renderer_.uploadTexture(N, N, px.data(), true, false)) hudTex_[0] = t;
+    }
     // The gauges' insides, measured from the outline art: the heart's lobes join below the cusp
     // (seed in the middle), the jetpack arrow's head opens into its stem (seed in the stem).
     Image img;
