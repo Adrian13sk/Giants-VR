@@ -3856,7 +3856,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             if (tg >= 0 && size_t(tg) < enemies_.enemies.size() && tg == laserTarget_) {
                 laserOnT_ += dt;
                 Enemy& e = enemies_.enemies[size_t(tg)];
-                if (laserOnT_ > 0.45f && e.aware && e.state != EnemyState::Dead && !e.posted && e.grenadeCool < 7.0f && dodgeCool_ <= 0) {
+                if (laserOnT_ > 0.45f && e.state != EnemyState::Dead && !e.posted && dodgeCool_ <= 0) {
                     const Vec3 side = normalize(cross(fwd, Vec3{0, 1, 0})) * (frand() < 0.5f ? -1.0f : 1.0f);
                     enemies_.push(tg, side * 7.0f);
                     dodgeCool_ = 1.5f;
