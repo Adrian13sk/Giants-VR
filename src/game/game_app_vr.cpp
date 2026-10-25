@@ -244,6 +244,16 @@ void GameApp::addFireball(const Vec3& at, float radius) {
     }
 }
 
+// Sparks (rework): a shot striking rock or metal throws a few bright, quick sparks off the surface.
+void GameApp::addSparks(const Vec3& at, const Vec3& normal, int n) {
+    const Vec3 nn = length(normal) > 1e-4f ? normalize(normal) : Vec3{0, 1, 0};
+    if (embers_.size() < 220) embers_.push_back({at + nn * 0.06f, Vec3{0, 0, 0}, 0.0f, 0.12f, 0.45f});  // the flash: a soft glow
+    for (int i = 0; i < n && embers_.size() < 220; ++i) {
+        Vec3 d = normalize(nn * 1.2f + Vec3{frand() - 0.5f, frand() - 0.3f, frand() - 0.5f} * 1.6f);
+        embers_.push_back({at + nn * 0.03f, d * (3.0f + 6.0f * frand()), 0.0f, 0.18f + 0.3f * frand(), 0.025f + 0.025f * frand()});
+    }
+}
+
 void GameApp::updateFireballs(float dt) {
     for (auto& f : fireballs_) f.t += dt;
     fireballs_.erase(std::remove_if(fireballs_.begin(), fireballs_.end(), [](const Fireball& f) { return f.t > 0.55f; }), fireballs_.end());
@@ -259,7 +269,7 @@ void GameApp::updateFireballs(float dt) {
 void GameApp::renderFireballs() {
     if ((fireballs_.empty() && embers_.empty()) || renderer_.inReflectionPass()) return;
     static bool init = false;
-    if (!init) { init = true; fireBatch_.init(renderer_, 200); }
+    if (!init) { init = true; fireBatch_.init(renderer_, 260); }
     const Vec3 right = headWorldRot_.rotate({1, 0, 0}), up = headWorldRot_.rotate({0, 1, 0});
     fireBatch_.clear();
     for (const auto& f : fireballs_) {

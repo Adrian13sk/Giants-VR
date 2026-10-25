@@ -915,7 +915,7 @@ private:
     std::unique_ptr<CutscenePlayer> cutscene_;
     std::unique_ptr<GameText> gameText_;
     TextRenderer text_;
-    Vec3 cutEye_;
+    Vec3 cutEye_, cutOffset_;
     float cutYaw_ = 0;
     bool skipArmed_ = false;
     Quat subRot_;          // head-locked panels: smoothed head yaw/pitch
@@ -1380,6 +1380,7 @@ private:  // the mission placed enemies: no test waves
     struct Ember { Vec3 pos, vel; float t, life, size; };
     std::vector<Fireball> fireballs_;
     std::vector<Ember> embers_;
+    void addSparks(const Vec3& at, const Vec3& normal, int n);
     QuadBatch fireBatch_;
     void addFireball(const Vec3& at, float radius);
     void updateFireballs(float dt);

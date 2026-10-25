@@ -89,6 +89,7 @@ int GameApp::parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& tipVel, i
         q.damage = aimed >= 0 ? 2.0f : 1.0f;
         weapon_.adopt(q);
         addFlash(p.pos, Vec3{1.0f, 0.75f, 0.35f}, 3.0f, 0.12f);
+        addSparks(p.pos, out, 10);
         sfx("sr_swht1", p.pos, 1.0f, 1.5f + 0.2f * frand());
         haptics_.push_back({hand, 0.9f, 0.06f});
         ++parries_;

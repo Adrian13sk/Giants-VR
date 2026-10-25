@@ -405,6 +405,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 }
                 if (target < 0) {
                     if (shotIntoWater(p, shotDir)) return;  // a splash where it went in
+                    addSparks(p, shotDir * -1.0f, 5 + int(3.0f * frand()));
                     sfx(frand() < 0.5f ? "bi_dirt1" : (frand() < 0.5f ? "bi_hit1" : "bi_hit2"), p, 0.45f, 0.9f + 0.2f * frand());
                     return;
                 }
@@ -482,7 +483,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             };
             enemyFire_.onHit = [this](int target, const Vec3& p, const Vec3& dir) {
                 if (target == -2) { hitFrom_ = p - dir * 10.0f; hitDirTimer_ = 1.2f; damagePlayer(5.0f, DeathCause::Shot); }
-                else if (!shotIntoWater(p, dir)) sfx(frand() < 0.5f ? "bi_hit1" : "bi_dirt1", p, 0.35f, 0.9f + 0.2f * frand());
+                else if (!shotIntoWater(p, dir)) {
+                    sfx(frand() < 0.5f ? "bi_hit1" : "bi_dirt1", p, 0.35f, 0.9f + 0.2f * frand());
+                    if (length(p - player_.position) < 40.0f) addSparks(p, dir * -1.0f, 3);  // (near you: the misses you see)
+                }
             };
             // NPCs float in deep water (the sea surface is at 0): they can't walk on the sea floor.
             enemies_.groundHeight = [w](float x, float z) {
@@ -2858,6 +2862,26 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
     };
     if (cutscene_->active()) cutBlack_ = cutscene_->blackout();
     if (cutscene_->active() && cutscene_->takeNewShot(eye, yaw)) {
+        // Rework: the view never pitches by itself (comfort), so a shot looking steeply down on its
+        // actors (rstory2_out_of_portal_2 from 60 m up) showed the horizon and no one in it. Such a
+        // camera swings down (or up) round what it films, same distance and side, to at most 28
+        // degrees from level, facing it; a moving camera keeps that offset.
+        cutOffset_ = Vec3{0, 0, 0};
+        if (renderer_.look() != 0) {
+            const Vec3 tgt = cutscene_->targetNow();
+            const Vec3 d = eye - tgt;
+            const float h = std::sqrt(d.x * d.x + d.z * d.z), L = length(d);
+            const float kMax = 0.4887f;  // 28 degrees
+            if (L > 2.0f && std::fabs(d.y) > h * std::tan(kMax)) {
+                Vec3 side = h > 0.05f ? Vec3{d.x / h, 0, d.z / h} : Vec3{std::sin(yaw), 0, std::cos(yaw)};
+                const Vec3 moved = tgt + side * (L * std::cos(kMax)) + Vec3{0, (d.y > 0 ? 1.0f : -1.0f) * L * std::sin(kMax), 0};
+                if (std::getenv("GVR_CUT_TRACE"))
+                    LOGI("cut camera swung to 28 deg: %.0f deg %s its target %.1f m away", std::atan2(std::fabs(d.y), h) * 57.3f, d.y > 0 ? "down on" : "up at", L);
+                cutOffset_ = moved - eye;
+                eye = moved;
+                yaw = std::atan2(-(tgt.x - eye.x), -(tgt.z - eye.z));
+            }
+        }
         eye = aboveGround(eye);
         // Put the viewer's eyes at the shot camera, facing the scene; head look stays free.
         cutEye_ = eye;
@@ -2886,7 +2910,7 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
         }
     } else if (cutscene_->active()) {
         // Travel with a moving shot camera (translation only; the view never rotates by itself).
-        const Vec3 now = aboveGround(cutscene_->eyeNow());
+        const Vec3 now = aboveGround(cutscene_->eyeNow() + cutOffset_);
         rig_.worldFromTracking.position = rig_.worldFromTracking.position + (now - cutEye_);
         cutEye_ = now;
     }
@@ -4354,7 +4378,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
         }
     }
     for (const auto& e : enemyFire_.effects())
-        if (e.kind == WeaponEffect::Impact)
+        if (e.kind == WeaponEffect::Impact && renderer_.look() != 1)
             drawModel(impactModel_, Mat4::translation(e.pos) * Mat4::rotation(headWorldRot_) *
                                         Mat4::scale(Vec3{1, 1, 1} * (2.0f + 3.0f * e.progress())), true, 1.0f - e.progress());
     // The Meccaryn's pistol: small pink bolts (the original's), the spark quads facing along the
@@ -4413,7 +4437,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
         else if (e.kind == WeaponEffect::Muzzle)
             drawModel(muzzleModel_, Mat4::translation(e.pos) * Mat4::rotation(rotationBetween({0, 0, -1}, e.dir)) *
                                         Mat4::scale(Vec3{1, 1, 1} * (0.25f + 0.15f * k)), true, 1.0f - k);
-        else  // impact flash: billboard toward the viewer
+        else if (renderer_.look() != 1)  // impact flash: billboard toward the viewer (rework: a soft glow and sparks, addSparks)
             drawModel(impactModel_, Mat4::translation(e.pos) * Mat4::rotation(headWorldRot_) *
                                         Mat4::scale(Vec3{1, 1, 1} * (3.0f + 4.0f * k)), true, 1.0f - k);
     }

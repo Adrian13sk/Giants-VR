@@ -42,7 +42,16 @@ bool CutscenePlayer::loadShot(const std::string& name) {
     }
     // The fade state carries from shot to shot when the scripts drive it.
     startVis_ = (active_ && !shot_.fades.empty()) ? scriptVisibility(t_) : 1.0f;
-    if (shotsPlayed_ == 0 && !s.fades.empty()) startVis_ = 0.0f;  // an opening shot snaps in from black
+    // An opening shot whose script fades it in snaps in from black; one whose first fade goes to black
+    // (rstory3_channel_islands_1: one fade, out at its end) starts in view - it was black for 10 s.
+    if (shotsPlayed_ == 0 && !s.fades.empty()) startVis_ = s.fades.front().level > 0.5f ? 0.0f : 1.0f;
+    // A shot that starts black (the last one faded out) but whose script only fades out again
+    // (story3_lift_2 after story3_lift_1) would stay black throughout: it fades in over 0.25 s.
+    if (startVis_ < 0.99f && !s.fades.empty() && s.fades.front().level < 0.5f && s.fades.front().time > 0.3f)
+        s.fades.insert(s.fades.begin(), {0.0f, 1.0f, 0.25f});
+    static const bool fadeTrace = std::getenv("GVR_CUT_TRACE") != nullptr;
+    if (fadeTrace)
+        for (const auto& f : s.fades) LOGI("cut trace: %s fade at %.2f s to %.2f over %.2f s", name.c_str(), f.time, f.level, f.seconds);
     shot_ = std::move(s);
     shotName_ = name;
     t_ = 0;
