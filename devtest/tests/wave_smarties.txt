@@ -1,0 +1,18 @@
+# Rework (2026-10-25): raise the right hand and wave it side to side in front of a Smartie village (5a, village 0):
+# the Smarties wave back and one calls out. Log: "Wave gesture (hand 1): N Smarties wave back".
+name wave_smarties
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+duration 6
+at 135 -60
+look 135 -107
+hand_r 0 0.6 0 0.5 0.8
+hand_r 0.3 0 0 1.0 1.25
+hand_r -0.3 0 0 1.25 1.50
+hand_r 0.3 0 0 1.50 1.75
+hand_r -0.3 0 0 1.75 2.00
+hand_r 0.3 0 0 2.00 2.25
+hand_r -0.3 0 0 2.25 2.50

@@ -1431,6 +1431,11 @@ private:  // the mission placed enemies: no test waves
     float climbT_ = 0, climbStuckT_ = 0;
     bool touch_[2] = {false, false};
     float touchT_[2] = {0, 0};
+    // Waving (rework): a raised hand waved side to side; Smarties nearby wave back (game_app_vr.cpp).
+    void updateWaveGesture(float dt);
+    float waveLastX_[2] = {0, 0}, waveFlipT_[2] = {0, 0}, waveCool_ = 0;
+    int waveSign_[2] = {0, 0}, waveFlips_[2] = {0, 0};
+    bool waveValid_[2] = {false, false};
     QuadBatch fireBatch_;
     void addFireball(const Vec3& at, float radius);
     void updateFireballs(float dt);

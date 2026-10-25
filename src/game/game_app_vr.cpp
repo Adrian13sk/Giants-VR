@@ -99,6 +99,60 @@ void GameApp::updateNearMisses(float dt) {
     }
 }
 
+// Waving (rework): raise a hand above your head and wave it side to side (three turns within a
+// couple of seconds) - the Smarties around wave back, one of them calling out. The Meccaryn and Delphi.
+void GameApp::updateWaveGesture(float dt) {
+    waveCool_ = std::max(0.0f, waveCool_ - dt);
+    if (!playMode_ || !firstPerson_ || cutsceneActive() || hero_ == Hero::Kabuto || !lastInput_.headValid) {
+        waveValid_[0] = waveValid_[1] = false;
+        return;
+    }
+    const Pose head = rig_.toWorld(lastInput_.head);
+    const Vec3 f = head.orientation.rotate(Vec3{0, 0, -1});
+    Vec3 right{-f.z, 0, f.x};
+    right = length(right) > 1e-3f ? normalize(right) : Vec3{1, 0, 0};
+    const float S = rig_.comfort.worldScale;
+    for (int h = 0; h < 2; ++h) {
+        const ControllerState& c = lastInput_.hand[h];
+        if (!c.gripPoseValid || c.trigger > 0.5f || c.squeeze > 0.5f) { waveValid_[h] = false; waveFlips_[h] = 0; continue; }
+        const Vec3 p = rig_.toWorld(c.gripPose).position;
+        const float x = dot(p - head.position, right) / S;
+        const bool raised = p.y > head.position.y - 0.15f * S;
+        waveFlipT_[h] += dt;
+        if (waveValid_[h] && raised && dt > 0) {
+            const float v = (x - waveLastX_[h]) / dt;
+            const int sgn = v > 0.45f ? 1 : (v < -0.45f ? -1 : 0);
+            if (sgn != 0 && sgn != waveSign_[h]) {
+                waveFlips_[h] = waveFlipT_[h] < 0.8f ? waveFlips_[h] + 1 : 1;
+                waveSign_[h] = sgn;
+                waveFlipT_[h] = 0;
+            }
+        } else if (!raised) {
+            waveFlips_[h] = 0;
+        }
+        waveLastX_[h] = x;
+        waveValid_[h] = true;
+        if (waveFlips_[h] >= 4 && waveCool_ <= 0) {
+            waveFlips_[h] = 0;
+            waveCool_ = 4.0f;
+            const int n = villagers_.waveBack(player_.position, 30.0f);
+            LOGI("Wave gesture (hand %d): %d Smarties wave back", h, n);
+            if (n > 0) {
+                // The nearest of them calls out.
+                float best = 1e9f;
+                Vec3 at = player_.position;
+                for (const auto& v : villagers_.villagers)
+                    if (v.state == VillagerState::Wave && length(v.pos - player_.position) < best) { best = length(v.pos - player_.position); at = v.pos; }
+                static const int voices[] = {1, 2, 3, 4, 13, 14};
+                char nm[16];
+                std::snprintf(nm, sizeof nm, "gsm%02d_%d", voices[int(frand() * 5.99f)], frand() < 0.5f ? 1 : 2);
+                sfx(nm, at + Vec3{0, 0.8f, 0}, 1.0f, 1.0f + 0.15f * frand());
+                haptics_.push_back({h, 0.25f, 0.06f});
+            }
+        }
+    }
+}
+
 // Touch (rework): a hand pushed into scenery or the ground buzzes - a tap on first contact, a light
 // hum while it stays in. First person, in play; not for Kabuto's fists (they smash instead).
 void GameApp::updateHandTouch(float dt) {

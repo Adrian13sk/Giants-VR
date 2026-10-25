@@ -1961,3 +1961,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   anchor uses head+neck only. Plus a near-eye cut for the own body (fragments within 0.14 x height of the eye are
   discarded, Renderer::setNearCut). Popup completion scripts now walk away after setting the bomb (still complete,
   health 100). Sweep 56/56 clean.
+- Waving: updateWaveGesture tracks each free hand's sideways speed (head-relative) while it is above the head;
+  four direction changes, each within 0.8 s, = a wave (4 s cool-down). VillagerDirector::waveBack puts the calm
+  villagers within 30 m into their Wave state (sm_wave), the nearest calls out (gsmNN voice). Harness: 5a village 0,
+  scripted wave -> "Wave gesture (hand 1): 6 Smarties wave back". Device test wave_smarties.

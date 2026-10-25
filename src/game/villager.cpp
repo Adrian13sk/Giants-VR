@@ -148,4 +148,19 @@ void VillagerDirector::update(float dt, const Vec3& player, const std::vector<Ve
     }
 }
 
+int VillagerDirector::waveBack(const Vec3& player, float radius) {
+    int n = 0;
+    for (auto& v : villagers) {
+        if (v.state == VillagerState::Flee || v.state == VillagerState::Cower || v.calm < params.calmAfter) continue;
+        if (length(Vec3{player.x - v.pos.x, 0, player.z - v.pos.z}) > radius) continue;
+        v.state = VillagerState::Wave;
+        v.stateTime = 0;
+        v.duration = 2.5f;
+        v.waveCooldown = 8.0f;
+        setClip(v, VillagerClip::Wave);
+        ++n;
+    }
+    return n;
+}
+
 }  // namespace gvr
