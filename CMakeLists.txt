@@ -91,6 +91,7 @@ add_library(gvr_core STATIC
     src/game/game_app_reach.cpp
     src/game/game_app_climb.cpp
     src/game/game_app_spawners.cpp
+    src/game/game_app_kbcarry.cpp
   src/game/game_app_delphi.cpp
   src/game/game_app_kabuto.cpp
   src/game/game_app_title.cpp

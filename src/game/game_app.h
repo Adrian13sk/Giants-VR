@@ -1134,7 +1134,17 @@ private:  // the mission placed enemies: no test waves
     struct Boulder { enum State { Resting, Loose, Held, Thrown, Gone } state = Resting; Vec3 pos, vel, rot, spin; float age = 0; };
     struct Shrapnel { Vec3 pos, vel, rot, spin; float size = 0.2f, age = 0; };
     struct Thrown { uint32_t uid = 0; float age = 0; };  // a thrown Reaper (by uid: the enemy list shrinks)
-    enum { HoldNone, HoldBoulder, HoldReaper };
+    enum { HoldNone, HoldBoulder, HoldReaper, HoldTree, HoldVictim };  // (the last two: rework, game_app_kbcarry.cpp)
+    // Rework: Kabuto carries trees (uprooted, swung as a club, thrown) and small folk (eaten at the
+    // mouth, thrown, set down). kbHeld_ = the tree's destructible item / the victim's eat target.
+    struct KbFlying { bool tree = false; int item = -1, target = -1; uint32_t uid = 0; Vec3 pos, vel, axis{0, 1, 0}, spin; float age = 0; };
+    std::vector<KbFlying> kbFlying_;
+    Vec3 kbTreeAxis_{0, 1, 0}, kbTreeTipPrev_;
+    bool kbTreeTipValid_ = false;
+    std::vector<std::pair<uint32_t, float>> kbClubCool_;
+    void updateKabutoCarry(float dt, const InputFrame& in);
+    void renderKabutoCarry();
+    void dropVictim(int target, const Vec3& at, const Vec3& vel, bool thrown);
     std::vector<RockGen> kbRocks_;
     std::vector<Boulder> kbBoulders_;
     std::vector<Shrapnel> kbShrapnel_;

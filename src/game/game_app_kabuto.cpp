@@ -88,8 +88,11 @@ bool GameApp::loadKabuto() {
             t.forward = armTargets_[h].forward;
             t.up = armTargets_[h].up;
             t.pole = Vec3{h == kLeft ? 0.7f : -0.7f, 0.4f, -1.0f} - normalize(t.up) * 0.5f;
-            t.maxReachStretch = 1.3f;
-            solveArmIk(world, children, c, t);
+            t.maxReachStretch = 1.9f;  // (rework: the hands always reach the controllers)
+            const float res = solveArmIk(world, children, c, t);
+            static const bool ikTrace = std::getenv("GVR_IK_TRACE") != nullptr;
+            static int ikN = 0;
+            if (ikTrace && (++ikN % 72) == 0) LOGI("ik: Kabuto hand %d misses the controller by %.3f m", h, res);
         }
     });
     m->pose(renderer_, 0.0f);

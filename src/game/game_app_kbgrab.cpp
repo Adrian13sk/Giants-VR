@@ -9,6 +9,8 @@
 #include <cstdlib>
 
 #include "core/log.h"
+#include "game/destruction.h"
+#include "scene/asset_world.h"
 
 namespace gvr {
 
@@ -84,6 +86,14 @@ void GameApp::updateKabutoHandGrab(const InputFrame& in) {
             const float d = flat(cr.pos);
             if (d < best) { best = d; kind = 3; idx = kCreatureTargetG + int(i); }
         }
+        // Rework: trees too (uprooted - everything but buildings).
+        for (size_t i = 0; i < destruct_.items.size(); ++i) {
+            const Destructible& it = destruct_.items[i];
+            if (it.kind != DestructKind::Tree || !it.alive() || it.height > 1.5f * H) continue;  // (a palm half as tall again as he is: yes)
+            const float d = flat(it.base) - 0.3f * it.radius;
+            if (trace && flat(it.base) < 15.0f) LOGI("grab trace:   tree %zu %.1f m flat (radius %.1f, %.1f m tall), best %.1f", i, flat(it.base), it.radius, it.height, best);
+            if (d < best) { best = d; kind = 4; idx = int(i); }
+        }
         if (kind == 0) {
             haptics_.push_back({h, 0.15f, 0.04f});  // a brush of the ground: nothing there
             continue;
@@ -106,9 +116,28 @@ void GameApp::updateKabutoHandGrab(const InputFrame& in) {
             enemies_.knockOff(idx, Vec3{0, 0, 0});
             sfx("rpman_hit1", enemies_.enemies[size_t(idx)].pos, 0.8f, 1.1f);
             LOGI("Kabuto: hand %d grabs Reaper %d", h, idx);
+        } else if (kind == 4) {
+            // Uprooted: the tree leaves the world and is in his hand.
+            Destructible& it = destruct_.items[size_t(idx)];
+            it.stage = 4;
+            it.hp = 0;
+            auto& o = assetWorld_->worldObjects()[size_t(it.object)];
+            o.hidden = true;
+            assetWorld_->collisionMutable().setEnabled(o.collision, false);
+            kbHold_ = HoldTree;
+            kbHeld_ = idx;
+            kbGrabHand_ = h;
+            kbTreeTipValid_ = false;
+            dustBurst(it.base, 0.6f * it.radius + 1.0f, 14);
+            sfx("ex_treel", it.base + Vec3{0, 2, 0}, 1.0f, 0.8f);
+            LOGI("Kabuto: hand %d uproots a tree (%.1f m)", h, it.height);
         } else {
-            kabutoEat(idx);
-            LOGI("Kabuto: hand %d scoops up target %d to eat", h, idx);
+            // Rework: held in the hand (bring it to the mouth to eat it; throw it; or set it down).
+            kbHold_ = HoldVictim;
+            kbHeld_ = idx;
+            kbHeldUid_ = targetUid(idx);
+            kbGrabHand_ = h;
+            LOGI("Kabuto: hand %d picks up target %d", h, idx);
         }
         break;
     }

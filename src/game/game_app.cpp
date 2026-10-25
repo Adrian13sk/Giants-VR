@@ -846,7 +846,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateSmartieLines(dt);
     { GVR_PROF("jetfx"); updateJetFx(dt); }
     if (hero_ == Hero::Delphi) updateDelphi(dt, in);
-    else if (hero_ == Hero::Kabuto) { updateKabuto(dt, in); updateThrows(dt, in); updateKabutoPowers(dt, in); updateGlass(dt, in); }
+    else if (hero_ == Hero::Kabuto) { updateKabuto(dt, in); updateThrows(dt, in); updateKabutoCarry(dt, in); updateKabutoPowers(dt, in); updateGlass(dt, in); }
     else { GVR_PROF("weapon"); updateHolsters(dt, in); updateWeapon(dt, in); updateMelee(dt, in); }
     { GVR_PROF("feel"); updateFeel(dt, in); }
     { GVR_PROF("rescue"); updateRescue(dt, in); }
@@ -4478,6 +4478,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     renderSpells();
     renderKabutoPowers(v.eyePosition);
     renderThrows();
+    renderKabutoCarry();
     renderMap();
     for (const auto& sp : creatures_.spits) {
         const int k = int(sp.size);

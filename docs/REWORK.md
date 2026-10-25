@@ -71,6 +71,8 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Sound | Room echo: in canyons, gorges, caves and tunnels the sounds come back as reverb (walls all round and a roof overhead are measured four times a second); out in the open it is nearly dry. Distant sounds carry more of it. | HARNESS (unit test) |
 | Delphi | Spells by gesture (first person, casting-hand trigger held): draw a circle above your head for the tornado (where she has it); sweep the hand fast across your body, low, for the fire wall. Holding the trigger to charge still works. | HARNESS |
 | Missions | Barracks send out soldiers while they stand: Reaper barracks a Reaper or two out of the door every 20-35 s while you are within ~110 m, Ripper barracks medium Rippers, at most four of each one's own about; destroy the building to stop it. The placed Rippers all start underground except the small ones (nest and barracks broods come out above ground). | HARNESS |
+| VR feel | First-person arms reach the controllers every time: Delphi's arms stretch to them, her hands are bigger (they read tiny), the sword sits in her hand; Kabuto's arms likewise. | HARNESS |
+| Kabuto | Picks up everything but buildings: reach down and squeeze on a tree to uproot it - swing it as a club, throw it (it crashes down on what's there) or let it fall; Smarties, Vimps and small creatures stay in the hand - bring them to your mouth to eat, throw them (they die where they land) or open the hand gently to set them down. | HARNESS |
 | Combat | Shots fired from inside a big target's body (the Charger or an Offspring right on top of you) now hit it; before, they passed through and the fight stalled at close range. | HARNESS |
 | Missions | The invisible markers where a Sonak and its guards spawn were solid and stopped your shots at the guards (story3_3sonaks_4 could stall); they are now neither drawn nor solid. | HARNESS |
 | Missions | Meccaryn and Delphi story check: the pop-up bomb destroys the prison (story3_prison_7), the Torture Square gate (4a) and the barracks (5c); the tornado the barracks in both Reaper battles, also after building the base first; the Offspring (4b), the Charger (5a), the Raiks (r1_clusterspell), the Sonak guards (story3_sonak_1, story3_3sonaks_4) and all twelve guard objectives of rstory3_pre_race_1 fall to ordinary fighting. Scripts in `scripts/completion/`. | HARNESS |
@@ -85,7 +87,7 @@ AIM LASER, LIGHTING. With the headset on USB, the usual tests plus the rework's 
 cd $env:USERPROFILE\Documents\GiantsQuestVR\devtest
 powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Apk ..\GiantsVR-rework-<commit>.apk
 powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Set experiments -Tests x_village_base,x_village_look0,x_village_msaa0,x_village_up0,x_k3_base,x_k3_look0,x_k3_msaa0,x_k3_up0,x_village_nograss
-powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Tests kabuto_grab_eat,kabuto_grab_throw,delphi_parry,delphi_throw_bolt,kabuto_climb,kabuto_climb_k34,kabuto_chest_beat,wave_smarties,delphi_tornado_circle,delphi_firewall_sweep
+powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Tests kabuto_grab_eat,kabuto_grab_throw,delphi_parry,delphi_throw_bolt,kabuto_climb,kabuto_climb_k34,kabuto_chest_beat,wave_smarties,delphi_tornado_circle,delphi_firewall_sweep,kabuto_tree,kabuto_smartie_throw
 ```
 
 The second compares the rework's look (`_base`) with the classic lighting (`_look0`), no anti-aliasing

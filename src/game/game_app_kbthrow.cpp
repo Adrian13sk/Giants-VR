@@ -307,7 +307,7 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
     const bool byHand = kbGrabHand_ >= 0;
     const bool tap = !byHand && kbHold_ == HoldReaper && kbHoldT_ < kTapTime;
     const bool letGo = byHand ? in.hand[kbGrabHand_].squeeze < 0.35f : (!x && kbXWas_);
-    if (letGo && kbHold_ != HoldNone) {
+    if (letGo && (kbHold_ == HoldBoulder || kbHold_ == HoldReaper)) {  // (trees and small folk: game_app_kbcarry.cpp)
         Vec3 vel;
         bool thrown = true;
         if (tap) {
@@ -365,7 +365,7 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
         kbGrabHand_ = -1;
     }
     if (kbHold_ == HoldNone) kbGrabHand_ = -1;
-    kbXWas_ = x;
+    if (kbHold_ != HoldTree && kbHold_ != HoldVictim) kbXWas_ = x;
 
     // Boulders in flight.
     for (auto& b : kbBoulders_) {

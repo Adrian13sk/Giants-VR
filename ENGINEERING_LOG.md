@@ -2021,3 +2021,13 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   when every model is in use a living Reaper takes the farthest corpse's. Placed Rippers: all but Small buried.
   Harness 2c_1: 6 Rippers from two Ripper barracks in 50 s; 5 Reapers from barracks_story2. Completion scripts all
   still pass; sweep 56/56 clean.
+- First-person arm IK: Delphi armStretch 1.0 -> 1.25, maxReachStretch 1.4 -> 1.9, handScale 1.45; Kabuto maxReach
+  1.3 -> 1.9. GVR_IK_TRACE logs the wrist's miss: 0.000 m for both with the hands pushed forward (they used to
+  stop short - the sword, which follows the controller, then floated ahead of her hand).
+- Kabuto carries (game_app_kbcarry.cpp): HoldTree / HoldVictim. A tree (destructible kind Tree, up to 1.5 x his
+  height) is uprooted - its object hidden, collision off, stage down - drawn along the controller's aim from the
+  hand; a fast trunk sweep (tip > 2 m/s real) clubs Reapers / creatures near the trunk segment (x4 damage, 0.5 s per
+  target); let go, it flies and tumbles and crashes (blast 0.18 H if fast). Smarties, Vimps and small creatures are
+  held (eat at the mouth, thrown = killed on landing, slow release = set down). The X-button grab and the Reaper
+  and boulder paths are unchanged. Harness: kabuto_tree -> uproot, throw (15 m/s), crash; kabuto_smartie_throw ->
+  pick up, throw, "lands and dies"; grab_eat / grab_throw / climb unchanged. Sweep 56/56 clean.
