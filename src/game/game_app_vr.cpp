@@ -209,6 +209,17 @@ void GameApp::renderMotes() {
     moteBatch_.draw(renderer_, dp);
 }
 
+void GameApp::updateCreatureFlashes(float dt) {
+    for (auto& c : chars_) c.flash = std::max(0.0f, c.flash - dt * 6.0f);
+    const auto& cs = creatures_.creatures;
+    if (creatureHp_.size() != cs.size()) creatureHp_.assign(cs.size(), -1.0f);
+    for (size_t i = 0; i < cs.size(); ++i) {
+        if (creatureHp_[i] >= 0 && cs[i].health < creatureHp_[i] - 0.01f && cs[i].slot >= 0 && size_t(cs[i].slot) < chars_.size())
+            chars_[size_t(cs[i].slot)].flash = 1.0f;
+        creatureHp_[i] = cs[i].health;
+    }
+}
+
 void GameApp::updateFlashes(float dt) {
     float best = 0;
     const Flash* pick = nullptr;

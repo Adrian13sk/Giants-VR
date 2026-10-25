@@ -418,6 +418,7 @@ private:
         bool ambient = true, visible = true;
         CreatureSize size = CreatureSize::Medium;
         int objective = -1;  // mission objective completed by this creature's death
+        float flash = 0;     // rework: just hit (the body flashes)
         int type = -1;       // object type (hidden while a cutscene shows its own copy)
         int rescue = -1;     // index in rescue_ (1b's stranded Smarties); clipIndex = SmartieClip
         bool pooled = false; // a nest's Ripper model, lent to a hatched Ripper while it lives
@@ -1362,6 +1363,8 @@ private:  // the mission placed enemies: no test waves
     QuadBatch moteBatch_;
     TextureId moteTex_ = 0;
     void updateMotes(float dt);
+    std::vector<float> creatureHp_;  // last frame's creature health (hit flashes)
+    void updateCreatureFlashes(float dt);
     void renderMotes();
     void renderObjectiveMarker();
     float playerHitTop() const;

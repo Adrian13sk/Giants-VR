@@ -770,6 +770,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateReaperGrenades(dt);
     updateAmbush(dt);
     updateMotes(dt);
+    updateCreatureFlashes(dt);
     updateCombat(dt);
     { GVR_PROF("audio"); updateAudio(dt); }
         updateFlashes(dt);
@@ -2327,7 +2328,7 @@ void GameApp::renderReflection() {
     for (const auto& c : chars_) {
         if (!c.visible || length(c.pos - eye) > (c.flyer ? 260.0f : 90.0f)) continue;
         if (cut && std::find(cutTypes.begin(), cutTypes.end(), c.type) != cutTypes.end()) continue;
-        c.model->render(renderer_, c.xf());
+        c.model->render(renderer_, c.xf(), Vec4{1.0f + 2.2f * c.flash, 1.0f + 0.9f * c.flash, 1.0f + 0.5f * c.flash, 1.0f});
     }
     for (const auto& e : enemies_.enemies)
         if (e.slot >= 0 && length(e.pos - eye) < 90.0f)
@@ -4212,7 +4213,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     for (const auto& c : chars_) {
         if (!c.visible || length(c.pos - v.eyePosition) > 160.0f) continue;
         if (cut && std::find(cutTypes.begin(), cutTypes.end(), c.type) != cutTypes.end()) continue;
-        c.model->render(renderer_, c.xf());
+        c.model->render(renderer_, c.xf(), Vec4{1.0f + 2.2f * c.flash, 1.0f + 0.9f * c.flash, 1.0f + 0.5f * c.flash, 1.0f});
     }
     renderBurrows(v.eyePosition);
     renderShop();
