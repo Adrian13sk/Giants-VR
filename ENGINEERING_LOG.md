@@ -1890,3 +1890,11 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   spot blocked, plan again). Walked to the portal and completed the objective: k1b (at the old limit),
   k2d_offspring, kstory4_3. kstory3_4: on the island, out of frames (30 000) before the portal. The walker
   is crude (many replans on rough ground), so "not arrived" is weak evidence; "arrived" is strong.
+- Found while comparing the beach in rstory2_battle_1 with GVR_UPSCALE=0: the rework's texture doubling
+  (upscaleSharpen) used Catmull-Rom weights one tap off for every other row and column, so magnified
+  textures (the ground above all) came out in jagged blocks - in every rework APK up to 68003c5, and very
+  likely part of "ugly". Fixed in 7400b54 with a unit test that fails on the old code. Also: shots shove
+  Reapers back, near misses make them flinch, a duplicate low-health heartbeat (the rework had added a
+  second one) removed, and the cutscene camera swing limited to shots within 60 m of their target
+  (intro_island_1's flyover had been swung down to the sea). The 17 cutscenes not seen at mission starts
+  were reviewed on contact sheets (GVR_CUTSCENE=<first shot>).
