@@ -954,6 +954,7 @@ private:  // the mission placed enemies: no test waves
     SkNetClient skClient_;
     int skNetWant_ = 0;            // the menu's choice: 0 computer players, 1 host, 2 join
     int titleSkGame_ = 0;          // the found game chosen to join
+    int titleSkAddr_ = 0;          // the host's address typed by hand: its last number (0: not set yet)
     bool titleJoining_ = false;
     int skLastHurtBy_ = -1;
     float skLastHurtAt_ = -1e9f;   // (game time: a fall long after a hit is nobody's kill)

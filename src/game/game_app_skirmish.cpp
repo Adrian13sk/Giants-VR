@@ -752,6 +752,12 @@ void GameApp::renderSkirmishHud() {
         std::snprintf(line, sizeof line, "\nYOU: %d KILLS %d DEATHS", me->kills, me->deaths);
         s += line;
         if (me->carrying >= 0) s += std::string("\nYOU HAVE THE ") + kTeamUpper[me->carrying % 3] + " FLAG - TAKE IT HOME!";
+        // The host's address, for a joiner whose headset doesn't see the game by itself (JOIN -> HOST'S ADDRESS).
+        if (skNet_ == SkNetMode::Host) {
+            const auto where = skHost_.addresses();
+            for (const auto& a : where)
+                if ((a.ip >> 24) != 127) { s += "\nHOSTING AT " + a.str().substr(0, a.str().find(':')); break; }
+        }
     }
     float w = 0, h = 0;
     if (const MeshId m = text_.mesh(s, 0.035f, 1.4f, &w, &h)) {

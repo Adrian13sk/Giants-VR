@@ -15,7 +15,13 @@
 namespace gvr {
 
 namespace {
-enum TitleRow { kTitleContinue, kTitleNewGame, kTitleMission, kTitleSkMode, kTitleSkirmish, kTitleSkTeam, kTitleOptions, kTitleRowCount };
+enum TitleRow { kTitleContinue, kTitleNewGame, kTitleMission, kTitleSkMode, kTitleSkirmish, kTitleSkTeam, kTitleSkAddr, kTitleOptions, kTitleRowCount };
+// This headset's own address on the Wi-Fi (the host's differs only in its last number, almost always).
+uint32_t ownLanAddress() {
+    for (const auto& a : UdpSocket::localAddresses())
+        if ((a.ip >> 24) != 127 && a.ip != 0) return a.ip;
+    return 0xC0A80100u;  // (192.168.1.x when there's no network: shown, can't work)
+}
 const char* const kSkModes[3] = {"WITH COMPUTER PLAYERS", "HOST A WI-FI GAME", "JOIN A WI-FI GAME"};
 // The original's multiplayer maps (w_M_*), played against computer players (game_app_skirmish.cpp).
 const char* const kSkMaps[12] = {"M_3WAY_L1", "M_3WAY_L2", "M_3WAY_L3", "M_3WAY_Lw1", "M_Mecc_L1", "M_Mecc_L2",
@@ -138,6 +144,7 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
     const int first = titleWorld_.empty() ? kTitleNewGame : kTitleContinue;
     if (dy != 0) {
         titleRow_ = std::max(first, std::min(int(kTitleRowCount) - 1, titleRow_ + dy));
+        if (titleRow_ == kTitleSkAddr && skNetWant_ != 2) titleRow_ = std::max(first, std::min(int(kTitleRowCount) - 1, titleRow_ + dy));  // (only when joining)
         haptics_.push_back({kRight, 0.2f, 0.02f});
         sfx2D("ph_selct", 0.4f);
         titleHold_ = 0;
@@ -203,6 +210,17 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
         sfx2D("ph_selct", 0.6f, 1.2f);
         titleHold_ = 0;
     }
+    if (dx != 0 && titleRow_ == kTitleSkAddr && skNetWant_ == 2) {
+        // The host's address by hand (the found games can be missing when the router keeps the
+        // headsets' broadcasts apart): its last number; the rest is this headset's own network.
+        if (titleSkAddr_ <= 0) {
+            titleSkAddr_ = int(ownLanAddress() & 0xFF);
+            if (!skClient_.games.empty()) titleSkAddr_ = int(skClient_.games.front().host.ip & 0xFF);
+        }
+        titleSkAddr_ = (titleSkAddr_ - 1 + dx + 254) % 254 + 1;
+        haptics_.push_back({kRight, 0.2f, 0.02f});
+        sfx2D("ph_selct", 0.5f, 1.3f);
+    }
     if (dx != 0 && titleRow_ == kTitleNewGame) {
         titleCampaign_ = (titleCampaign_ + dx + 3) % 3;
         haptics_.push_back({kRight, 0.3f, 0.03f});
@@ -230,6 +248,13 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
             if (titleRow_ == kTitleContinue && !titleWorld_.empty()) startFromTitle(titleWorld_, titleMission_, true, in);
             else if (titleRow_ == kTitleNewGame) startFromTitle(kStoryWorld[titleCampaign_], std::string(), false, in);
             else if (missionRow) startChosenMission(in);
+            else if (titleRow_ == kTitleSkAddr && skNetWant_ == 2 && !titleJoining_) {
+                if (titleSkAddr_ <= 0) titleSkAddr_ = int(ownLanAddress() & 0xFF);
+                const NetAddr host{(ownLanAddress() & 0xFFFFFF00u) | uint32_t(titleSkAddr_), kSkNetPort};
+                titleJoining_ = skClient_.join(host, "QUEST", titleSkTeam_);
+                LOGI("Main menu: joining %s by hand", host.str().c_str());
+                sfx2D("pu_hlth", 0.6f, 1.2f);
+            }
             else if ((titleRow_ == kTitleSkMode || titleRow_ == kTitleSkirmish || titleRow_ == kTitleSkTeam) && skNetWant_ == 2) {
                 // Join the chosen game (its welcome, in a moment, starts the load above).
                 if (!skClient_.games.empty() && !titleJoining_) {
@@ -317,10 +342,19 @@ void GameApp::renderTitle() {
         }
     }
     const std::string skt = "   YOUR TEAM:  < " + skTeamLabel(titleSkMap_, titleSkTeam_) + " >";
-    const std::string rows[kTitleRowCount] = {cont, ng, ms, mode, sk, skt, "OPTIONS"};
+    std::string addr;
+    if (skNetWant_ == 2) {
+        const uint32_t own = ownLanAddress();
+        const int last = titleSkAddr_ > 0 ? titleSkAddr_ : int(own & 0xFF);
+        char a[64];
+        std::snprintf(a, sizeof a, "   OR HOST'S ADDRESS:  %u.%u.%u.< %d >", own >> 24, (own >> 16) & 0xFF, (own >> 8) & 0xFF, last);
+        addr = a;
+    }
+    const std::string rows[kTitleRowCount] = {cont, ng, ms, mode, sk, skt, addr, "OPTIONS"};
     float tw, th;
-    for (int i = 0; i < kTitleRowCount; ++i) {
-        const float y = 0.5f * h - 0.08f - rowH * (0.5f + float(i));
+    for (int i = 0, vi = 0; i < kTitleRowCount; ++i) {
+        if (i == kTitleSkAddr && skNetWant_ != 2) continue;  // (a row only for joining)
+        const float y = 0.5f * h - 0.08f - rowH * (0.5f + float(vi++));
         const bool usable = (i != kTitleContinue || !titleWorld_.empty()) && (i != kTitleMission || !titleMissions_.empty());
         const bool sel = i == titleRow_;
         if (sel) text_.drawPanel(panel * Mat4::translation({0, y, 0.002f}), w - 0.06f, rowH * 0.9f, {0.25f, 0.55f, 0.25f, 0.6f});
