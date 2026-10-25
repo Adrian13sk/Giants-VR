@@ -1059,6 +1059,8 @@ private:  // the mission placed enemies: no test waves
     bool tornadoOwned() const;
     void initSpells();
     bool smartieInAim(const Vec3& from, const Vec3& dir, int& index) const;
+    uint32_t impaledUid_ = 0;  // rework: a Reaper hanging on Delphi's blade
+    float impaleAlong_ = 0, impaleT_ = 0;
     void castTornado(const Vec3& dir);
     void castFireWall(const Vec3& dir);
     void updateSpellGestures(float dt, const InputFrame& in, const Vec3& dir);

@@ -303,16 +303,73 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
                     Vec3 n;
                     int target = -1;
                     if (weapon_.raycast(sg[0], d, l, t, n, target) && target >= 0 && cooled(target)) {
-                        strike(target, sg[0] + d * t, normalize(tip - swordTipPrev_), std::min(2.5f, 0.6f + speed / 5.0f));
+                        const Vec3 at = sg[0] + d * t;
+                        const Vec3 mv = normalize(tip - swordTipPrev_);
+                        const Vec3 axis = normalize(tip - hilt);
+                        // Rework: a thrust (the blade driven along its own line) runs him through, a
+                        // hard slash takes him apart; the rest are cuts as before.
+                        const bool thrust = dot(mv, axis) > 0.7f && impaledUid_ == 0;
+                        const bool slash = !thrust && speed > 8.0f;
+                        const bool reaper = target < kCreatureTargetD;
+                        const uint32_t uid = reaper && size_t(target) < enemies_.enemies.size() ? enemies_.enemies[size_t(target)].uid : 0;
+                        strike(target, at, mv, std::min(2.5f, 0.6f + speed / 5.0f) * (thrust ? 4.0f : 1.0f));  // (a thrust is deadly)
+                        if (reaper && uid) {
+                            const int ei = enemyOfUid(uid);
+                            if (ei >= 0 && enemies_.enemies[size_t(ei)].state == EnemyState::Dead) {
+                                Enemy& e = enemies_.enemies[size_t(ei)];
+                                if (thrust) {
+                                    impaledUid_ = uid;
+                                    impaleAlong_ = std::max(0.25f * bladeLen, std::min(0.75f * bladeLen, dot(at - hilt, axis)));
+                                    impaleT_ = 0;
+                                    enemies_.setBodyClip(ei, EnemyClip::FallCycle, true);  // hanging on the blade, limp and swinging
+                                    sfx("ex_bdys1", at, 0.9f, 0.8f);
+                                    haptics_.push_back({gh, 1.0f, 0.2f});
+                                    LOGI("Delphi runs Reaper %u through", uid);
+                                } else if (slash && !e.gibbed) {
+                                    e.gibbed = true;
+                                    gibCorpse(e.pos, e.yaw, mv, true, 1.0f);
+                                    bleed(at, mv, true, 1.5f);
+                                    blood_.pool(e.pos, 1.2f);
+                                    LOGI("Delphi's slash cuts Reaper %u apart", uid);
+                                }
+                            }
+                        }
                         break;
                     }
                 }
+            }
+        }
+        // Rework: a Reaper run through hangs on the blade until it is yanked out (pulled back along
+        // the blade, or a hard flick) - then he slides off and drops.
+        if (impaledUid_) {
+            const int ei = enemyOfUid(impaledUid_);
+            impaleT_ += dt;
+            const Vec3 axis = normalize(tip - hilt);
+            const Vec3 tipVel = swordTipValid_ && dt > 0 ? (tip - swordTipPrev_) * (1.0f / dt) : Vec3{0, 0, 0};
+            const bool yank = dot(tipVel, axis) < -2.5f || length(tipVel) > 9.0f || impaleT_ > 8.0f;
+            if (ei < 0 || enemies_.enemies[size_t(ei)].gibbed) {
+                impaledUid_ = 0;
+            } else if (yank) {
+                Enemy& e = enemies_.enemies[size_t(ei)];
+                e.vel = tipVel * 0.5f;
+                enemies_.setBodyClip(ei, EnemyClip::FallLand, false);  // off the blade: he lies
+                impaledUid_ = 0;
+                sfx("ex_bdys1", e.pos + Vec3{0, 1, 0}, 0.7f, 1.2f);
+                LOGI("Delphi pulls the sword out of Reaper %u", e.uid);
+            } else {
+                Enemy& e = enemies_.enemies[size_t(ei)];
+                const Vec3 p = hilt + axis * impaleAlong_;
+                e.pos = p - Vec3{0, 0.55f, 0};  // (the flailing pose's middle on the blade)
+                e.vel = Vec3{0, 0, 0};
+                if (frand() < dt * 3.0f) bleed(p, Vec3{0, -1, 0}, false, 0.7f);  // dripping
+                if (frand() < dt * 4.0f) haptics_.push_back({gh, 0.3f, 0.04f});  // his weight
             }
         }
         swordTipPrev_ = tip;
         swordTipValid_ = true;
     } else {
         swordTipValid_ = false;
+        impaledUid_ = 0;
     }
     // Third person: the trigger swings - a three-swipe combo, the hit landing a third of the way in.
     const bool trig = in.hand[gh].trigger > 0.6f;

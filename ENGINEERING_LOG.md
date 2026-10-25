@@ -2054,3 +2054,14 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   vp_idle, drawn at each dead Vimp with SkinnedModel::renderGhost (additive, blue-white, no depth write), bobbing,
   fading in after 1 s and out over the last 4 s. Harness 2a_1: a blast kills one, its soul stands over the body.
   Unit test: reborn small, not huntable, grown, huntable. Sweep 56/56 clean.
+
+### 2026-10-25 — Rework: Delphi's sword runs enemies through
+- User: "Make Delphi's sword stick in enemies, perhaps dismemberment?" In the sword sweep hit (game_app_delphi.cpp) a
+  thrust is the tip moving along the blade axis (dot(dir, axis) > 0.7); a slash is anything else above 8 m/s.
+  A thrust does x4 damage (85 was not killing a Reaper). A thrust kill sets impaledUid_/impaleAlong_: each frame the body
+  is placed at hilt + axis*along (minus 0.55 m so the pose's middle sits on the blade), vel 0, FallCycle looping so he hangs
+  limp, blood drips, haptics. Yank (tip velocity along -axis < -2.5), |v| > 9 or 8 s releases him with half the tip
+  velocity and FallLand. A slash kill gibs the corpse (dismemberment burst) and bleeds. EnemyDirector::setBodyClip added.
+- First render had him lying at the bottom of the view (the death pose with a 1.1 m offset); with FallCycle and 0.55 m he
+  hangs on the blade. devtest delphi_impale (Rstory2 battle_1, one Reaper 1.9 m ahead, thrust, lift, yank): harness log
+  "Delphi runs Reaper 1 through" / "pulls the sword out". Tests pass; sweep 56/56 clean. HARNESS only.

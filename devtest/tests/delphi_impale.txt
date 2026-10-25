@@ -1,0 +1,14 @@
+# Rework (2026-10-25): Delphi thrusts her sword into a Reaper in front of her (a fast push along the
+# blade) - he hangs on it; lifted, then yanked back out (a fast pull back), he slides off and drops.
+name delphi_impale
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+duration 6
+aim 0 0
+reapers 1 1.9 0.3 99
+hand_r 0 0 -0.45 1.0 1.12
+hand_r 0 0.3 0 1.6 2.4
+hand_r 0 0 0.5 3.5 3.62

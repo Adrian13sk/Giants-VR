@@ -157,6 +157,8 @@ public:
     }
     // A one-shot action clip that holds until it ends (rework: the grenade throw).
     void playAction(int i, EnemyClip c);
+    // Any clip on a body (rework: a Reaper hanging on Delphi's blade flails, then lies again).
+    void setBodyClip(int i, EnemyClip c, bool loop) { if (i >= 0 && size_t(i) < enemies.size()) { enemies[size_t(i)].actT = 0; setClip(enemies[size_t(i)], c, loop); } }
 
 private:
     void setClip(Enemy& e, EnemyClip c, bool loop);
