@@ -1,0 +1,1 @@
+Kabuto climbs a steep bank hand over hand (first person)|Kstory3|kstory3_4|0|1000|--script scripts/video3/climb.txt
