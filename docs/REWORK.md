@@ -46,8 +46,8 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Delphi | Throw your fire bolt: let go of the trigger in a throwing motion and the bolt flies along your throw, faster (40 m/s instead of 28), with a kick in the hand. A still tap fires along your aim as before. | HARNESS |
 | Effects | Shots striking scenery throw a soft glow and quick sparks (the old flash sprite was blocky up close). | HARNESS |
 | Cutscenes | Two shots that stayed black for 10 s (Delphi's jetski arrival at the volcano, the Story 3 prison lift) now show. Shot cameras looking steeply down or up at their actors swing round them to a comfortable angle (your view never tilts by itself). All 30 opening cutscenes and the 17 other cutscenes reviewed on contact sheets (a flyover's far look-at point is left alone). | HARNESS |
-| Kabuto | Story check: every gate objective of his campaign breaks with its own mechanic (punches; adrenaline - both grips; the magnifying glass), and the other Kabuto in kstory5_4 falls to punches. Not yet checked: walking to the portals. | HARNESS |
-| Kabuto | Climbs like a giant: slopes up to 68 degrees (a man's limit is 50), judged over his stride, so banks and ledges small beside him are steps. kstory3_4's portal stands on an island ringed by cliffs that he could never climb before. | HARNESS |
+| Kabuto | Story check: every gate objective of his campaign breaks with its own mechanic (punches; adrenaline - both grips; the magnifying glass), and the other Kabuto in kstory5_4 falls to punches. Portals: see the climbing line below. | HARNESS |
+| Kabuto | Climbs like a giant: slopes up to 68 degrees (a man's limit is 50), judged over his stride, so banks and ledges small beside him are steps. The test walker reached the portals of k1b, k2d and kstory4_3. kstory3_4's portal is on a plateau 109 m up, ringed by 67-80 degree faces: it may still be out of reach - please try it. | HARNESS |
 | Guidance | One-time hints the first time Kabuto has something grabbable at his feet and the first time a bolt flies close by Delphi with her sword out. | HARNESS |
 
 Harness regression: all 56 missions exit 0 with no errors (latest run after the grass).
