@@ -87,17 +87,20 @@ void GameApp::updateGrass() {
     }
     if (!grassOn_ || hero_ == Hero::Kabuto || !assetWorld_) return;
     const Vec3 c = player_.position;
-    if (length(Vec3{c.x - grassCentre_.x, 0, c.z - grassCentre_.z}) < 2.0f) return;
+    // The adaptive quality fallback's first step (level 1) keeps a smaller patch (42 % of the cards).
+    const float radius = kRadius * (quality_ >= 1 ? 0.65f : 1.0f);
+    if (length(Vec3{c.x - grassCentre_.x, 0, c.z - grassCentre_.z}) < 2.0f && radius == grassRadius_) return;
+    grassRadius_ = radius;
     grassCentre_ = c;
     grassBatch_.clear();
     const Terrain& terr = assetWorld_->terrain();
-    const int r = int(kRadius / kCell);
+    const int r = int(radius / kCell);
     const int cx = int(std::floor(c.x / kCell)), cz = int(std::floor(c.z / kCell));
     for (int dz = -r; dz <= r; ++dz)
         for (int dx = -r; dx <= r; ++dx) {
             if (grassBatch_.count() + 2 > kMaxQuads) break;
             const float dd = std::sqrt(float(dx * dx + dz * dz)) * kCell;
-            if (dd > kRadius) continue;
+            if (dd > radius) continue;
             const uint32_t h = hash2(cx + dx, cz + dz);
             if (h01(h, 0) > 0.8f) continue;  // density
             const float x = (float(cx + dx) + h01(h, 1)) * kCell, z = (float(cz + dz) + h01(h, 2)) * kCell;
@@ -107,7 +110,7 @@ void GameApp::updateGrass() {
             const float slope = std::sqrt((yx - y) * (yx - y) + (yz - y) * (yz - y)) / 0.5f;
             if (slope > 0.55f) continue;  // cliffs and steep banks: rock
             // Smaller toward the edge of the patch (no hard line where it ends).
-            const float edge = 1.0f - std::max(0.0f, (dd - kRadius * 0.7f) / (kRadius * 0.3f));
+            const float edge = 1.0f - std::max(0.0f, (dd - radius * 0.7f) / (radius * 0.3f));
             const float size = (0.22f + 0.36f * h01(h, 3) * h01(h, 3)) * (0.4f + 0.6f * edge);
             const float a = h01(h, 4) * 3.14159f;
             const Vec3 base{x, y - 0.03f, z};

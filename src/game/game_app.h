@@ -1420,6 +1420,7 @@ private:  // the mission placed enemies: no test waves
     void updateGrass();
     void renderGrass();
     bool grassOn_ = false;
+    float grassRadius_ = 0;
     const AssetWorld* grassWorld_ = nullptr;
     Vec3 grassCentre_{1e9f, 0, 1e9f}, grassColor_{0.3f, 0.4f, 0.2f};
     TextureId grassTex_ = 0;
