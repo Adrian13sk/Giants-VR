@@ -1806,6 +1806,29 @@ static void testSkNet() {
 
 // Texture upscaling (rework): a smooth ramp stays a smooth, monotonic ramp at twice the size (a tap
 // offset bug once made every other column come from the wrong place - blocky ground).
+// Binaural cues (rework): a click to the listener's right reaches the right ear first and louder.
+static void testBinaural() {
+    AudioMixer m(48000);
+    WavData w;
+    w.rate = 48000;
+    w.channels = 1;
+    w.mono.assign(2000, 0.0f);
+    w.mono[100] = 1.0f;  // a click
+    CHECK(m.addSound("click", std::move(w)));
+    m.setListener({0, 0, 0}, Quat{0, 0, 0, 1});
+    m.play("click", {5, 0, 0}, 1.0f, 1.0f, false, true);
+    std::vector<float> out(2 * 512);
+    m.mix(out.data(), 512);
+    int peakL = 0, peakR = 0;
+    float maxL = 0, maxR = 0;
+    for (int i = 0; i < 512; ++i) {
+        if (std::fabs(out[2 * i]) > maxL) { maxL = std::fabs(out[2 * i]); peakL = i; }
+        if (std::fabs(out[2 * i + 1]) > maxR) { maxR = std::fabs(out[2 * i + 1]); peakR = i; }
+    }
+    CHECK(maxR > maxL);
+    CHECK(peakL > peakR + 10);  // ~0.5 ms later in the far ear (24+ samples at 48 kHz)
+}
+
 static void testUpscale() {
     Image img;
     img.width = img.height = 16;
@@ -1833,6 +1856,7 @@ static void testUpscale() {
 
 int main() {
     testUpscale();
+    testBinaural();
     testSkirmish();
     testSkNav();
     testSkNet();

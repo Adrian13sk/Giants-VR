@@ -77,7 +77,7 @@ uint32_t AudioMixer::play(const std::string& name, const Vec3& pos, float volume
         if (old == voices_.end()) return 0;
         voices_.erase(old);
     }
-    Voice v{nextId_++, &it->second, 0.0, volume, std::max(0.05f, pitch), loop, positional, pos, 0, 0, false};
+    Voice v{nextId_++, &it->second, 0.0, volume, std::max(0.05f, pitch), loop, positional, pos, 0, 0, false, 0, 0, 1, 1, 0, 0};
     voices_.push_back(v);
     return v.id;
 }
@@ -142,10 +142,33 @@ void AudioMixer::targetGains(const Voice& v, float& l, float& r) const {
         pan = std::max(-1.0f, std::min(1.0f, local.x));
         behind = std::max(0.0f, local.z);  // +Z = behind the listener
     }
-    g *= 1.0f - 0.25f * behind;  // sounds behind are a little duller/quieter
+    g *= 1.0f - 0.15f * behind;  // sounds behind are a little quieter (and duller: targetCues)
+    pan *= 0.8f;  // (the delay and head shadow carry part of the direction now)
     const float a = (pan + 1.0f) * 0.25f * kPi;  // equal-power
     l = g * std::cos(a);
     r = g * std::sin(a);
+}
+
+void AudioMixer::targetCues(const Voice& v, float& delayL, float& delayR, float& lpaL, float& lpaR) const {
+    delayL = delayR = 0;
+    lpaL = lpaR = 1.0f;
+    if (!v.positional) return;
+    const Vec3 d = v.pos - listenerPos_;
+    const float dist = length(d);
+    if (dist < 1e-3f) return;
+    const Vec3 local = listenerRot_.conjugate().rotate(d * (1.0f / dist));
+    const float side = std::max(-1.0f, std::min(1.0f, local.x)), behind = std::max(0.0f, local.z);
+    // Interaural time difference: up to ~0.65 ms to the far ear (Woodworth's head, simplified).
+    const float itd = 0.00065f * side;
+    if (itd > 0) delayL = itd; else delayR = -itd;
+    // Head shadow: the far ear rolls off from ~16 kHz (ahead) to ~3 kHz (fully to the side); behind,
+    // both ears lose some top (~7 kHz).
+    auto coef = [&](float fc) { return 1.0f - std::exp(-6.2831853f * fc / float(outRate_)); };
+    const float farFc = 16000.0f - 13000.0f * std::fabs(side);
+    const float backFc = 16000.0f - 9000.0f * behind;
+    const float nearFc = backFc, farEarFc = std::min(farFc, backFc);
+    if (side > 0) { lpaL = coef(farEarFc); lpaR = coef(nearFc); }
+    else { lpaR = coef(farEarFc); lpaL = coef(nearFc); }
 }
 
 void AudioMixer::queueMusic(std::vector<float>&& stereo, uint32_t rate) {
@@ -206,7 +229,11 @@ void AudioMixer::mix(float* out, uint32_t frames) {
         const double step = double(s.rate) / double(outRate_) * double(v.pitch);
         float tl, tr;
         targetGains(v, tl, tr);
-        if (!v.started) { v.gainL = tl; v.gainR = tr; v.started = true; }
+        float dL, dR, aL, aR;
+        targetCues(v, dL, dR, aL, aR);
+        if (!v.started) { v.gainL = tl; v.gainR = tr; v.delayL = dL; v.delayR = dR; v.started = true; }
+        v.lpaL = aL;
+        v.lpaR = aR;
         // Linear gain ramp over the block (no zipper noise when sources move).
         const float dl = (tl - v.gainL) / float(frames), dr = (tr - v.gainR) / float(frames);
         const size_t len = s.data.size();
@@ -217,16 +244,30 @@ void AudioMixer::mix(float* out, uint32_t frames) {
                 v.cursor = std::fmod(v.cursor, double(len - 1));
                 i0 = size_t(v.cursor);
             }
-            const float f = float(v.cursor - double(i0));
-            const float smp = s.data[i0] + (s.data[i0 + 1] - s.data[i0]) * f;
+            // Each ear reads the source a little earlier by its delay (the far ear hears it later).
+            auto at = [&](double c) {
+                if (c < 0 && v.loop) c += double(len - 1);  // (a loop: the delayed ear reads the end of the previous lap)
+                if (c <= 0) return s.data[0] * float(std::max(0.0, 1.0 + c));  // (fades in from silence)
+                const size_t j = size_t(c);
+                if (j + 1 >= len) return 0.0f;
+                const float fr = float(c - double(j));
+                return s.data[j] + (s.data[j + 1] - s.data[j]) * fr;
+            };
+            const double srcPerSec = double(s.rate) * double(v.pitch);
+            const float sl = at(v.cursor - double(v.delayL) * srcPerSec), sr = at(v.cursor - double(v.delayR) * srcPerSec);
+            v.lpL += v.lpaL * (sl - v.lpL);
+            v.lpR += v.lpaR * (sr - v.lpR);
             v.gainL += dl;
             v.gainR += dr;
-            out[2 * i] += smp * v.gainL;
-            out[2 * i + 1] += smp * v.gainR;
+            out[2 * i] += v.lpL * v.gainL;
+            out[2 * i + 1] += v.lpR * v.gainR;
             v.cursor += step;
         }
         v.gainL = tl;
         v.gainR = tr;
+        // The delays glide to their targets block by block (no clicks as a source swings round).
+        v.delayL += (dL - v.delayL) * 0.5f;
+        v.delayR += (dR - v.delayR) * 0.5f;
     }
     voices_.erase(std::remove_if(voices_.begin(), voices_.end(),
                                  [](const Voice& v) { return !v.loop && v.cursor + 1.0 >= double(v.sound->data.size()); }),

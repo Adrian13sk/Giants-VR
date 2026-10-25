@@ -73,8 +73,13 @@ private:
         Vec3 pos;
         float gainL, gainR;  // smoothed toward the target to avoid zipper noise
         bool started;
+        // Rework (binaural cues): the far ear hears it a little later and duller (head shadow);
+        // behind, both ears duller. delay: seconds per ear; lp*: one-pole low-pass coefficient and state.
+        float delayL = 0, delayR = 0, lpaL = 1, lpaR = 1, lpL = 0, lpR = 0;
     };
     void targetGains(const Voice& v, float& l, float& r) const;
+    // The binaural cues for a positional voice: interaural delay and low-pass per ear.
+    void targetCues(const Voice& v, float& delayL, float& delayR, float& lpaL, float& lpaR) const;
     mutable std::mutex mu_;
     uint32_t outRate_;
     std::unordered_map<std::string, Sound> sounds_;
