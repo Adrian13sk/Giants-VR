@@ -57,6 +57,8 @@ public:
     void update(float dt, const Vec3& player, const std::vector<Vec3>& threats, const std::vector<Vec3>& scares);
     // The player waved at them: the calm ones within `radius` wave back (rework). Returns how many.
     int waveBack(const Vec3& player, float radius);
+    // The danger has passed: the calm ones celebrate (sm_celebrate). Returns how many.
+    int cheer();
     // Pick a random action (exposed for tests).
     void startIdle(Villager& v);
 

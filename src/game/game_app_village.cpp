@@ -1,6 +1,8 @@
 // GameApp: Smartie villagers (VillagerDirector + the original Smartie model and sm_* clips).
 #include "game/game_app.h"
 
+#include <cstdio>
+
 #include <algorithm>
 #include <cmath>
 
@@ -116,6 +118,29 @@ void GameApp::updateVillagers(float dt) {
         villagerShots_ = weapon_.shotsFired();
         scares.push_back(player_.position);
     }
+    // Rework: when the last Reaper or Ripper near the village falls, the Smarties cheer (not for Kabuto).
+    bool threatNear = false;
+    for (const auto& t : threats)
+        for (const auto& v : villagers_.villagers)
+            if (!threatNear && length(Vec3{t.x - v.pos.x, 0, t.z - v.pos.z}) < 45.0f) threatNear = true;
+    if (villageThreatWas_ && !threatNear && threats.size() < villageThreats_ && hero_ != Hero::Kabuto && !dying_) {
+        const int n = villagers_.cheer();
+        if (n > 0) {
+            LOGI("The danger is over: %d Smarties cheer", n);
+            float best = 1e9f;
+            Vec3 at = player_.position;
+            for (const auto& v : villagers_.villagers)
+                if (length(v.pos - player_.position) < best) { best = length(v.pos - player_.position); at = v.pos; }
+            if (best < 60.0f) {  // the nearest calls out
+                static const int voices[] = {1, 2, 3, 4, 13, 14};
+                char nm[16];
+                std::snprintf(nm, sizeof nm, "gsm%02d_%d", voices[int(frand() * 5.99f)], frand() < 0.5f ? 1 : 2);
+                sfx(nm, at + Vec3{0, 0.8f, 0}, 1.0f, 1.05f + 0.1f * frand());
+            }
+        }
+    }
+    villageThreatWas_ = threatNear;
+    villageThreats_ = threats.size();
     villagers_.update(dt, player_.position, threats, scares);
     for (const auto& v : villagers_.villagers) {
         if (v.slot < 0) continue;

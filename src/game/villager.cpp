@@ -163,4 +163,19 @@ int VillagerDirector::waveBack(const Vec3& player, float radius) {
     return n;
 }
 
+int VillagerDirector::cheer() {
+    int n = 0;
+    for (auto& v : villagers) {
+        if (v.state == VillagerState::Flee) continue;
+        v.state = VillagerState::Act;
+        v.stateTime = 0;
+        v.duration = 3.5f;
+        v.calm = params.calmAfter + 1.0f;
+        v.waveCooldown = std::max(v.waveCooldown, 5.0f);
+        setClip(v, VillagerClip::Celebrate);
+        ++n;
+    }
+    return n;
+}
+
 }  // namespace gvr

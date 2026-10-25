@@ -1980,3 +1980,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   clip rpman_Hover), then Advance; one killed in the air falls with gravity. Flame/smoke puffs and a jet sound
   under each. Harness: 2a_1 -> "Ambush: 3 Reapers dropping from the sky", landed and firing 11-16 m away by 9 s.
   Sweep 56/56 clean.
+- Villagers cheer: updateVillagers notes whether a living threat (Reaper, Ripper) is within 45 m of any villager;
+  when that goes from yes to no and the number of living threats fell (one died - not one walking off),
+  VillagerDirector::cheer() puts the calm ones into sm_celebrate for 3.5 s and the nearest calls out. Harness: 5a
+  village 0, two Reapers spawned and blasted -> "The danger is over: 6 Smarties cheer". Sweep 56/56 clean.
