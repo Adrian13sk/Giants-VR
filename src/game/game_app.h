@@ -1402,6 +1402,11 @@ private:  // the mission placed enemies: no test waves
     void updateNearMisses(float dt);
     void updateHandTouch(float dt);
     void drawPanelEdge(const Mat4& xf, float w, float h);
+    // Climbing (game_app_climb.cpp).
+    void updateClimb(float dt, const InputFrame& in);
+    bool climbGripWas_[2] = {false, false}, climbHold_[2] = {false, false};
+    Vec3 climbAnchor_[2];
+    float climbT_ = 0;
     bool touch_[2] = {false, false};
     float touchT_[2] = {0, 0};
     QuadBatch fireBatch_;

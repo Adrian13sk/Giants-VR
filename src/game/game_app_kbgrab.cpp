@@ -41,7 +41,7 @@ void GameApp::updateKabutoHandGrab(const InputFrame& in) {
         kbGripWas_[h] = g;
         static const bool trace = std::getenv("GVR_GRAB_TRACE") != nullptr;
         if (trace && edge) LOGI("grab trace: hand %d fp %d play %d valid %d hold %d eatT %.2f", h, firstPerson_, playMode_, c.gripPoseValid, kbHold_, kb_.eatT);
-        if (!edge || !firstPerson_ || !playMode_ || dying_ || !c.gripPoseValid || kbHold_ != HoldNone || kb_.eatT >= 0) continue;
+        if (!edge || !firstPerson_ || !playMode_ || dying_ || !c.gripPoseValid || kbHold_ != HoldNone || kb_.eatT >= 0 || climbHold_[h]) continue;
         const Pose gp = rig_.toWorld(c.gripPose);
         const Vec3 hand = gp.position + gp.orientation.rotate(Vec3{0, 0.02f * H, -0.09f * H});
         const float gy = player_.groundHeight ? player_.groundHeight(hand.x, hand.z) : player_.position.y;

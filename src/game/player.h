@@ -99,6 +99,8 @@ public:
     float yaw = 0;     // body facing (radians, 0 = -Z, the original models' forward)
     Vec3 velocity;
     bool onGround = true;
+    // Climbing (rework): the game moves `position` by the climbing hands; no gravity, no stick motion.
+    bool climbing = false;
 
     void teleport(const Vec3& p, float facingYaw);
     void update(float dt, const PlayerInput& in);

@@ -27,6 +27,7 @@ void PlayerController::teleport(const Vec3& p, float facingYaw) {
     if (groundHeight) position.y = groundHeight(p.x, p.z);
     yaw = facingYaw;
     velocity = {0, 0, 0};
+    climbing = false;
     onGround = true;
     fuel_ = params.fuelSeconds;
     overheated_ = false;
@@ -56,6 +57,18 @@ void PlayerController::setAnim(PlayerAnim a) {
 
 void PlayerController::update(float dt, const PlayerInput& in) {
     if (dt <= 0) return;
+    if (climbing) {
+        // Hanging on by the hands: no gravity or walking; kept out of scenery and above the ground.
+        velocity = Vec3{0, 0, 0};
+        sliding_ = slideCarry_ = false;
+        swimming_ = false;
+        if (collision) collision->pushOut(position, radius, height, stepUp);
+        if (groundHeight) position.y = std::max(position.y, groundHeight(position.x, position.z));
+        onGround = false;
+        airborne_ = 0;
+        animTime_ += dt;
+        return;
+    }
     // --- Horizontal: stick relative to where the viewer looks; instant response (VR comfort).
     float sx = deadzone(in.move.x, params.deadzone), sy = deadzone(in.move.y, params.deadzone);
     const float mag = std::min(1.0f, std::sqrt(sx * sx + sy * sy));

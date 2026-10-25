@@ -185,7 +185,7 @@ void GameApp::updateKabutoPowers(float dt, const InputFrame& in) {
         if (kbAdrenT_ <= 0) { kbAdrenT_ = -1; kbAdren_ = 0; LOGI("Kabuto's adrenaline wears off"); }
     } else {
         if (kbGrow_ >= 0.999f) kbAdren_ = std::min(1.0f, kbAdren_ + dt / 60.0f);
-        const bool both = in.hand[0].squeeze > 0.8f && in.hand[1].squeeze > 0.8f;
+        const bool both = in.hand[0].squeeze > 0.8f && in.hand[1].squeeze > 0.8f && !player_.climbing;  // (not two climbing hands)
         if (both && !kbGripsWas_ && kbAdren_ >= 1.0f) {
             if (kbGrow_ >= 0.999f) {
                 kbAdrenT_ = kAdrenTime;

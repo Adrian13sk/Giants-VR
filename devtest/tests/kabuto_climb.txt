@@ -1,0 +1,28 @@
+# Rework (2026-10-25): Kabuto climbs - the right hand grips a steep bank in front, pulls down, lets go, reaches
+# up again (5 times). Harness: he rises ~6 m a pull (one hand: he slips back a little between holds).
+name kabuto_climb
+world Kstory3
+mission kstory3_4
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+at 630 1310
+look 700 1380
+duration 12
+hand_r 0 -0.4 -0.3 0.2 0.6
+hold grip_r 0.8 2.0
+hand_r 0 -0.5 0.3 1.0 1.8
+hand_r 0 0.5 -0.3 2.1 2.5
+hold grip_r 2.7 3.9
+hand_r 0 -0.5 0.3 2.9 3.7
+hand_r 0 0.5 -0.3 4.0 4.4
+hold grip_r 4.6 5.8
+hand_r 0 -0.5 0.3 4.8 5.6
+hand_r 0 0.5 -0.3 5.9 6.3
+hold grip_r 6.5 7.7
+hand_r 0 -0.5 0.3 6.7 7.5
+hand_r 0 0.5 -0.3 7.8 8.2
+hold grip_r 8.4 9.6
+hand_r 0 -0.5 0.3 8.6 9.4
+hand_r 0 0.5 -0.3 9.7 10.1
+shot 6 climbing
