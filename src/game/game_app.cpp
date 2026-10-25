@@ -1655,7 +1655,11 @@ void GameApp::renderGore() {
 
 void GameApp::updateCharacters(float dt) {
     GVR_PROF("chars (all)");
-    { GVR_PROF("creatures ai"); creatures_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, creatureEvents_); }
+    {
+        GVR_PROF("creatures ai");
+        static const bool passive = std::getenv("GVR_PASSIVE_CREATURES") != nullptr;  // test hook: Rippers ignore the player
+        creatures_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_ && !passive, creatureEvents_);
+    }
     for (const auto& e : creatureEvents_) {
         creatureSound(e);
         burrowEvent(e);

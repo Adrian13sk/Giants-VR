@@ -131,6 +131,10 @@ void AutoTest::beginFrame(GameApp& game, XrApp& xr, XrFrameContext& frame, doubl
     xr.overrideEyePoses(frame, eyes);
     for (const auto* b : script_.blastsIn(prevT_, t_))
         for (int k = 0; k < b->n; ++k) game.debugBlast(b->x, b->y, b->h);
+    for (const auto* e : script_.reapersIn(prevT_, t_)) {
+        if (e->kill) game.debugBlastReapers();
+        else game.debugReapersAhead(e->n, e->dist);
+    }
     for (const auto* s : script_.shotsIn(prevT_, t_)) pendingShots_.push_back(s->label);
 }
 

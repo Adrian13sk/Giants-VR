@@ -1449,6 +1449,14 @@ static void testTestScript() {
     ts.inputAt(9.0f, in);  // and it stays there
     CHECK(std::fabs(in.hand[kRight].gripPose.position.z - (-1.35f)) < 1e-4f);
     CHECK(ts.blastsIn(4.9f, 5.0f).size() == 1 && ts.blastsIn(5.0f, 5.1f).empty());
+    {
+        TestScript r;
+        std::string e2;
+        CHECK(r.parse("reapers 6 8 2 5\n", e2));
+        CHECK(r.reapersIn(1.9f, 2.0f).size() == 1 && !r.reapersIn(1.9f, 2.0f)[0]->kill && r.reapersIn(1.9f, 2.0f)[0]->n == 6);
+        CHECK(r.reapersIn(4.9f, 5.0f).size() == 1 && r.reapersIn(4.9f, 5.0f)[0]->kill);
+        CHECK(!r.parse("reapers 6 8 5 2\n", e2));  // killed before they come
+    }
     CHECK(ts.shotsIn(5.99f, 6.01f).size() == 1);
     const Pose l = ts.eyePose(0), r = ts.eyePose(1);
     CHECK(std::fabs(length(r.position - l.position) - 0.064f) < 1e-4f);

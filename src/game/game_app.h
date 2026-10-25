@@ -160,6 +160,11 @@ public:
     int debugSpawnReaperAt(const Vec3& at) { return enemies_.spawn(at, 0.0f); }
     // Test hook: a rocket blast at game (x, y), `height` metres above the ground.
     void debugBlast(float gx, float gy, float height);
+    // Test scripts ("reapers"): n Reapers in a row (1 m apart) dist m in front of the player, facing him; then a
+    // rocket blast on each of them.
+    void debugReapersAhead(int n, float dist);
+    void debugBlastReapers();
+    std::vector<int> debugReapers_;
     size_t destroyedCount() const { size_t n = 0; for (const auto& d : destruct_.items) n += !d.alive(); return n; }
     void debugKillPlayer(int cause) { damagePlayer(500.0f, DeathCause(cause)); }
     // Test hook: hurt the player by `amount`, the hit coming from `fromYawDeg` (0 = ahead, 90 = right).

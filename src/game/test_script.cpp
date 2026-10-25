@@ -62,6 +62,16 @@ bool TestScript::parse(const std::string& text, std::string& error) {
             Blast b;
             ok = bool(ss >> b.x >> b.y >> b.h >> b.n >> b.t);
             if (ok) blasts.push_back(b);
+        } else if (cmd == "reapers") {
+            ReaperEvent e;
+            float tk = 0;
+            ok = bool(ss >> e.n >> e.dist >> e.t >> tk) && e.n > 0 && e.n <= 12 && tk > e.t;
+            if (ok) {
+                reaperEvents.push_back(e);
+                e.t = tk;
+                e.kill = true;
+                reaperEvents.push_back(e);
+            }
         } else if (cmd == "shot") {
             Shot s;
             ok = bool(ss >> s.t >> s.label);
@@ -135,6 +145,13 @@ std::vector<const TestScript::Blast*> TestScript::blastsIn(float t0, float t1) c
     std::vector<const Blast*> r;
     for (const auto& b : blasts)
         if (b.t > t0 && b.t <= t1) r.push_back(&b);
+    return r;
+}
+
+std::vector<const TestScript::ReaperEvent*> TestScript::reapersIn(float t0, float t1) const {
+    std::vector<const ReaperEvent*> r;
+    for (const auto& e : reaperEvents)
+        if (e.t > t0 && e.t <= t1) r.push_back(&e);
     return r;
 }
 

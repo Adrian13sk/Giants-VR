@@ -20,6 +20,8 @@
 //   hand_r|hand_l <dx> <dy> <dz> <t0> <t1>   move that controller (tracking metres) over [t0, t1]
 //   aim <yawDeg> <pitchDeg>          right controller direction (default 0, -17.2)
 //   blast <gx> <gy> <h> <n> <t>      n rocket blasts at a point (as --blast-at)
+//   reapers <n> <dist> <t> <tkill>   n Reapers in a row <dist> m in front of the player at t (facing
+//                                    him), each blown up by a rocket blast at tkill (their drops, deaths)
 //   shot <t> <label>                 left-eye screenshot at t
 //   briefing                         reload the mission through the loading screen + briefing first
 #pragma once
@@ -54,6 +56,9 @@ public:
     std::vector<Span> spans;
     struct Blast { float x = 0, y = 0, h = 1; int n = 1; float t = 0; };
     std::vector<Blast> blasts;
+    struct ReaperEvent { float t = 0; int n = 0; float dist = 0; bool kill = false; };
+    std::vector<ReaperEvent> reaperEvents;
+    std::vector<const ReaperEvent*> reapersIn(float t0, float t1) const;
     struct Shot { float t = 0; std::string label; };
     std::vector<Shot> shots;
 

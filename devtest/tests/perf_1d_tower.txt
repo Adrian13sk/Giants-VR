@@ -1,9 +1,11 @@
-# Frame rate while a guard tower collapses (12 rocket blasts at its base at 8 s).
+# Frame rate while a guard tower collapses (12 rocket blasts at its base at 8 s). The Rippers leave the
+# player alone (GVR_PASSIVE_CREATURES): two at arm's length had cost ~6 ms of GPU and hidden the tower.
 name perf_1d_tower
 world Story1
 mission 1d_1_sneakpast
 env GVR_CUTSCENE none
 env GVR_GOD 1
+env GVR_PASSIVE_CREATURES 1
 view first
 at 3767 250
 look 3767 -18

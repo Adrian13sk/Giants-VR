@@ -1,0 +1,18 @@
+# Reapers dropping ammo: six Reapers 8 m ahead, blown up at 5 s (drop rate forced to 100 % of those that
+# leave no injection), then walk over the drops. Pass: "A Reaper dropped ammo" and "Picked up" in the log.
+name reaper_ammo
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_ARSENAL half
+env GVR_AMMO_DROP 1
+view first
+duration 20
+perf 2 20
+pitch -20
+reapers 6 8 2 5
+shot 4 reapers
+shot 7.5 drops
+move 0 1 9 17
+shot 13 walking

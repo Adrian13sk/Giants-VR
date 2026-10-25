@@ -270,6 +270,10 @@ int main(int argc, char** argv) {
             in.head = head;  // (the harness's own head pose: --look-at already turned the rig)
             for (const auto* b : script.blastsIn(tp, t))
                 for (int k = 0; k < b->n; ++k) app.debugBlast(b->x, b->y, b->h);
+            for (const auto* e : script.reapersIn(tp, t)) {
+                if (e->kill) app.debugBlastReapers();
+                else app.debugReapersAhead(e->n, e->dist);
+            }
             for (const auto* s : script.shotsIn(tp, t)) LOGI("script: shot '%s' at %.1f s (device only)", s->label.c_str(), s->t);
         }
         if (f == killPlayerAt) app.debugKillPlayer(killCause);

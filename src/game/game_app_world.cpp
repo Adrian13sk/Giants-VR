@@ -341,6 +341,30 @@ void GameApp::debugBlast(float gx, float gy, float height) {
     explode(at, 4.0f, 120.0f);
 }
 
+void GameApp::debugReapersAhead(int n, float dist) {
+    if (enemyPool_.empty() || !assetWorld_) return;
+    const Vec3 f = Quat::fromAxisAngle({0, 1, 0}, player_.yaw).rotate(Vec3{0, 0, -1});
+    const Vec3 side{-f.z, 0, f.x};
+    for (int k = 0; k < n; ++k) {
+        Vec3 p = player_.position + f * dist + side * ((float(k) - 0.5f * float(n - 1)) * 1.0f);
+        float h;
+        if (assetWorld_->terrain().heightAt(p.x, p.z, h)) p.y = h;
+        debugReapers_.push_back(enemies_.spawn(p, player_.yaw + kPi));
+    }
+    LOGI("test: %d Reapers %.0f m ahead", n, dist);
+}
+
+void GameApp::debugBlastReapers() {
+    int n = 0;
+    for (int i : debugReapers_)
+        if (i >= 0 && size_t(i) < enemies_.enemies.size() && enemies_.enemies[size_t(i)].state != EnemyState::Dead) {
+            explode(enemies_.enemies[size_t(i)].pos + Vec3{0, 0.5f, 0}, 4.0f, 120.0f);
+            ++n;
+        }
+    debugReapers_.clear();
+    LOGI("test: blasts on %d Reapers", n);
+}
+
 // ---------------------------------------------------------------------------------------------
 // Effects
 
