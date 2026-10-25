@@ -674,7 +674,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.move = in.hand[mh].thumbstick;
     pi.viewYaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : camYaw_;
     pi.jet = in.hand[th].primary;              // A
-    pi.sprint = in.hand[mh].squeeze > 0.5f;    // move-hand grip
+    pi.sprint = in.hand[mh].squeeze > 0.5f && !twoHand_;    // move-hand grip (not while it steadies a gun)
     if (hero_ == Hero::Delphi && delphiBow() && firstPerson_ && (bowDrawing_ || (in.hand[mh].gripPoseValid &&
         length(rig_.toWorld(in.hand[mh].gripPose).position - bowNockRest_) < 0.3f)))
         pi.sprint = false;  // that grip is drawing her bowstring, not running
@@ -3595,8 +3595,34 @@ void GameApp::updateThirdPersonAim(const InputFrame& in, float dt) {
     tpAiming_ = tpAimHold_ > 0.0f;
 }
 
+void GameApp::gunKick(float strength) { gunKickV_ += strength * (twoHand_ ? 6.0f : 12.0f); }
+
+// A damped spring back to rest (about 0.25 s).
+void GameApp::updateGunKick(float dt) {
+    const float a = -260.0f * gunKick_ - 26.0f * gunKickV_;
+    gunKickV_ += a * dt;
+    gunKick_ += gunKickV_ * dt;
+    gunKick_ = std::max(-0.1f, std::min(0.6f, gunKick_));
+}
+
+// The held gun as drawn: rotated muzzle-up about its handle by the kick and pushed back a little.
+Mat4 GameApp::gunDrawXf() const {
+    if (!firstPerson_ || std::fabs(gunKick_) < 1e-4f) return gunXf_;
+    Vec3 handleGame, muzzleGame;
+    heldRefs(handleGame, muzzleGame);
+    const Vec3 handle = giantsToRuntime(handleGame.x, handleGame.y, handleGame.z);
+    const Vec3 fr = normalize(giantsToRuntime(kGunForwardGame.x, kGunForwardGame.y, kGunForwardGame.z));
+    const Vec3 up = normalize(giantsToRuntime(0, 0, 1));
+    Vec3 axis = cross(fr, up);
+    if (length(axis) < 1e-4f) return gunXf_;
+    axis = normalize(axis);
+    const float back = gunKick_ * 0.35f * length(muzzleGame - handleGame) * gGameUnitsToMeters;
+    return gunXf_ * Mat4::translation(handle - fr * back) * Mat4::rotation(Quat::fromAxisAngle(axis, gunKick_)) * Mat4::translation(handle * -1.0f);
+}
+
 void GameApp::updateWeapon(float dt, const InputFrame& in) {
     const int gh = rig_.turnHand();
+    updateGunKick(dt);
     // Right stick forward: next weapon (released to neutral before it switches again).
     const float sy = in.hand[gh].thumbstick.y;
     if (sy < 0.3f) switchArmed_ = true;
@@ -3664,8 +3690,51 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         const ControllerState& c = in.hand[gh];
         gunValid_ = held && c.aimPoseValid && c.gripPoseValid;
         if (gunValid_) {
-            const Pose aim = rig_.toWorld(c.aimPose);
+            Pose aim = rig_.toWorld(c.aimPose);
             const Pose grip = rig_.toWorld(c.gripPose);
+            // Two hands on a long gun: the support hand's grip near the barrel steadies it - the
+            // gun then points from the trigger hand through the support hand.
+            const int sh = gh == kRight ? kLeft : kRight;
+            const ControllerState& sc = in.hand[sh];
+            const bool longGun = weaponSel_ == 1 || gunOfSel(weaponSel_) >= 0;
+            if (longGun && sc.gripPoseValid) {
+                const Vec3 support = rig_.toWorld(sc.gripPose).position;
+                const Vec3 fwd0 = aim.orientation.rotate(Vec3{0, 0, -1});
+                const Vec3 front = grip.position + fwd0 * 0.32f * rig_.comfort.worldScale;
+                if (!twoHand_ && sc.squeeze > 0.6f && length(support - front) < 0.22f * rig_.comfort.worldScale) {
+                    twoHand_ = true;
+                    haptics_.push_back({sh, 0.4f, 0.05f});
+                    LOGI("Two hands on the gun");
+                } else if (twoHand_ && (sc.squeeze < 0.3f || length(support - grip.position) < 0.08f)) {
+                    twoHand_ = false;
+                }
+                if (twoHand_) {
+                    const Vec3 f = normalize(support - grip.position);
+                    const Vec3 upHint = aim.orientation.rotate(Vec3{0, 1, 0});
+                    const Vec3 r = normalize(cross(f, upHint));
+                    const Vec3 u = cross(r, f);
+                    // The rotation with columns r, u, -f, as a quaternion.
+                    const float m00 = r.x, m11 = u.y, m22 = -f.z;
+                    const float tr = m00 + m11 + m22;
+                    Quat q;
+                    if (tr > 0) {
+                        const float k2 = std::sqrt(tr + 1.0f) * 2.0f;
+                        q = Quat{(u.z - (-f.y)) / k2, ((-f.x) - r.z) / k2, (r.y - u.x) / k2, 0.25f * k2};
+                    } else if (m00 > m11 && m00 > m22) {
+                        const float k2 = std::sqrt(1.0f + m00 - m11 - m22) * 2.0f;
+                        q = Quat{0.25f * k2, (u.x + r.y) / k2, ((-f.x) + r.z) / k2, (u.z - (-f.y)) / k2};
+                    } else if (m11 > m22) {
+                        const float k2 = std::sqrt(1.0f + m11 - m00 - m22) * 2.0f;
+                        q = Quat{(u.x + r.y) / k2, 0.25f * k2, ((-f.y) + u.z) / k2, ((-f.x) - r.z) / k2};
+                    } else {
+                        const float k2 = std::sqrt(1.0f + m22 - m00 - m11) * 2.0f;
+                        q = Quat{((-f.x) + r.z) / k2, ((-f.y) + u.z) / k2, 0.25f * k2, (r.y - u.x) / k2};
+                    }
+                    aim.orientation = normalize(q);
+                }
+            } else {
+                twoHand_ = false;
+            }
             const float bodyScale = eyeModel_.y > 0.1f ? userEye_ / eyeModel_.y : 1.0f;
             const float k = bodyScale * 0.6f;
             const Vec3 handle = giantsToRuntime(handleGame.x, handleGame.y, handleGame.z);
@@ -3739,6 +3808,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             rockets_.push_back({muzzle, fwd * 32.0f, 0.0f});
             rocketCooldown_ = 1.0f;
             haptics_.push_back({gh, 0.9f, 0.12f});
+            gunKick(0.30f);
             sfx("me_msls1", muzzle, 1.0f, 0.95f + 0.1f * frand());
         }
         rocketTriggerHeld_ = trigger;
@@ -3748,6 +3818,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     if (fireGun(dt, trigger, gunValid_, muzzle, fwd)) return;  // shotgun, machine gun, sniper gun
     if (weapon_.update(dt, trigger && gunValid_, muzzle, fwd)) {
         haptics_.push_back({gh, 0.35f, 0.04f});
+        gunKick(0.10f);
         sfx((weapon_.shotsFired() & 1) ? "me_peas1" : "me_peas2", muzzle, 0.7f, 0.95f + 0.1f * frand());
     }
 }
@@ -4040,7 +4111,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     // of view: not drawn there.
     if (playMode_ && timmyOn_ && !cut && !firstPerson_) timmy_->render(renderer_, timmyXf_);
     if (playMode_ && gunValid_ && !cut && !dying_) {
-        drawModel(heldModel(), gunXf_, false);
+        drawModel(heldModel(), gunDrawXf(), false);
         drawScopeLens();
     }
     if (playMode_ && !cut && !dying_ && !playerGibbed_) {  // the other weapon, holstered on the body

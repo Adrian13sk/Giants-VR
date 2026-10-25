@@ -1337,6 +1337,14 @@ private:  // the mission placed enemies: no test waves
     TextureId crosshairTex_ = 0;
     void updateThirdPersonAim(const InputFrame& in, float dt);
     void updateWeapon(float dt, const InputFrame& in);
+    // Rework, VR feel: the gun kicks up and back in the hand on each shot (spring back; shots still
+    // leave along the aim), and a long gun is steadied by the other hand: grip near its front and
+    // it aims along the line between your hands.
+    float gunKick_ = 0, gunKickV_ = 0;
+    bool twoHand_ = false;
+    void gunKick(float strength);
+    void updateGunKick(float dt);
+    Mat4 gunDrawXf() const;
     void drawModel(const RenderModel* m, const Mat4& xf, bool additive, float alpha = 1.0f);
     float camYaw_ = 0;      // play-mode camera yaw (snap turn orbits the character)
     float camFloor_ = 0;    // smoothed tracking-floor height of the play camera
