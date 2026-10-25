@@ -1372,6 +1372,7 @@ private:  // the mission placed enemies: no test waves
     void updateAmbush(float dt);
     // Holsters on the body and punches (game_app_vr.cpp).
     int holsterZone_ = -1;
+    float holsterYaw_ = 0;
     bool holsterGrabHeld_ = false;
     float punchCool_[2] = {0, 0};
     Vec3 punchLast_[2];

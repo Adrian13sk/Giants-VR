@@ -291,8 +291,15 @@ void GameApp::updateHolsters(float dt, const InputFrame& in) {
     const int gh = rig_.turnHand();
     const ControllerState& c = in.hand[gh];
     if (!c.gripPoseValid) return;
-    // Zones follow the body: the head's position and yaw (a body turns with the head over time).
-    const float yaw = yawOf(in.head.orientation);
+    // Zones follow the body: the head's position, and a body yaw that turns with the head only past
+    // 35 degrees either way (a neck: looking around doesn't swing your hips).
+    const float headYaw = yawOf(in.head.orientation);
+    float dy = headYaw - holsterYaw_;
+    while (dy > kPi) dy -= 2 * kPi;
+    while (dy < -kPi) dy += 2 * kPi;
+    if (dy > 0.6f) holsterYaw_ += dy - 0.6f;
+    else if (dy < -0.6f) holsterYaw_ += dy + 0.6f;
+    const float yaw = holsterYaw_;
     const Quat body = Quat::fromAxisAngle({0, 1, 0}, yaw);
     const Vec3 hand = c.gripPose.position;  // tracking space (human scale)
     int zone = -1;
