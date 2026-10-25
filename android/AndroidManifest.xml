@@ -14,6 +14,13 @@
     <uses-feature android:name="android.hardware.vr.headtracking" android:required="true" android:version="1" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.faketouch" android:required="false" />
+    <!-- Hand tracking declared as supported (not required). Without it, a launch while the controllers lie
+         still (the headset in hand-tracking mode) is held behind the system's "Controllers required"
+         dialog (LaunchCheckControllerRequiredDialogActivity in the device-test logs) until someone puts the
+         headset on and presses a trigger - which stopped devtest.ps1 runs. The game still plays with the
+         Touch controllers; picking one up switches the headset back to them. -->
+    <uses-feature android:name="oculus.software.handtracking" android:required="false" />
+    <uses-permission android:name="com.oculus.permission.HAND_TRACKING" />
 
     <!-- Multiplayer over the local Wi-Fi (game/sk_net.h): UDP, and the multicast lock that lets the
          games' broadcast beacons in. All are normal (install-time) permissions. -->
