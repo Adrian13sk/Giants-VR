@@ -40,6 +40,7 @@ struct DrawParams {
     bool noFog = false;
     bool depthWrite = true;
     bool depthTest = true;  // false: drawn over everything (overlays such as subtitles)
+    float sway = 0.0f;      // wind: metres the top (uv v = 0) of a card sways (grass); 0 = still
     // Material: Standard (lit/unlit textured), Water (animated surface: waves, fresnel sky
     // reflection, sun glints), Sky (drifting clouds, sun disc and glow).
     enum class Material : uint8_t { Standard, Water, Sky, Terrain } material = Material::Standard;
@@ -172,7 +173,7 @@ private:
         GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
         GLint uClipY_ = -1, uGrade_ = -1, uReflTex_ = -1, uReflDepth_ = -1, uReflMat_ = -1, uReflEye_ = -1, uReflNear_ = -1,
               uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
-        GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1;
+        GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1, uSway_ = -1;
         GLint uViewProj_ = -1, uEyePosV_ = -1;  // multiview: both eyes' view-projection and position
         GLint uLook_ = -1;
     };

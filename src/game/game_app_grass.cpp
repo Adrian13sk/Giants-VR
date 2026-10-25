@@ -136,6 +136,7 @@ void GameApp::renderGrass() {
     dp.texture = grassTex_;
     dp.blend = BlendMode::AlphaTest;
     dp.doubleSided = true;
+    dp.sway = 0.07f;
     grassBatch_.draw(renderer_, dp);
 }
 

@@ -49,12 +49,21 @@ flat out highp vec3 vEyePos;
 uniform mat4 uMVP;
 #endif
 uniform mat4 uModel;
+uniform highp vec2 uSway;  // wind: amplitude (m at the card's top), time (s)
 out vec3 vWorldPos;
 out vec3 vNormal;
 out vec2 vUv;
 out vec4 vColor;
 void main() {
-    vec4 wp = uModel * vec4(aPos, 1.0);
+    highp vec3 p = aPos;
+    if (uSway.x > 0.0) {
+        // Gusts travelling across the field: two waves; only the top of the card moves.
+        highp float ph = uSway.y * 1.7 + p.x * 0.35 + p.z * 0.27;
+        float k = (1.0 - aUv.y) * uSway.x;
+        p.x += k * (sin(ph) * 0.8 + sin(ph * 2.3 + 1.3) * 0.35);
+        p.z += k * (cos(ph * 0.9 + 0.4) * 0.5);
+    }
+    vec4 wp = uModel * vec4(p, 1.0);
     vWorldPos = wp.xyz;
     vNormal = mat3(uModel) * aNormal;
     vUv = aUv;
@@ -63,7 +72,7 @@ void main() {
     vEyePos = uEyePosV[gl_ViewID_OVR];
     gl_Position = uViewProj[gl_ViewID_OVR] * wp;
 #else
-    gl_Position = uMVP * vec4(aPos, 1.0);
+    gl_Position = uMVP * vec4(p, 1.0);
 #endif
 }
 )";
@@ -462,7 +471,7 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u) {
     u.uWaterDepth_ = L("uWaterDepth"); u.uWaterDepthRect_ = L("uWaterDepthRect"); u.uWaterDepthOn_ = L("uWaterDepthOn");
     const char* tn[5] = {"uTerrRock", "uTerrSand", "uTerrGrass2", "uTerrRock2", "uTerrNoise"};
     for (int k = 0; k < 5; ++k) u.uTerr_[k] = L(tn[k]);
-    u.uTerrDetail_ = L("uTerrDetail"); u.uSkyTint_ = L("uSkyTint"); u.uNight_ = L("uNight"); u.uBakedLight_ = L("uBakedLight");
+    u.uTerrDetail_ = L("uTerrDetail"); u.uSway_ = L("uSway"); u.uSkyTint_ = L("uSkyTint"); u.uNight_ = L("uNight"); u.uBakedLight_ = L("uBakedLight");
     u.uPointPos_ = L("uPointPos"); u.uPointColor_ = L("uPointColor");
     u.uViewProj_ = L("uViewProj"); u.uEyePosV_ = L("uEyePosV"); u.uLook_ = L("uLook");
     return prog;
@@ -752,6 +761,7 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
     }
     glUniformMatrix4fv(U_->uModel_, 1, GL_FALSE, model.m);
     glUniform4f(U_->uTint_, p.tint.x, p.tint.y, p.tint.z, p.tint.w);
+    glUniform2f(U_->uSway_, p.sway, p.sway > 0 ? std::fmod(env_.time, 1000.0f) : 0.0f);
     // Light mode: lit, baked (unlit but shadowed), emissive (additive effects and overlays).
     const bool emissive = p.unlit && (p.blend == BlendMode::Additive || p.noFog || !p.depthTest);
     glUniform1f(U_->uUnlit_, emissive ? 2.0f : (p.unlit ? 1.0f : 0.0f));
