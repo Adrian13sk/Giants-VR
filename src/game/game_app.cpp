@@ -449,6 +449,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 // Headshots (hit above the shoulders) hurt a Reaper two and a half times as much.
                 const bool head = p.y - enemies_.enemies[size_t(target)].pos.y > 1.6f;
                 if (head) sfx("bi_hit2", p, 0.8f, 1.4f);
+                // Rework: the hit shoves him (a killing shot sends the body back - it slides on), more for
+                // heavier guns and head hits.
+                if (const float hl = std::sqrt(shotDir.x * shotDir.x + shotDir.z * shotDir.z); hl > 1e-3f)
+                    enemies_.push(target, Vec3{shotDir.x / hl, 0, shotDir.z / hl} * ((head ? 3.0f : 1.8f) * std::min(3.0f, std::max(0.6f, hm))));
                 const bool killed = enemies_.damage(target, (head ? 62.5f : 25.0f) * hm);
                 if (killed && enemies_.enemies[size_t(target)].objective >= 0)
                     completeObjective(enemies_.enemies[size_t(target)].objective);
