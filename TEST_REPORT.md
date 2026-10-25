@@ -763,11 +763,13 @@ rstory2_jetski_2 69.8, rstory2_jetski_3 69.9 (all three Rstory2 runs stepped fro
 Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to 1 without see-sawing.
 
 ## Harness, rework branch, 2026-10-25 evening (Mesa; nothing here is device-verified)
-- Mission sweep (56 missions, 500 frames, firing/jetpack/map/injection/flare): 56/56 exit 0, 0 errors (after grass).
+- Mission sweep (56 missions, 500 frames, firing/jetpack/map/injection/flare): 56/56 exit 0, 0 errors (after the
+  grass; again at c31ae3d with grab, parry, sparks and the cutscene changes).
 - Kabuto gates, scripted (`$S/kab_chain*.sh`: Kabuto at full size ~12 m from the gate, third person, punching;
   GVR_KB_ADREN=1 + both grips for giantwall3, GVR_GLASS=1 + trigger held for giantwall4): objective done in k1a,
   k1b (1/2: the gate), k2a, kstory3_1, kstory3_2, kstory3_3, kstory4_1, kstory4_2, kstory5_1, kstory5_2, kstory5_3.
-  kstory5_4 (GVR_KB_FACE_BOSS=1): the boss killed in 17 hits, objective done. kstory5_5 is a Meccaryn mission (not run).
+  kstory5_4 (GVR_KB_FACE_BOSS=1): the boss killed in 17 hits, objective done. kstory5_5 (the Meccaryn against
+  Kabuto; --auto-aim at his belly, handgun): killed after 34 hits, objective done.
 - Kabuto hand grab (kstory4_1, GVR_REAPER_NEAR=1, scripted right hand): grabbed Reaper 2; brought to the mouth: eaten;
   swung and released: thrown at 55 m/s. Device tests kabuto_grab_eat / kabuto_grab_throw.
 - Delphi parry (rstory2_battle_1, two Reapers, sword swung side to side): 3 bolts deflected, one returned and hit
