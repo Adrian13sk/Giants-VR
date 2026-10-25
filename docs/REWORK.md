@@ -31,6 +31,7 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Combat | A hit Reaper's (or Ripper's) body flashes hot for a moment. Low health: a pulsing dark red rim (the heartbeat in both hands was already there - a second one the rework had added is gone). | HARNESS |
 | Pacing | Ambushes: after 70-110 s on the move without a fight, a squad of 2-3 Reapers comes at you from ahead (Options: AMBUSHES). Not in base missions, races, multiplayer or as Kabuto. | HARNESS |
 | VR feel | Aim laser from the gun's muzzle to what it would hit (Options: AIM LASER, default on). Reach out with a hand to take a pickup. | HARNESS |
+| VR feel | Touch: a hand pushed into the ground or scenery gives a tap, then a light hum while it stays in. | HARNESS |
 | Guidance | Objective marker: a gold diamond toward the nearest unfinished objective with its distance (beyond 20 m). | HARNESS |
 | Performance | The adaptive quality fallback (level 2+) drops the per-pixel relief and highlights. | HARNESS |
 | Tools | `scripts/make_video.sh`: progress videos from the harness (spectator view, captions). | HARNESS |

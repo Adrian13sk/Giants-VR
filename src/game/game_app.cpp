@@ -811,6 +811,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateCreatureFlashes(dt);
     updateFireballs(dt);
     updateNearMisses(dt);
+    updateHandTouch(dt);
     updateCombat(dt);
     { GVR_PROF("audio"); updateAudio(dt); }
         updateFlashes(dt);

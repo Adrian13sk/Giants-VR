@@ -99,6 +99,32 @@ void GameApp::updateNearMisses(float dt) {
     }
 }
 
+// Touch (rework): a hand pushed into scenery or the ground buzzes - a tap on first contact, a light
+// hum while it stays in. First person, in play; not for Kabuto's fists (they smash instead).
+void GameApp::updateHandTouch(float dt) {
+    if (!playMode_ || !firstPerson_ || !assetWorld_ || cutsceneActive() || hero_ == Hero::Kabuto) { touch_[0] = touch_[1] = false; return; }
+    const float S = rig_.comfort.worldScale;
+    for (int h = 0; h < 2; ++h) {
+        const ControllerState& c = lastInput_.hand[h];
+        touchT_[h] = std::max(0.0f, touchT_[h] - dt);
+        if (!c.gripPoseValid) { touch_[h] = false; continue; }
+        const Vec3 p = rig_.toWorld(c.gripPose).position;
+        bool in = false;
+        float gy;
+        if (assetWorld_->terrain().heightAt(p.x, p.z, gy) && p.y < gy + 0.02f * S) in = true;
+        if (!in) {
+            Vec3 f{p.x, p.y - 0.05f * S, p.z};
+            const Vec3 f0 = f;
+            in = assetWorld_->collision().pushOut(f, 0.04f * S, 0.1f * S, 0.0f) && length(f - f0) > 0.01f * S;
+        }
+        static const bool trace = std::getenv("GVR_TOUCH_TRACE") != nullptr;
+        if (trace && in != touch_[h]) LOGI("touch: hand %d %s at (%.2f %.2f %.2f)", h, in ? "in" : "out", p.x, p.y, p.z);
+        if (in && !touch_[h]) haptics_.push_back({h, 0.35f, 0.04f});
+        else if (in && touchT_[h] <= 0) { haptics_.push_back({h, 0.12f, 0.05f}); touchT_[h] = 0.1f; }
+        touch_[h] = in;
+    }
+}
+
 // A hand within `r` (human-scale metres) of a point: reach out to take a pickup (rework).
 bool GameApp::handReach(const Vec3& p, float r) const {
     for (int h = 0; h < 2; ++h) {
