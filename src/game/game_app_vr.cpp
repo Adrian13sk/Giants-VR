@@ -72,6 +72,33 @@ void GameApp::updateReaperGrenades(float dt) {
     }
 }
 
+// Near misses (rework): a bolt of yours flying close past a Reaper (within 1.3 m of his body, not
+// hitting him) makes him flinch - often a dive aside - and know where you are. Each at most every 2 s.
+void GameApp::updateNearMisses(float dt) {
+    for (auto& e : enemies_.enemies) e.flinchCool = std::max(0.0f, e.flinchCool - dt);
+    if (!playMode_ || hero_ == Hero::Kabuto) return;
+    for (const auto& p : weapon_.projectiles()) {
+        for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
+            Enemy& e = enemies_.enemies[i];
+            if (e.state == EnemyState::Dead || e.state == EnemyState::Falling || e.posted || e.flinchCool > 0) continue;
+            const Vec3 c = e.pos + Vec3{0, 1.1f, 0};
+            const Vec3 d = c - p.pos;
+            const float dist = length(d);
+            if (dist > 1.3f || dist < 0.45f || dot(d, p.vel) > 0.0f) continue;  // (just past him, not into him)
+            e.flinchCool = 2.0f;
+            enemies_.alertNear(e.pos, 1.0f);
+            if (frand() < 0.6f) {
+                Vec3 side = normalize(Vec3{-p.vel.z, 0, p.vel.x});
+                if (dot(side, d) < 0) side = side * -1.0f;  // away from the bolt's line
+                enemies_.push(int(i), side * 6.0f);
+            }
+            if (frand() < 0.4f) sfx("rpman_hit1", c, 0.5f, 1.25f);
+            static const bool trace = std::getenv("GVR_HIT_TRACE") != nullptr;
+            if (trace) LOGI("near miss: Reaper %u flinches (bolt %.1f m off)", e.uid, dist);
+        }
+    }
+}
+
 // A hand within `r` (human-scale metres) of a point: reach out to take a pickup (rework).
 bool GameApp::handReach(const Vec3& p, float r) const {
     for (int h = 0; h < 2; ++h) {

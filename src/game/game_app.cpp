@@ -790,6 +790,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     }
     updateCreatureFlashes(dt);
     updateFireballs(dt);
+    updateNearMisses(dt);
     updateCombat(dt);
     { GVR_PROF("audio"); updateAudio(dt); }
         updateFlashes(dt);
@@ -2882,7 +2883,8 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
             const Vec3 d = eye - tgt;
             const float h = std::sqrt(d.x * d.x + d.z * d.z), L = length(d);
             const float kMax = 0.4887f;  // 28 degrees
-            if (L > 2.0f && std::fabs(d.y) > h * std::tan(kMax)) {
+            // (Only near shots of characters: a flyover's look-at point km away is no one to frame - intro_island_1.)
+            if (L > 2.0f && L < 60.0f && std::fabs(d.y) > h * std::tan(kMax)) {
                 Vec3 side = h > 0.05f ? Vec3{d.x / h, 0, d.z / h} : Vec3{std::sin(yaw), 0, std::cos(yaw)};
                 const Vec3 moved = tgt + side * (L * std::cos(kMax)) + Vec3{0, (d.y > 0 ? 1.0f : -1.0f) * L * std::sin(kMax), 0};
                 if (std::getenv("GVR_CUT_TRACE"))

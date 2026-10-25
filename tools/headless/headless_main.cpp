@@ -264,7 +264,9 @@ int main(int argc, char** argv) {
             const Pose& rigPose = app.rig().worldFromTracking;
             const Vec3 ctrlWorld = app.rig().toWorld(in.hand[kRight].aimPose).position;
             const Vec3 d = rigPose.orientation.conjugate().rotate(normalize(chest - ctrlWorld));
-            const float yaw = std::atan2(-d.x, -d.z), pitch = std::asin(std::max(-1.0f, std::min(1.0f, d.y)));
+            // GVR_AUTOAIM_MISS=<deg>: aim that far to the side of the target (near-miss tests).
+            static const float missDeg = std::getenv("GVR_AUTOAIM_MISS") ? float(std::atof(std::getenv("GVR_AUTOAIM_MISS"))) : 0.0f;
+            const float yaw = std::atan2(-d.x, -d.z) + missDeg * 3.14159265f / 180.0f, pitch = std::asin(std::max(-1.0f, std::min(1.0f, d.y)));
             const Quat q = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, pitch);
             in.hand[kRight].gripPose.orientation = in.hand[kRight].aimPose.orientation = q;
         }

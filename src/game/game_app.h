@@ -1397,6 +1397,7 @@ private:  // the mission placed enemies: no test waves
     std::vector<Fireball> fireballs_;
     std::vector<Ember> embers_;
     void addSparks(const Vec3& at, const Vec3& normal, int n);
+    void updateNearMisses(float dt);
     QuadBatch fireBatch_;
     void addFireball(const Vec3& at, float radius);
     void updateFireballs(float dt);
