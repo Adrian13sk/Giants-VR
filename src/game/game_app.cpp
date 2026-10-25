@@ -3642,7 +3642,7 @@ void GameApp::updateCombat(float dt) {
             Vec3 m = e.pos + Vec3{0, 1.5f, 0} + r.rotate(Vec3{0.3f, 0, -0.6f});
             reaperMuzzle(e, m);
             const float k = 1.0f - std::max(0.0f, e.fireCooldown) / 0.7f;
-            embers_.push_back({m, Vec3{0, 0, 0}, 0.0f, dt * 1.5f, 0.12f + 0.25f * k});
+            embers_.push_back({m, Vec3{0, 0, 0}, 0.0f, dt * 1.5f, 0.3f + 0.5f * k});
         }
     for (int i : shooters_) {
         Enemy& e = enemies_.enemies[size_t(i)];
@@ -3667,6 +3667,8 @@ void GameApp::updateCombat(float dt) {
         Vec3 dir = normalize(target - muzzle);
         // Spread grows with distance: long shots mostly miss, close ones are dangerous.
         const float spread = (0.06f + 0.004f * length(target - muzzle)) * (e.role == 1 ? 0.35f : 1.0f);  // (a marksman aims)
+        static const bool shotTrace = std::getenv("GVR_HIT_TRACE") != nullptr;
+        if (shotTrace) LOGI("enemy shot: Reaper %u%s at %.1f m", e.uid, e.role == 1 ? " (marksman)" : "", length(target - muzzle));
         dir = normalize(dir + Vec3{frand() - 0.5f, (frand() - 0.5f) * 0.6f, frand() - 0.5f} * spread);
         enemyFire_.spawnShot(muzzle, dir);
         sfx("rh_sprsh", muzzle, 0.8f, 0.9f + 0.2f * frand());
@@ -4281,6 +4283,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
         drawScopeLens();
         renderAimLaser();
     }
+    if (playMode_ && !cut && !dying_) renderMarksmanLasers();
     if (playMode_ && !cut && !dying_ && !playerGibbed_) {  // the other weapon, holstered on the body
         if (holsterGun_) drawModel(gunModel_, holsterGunXf_, false);
         if (holsterLauncher_ && !firstPerson_) drawModel(launcherModel_, holsterLauncherXf_, false);

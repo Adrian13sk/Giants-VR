@@ -291,7 +291,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                         e.stateTime = 0;
                         e.burstLeft = burstN;
                         e.burstsLeft = params.burstsPerStop;
-                        e.fireCooldown = 0.35f;
+                        e.fireCooldown = marks ? 0.7f : 0.35f;  // (a marksman charges his shot: see game_app)
                     }
                     break;
                 }
@@ -315,7 +315,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     e.stateTime = 0;
                     e.burstLeft = burstN;
                     e.burstsLeft = params.burstsPerStop;
-                    e.fireCooldown = 0.35f;
+                    e.fireCooldown = marks ? 0.7f : 0.35f;  // (a marksman charges his shot: see game_app)
                     break;
                 }
                 setClip(e, EnemyClip::Run, true);
@@ -335,7 +335,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                             e.stateTime = 0;
                             e.burstLeft = burstN;
                             e.burstsLeft = params.burstsPerStop;
-                            e.fireCooldown = 0.35f;
+                            e.fireCooldown = marks ? 0.7f : 0.35f;  // (a marksman charges his shot: see game_app)
                         } else {
                             const float side = e.detour != 0 ? -e.detour : ((nextRand() & 1) ? 1.1f : -1.1f);
                             e.detour = side;
@@ -372,6 +372,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     if (e.fireCooldown <= 0) {
                         if (--e.burstsLeft > 0) {
                             e.burstLeft = burstN;
+                            if (marks) e.fireCooldown = 0.7f;
                         } else {
                             // Reposition: pick a new flank spot and run there.
                             e.flank = (float(nextRand() % 2001) / 1000.0f - 1.0f) * 10.0f;

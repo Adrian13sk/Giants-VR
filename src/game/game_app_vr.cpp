@@ -204,6 +204,35 @@ void GameApp::renderAimLaser() {
     renderer_.draw(laserMesh_, Mat4::translation(laserTo_) * Mat4::rotation(headWorldRot_) * Mat4::scale({s, s, s * 0.2f}), dp);
 }
 
+// A marksman's aim (rework): a thin red line from his gun to you while his shot charges - brighter
+// as it comes. (The glow at the muzzle is added with the shots, game_app.cpp.)
+void GameApp::renderMarksmanLasers() {
+    if (!playMode_ || hero_ == Hero::Kabuto) return;
+    if (!laserMesh_) laserMesh_ = renderer_.uploadMesh(prim::box({0.5f, 0.5f, 0.5f}, std::array<uint8_t, 4>{255, 255, 255, 255}.data()));
+    const Vec3 target = player_.position + Vec3{0, 0.75f * playerHitTop(), 0};
+    for (const auto& e : enemies_.enemies) {
+        if (e.role != 1 || e.state != EnemyState::Fire || e.burstLeft <= 0 || e.fireCooldown >= 0.7f || e.weapon == 1) continue;
+        const Quat r0 = Quat::fromAxisAngle({0, 1, 0}, e.yaw);
+        Vec3 m = e.pos + Vec3{0, 1.5f, 0} + r0.rotate(Vec3{0.3f, 0, -0.6f});
+        reaperMuzzle(e, m);
+        const Vec3 d = target - m;
+        const float len = length(d);
+        if (len < 0.5f) continue;
+        const float k = 1.0f - std::max(0.0f, e.fireCooldown) / 0.7f;
+        static const bool trace = std::getenv("GVR_MK_TRACE") != nullptr;
+        if (trace) LOGI("marksman aims: Reaper %u, %.1f m, charge %.2f, t %.2f", e.uid, len, k, time_);
+        DrawParams dp;
+        dp.unlit = true;
+        dp.blend = BlendMode::Additive;
+        dp.depthWrite = false;
+        dp.noFog = true;
+        dp.tint = {1.2f * (0.3f + 0.7f * k), 0.08f, 0.05f, 1.0f};
+        const Quat r = rotationBetween({0, 0, -1}, d * (1.0f / len));
+        const float w = 0.006f + 0.006f * k;
+        renderer_.draw(laserMesh_, Mat4::translation(m + d * 0.5f) * Mat4::rotation(r) * Mat4::scale({w, w, len}), dp);
+    }
+}
+
 void GameApp::updateMotes(float dt) {
     if (!lastInput_.headValid || !assetWorld_ || std::getenv("GVR_NO_MOTES")) { motes_.clear(); return; }
     const Vec3 c = rig_.toWorld(lastInput_.head).position;

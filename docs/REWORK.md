@@ -38,7 +38,7 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Tools | `scripts/make_video.sh`: progress videos from the harness (spectator view, captions). | HARNESS |
 | Combat | A Reaper who sees your aim laser resting on him dives aside (now and then; not posted sentries). | HARNESS |
 | Combat | Explosions throw nearby Reapers back. Reaper grenades leave from over the thrower's head (they used to burst on him at once). | HARNESS |
-| Combat | Shots shove Reapers back (more for head hits and heavier guns); a killing shot sends the body sliding. A bolt flying close past a Reaper makes him flinch, often diving aside. Badly hurt, a Reaper often falls back for a couple of seconds before fighting on. One Reaper in four is a marksman: he keeps his distance and fires single aimed shots, his gun glowing for the moment before each - see it and move. | HARNESS |
+| Combat | Shots shove Reapers back (more for head hits and heavier guns); a killing shot sends the body sliding. A bolt flying close past a Reaper makes him flinch, often diving aside. Badly hurt, a Reaper often falls back for a couple of seconds before fighting on. One Reaper in four is a marksman: he keeps his distance and fires single aimed shots, a red aiming line runs from his gun to you for the 0.7 s before each shot - see it and move. | HARNESS |
 | Pacing | Ambushes only in missions that have Reapers of their own. | HARNESS |
 | VR feel | Holsters follow your body's direction (your head's yaw within a neck's turn), not just the room. | HARNESS |
 | Options | LIGHTING: REWORK / CLASSIC (the same as `GVR_LOOK=0`). | HARNESS |

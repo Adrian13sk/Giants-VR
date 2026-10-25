@@ -1408,6 +1408,7 @@ private:  // the mission placed enemies: no test waves
     std::vector<Ember> embers_;
     void addSparks(const Vec3& at, const Vec3& normal, int n);
     void updateNearMisses(float dt);
+    void renderMarksmanLasers();
     void updateHandTouch(float dt);
     void drawPanelEdge(const Mat4& xf, float w, float h);
     // Climbing (game_app_climb.cpp).
