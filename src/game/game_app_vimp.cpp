@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 #include "audio/mixer.h"
 #include "core/log.h"
@@ -303,6 +304,8 @@ void GameApp::hitBoss(int i, float amount, const Vec3& at, const Vec3& dir) {
         amount *= (h > 0.35f && h < 0.62f) ? 3.0f : 0.25f;
     }
     ci.hp -= amount;
+    static const bool bossTrace = std::getenv("GVR_KB_TRACE") != nullptr;
+    if (bossTrace) LOGI("boss %d hit for %.0f: %.0f hp left", i, amount, ci.hp);
     bleed(at, dir, ci.hp <= 0, std::max(1.0f, ci.bossH / 2.0f));
     if (ci.bossKind > 0 && ci.hp > 0 && frand() < 0.2f) sfx(kBossHurt[ci.bossKind], at, 1.0f);
     if (ci.hp <= 0) {

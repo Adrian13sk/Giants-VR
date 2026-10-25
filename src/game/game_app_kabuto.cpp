@@ -217,6 +217,16 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
     KabutoState& k = kb_;
     const int gh = rig_.turnHand(), mh = rig_.moveHand();
     const float H = kMeccHeight * heroScale_;   // his height (m)
+    // Test hook: GVR_KB_FACE_BOSS turns him to face the nearest living mission boss each frame.
+    static const bool faceBoss = std::getenv("GVR_KB_FACE_BOSS") != nullptr;
+    if (faceBoss) {
+        float best = 1e9f;
+        for (const auto& c : chars_)
+            if (c.boss && c.hp > 0 && length(c.pos - player_.position) < best) {
+                best = length(c.pos - player_.position);
+                player_.yaw = std::atan2(-(c.pos.x - player_.position.x), -(c.pos.z - player_.position.z));
+            }
+    }
     const Quat body = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
     const Vec3 fwd = body.rotate(Vec3{0, 0, -1});
     auto ground = [&](const Vec3& p) { return player_.groundHeight ? player_.groundHeight(p.x, p.z) : player_.position.y; };
@@ -345,6 +355,8 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
             static const bool trace = std::getenv("GVR_KB_TRACE") != nullptr;
             if (trace) {
                 LOGI("Kabuto punch (third person): %s", hit ? "hit" : "nothing in reach");
+                for (const auto& c : chars_)
+                    if (c.boss && c.hp > 0) LOGI("  boss at game (%.0f %.0f) %.0f hp, %.1f m away (radius %.1f, height %.1f)", -c.pos.x / 0.2f, c.pos.z / 0.2f, c.hp, length(Vec3{c.pos.x - player_.position.x, 0, c.pos.z - player_.position.z}), c.bossR, c.bossH);
                 for (const auto& it : destruct_.items)
                     if (it.alive() && length(it.base - player_.position) < 3.0f * H)
                         LOGI("  object %d kind %d: %.0f/%.0f hp, %.1f m away (radius %.1f)", it.object, int(it.kind), it.hp, it.maxHp, length(Vec3{it.base.x - player_.position.x, 0, it.base.z - player_.position.z}), it.radius);
