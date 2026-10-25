@@ -115,6 +115,7 @@ void GameApp::applyKabutoGrowth(float g) {
     p.jumpSpeed = b.jumpSpeed * std::sqrt(g);
     p.stepDown = b.stepDown * g;
     p.maxStepUp = b.maxStepUp * g;
+    p.slopeWindow = 0.35f * kbBaseH_ * g;  // rework: he steps over banks and ledges small beside him
     player_.params = p;
     heroScale_ = kbBaseScale_ * g;
     heroLift_ = kabutoFeet_ * g;

@@ -63,6 +63,7 @@ struct PlayerParams {
     float stepDown = 0.6f;        // m: stay glued to the terrain when walking downhill
     float maxStepUp = 0.8f;       // m: a bigger ground rise in one step is a cliff (blocks)
     float maxSlope = 1.19f;       // rise/run: steeper uphill ground blocks walking (50 deg, the original's gate)
+    float slopeWindow = 0.0f;     // m: > 0 judges the slope over this much ground ahead (a giant steps over short steep bits)
     float slideAccel = 9.0f;      // m/s^2 downhill acceleration on ground steeper than 50 deg
     float slideMaxSpeed = 10.0f;  // m/s
     float slideSteer = 2.0f;      // m/s^2 sideways steering while sliding

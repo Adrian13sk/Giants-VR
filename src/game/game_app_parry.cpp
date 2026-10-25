@@ -42,6 +42,16 @@ int GameApp::parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& tipVel, i
     static const bool trace = std::getenv("GVR_PARRY_TRACE") != nullptr;
     auto& ps = enemyFire_.projectiles();
     const float reach = 0.12f * heroScale_;
+    // A one-time hint the first time a bolt flies close by her with the sword out.
+    static bool hinted = false;
+    if (!hinted && !cutsceneActive())
+        for (const auto& p : ps)
+            if (length(p.pos - player_.position) < 4.0f && dot(p.vel, player_.position - p.pos) > 0) {
+                hinted = true;
+                timmyLine_ = "HOLD YOUR SWORD IN A BOLT'S PATH TO BLOCK IT - SWING INTO IT TO SEND IT BACK";
+                timmyLineT_ = 5.0f;
+                break;
+            }
     const float swing = length(tipVel);
     int n = 0;
     for (size_t i = 0; i < ps.size();) {

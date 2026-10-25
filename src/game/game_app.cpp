@@ -687,6 +687,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.jet = in.hand[th].primary;              // A
     pi.sprint = in.hand[mh].squeeze > 0.5f && !twoHand_;    // move-hand grip (not while it steadies a gun)
     if (hero_ == Hero::Kabuto && kbGrabHand_ == mh) pi.sprint = false;  // that grip holds something
+    if (!reachPath_.empty()) reachWalkInput(pi.move, pi.viewYaw, pi.jet, dt);  // test hook GVR_REACH_WALK
     if (hero_ == Hero::Delphi && delphiBow() && firstPerson_ && (bowDrawing_ || (in.hand[mh].gripPoseValid &&
         length(rig_.toWorld(in.hand[mh].gripPose).position - bowNockRest_) < 0.3f)))
         pi.sprint = false;  // that grip is drawing her bowstring, not running
@@ -778,6 +779,11 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateAmbush(dt);
     updateMotes(dt);
     updateGrass();
+    {  // test hook: walkability of the "reach" objectives (game_app_reach.cpp), once, a second into play
+        static const bool reach = std::getenv("GVR_REACH_CHECK") != nullptr;
+        static float reachT = 0;
+        if (reach && playMode_ && reachT >= 0 && (reachT += dt) > 1.0f) { reachT = -1; checkReachObjectives(); }
+    }
     updateCreatureFlashes(dt);
     updateFireballs(dt);
     updateCombat(dt);

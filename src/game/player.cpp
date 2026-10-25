@@ -1,5 +1,7 @@
 #include "game/player.h"
 
+#include "core/log.h"
+
 #include <cstdio>
 #include <cstdlib>
 
@@ -102,7 +104,7 @@ void PlayerController::update(float dt, const PlayerInput& in) {
         // One-sided differences, the gentler side per axis: standing on flat ground at the top
         // of a cliff (a bridge's landing) is flat ground, not a 50-degree slope that a centred
         // difference across the edge would report.
-        const float e = 0.5f;
+        const float e = params.slopeWindow > 0 ? 0.5f * params.slopeWindow : 0.5f;  // (a giant: over half a stride)
         const float h0 = groundHeight(position.x, position.z);
         auto gentler = [](float a, float b) { return std::fabs(a) < std::fabs(b) ? a : b; };
         const float gx = gentler((groundHeight(position.x + e, position.z) - h0) / e, (h0 - groundHeight(position.x - e, position.z)) / e);
@@ -246,7 +248,18 @@ void PlayerController::update(float dt, const PlayerInput& in) {
     // Slope test for the terrain only: a structure's edge (a bridge deck's lip, a step) is a step
     // up, limited by maxStepUp, not a 50-degree slope over one frame's travel.
     // Stepping from a structure onto the terrain (off the far end of a bridge) is a step too.
-    const bool tooSteep = !objectGround && !onObject_ && !waterGround && rise > 0.02f && run > 1e-4f && rise / run > params.maxSlope;
+    bool tooSteep = !objectGround && !onObject_ && !waterGround && rise > 0.02f && run > 1e-4f && rise / run > params.maxSlope;
+    if (tooSteep && params.slopeWindow > 0 && groundHeight) {
+        // A giant (Kabuto): the slope over a stride's worth of ground ahead - a short steep bank or
+        // ledge, small beside him, is a step; a long steep face still blocks.
+        const float w = params.slopeWindow, ux = hx / run, uz = hz / run;
+        const float ahead = groundHeight(before.x + ux * w, before.z + uz * w);
+        tooSteep = (ahead - prevY) / w > params.maxSlope && rise > params.maxStepUp * 0.25f;
+    }
+    static const bool blockTrace = std::getenv("GVR_BLOCK_TRACE") != nullptr;
+    if (blockTrace && onGround && !thrusting_ && (rise > params.maxStepUp || tooSteep))
+        LOGI("block trace: rise %.2f over %.2f (step limit %.2f, slope limit %.2f, window %.1f)%s", rise, run, params.maxStepUp, params.maxSlope,
+             params.slopeWindow, objectGround ? " onto an object" : "");
     if (onGround && !thrusting_ && (rise > params.maxStepUp || tooSteep)) {
         // Cliff face (e.g. climbing out of the sea): blocks like a wall; the jetpack gets you up.
         position.x = before.x;

@@ -1,0 +1,30 @@
+name video3_parry
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+duration 12
+reapers 2 12 0.5 99
+aim 75 0
+hand_r -0.15 0.05 0 0.1 0.4
+hand_r 0 0.35 0 1.0 1.15
+hand_r 0 -0.35 0 1.5 1.65
+hand_r 0 0.35 0 2.0 2.15
+hand_r 0 -0.35 0 2.5 2.65
+hand_r 0 0.35 0 3.0 3.15
+hand_r 0 -0.35 0 3.5 3.65
+hand_r 0 0.35 0 4.0 4.15
+hand_r 0 -0.35 0 4.5 4.65
+hand_r 0 0.35 0 5.0 5.15
+hand_r 0 -0.35 0 5.5 5.65
+hand_r 0 0.35 0 6.0 6.15
+hand_r 0 -0.35 0 6.5 6.65
+hand_r 0 0.35 0 7.0 7.15
+hand_r 0 -0.35 0 7.5 7.65
+hand_r 0 0.35 0 8.0 8.15
+hand_r 0 -0.35 0 8.5 8.65
+hand_r 0 0.35 0 9.0 9.15
+hand_r 0 -0.35 0 9.5 9.65
+hand_r 0 0.35 0 10.0 10.15
+hand_r 0 -0.35 0 10.5 10.65
+shot 6 parry

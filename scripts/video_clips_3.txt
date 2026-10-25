@@ -1,0 +1,7 @@
+# Progress video 3 (rework): caption|world|mission|from frame|frames|env and harness args
+Grass near you, swaying in the wind|Story1|1a_1_timmy|0|360|GVR_CUTSCENE=none --pitch -20 --move 0 0.25
+Kabuto: reach down, grab a Reaper, bring it to your mouth|Kstory4|kstory4_1|0|430|--script scripts/video3/grab_eat.txt
+Kabuto: grab a Reaper and throw it|Kstory4|kstory4_1|0|430|--script scripts/video3/grab_throw.txt
+Delphi: the sword deflects Reaper bolts|Rstory2|rstory2_battle_1|0|720|--script scripts/video3/parry.txt
+Sparks and a glow where shots strike|Story1|1a_1_timmy|40|240|GVR_CUTSCENE=none --pitch -30 --aim-pitch -28 --trigger-window 60 280 --trigger-pulse 6
+Delphi's arrival at the volcano (was 10 s of black)|Rstory3_race_1|rstory3_pre_race_1|0|720|

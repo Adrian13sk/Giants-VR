@@ -144,6 +144,10 @@ void GameApp::heroBody(Hero h, PlayerController& pc, float& scale, float& lift) 
         p.stepDown = 0.6f * scale;
         p.maxStepUp = 0.6f * scale;
         p.slideMaxSpeed = 18.0f;
+        // Rework: a giant scrambles up what stops a man - banks and cliff faces up to 68 degrees (the
+        // Meccaryn's limit is 50). kstory3_4's portal stands on an island ringed by cliffs that 50
+        // degrees never climbs (harness reach check).
+        p.maxSlope = 2.5f;
         pc.radius = 0.11f * H;
         pc.height = H;
         pc.stepUp = 0.3f * scale;

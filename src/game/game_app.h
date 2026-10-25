@@ -1112,6 +1112,15 @@ private:  // the mission placed enemies: no test waves
     int kbGrabHand_ = -1;
     bool kbGripWas_[2] = {false, false};
     void updateKabutoHandGrab(const InputFrame& in);
+    void checkReachObjectives();  // test hook GVR_REACH_CHECK (game_app_reach.cpp)
+    bool planReach(int objective, bool log);
+    bool reachWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt);  // GVR_REACH_WALK: steers along reachPath_
+    std::vector<Vec3> reachPath_;
+    std::vector<uint8_t> reachBlocked_;
+    std::vector<float> reachHgt_;
+    Vec3 reachLo_;
+    int reachW_ = 0, reachTarget_ = -1, reachReplans_ = 0, reachResets_ = 0, reachLog_ = 0;
+    float reachStuckT_ = 0;
     Vec3 kbHandPrev_, kbHandVel_;
     const RenderModel* boulderModel_ = nullptr;
     void initThrows();

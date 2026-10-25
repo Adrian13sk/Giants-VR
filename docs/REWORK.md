@@ -45,6 +45,8 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Effects | Shots striking scenery throw a soft glow and quick sparks (the old flash sprite was blocky up close). | HARNESS |
 | Cutscenes | Two shots that stayed black for 10 s (Delphi's jetski arrival at the volcano, the Story 3 prison lift) now show. Shot cameras looking steeply down or up at their actors swing round them to a comfortable angle (your view never tilts by itself). All 30 opening cutscenes reviewed on contact sheets. | HARNESS |
 | Kabuto | Story check: every gate objective of his campaign breaks with its own mechanic (punches; adrenaline - both grips; the magnifying glass), and the other Kabuto in kstory5_4 falls to punches. Not yet checked: walking to the portals. | HARNESS |
+| Kabuto | Climbs like a giant: slopes up to 68 degrees (a man's limit is 50), judged over his stride, so banks and ledges small beside him are steps. kstory3_4's portal stands on an island ringed by cliffs that he could never climb before. | HARNESS |
+| Guidance | One-time hints the first time Kabuto has something grabbable at his feet and the first time a bolt flies close by Delphi with her sword out. | HARNESS |
 
 Harness regression: all 56 missions exit 0 with no errors (latest run after the grass).
 

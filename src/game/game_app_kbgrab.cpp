@@ -20,6 +20,20 @@ constexpr int kVimpTargetG = 6000;
 
 void GameApp::updateKabutoHandGrab(const InputFrame& in) {
     const float H = player_.height;
+    // A one-time hint the first time something grabbable is at his feet (first person).
+    static bool hinted = false;
+    if (!hinted && firstPerson_ && playMode_ && kbHold_ == HoldNone && !cutsceneActive()) {
+        bool near = false;
+        for (const auto& e : enemies_.enemies)
+            if (e.state != EnemyState::Dead && length(e.pos - player_.position) < 0.6f * H) near = true;
+        for (const auto& v : villagers_.villagers)
+            if (length(v.pos - player_.position) < 0.6f * H) near = true;
+        if (near) {
+            hinted = true;
+            timmyLine_ = "REACH DOWN AND SQUEEZE A GRIP TO GRAB IT - THROW IT, OR BRING IT TO YOUR MOUTH";
+            timmyLineT_ = 5.0f;
+        }
+    }
     for (int h = 0; h < 2; ++h) {
         const ControllerState& c = in.hand[h];
         const bool g = c.squeeze > 0.7f;

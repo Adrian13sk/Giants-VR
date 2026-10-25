@@ -1,0 +1,14 @@
+name video3_grab_throw
+world Kstory4
+mission kstory4_1
+env GVR_CUTSCENE none
+env GVR_REAPER_NEAR 1
+env GVR_GOD 1
+duration 6
+hand_r 0 -0.85 -0.35 0.5 1.5
+hold grip_r 1.7 2.74
+hand_r 0 0.6 -0.2 2.0 2.6
+hand_r 0 0.3 -1.2 2.6 2.75
+shot 1.8 grabbed
+shot 3.4 thrown
+pitch -30
