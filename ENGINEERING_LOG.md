@@ -1903,3 +1903,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   a lighter comfort vignette while a cutscene camera travels (updateVignette now also runs in cutscenes),
   menu panels restyled. kstory3_4's portal: a 109 m plateau whose surrounding faces exceed even Kabuto's new
   68-degree limit in places - recorded as BLOCKERS B18 for the play-test.
+- 9e93e37 delivered (with a short climbing video): climbing for Kabuto and Delphi in first person - a grip on
+  ground steeper than walkable holds, the body moves opposite to the holding hand's tracked motion (Kabuto
+  x1.5), PlayerController::climbing suspends gravity and walking. Harness: one hand, 5 pulls up a 61-degree
+  bank: 1.6 -> 14.6 m; two alternating hands: up and onto the top of the bank at 22 m. Meant also as the way
+  up kstory3_4's plateau (B18, unverified there).
