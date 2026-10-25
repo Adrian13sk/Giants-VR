@@ -13,6 +13,16 @@
 
 namespace gvr {
 
+// A thin gold edge round a menu panel (rework): four strips just outside it.
+void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
+    const float b = 0.008f;
+    const Vec4 gold{0.85f, 0.62f, 0.22f, 0.85f};
+    text_.drawPanel(xf * Mat4::translation({0, 0.5f * h + 0.5f * b, 0.001f}), w + 2 * b, b, gold);
+    text_.drawPanel(xf * Mat4::translation({0, -0.5f * h - 0.5f * b, 0.001f}), w + 2 * b, b, gold);
+    text_.drawPanel(xf * Mat4::translation({-0.5f * w - 0.5f * b, 0, 0.001f}), b, h, gold);
+    text_.drawPanel(xf * Mat4::translation({0.5f * w + 0.5f * b, 0, 0.001f}), b, h, gold);
+}
+
 namespace {
 enum MenuRow { kRowResume, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
 }
@@ -158,14 +168,15 @@ void GameApp::renderMenu() {
         {"NEW GAME", newGame},
     };
     const float rowH = 0.066f, w = 1.15f, h = rowH * float(kRowCount + 2) + 0.1f;
-    text_.drawPanel(base, w, h, {0, 0, 0, 0.86f});
+    text_.drawPanel(base, w, h, {0.015f, 0.03f, 0.055f, 0.9f});
+    drawPanelEdge(base, w, h);
     float tw, th;
     if (const MeshId t = text_.mesh("OPTIONS", 0.06f, 1.0f, &tw, &th))
         text_.draw(t, base * Mat4::translation({0, 0.5f * h - 0.07f, 0.004f}), {1.0f, 0.85f, 0.4f, 1.0f});
     for (int i = 0; i < kRowCount; ++i) {
         const float y = 0.5f * h - 0.17f - float(i) * rowH;
         const bool sel = i == menuRow_;
-        if (sel) text_.drawPanel(base * Mat4::translation({0, y, 0.002f}), w - 0.06f, rowH * 0.9f, {0.25f, 0.55f, 0.25f, 0.6f});
+        if (sel) text_.drawPanel(base * Mat4::translation({0, y, 0.002f}), w - 0.06f, rowH * 0.9f, {0.75f, 0.5f, 0.15f, 0.45f});
         const Vec4 col = sel ? Vec4{1, 1, 0.8f, 1} : Vec4{0.85f, 0.85f, 0.85f, 1};
         if (const MeshId m = text_.mesh(rows[i][0], 0.042f, 0.7f, &tw, &th))
             text_.draw(m, base * Mat4::translation({-0.5f * w + 0.06f + 0.5f * tw, y, 0.004f}), col);

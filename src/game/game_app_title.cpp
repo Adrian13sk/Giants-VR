@@ -311,7 +311,9 @@ void GameApp::renderTitle() {
     const Quat tilt = r * Quat::fromAxisAngle({1, 0, 0}, 0.32f);  // tipped back toward the eyes
     const Mat4 panel = Mat4::translation(base) * Mat4::rotation(tilt);
     const float w = 1.05f, rowH = 0.11f, h = rowH * float(kTitleRowCount) + 0.16f;
-    text_.drawPanel(panel, w, h, {0, 0, 0, 0.72f});
+    // Rework: a dark glass panel with a thin gold edge.
+    text_.drawPanel(panel, w, h, {0.015f, 0.03f, 0.055f, 0.86f});
+    drawPanelEdge(panel, w, h);
     std::string cont = "CONTINUE";
     if (!titleWorld_.empty()) {
         std::string t, b;
@@ -357,7 +359,7 @@ void GameApp::renderTitle() {
         const float y = 0.5f * h - 0.08f - rowH * (0.5f + float(vi++));
         const bool usable = (i != kTitleContinue || !titleWorld_.empty()) && (i != kTitleMission || !titleMissions_.empty());
         const bool sel = i == titleRow_;
-        if (sel) text_.drawPanel(panel * Mat4::translation({0, y, 0.002f}), w - 0.06f, rowH * 0.9f, {0.25f, 0.55f, 0.25f, 0.6f});
+        if (sel) text_.drawPanel(panel * Mat4::translation({0, y, 0.002f}), w - 0.06f, rowH * 0.9f, {0.75f, 0.5f, 0.15f, 0.45f});
         const Vec4 col = !usable ? Vec4{0.45f, 0.45f, 0.45f, 1} : (sel ? Vec4{1, 1, 0.8f, 1} : Vec4{0.85f, 0.85f, 0.85f, 1});
         if (const MeshId m = text_.mesh(rows[i], 0.055f, w - 0.1f, &tw, &th)) text_.draw(m, panel * Mat4::translation({0, y, 0.004f}), col);
     }

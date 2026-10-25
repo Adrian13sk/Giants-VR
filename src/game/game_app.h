@@ -1401,6 +1401,7 @@ private:  // the mission placed enemies: no test waves
     void addSparks(const Vec3& at, const Vec3& normal, int n);
     void updateNearMisses(float dt);
     void updateHandTouch(float dt);
+    void drawPanelEdge(const Mat4& xf, float w, float h);
     bool touch_[2] = {false, false};
     float touchT_[2] = {0, 0};
     QuadBatch fireBatch_;
