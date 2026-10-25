@@ -58,7 +58,8 @@ void GameApp::initDestruction(AssetWorld* w, ModelCache* mc) {
             kind = DestructKind::House;
             hp = dataHp > 0 ? dataHp : 250.0f;
         }
-        else if (o.name == "log_launcher_base" || o.name == "guard_army_barracks" || o.name == "barracks_story2") {
+        else if (o.name == "log_launcher_base" || o.name == "guard_army_barracks" || o.name == "barracks_story2" || o.name == "barracks" ||
+                 o.name == "bw_minibarracks" || o.name == "guard_ripperbarracks") {  // (the last three: rework - they spawn, so they can fall)
             kind = DestructKind::House;
             hp = dataHp > 0 ? dataHp : 600.0f;
         } else if (o.name == "ice_wall") {

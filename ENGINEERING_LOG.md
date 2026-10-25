@@ -2009,3 +2009,15 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   below the chin accumulated past 0.55 m = fire wall. castTornado/castFireWall factored out of updateSpells; a
   gesture cast blocks the release cast and the bolt for that pull. Harness: delphi_tornado_circle -> "circle
   overhead (400 deg) -> tornado"; delphi_firewall_sweep -> "sweep (0.60 m) -> fire wall". Sweep 56/56 clean.
+- User feedback 2026-10-25 22:16 (list): barracks and big nests should spawn, Rippers' burial rule, ragdolls,
+  Smarties killable/pickable by all, Vimp corpse + soul + regrowth, textures (grass, rock), Delphi/Kabuto arms
+  following the controllers (Delphi's tiny hands, sword not in hand), Kabuto picking trees/NPCs, Delphi not eaten
+  by piranhas, Kabuto drowning in deep water, sword sticking/dismemberment, bow (left holds, right draws, fire only
+  on release), all cutscenes again. Worked through in that order.
+- Spawners (game_app_spawners.cpp): barracks / barracks_story2 / bw_minibarracks / guard_army_barracks send 1-2
+  Reapers out of the side facing the player every 20-35 s (in range 110 m x sqrt(scale), cap 4 own alive, by uid);
+  guard_ripperbarracks breeds medium Rippers from the nest model pool (which is now also built for Ripper barracks).
+  Those buildings are destructible (rework hp 600) and stop when down. Reaper model pool +3 per barracks (max 16);
+  when every model is in use a living Reaper takes the farthest corpse's. Placed Rippers: all but Small buried.
+  Harness 2c_1: 6 Rippers from two Ripper barracks in 50 s; 5 Reapers from barracks_story2. Completion scripts all
+  still pass; sweep 56/56 clean.

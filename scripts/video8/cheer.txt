@@ -5,6 +5,6 @@ env GVR_CUTSCENE none
 env GVR_GOD 1
 env GVR_NO_AMBUSH 1
 duration 8
-at 135 -60
-look 135 -107
+at 145 -115
+look 145 -160
 reapers 2 10 0.5 3

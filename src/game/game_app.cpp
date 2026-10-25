@@ -542,7 +542,11 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             {
                 int missionReapers = 0;
                 for (const auto& ch : w->characters()) missionReapers += ch.objectClass == 51;
-                poolSize = std::min(16, std::max(6, missionReapers));
+                // (rework: barracks send out more of them)
+                int barracks = 0;
+                for (const auto& o : w->worldObjects())
+                    barracks += o.name == "barracks" || o.name == "barracks_story2" || o.name == "bw_minibarracks" || o.name == "guard_army_barracks";
+                poolSize = std::min(16, std::max(6, missionReapers) + 3 * std::min(barracks, 2));
             }
             for (int k = 0; k < poolSize; ++k) {
                 auto em = std::make_unique<SkinnedModel>();
@@ -1278,12 +1282,13 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             const float hp = t && t->hitPoints > 0 ? t->hitPoints : 40.0f;
             ci.size = hp <= 25.0f ? CreatureSize::Small : (hp <= 60.0f ? CreatureSize::Medium : CreatureSize::Large);
             const int idx = creatures_.spawn(ch.position, ch.yaw, ch.scale, ci.size, hp, true);
-            // Most Rippers start underground (user report on the original: nine in ten), under a
-            // mound, and come up when they feel the player or a shot lands near (GVR_BURIED sets
-            // the share for tests).
-            static const float buried = std::getenv("GVR_BURIED") ? float(std::atof(std::getenv("GVR_BURIED"))) : 0.9f;
+            // The placed Rippers start underground, under a mound, and come up when they feel the
+            // player or a shot lands near - all but the small ones (user, 2026-10-25: "Rippers spawn
+            // all except small ones underground"; nest and barracks broods come out above ground).
+            // GVR_BURIED sets the share for tests.
+            static const float buried = std::getenv("GVR_BURIED") ? float(std::atof(std::getenv("GVR_BURIED"))) : 1.0f;
             const bool besieging = length(Vec3{ch.position.x - timmyAt.x, 0, ch.position.z - timmyAt.z}) < 18.0f;
-            if (frand() < buried && !besieging) creatures_.bury(idx);
+            if (ci.size != CreatureSize::Small && frand() < buried && !besieging) creatures_.bury(idx);
             if (ch.trigger == 2) {
                 ci.objective = int(objectives_.size());
                 objectives_.push_back({2, ch.position, ch.position});
@@ -1353,7 +1358,9 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     nests_.clear();
     for (const auto& n : w->nests()) nests_.push_back({n.position, n.model, n.transform, n.radius, n.hitPoints, n.hitPoints, 1.0f, 1.0f,
                                                        2.0f + 3.0f * frand(), true, -1.0f});
-    if (!nests_.empty()) {
+    int ripBarracks = 0;  // rework: Ripper barracks (guard_ripperbarracks) breed medium Rippers like big nests
+    for (const auto& o : w->worldObjects()) ripBarracks += o.name == "guard_ripperbarracks";
+    if (!nests_.empty() || ripBarracks > 0) {
         // All nests are one type (ripnest, 100 hp); their size is the placement's scale. The
         // smaller ones (well under the level's biggest, or under 3 m across) hatch mini Rippers
         // (type 229, 20 hp, drawn at 0.55 scale); the big ones medium Rippers (type 73).
@@ -1365,8 +1372,10 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             bigNests += !n.small;
             LOGI("Ripper nest at (%.0f %.0f): radius %.2f m, %s", n.pos.x, n.pos.z, n.radius, n.small ? "small (mini Rippers)" : "big");
         }
-        const int pool = std::min(12, 3 * int(nests_.size()));
-        const int bigPool = bigNests == 0 ? 0 : (bigNests == int(nests_.size()) ? pool : std::max(3, pool * bigNests / int(nests_.size())));
+        const int sources = int(nests_.size()) + ripBarracks;
+        bigNests += ripBarracks;
+        const int pool = std::min(12, 3 * sources);
+        const int bigPool = bigNests == 0 ? 0 : (bigNests == sources ? pool : std::max(3, pool * bigNests / sources));
         for (int k = 0; k < pool; ++k) {
             const bool mini = k >= bigPool;
             const uint32_t type = mini ? 229 : 73;
@@ -1472,6 +1481,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initVillagers(w, mc);
     initVimps(w, mc);
     initDestruction(w, mc);
+    initSpawners();
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
     // The VR map's island model is built now, behind the loading screen (it took ~5 ms on the host
     // when built on the first frame of play).
@@ -3639,7 +3649,7 @@ void GameApp::updateSchools(float dt) {
 void GameApp::updateCombat(float dt) {
     GVR_PROF("combat (all)");
     { GVR_PROF("rockets"); updateRockets(dt); }
-    { GVR_PROF("nests"); updateNests(dt); }
+    { GVR_PROF("nests"); updateNests(dt); updateSpawners(dt); }
     // Water: entering it splashes; swimming leaves rings. Piranhas live in all deep water (the 1b
     // briefing warns of them): after a moment there they gather round and bite; leaving deep water
     // (shallows, the shore, the jetpack) sends them away. Rates and damage ours.
@@ -3713,9 +3723,17 @@ void GameApp::updateCombat(float dt) {
     for (auto& e : enemies_.enemies)
         if (e.slot >= 0 && size_t(e.slot) < slotUsed_.size()) slotUsed_[size_t(e.slot)] = 1;
     for (auto& e : enemies_.enemies)
-        if (e.slot < 0)
+        if (e.slot < 0) {
             for (size_t k = 0; k < slotUsed_.size(); ++k)
                 if (!slotUsed_[k]) { e.slot = int(k); slotUsed_[k] = 1; slotLift_[k] = enemyFootOffset_; break; }
+            if (e.slot < 0 && e.state != EnemyState::Dead) {
+                // Rework: every model in use - the living take the farthest corpse's (it goes).
+                Enemy* far = nullptr;
+                for (auto& c : enemies_.enemies)
+                    if (c.state == EnemyState::Dead && c.slot >= 0 && !c.remove && (!far || length(c.pos - player_.position) > length(far->pos - player_.position))) far = &c;
+                if (far) { e.slot = far->slot; far->slot = -1; far->remove = true; slotLift_[size_t(e.slot)] = enemyFootOffset_; }
+            }
+        }
     // Skinning is the costly part: Reapers too far to make out (the giant sees further) keep their
     // last pose; mid-distance ones are re-posed every other frame.
     const float poseFar = hero_ == Hero::Kabuto ? 400.0f : 130.0f;

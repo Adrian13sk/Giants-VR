@@ -7,8 +7,8 @@ env GVR_CUTSCENE none
 env GVR_GOD 1
 env GVR_NO_AMBUSH 1
 duration 6
-at 135 -60
-look 135 -107
+at 145 -115
+look 145 -160
 hand_r 0 0.6 0 0.5 0.8
 hand_r 0.3 0 0 1.0 1.25
 hand_r -0.3 0 0 1.25 1.50

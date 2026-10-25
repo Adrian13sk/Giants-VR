@@ -127,7 +127,7 @@ public:
         for (size_t i = 0; i < rescue_.smarties.size(); ++i)
             if (length(rescue_.smarties[i].pos - p) < r) LOGI("  near: rescue Smartie %zu at %.2f m, state %d", i, length(rescue_.smarties[i].pos - p), int(rescue_.smarties[i].state));
         for (size_t i = 0; i < villagers_.villagers.size(); ++i)
-            if (length(villagers_.villagers[i].pos - p) < r) LOGI("  near: villager %zu at %.2f m", i, length(villagers_.villagers[i].pos - p));
+            if (length(villagers_.villagers[i].pos - p) < r) LOGI("  near: villager %zu at %.2f m = game (%.0f, %.0f)", i, length(villagers_.villagers[i].pos - p), -villagers_.villagers[i].pos.x / 0.2f, villagers_.villagers[i].pos.z / 0.2f);
     }
     size_t enemyCount() const { return enemies_.enemies.size(); }
     float playerHealth() const { return playerHealth_; }
@@ -185,6 +185,11 @@ public:
     // Test scripts ("reapers"): n Reapers in a row (1 m apart) dist m in front of the player, facing him; then a
     // rocket blast on each of them.
     void debugReapersAhead(int n, float dist);
+    // Rework: barracks send out Reapers, Ripper barracks breed Rippers while they stand (game_app_spawners.cpp).
+    struct Spawner { int object = -1, item = -1; bool rippers = false; float timer = 0; Vec3 pos; float radius = 3; std::vector<uint32_t> sent; };
+    std::vector<Spawner> spawners_;
+    void initSpawners();
+    void updateSpawners(float dt);
     void debugBlastReapers();
     std::vector<int> debugReapers_;
     size_t destroyedCount() const { size_t n = 0; for (const auto& d : destruct_.items) n += !d.alive(); return n; }
