@@ -695,7 +695,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     // Rework: Kabuto leaps when you jump - a quick rise of your real head from standing (first person)
     // springs him up half as high again as the button's jump.
     kbLeapCool_ = std::max(0.0f, kbLeapCool_ - dt);
-    if (hero_ == Hero::Kabuto && firstPerson_ && in.headValid && dt > 0) {
+    if ((hero_ == Hero::Kabuto || hero_ == Hero::Delphi) && firstPerson_ && in.headValid && dt > 0) {
         const float y = in.head.position.y;
         const float vy = kbHeadValid_ ? (y - kbHeadPrevY_) / dt : 0.0f;
         kbHeadVelY_ = kbHeadVelY_ * 0.5f + vy * 0.5f;
@@ -707,10 +707,10 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
             kbLeapCool_ = 1.2f;
             haptics_.push_back({kLeft, 0.8f, 0.15f});
             haptics_.push_back({kRight, 0.8f, 0.15f});
-            LOGI("Kabuto leaps (your head rose at %.1f m/s)", kbHeadVelY_);
+            LOGI("%s leaps (your head rose at %.1f m/s)", hero_ == Hero::Kabuto ? "Kabuto" : "Delphi", kbHeadVelY_);
         }
         // ...and a quick drop of your head (a crouch slammed down) is a ground pound round his feet.
-        if (kbHeadVelY_ < -1.6f && y < userEye_ - 0.15f && player_.onGround && kbLeapCool_ <= 0) {
+        if (hero_ == Hero::Kabuto && kbHeadVelY_ < -1.6f && y < userEye_ - 0.15f && player_.onGround && kbLeapCool_ <= 0) {
             kbLeapCool_ = 1.2f;
             float gy = player_.position.y;
             if (player_.groundHeight) gy = player_.groundHeight(player_.position.x, player_.position.z);
