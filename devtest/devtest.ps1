@@ -66,7 +66,7 @@ if ($Tests.Count -gt 0) { $scripts = @($Tests | ForEach-Object { Join-Path $test
 else { $scripts = @(Get-ChildItem $testDir -Filter *.txt | Sort-Object Name | ForEach-Object { $_.FullName }) }
 # Mission name prefix -> world (as scripts/mission_sweep.sh).
 $worldOf = @(@('^1', 'Story1'), @('^2', 'Story2'), @('^story3', 'Story3'), @('^4', 'Story4'), @('^5', 'Story5'),
-             @('^r1', 'Rstory1'), @('^r4', 'Rstory4'), @('^rstory2', 'Rstory2'), @('^rstory3', 'Rstory3'), @('^rstory5', 'Rstory5'),
+             @('^r1', 'Rstory1'), @('^r4', 'Rstory4'), @('^rstory2', 'Rstory2'), @('^rstory3_race_2', 'Rstory3_race_2'), @('^rstory3_race_3', 'Rstory3_race_3'), @('^rstory3', 'Rstory3_race_1'), @('^rstory5', 'Rstory5'),
              @('^k1', 'Kstory1'), @('^k2', 'Kstory2'), @('^kstory3', 'Kstory3'), @('^kstory4', 'Kstory4'), @('^kstory5', 'Kstory5'),
              @('^end', 'the_end'))
 if ($Sweep) {
