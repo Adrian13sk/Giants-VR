@@ -1013,6 +1013,8 @@ private:  // the mission placed enemies: no test waves
     // Rework: deflect enemy bolts with a blade from hilt to tip (game_app_parry.cpp); returns how many.
     int parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& tipVel, int hand, float dt);
     int parries_ = 0;
+    Vec3 castHandPrev_, castHandVel_;  // Delphi's casting hand (tracking space): a thrown fire bolt
+    bool castHandValid_ = false;
     std::vector<std::pair<int, float>> swordCool_;  // target -> seconds until it can be hit again
     int comboStep_ = 0;
     float comboTimer_ = 0, swipeT_ = -1, boltCooldown_ = 0;

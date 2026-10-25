@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 #include "audio/mixer.h"
 #include "core/log.h"
@@ -378,15 +379,42 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
             ok = true;
         }
     }
+    // Rework: her casting hand's own speed (tracking space, smoothed) - a bolt let go in a throwing
+    // motion flies along the throw, faster.
+    {
+        const ControllerState& c = in.hand[mh];
+        if (firstPerson_ && c.gripPoseValid && dt > 0) {
+            const Vec3 v = castHandValid_ ? (c.gripPose.position - castHandPrev_) * (1.0f / dt) : Vec3{0, 0, 0};
+            castHandVel_ = castHandVel_ * 0.4f + v * 0.6f;
+            castHandPrev_ = c.gripPose.position;
+            castHandValid_ = true;
+        } else {
+            castHandValid_ = false;
+            castHandVel_ = Vec3{0, 0, 0};
+        }
+    }
     // A held trigger charges a spell (game_app_spells.cpp); a tap released is the fire bolt.
     const bool consumed = updateSpells(dt, boltTrig, from, dir, ok);
+    float boltSpeed = 28.0f;
+    if (firstPerson_ && length(castHandVel_) > 1.8f) {
+        const Vec3 throwDir = normalize(rig_.worldFromTracking.orientation.rotate(castHandVel_));
+        if (dot(throwDir, dir) > 0.3f) {
+            dir = normalize(throwDir * 0.6f + dir * 0.4f);
+            boltSpeed = 40.0f;
+        }
+    }
     if (!consumed && !boltTrig && boltTrigWas_ && boltCooldown_ <= 0 && ok) {
         if (!firstPerson_ && player_.onGround && swipeT_ < 0) player_.startAction(PlayerAnim::Cast, std::max(0.3f, player_.oneShot[int(PlayerAnim::Cast)] * 0.6f));
         Rocket r;
         r.pos = from;
-        r.vel = dir * 28.0f;
+        r.vel = dir * boltSpeed;
         r.life = 0;
         r.kind = 1;
+        if (boltSpeed > 30.0f) {
+            haptics_.push_back({mh, 0.8f, 0.08f});
+            static const bool trace = std::getenv("GVR_PARRY_TRACE") != nullptr;
+            if (trace) LOGI("Delphi throws a fire bolt (hand %.1f m/s)", length(castHandVel_));
+        }
         rockets_.push_back(r);
         boltCooldown_ = 1.0f;
         sfx("sr_spfsh", from, 1.0f);
