@@ -283,6 +283,10 @@ private:
     struct AmmoPickup { Vec3 pos; int type; float t = 0; };
     std::vector<AmmoPickup> ammoPickups_;
     const RenderModel* shellsModel_ = nullptr;
+    std::unordered_map<int, const RenderModel*> ammoModels_;  // by pickup type (its object's model)
+    const RenderModel* ammoModel(int type);
+    // A killed Reaper's ammo (ours: the original's pickups, for a weapon carried that has room).
+    bool dropAmmo(const Vec3& at);
     const RenderModel* lbombModel_ = nullptr;  // the mortar's Millenium bomb (mc_lbomb)
     const RenderModel* sniperShotModel_ = nullptr;
     const RenderModel* sniperFlashModel_ = nullptr;

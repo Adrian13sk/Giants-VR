@@ -128,11 +128,13 @@ void GameApp::initArsenal() {
         if (it->maxAmmo > 0) grenadeMax_ = it->maxAmmo;
         if (it->ammoPerPickup > 0) grenadeGive_ = it->ammoPerPickup;
     }
-    if (std::getenv("GVR_ARSENAL"))  // test hook: every gun, full
+    if (std::getenv("GVR_ARSENAL")) {  // test hook: every gun, full (GVR_ARSENAL=half: half full)
+        const bool half = std::string(std::getenv("GVR_ARSENAL")) == "half";
         for (auto& g : guns_)
-            if (g.model) { g.have = true; g.ammo = g.maxAmmo; }
+            if (g.model) { g.have = true; g.ammo = half ? g.maxAmmo / 2 : g.maxAmmo; }
+    }
     if (std::getenv("GVR_ARSENAL") && grenadeModel_) grenades_ = grenadeMax_;
-    if (std::getenv("GVR_ARSENAL") && launcherModel_) { hasLauncher_ = true; launcherAmmo_ = launcherMax_; }
+    if (std::getenv("GVR_ARSENAL") && launcherModel_) { hasLauncher_ = true; launcherAmmo_ = launcherMax_ / (std::string(std::getenv("GVR_ARSENAL")) == "half" ? 2 : 1); }
 }
 
 void GameApp::dropHeldWeaponState() {
@@ -318,7 +320,53 @@ bool GameApp::ammoPickup(int objectType, const Vec3& at) {
     return known;
 }
 
+// The pickup's own model (mc_pickup_clips, mc_pickup_rockets... by its object type), else the shells box.
+const RenderModel* GameApp::ammoModel(int type) {
+    auto it = ammoModels_.find(type);
+    if (it != ammoModels_.end()) return it->second;
+    const RenderModel* m = nullptr;
+    if (assetWorld_ && assetWorld_->models()) {
+        const std::string name = assetWorld_->registry().modelName(uint32_t(type));
+        if (!name.empty()) m = assetWorld_->models()->get(name + ".gbs", "", /*dynamicLit=*/true);
+    }
+    if (!m) m = shellsModel_;
+    ammoModels_[type] = m;
+    return m;
+}
+
+bool GameApp::dropAmmo(const Vec3& at) {
+    initArsenal();
+    auto pickupOf = [&](int item) {
+        const ItemDef* it = weaponDefs_.item(item);
+        const ItemDef* am = it && it->ammoItem >= 0 ? weaponDefs_.item(it->ammoItem) : nullptr;
+        return am ? am->pickupType : -1;
+    };
+    std::vector<int> want;  // pickup types of what's carried and not full
+    if (hero_ == Hero::Mecc) {
+        if (hasLauncher_ && launcherAmmo_ < launcherMax_) want.push_back(pickupOf(14));
+        for (const auto& g : guns_)
+            if (g.have && g.ammo < g.maxAmmo) want.push_back(g.item == 3 && pickupOf(3) < 0 ? 647 : pickupOf(g.item));
+    } else if (hero_ == Hero::Delphi) {
+        for (const auto& b : bows_)
+            if (b.have && b.maxAmmo > 0 && b.ammo < b.maxAmmo) want.push_back(pickupOf(b.item));
+    }
+    want.erase(std::remove(want.begin(), want.end(), -1), want.end());
+    if (want.empty()) return false;
+    Vec3 p = at;
+    float gy;
+    if (assetWorld_ && assetWorld_->terrain().heightAt(p.x, p.z, gy)) p.y = std::max(p.y, gy);
+    const int type = want[size_t(frand() * float(want.size())) % want.size()];
+    ammoPickups_.push_back({p, type, 0});
+    LOGI("A Reaper dropped ammo (pickup type %d)", type);
+    return true;
+}
+
 void GameApp::updateAmmoPickups(float dt) {
+    static float aheadT = std::getenv("GVR_AMMO_DROP_AHEAD") ? 1.0f : -1.0f;  // test hook: n drops in a row ahead, 1 s in
+    if (aheadT > 0 && playMode_ && (aheadT -= dt) <= 0) {
+        const Vec3 f = Quat::fromAxisAngle({0, 1, 0}, player_.yaw).rotate(Vec3{0, 0, -1});
+        for (int k = 0; k < std::atoi(std::getenv("GVR_AMMO_DROP_AHEAD")); ++k) dropAmmo(player_.position + f * (3.0f + 2.0f * float(k)));
+    }
     for (auto& p : ammoPickups_) {
         p.t += dt;
         const Vec3 d = p.pos - player_.position;
@@ -366,14 +414,16 @@ void GameApp::updateAmmoPickups(float dt) {
 }
 
 void GameApp::renderAmmoPickups() {
-    if (!playMode_ || !shellsModel_) return;
-    const Vec3 s = shellsModel_->boundsMax - shellsModel_->boundsMin;
-    const float big = std::max(s.x, std::max(s.y, s.z));
-    const float k = big > 1e-3f ? 0.5f / big : 1.0f;  // about half a metre: easy to spot
+    if (!playMode_) return;
     for (const auto& p : ammoPickups_) {
+        const RenderModel* m = ammoModel(p.type);
+        if (!m) continue;
+        const Vec3 s = m->boundsMax - m->boundsMin;
+        const float big = std::max(s.x, std::max(s.y, s.z));
+        const float k = big > 1e-3f ? 0.5f / big : 1.0f;  // about half a metre: easy to spot
         const float bob = 0.4f + 0.06f * std::sin(p.t * 2.5f);
         const Mat4 at = Mat4::translation(p.pos + Vec3{0, bob, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, p.t * 1.6f));
-        drawModel(shellsModel_, at * Mat4::scale({k, k, k}) * Mat4::translation((shellsModel_->boundsMin + shellsModel_->boundsMax) * -0.5f), false);
+        drawModel(m, at * Mat4::scale({k, k, k}) * Mat4::translation((m->boundsMin + m->boundsMax) * -0.5f), false);
     }
 }
 

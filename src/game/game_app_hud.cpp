@@ -432,13 +432,16 @@ void GameApp::updatePickups(float dt, const InputFrame& in) {
         playerHealth_ = std::min(100.0f, playerHealth_ + h);
         if (playerHealth_ >= 100.0f) healPending_ = 0;
     }
-    // Some of the Reapers killed drop an injection.
+    // Some of the Reapers killed drop an injection, some ammo for a weapon carried (both ours: 35 %,
+    // then 30 % of the rest).
     if (enemyDead_.size() < enemies_.enemies.size()) enemyDead_.resize(enemies_.enemies.size(), 0);
     for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
         const bool dead = enemies_.enemies[i].state == EnemyState::Dead;
         if (dead && !enemyDead_[i]) {
             ++recentKills_;
+            static const float ammoChance = std::getenv("GVR_AMMO_DROP") ? float(std::atof(std::getenv("GVR_AMMO_DROP"))) : 0.3f;  // test hook
             if (frand() < 0.35f) dropHealth(enemies_.enemies[i].pos + Vec3{0.6f, 0, 0.3f});
+            else if (frand() < ammoChance) dropAmmo(enemies_.enemies[i].pos + Vec3{-0.5f, 0, 0.4f});
         }
         enemyDead_[i] = dead;
     }
