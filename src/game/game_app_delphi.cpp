@@ -275,6 +275,8 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
     // tip's last position and along the blade); harder swings hit harder.
     if (firstPerson_ && swordValid_ && weapon_.raycast && weapon_.onHit) {
         const Vec3 hilt = bladePoint(0.12f), tip = bladePoint(bladeLen);
+        // Rework: Reaper bolts meeting the blade are deflected (game_app_parry.cpp).
+        parryShots(hilt, tip, swordTipValid_ && dt > 0 ? (tip - swordTipPrev_) * (1.0f / dt) : Vec3{0, 0, 0}, gh, dt);
         if (swordTipValid_ && dt > 0) {
             const float speed = length(tip - swordTipPrev_) / dt;
             if (speed > 3.0f) {

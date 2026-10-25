@@ -1005,6 +1005,9 @@ private:  // the mission placed enemies: no test waves
     Mat4 swordXf_ = Mat4::identity();
     bool swordValid_ = false, swordTipValid_ = false, swipeTrigWas_ = false, boltTrigWas_ = false, swipeHit_ = false;
     Vec3 swordTipPrev_;
+    // Rework: deflect enemy bolts with a blade from hilt to tip (game_app_parry.cpp); returns how many.
+    int parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& tipVel, int hand, float dt);
+    int parries_ = 0;
     std::vector<std::pair<int, float>> swordCool_;  // target -> seconds until it can be hit again
     int comboStep_ = 0;
     float comboTimer_ = 0, swipeT_ = -1, boltCooldown_ = 0;

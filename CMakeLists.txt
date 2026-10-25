@@ -87,6 +87,7 @@ add_library(gvr_core STATIC
   src/game/game_app_vr.cpp
     src/game/game_app_grass.cpp
     src/game/game_app_kbgrab.cpp
+    src/game/game_app_parry.cpp
   src/game/game_app_delphi.cpp
   src/game/game_app_kabuto.cpp
   src/game/game_app_title.cpp

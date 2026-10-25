@@ -57,7 +57,8 @@ void GameApp::updateReaperGrenades(float dt) {
         const Vec3 to = player_.position - e.pos;
         const float d = std::sqrt(to.x * to.x + to.z * to.z);
         if (e.hiddenT < 1.5f || e.grenadeCool > 0 || rpGrenadeCool_ > 0 || d < 8.0f || d > 26.0f) continue;
-        const Vec3 from = e.pos + Vec3{0, 1.7f, 0};
+        // From over his head and a little toward you: inside his own body it would burst on him at once.
+        const Vec3 from = e.pos + Vec3{to.x / d * 0.9f, 2.2f, to.z / d * 0.9f};
         const Vec3 aim = player_.position + Vec3{(frand() - 0.5f) * 2.0f, 0.2f, (frand() - 0.5f) * 2.0f};
         const float t = std::max(0.9f, std::min(1.8f, d / 13.0f));
         Vec3 v = (aim - from) * (1.0f / t);

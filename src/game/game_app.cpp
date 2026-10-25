@@ -380,6 +380,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             };
             weapon_.onHit = [this](int target, const Vec3& p, const Vec3& shotDir) {
                 const float hm = hitMul_ * weapon_.hitDamage();  // the gun that fired it (sniper, machine gun) x the hero's power
+                static const bool hitTrace = std::getenv("GVR_HIT_TRACE") != nullptr;
+                if (hitTrace) LOGI("hit trace: target %d at %.1f m, damage x%.1f", target, length(p - player_.position), hm);
                 if (target >= kObjectTarget) {
                     const int item = target - kObjectTarget;
                     damageObject(item, 25.0f * hm, false, player_.position);

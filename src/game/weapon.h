@@ -45,6 +45,8 @@ public:
     void spawnShot(const Vec3& muzzle, const Vec3& forward);
 
     const std::vector<Projectile>& projectiles() const { return projectiles_; }
+    std::vector<Projectile>& projectiles() { return projectiles_; }  // (deflecting: taken out of here...)
+    void adopt(const Projectile& p) { projectiles_.push_back(p); }   // (...and fired on from another system)
     const std::vector<WeaponEffect>& effects() const { return effects_; }
     size_t shotsFired() const { return shots_; }
     size_t hits() const { return hits_; }
