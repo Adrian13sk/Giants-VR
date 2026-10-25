@@ -789,3 +789,6 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
 - ce48a8b: unit tests pass incl. the new binaural test (a click to the right peaks louder and 10+ samples
   earlier in the right ear); harness audio render of a fight is sane (no clipping or NaN, RMS L/R 2347/3141);
   GVR_HEAD_DROP crouch -> "Kabuto slams the ground"; sweeps clean at 9e93e37, after the marksmen and at caeb29e.
+- kstory3_4 (a8bc86e + the in-face hold): scripted two-hand climb from the sea at the plateau's foot (game -695, 3589):
+  up to 110 m, then 6 s of walking -> "Objective 0 done", "Mission kstory3_4 complete". Kabuto's campaign is now
+  completable end to end in the harness (gates, portals, bosses). Device test kabuto_climb_k34.

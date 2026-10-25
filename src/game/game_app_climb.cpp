@@ -54,7 +54,12 @@ void GameApp::updateClimb(float dt, const InputFrame& in) {
         const float gx = (yx - yx2) / (2 * e), gz = (yz - yz2) / (2 * e);
         const float grade = std::sqrt(gx * gx + gz * gz);
         const bool atSurface = p.y < y0 + 0.08f * S;  // at or in it (a little above counts)
-        if (!atSurface || grade < 0.9f) {
+        // A hand sunk into the ground above your feet is in a face too (deep in a cliff, the ground above
+        // it can read flat - the plateau's top).
+        float yf = player_.position.y;
+        terr.heightAt(player_.position.x, player_.position.z, yf);
+        const bool inFace = p.y < y0 - 0.05f * H && y0 > yf + 0.2f * H;
+        if (!inFace && (!atSurface || grade < 0.9f)) {
             if (trace && edge) LOGI("climb: hand %d - no hold (%.1f m above the ground, grade %.2f)", h, p.y - y0, grade);
             continue;
         }
