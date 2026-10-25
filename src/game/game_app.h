@@ -637,6 +637,14 @@ private:
     float perfIgnore_ = 8.0f;  // seconds not counted (start, after loads)
     int perfGood_ = 0;          // full-rate windows in a row (quality back up after 3)
     int perfFrames_ = 0;
+    // Each world starts at the level it needed last time (quality.txt next to the settings), else at
+    // the level measured on the Quest 2 (Kabuto 3 needs 2, Reaper 2 needs 1); a step back up that had
+    // to be undone within 10 s holds the level for the next 60 s (no see-sawing between two levels).
+    std::string qualityWorld_;
+    std::unordered_map<std::string, int> worldQuality_;
+    float sinceUp_ = 1e9f, upHold_ = 0;
+    void loadWorldQuality();
+    void saveWorldQuality() const;
     void updateQuality(float dt);
     // Timmy rides on Baz's back (Ref_HolsterB, his own sm_mount clip) once Baz has the jetpack:
     // the Story 1 cutscenes after the hand-over carry him there (story1_jetpack_6/8, get_rpg9/10,

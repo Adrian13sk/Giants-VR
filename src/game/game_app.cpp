@@ -14,6 +14,7 @@
 #include "scene/skinned_model.h"
 
 #include <algorithm>
+#include <fstream>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -46,6 +47,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         const size_t slash = savePath_.find_last_of("/\\");
         settingsPath_ = (slash == std::string::npos ? std::string(".") : savePath_.substr(0, slash)) + "/settings.txt";
         if (loadSettings(settingsPath_, settings_)) LOGI("Settings loaded from %s", settingsPath_.c_str());
+        loadWorldQuality();
     }
     firstPerson_ = !settings_.thirdPerson;
     applySettings();
@@ -2196,27 +2198,66 @@ void GameApp::writeCheckpoint() {
     else LOGW("Checkpoint could not be written to %s", savePath_.c_str());
 }
 
+void GameApp::loadWorldQuality() {
+    if (settingsPath_.empty()) return;
+    const std::string path = settingsPath_.substr(0, settingsPath_.rfind('/') + 1) + "quality.txt";
+    std::ifstream f(path);
+    std::string line;
+    while (std::getline(f, line)) {
+        const size_t eq = line.find('=');
+        if (eq != std::string::npos) worldQuality_[toLower(line.substr(0, eq))] = std::max(0, std::min(3, std::atoi(line.c_str() + eq + 1)));
+    }
+}
+
+void GameApp::saveWorldQuality() const {
+    if (settingsPath_.empty()) return;
+    const std::string path = settingsPath_.substr(0, settingsPath_.rfind('/') + 1) + "quality.txt";
+    std::ofstream f(path, std::ios::trunc);
+    for (const auto& [w, q] : worldQuality_) f << w << "=" << q << "\n";
+}
+
 void GameApp::updateQuality(float dt) {
     static const int pinned = std::getenv("GVR_QUALITY") ? std::atoi(std::getenv("GVR_QUALITY")) : -1;  // test hook: fixed level
     if (pinned >= 0) { quality_ = std::min(3, pinned); return; }
     // Loading and the first seconds after it don't count: on the Quest the first 3-4 s of a level ran
     // at 35-50 fps (first use of its textures and shaders), which used to drop the quality for good.
     if (load_.phase != LoadPhase::Idle || cutsceneActive()) { perfIgnore_ = 6.0f; perfTime_ = 0; perfFrames_ = 0; return; }
+    if (worldName_ != qualityWorld_) {
+        if (!qualityWorld_.empty()) worldQuality_[toLower(qualityWorld_)] = quality_;
+        qualityWorld_ = worldName_;
+        const std::string w = toLower(worldName_);
+        auto it = worldQuality_.find(w);
+        // Measured on the Quest 2 (2026-10-25 device runs): Kabuto's story 3 world held 72 Hz only at
+        // level 2, Reaper story 2's water (jet-ski races, the first battle) from level 1.
+        const int measured = w == "kstory3" ? 2 : (w == "rstory2" ? 1 : 0);
+        quality_ = std::max(measured, it != worldQuality_.end() ? it->second : 0);
+        perfGood_ = 0;
+        upHold_ = 0;
+        sinceUp_ = 1e9f;
+        if (quality_ > 0) LOGI("perf: %s starts at effects quality level %d", worldName_.c_str(), quality_);
+    }
+    sinceUp_ += dt;
+    upHold_ = std::max(0.0f, upHold_ - dt);
     if (perfIgnore_ > 0) { perfIgnore_ -= dt; return; }
     if (dt <= 0 || dt > 0.05f) return;  // a single hitch
     perfTime_ += dt;
     ++perfFrames_;
     if (perfTime_ < 2.0f) return;  // (2 s windows: on the headset a 4 s window let a scene run at 36 fps for 8-12 s first)
     const float avg = perfTime_ / float(perfFrames_);
-    if (avg > 1.0f / 65.0f && quality_ < 3) {
+    // Down below 69 fps (was 65: a scene at 68 never stepped down and stuttered on).
+    if (avg > 1.0f / 69.0f && quality_ < 3) {
         ++quality_;
         perfGood_ = 0;
+        if (sinceUp_ < 10.0f) upHold_ = 60.0f;  // the last step up didn't hold
         LOGW("perf: %.1f fps average, effects quality down to level %d", 1.0f / avg, quality_);
-    } else if (avg < 1.0f / 71.0f && quality_ > 0) {
+        worldQuality_[toLower(worldName_)] = std::max(quality_, worldQuality_[toLower(worldName_)]);
+        saveWorldQuality();
+    } else if (avg < 1.0f / 71.0f && quality_ > 0 && upHold_ <= 0) {
         // Back up after 12 s at full rate (six windows in a row).
         if (++perfGood_ >= 6) {
             --quality_;
             perfGood_ = 0;
+            sinceUp_ = 0;
             LOGI("perf: %.1f fps average, effects quality back up to level %d", 1.0f / avg, quality_);
         }
     } else {
