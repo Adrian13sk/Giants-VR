@@ -34,25 +34,34 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Guidance | Objective marker: a gold diamond toward the nearest unfinished objective with its distance (beyond 20 m). | HARNESS |
 | Performance | The adaptive quality fallback (level 2+) drops the per-pixel relief and highlights. | HARNESS |
 | Tools | `scripts/make_video.sh`: progress videos from the harness (spectator view, captions). | HARNESS |
+| Combat | A Reaper who sees your aim laser resting on him dives aside (now and then; not posted sentries). | HARNESS |
+| Combat | Explosions throw nearby Reapers back. Reaper grenades leave from over the thrower's head (they used to burst on him at once). | HARNESS |
+| Pacing | Ambushes only in missions that have Reapers of their own. | HARNESS |
+| VR feel | Holsters follow your body's direction (your head's yaw within a neck's turn), not just the room. | HARNESS |
+| Options | LIGHTING: REWORK / CLASSIC (the same as `GVR_LOOK=0`). | HARNESS |
+| Looks | Grass: tufts on gentle grassy ground within 16 m of you, coloured and lit like the ground under them, swaying in gusts. Not on red earth, sand, rock or as Kabuto; off with the classic lighting and the adaptive fallback. | HARNESS |
+| Kabuto | Hands: in first person, reach down and squeeze a grip on what is at your feet. A Reaper or a boulder stays in that hand - swing and open it to throw, or bring it up to your mouth to eat it; a Smartie, a Vimp or a small creature is scooped up and eaten. (X still grabs as before.) | HARNESS |
+| Delphi | Sword parry: a Reaper bolt meeting the blade is knocked away with a spark and a ping; met with a swing, it goes back at the Reaper it came from. | HARNESS |
 
 Harness regression: all 56 missions exit 0 with no errors (latest run after ambushes and Reaper grenades).
 
 ## Trying it on the Quest
 Install the newest `GiantsVR-rework-<commit>.apk` like the others. New in Options: COMFORT VIGNETTE, AMBUSHES,
-AIM LASER. With the headset on USB, the usual tests plus the rework's cost comparisons:
+AIM LASER, LIGHTING. With the headset on USB, the usual tests plus the rework's cost comparisons:
 
 ```powershell
 cd $env:USERPROFILE\Documents\GiantsQuestVR\devtest
 powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Apk ..\GiantsVR-rework-<commit>.apk
-powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Set experiments -Tests x_village_base,x_village_look0,x_village_msaa0,x_village_up0,x_k3_base,x_k3_look0,x_k3_msaa0,x_k3_up0
+powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Set experiments -Tests x_village_base,x_village_look0,x_village_msaa0,x_village_up0,x_k3_base,x_k3_look0,x_k3_msaa0,x_k3_up0,x_village_nograss
+powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Tests kabuto_grab_eat,kabuto_grab_throw,delphi_parry
 ```
 
 The second compares the rework's look (`_base`) with the classic lighting (`_look0`), no anti-aliasing
-(`_msaa0`) and no texture sharpening (`_up0`) in two demanding scenes, so the cost of each shows.
+(`_msaa0`), no texture sharpening (`_up0`) and no grass (`_nograss`) in demanding scenes, so the cost of
+each shows. The last line runs the new hand mechanics (Kabuto's grab, Delphi's parry) on the headset.
 
 ## Next
-- Delphi and Kabuto hands: VR-native sword / bow / grab feel; Kabuto's slam and throw.
-- More combat rework: hit reactions, enemy variety in behaviour, cover, grenades from Reapers.
-- Effects: bigger explosions with light flashes, impact sparks, muzzle light.
+- More combat rework: hit reactions, enemy variety in behaviour.
+- Effects: impact sparks.
 - Cutscenes: check every one for misplaced actors (contact sheets per shot).
-- Missions: play each objective chain in the harness (Kabuto k1a gate first).
+- Missions: play each objective chain in the harness (k1a → k1b done).

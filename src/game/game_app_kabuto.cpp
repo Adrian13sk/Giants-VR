@@ -342,6 +342,13 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
                 for (float y : {0.15f, 0.45f})
                     if (!hit) hit = smash(player_.position + fwd * (d * H) + Vec3{0, y * H, 0}, fwd, 0.14f * H, 5.0f);
             if (hit) haptics_.push_back({gh, 1.0f, 0.15f});
+            static const bool trace = std::getenv("GVR_KB_TRACE") != nullptr;
+            if (trace) {
+                LOGI("Kabuto punch (third person): %s", hit ? "hit" : "nothing in reach");
+                for (const auto& it : destruct_.items)
+                    if (it.alive() && length(it.base - player_.position) < 3.0f * H)
+                        LOGI("  object %d kind %d: %.0f/%.0f hp, %.1f m away (radius %.1f)", it.object, int(it.kind), it.hp, it.maxHp, length(Vec3{it.base.x - player_.position.x, 0, it.base.z - player_.position.z}), it.radius);
+            }
         }
         if (k.punchT > dur) k.punchT = -1;
     }

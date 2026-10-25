@@ -104,7 +104,7 @@ void GameApp::initKabutoPowers() {
         }
     }
     if (kbGlassAvail_ && std::getenv("GVR_GLASS")) kbHasGlass_ = true;  // test hook: start holding the glass
-    kbAdren_ = 0;
+    kbAdren_ = std::getenv("GVR_KB_ADREN") ? 1.0f : 0.0f;  // (test hook: adrenaline full at the start)
     kbAdrenT_ = -1;
     kbOffspringCharges_ = 0;
     offspring_.clear();
