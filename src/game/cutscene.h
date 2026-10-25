@@ -43,6 +43,9 @@ public:
     // Where the shot camera is now (runtime frame). Shots whose camera travels with the action
     // (e.g. alongside the flying lander) carry the viewer along; orientation stays fixed.
     Vec3 eyeNow() const { return eyeNow_; }
+    // What the shot camera looks at: its target node, else the middle of the shot's actors, else
+    // 8 m ahead of it.
+    Vec3 targetNow() const { return targetNow_; }
     // Soundtrack stream to start (once), e.g. "f_jetpack"; empty if none pending.
     std::string takeStream();
     // Timed streams (op 0x2C: sound effects, voice clips) due since the last call.
@@ -108,7 +111,8 @@ private:
     size_t fxNext_ = 0;
     std::vector<FxEvent> dueFx_;
     std::vector<std::string> dueCues_;
-    Vec3 eye_, eyeNow_, eyeOverride_;
+    Vec3 eye_, eyeNow_, eyeOverride_, targetNow_;
+    int tgtNode_ = -1;
     bool hasEyeOverride_ = false;
     int camNode_ = -1;
     float yaw_ = 0;

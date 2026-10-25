@@ -245,6 +245,7 @@ bool CutscenePlayer::loadShot(const std::string& name) {
     yaw_ = 0;
     auto cam = dir.byName.find(lower(shot_.cameraNode.empty() ? "camera01" : shot_.cameraNode));
     camNode_ = cam != dir.byName.end() ? cam->second : -1;
+    tgtNode_ = -1;
     hasEyeOverride_ = false;
     if (cam != dir.byName.end()) {
         const Mat4& m = world_[size_t(cam->second)];
@@ -253,6 +254,7 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         // no keys) face their ".target" node; free cameras look down their local -Z.
         Vec3 fwd = giantsToRuntime(-m.m[8], -m.m[9], -m.m[10]);
         auto tgt = dir.byName.find(cam->first + ".target");
+        tgtNode_ = tgt != dir.byName.end() ? tgt->second : -1;
         if (tgt != dir.byName.end()) {
             const Mat4& tm = world_[size_t(tgt->second)];
             fwd = giantsToRuntime(tm.m[12], tm.m[13], tm.m[14]) - eye_;
@@ -303,6 +305,16 @@ void CutscenePlayer::update(float dt) {
     if (camNode_ >= 0 && !hasEyeOverride_) {
         const Mat4& m = world_[size_t(camNode_)];
         eyeNow_ = giantsToRuntime(m.m[12], m.m[13], m.m[14]);
+    }
+    if (tgtNode_ >= 0 && !hasEyeOverride_) {
+        const Mat4& m = world_[size_t(tgtNode_)];
+        targetNow_ = giantsToRuntime(m.m[12], m.m[13], m.m[14]);
+    } else {
+        Vec3 c{0, 0, 0};
+        int n = 0;
+        for (const auto& a : actors_)
+            if (a.parent < 0) { c = c + Vec3{a.xf.m[12], a.xf.m[13] + 1.0f, a.xf.m[14]}; ++n; }
+        targetNow_ = n ? c * (1.0f / float(n)) : eyeNow_ + Vec3{-std::sin(yaw_), 0, -std::cos(yaw_)} * 8.0f;
     }
     for (auto& a : actors_) {
         if (a.parent >= 0) continue;  // props: second pass, once their carriers are posed

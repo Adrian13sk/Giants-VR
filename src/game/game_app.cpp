@@ -2830,6 +2830,22 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
     auto aboveGround = [&](Vec3 p) {
         float h;
         if (assetWorld_ && assetWorld_->terrain().heightAt(p.x, p.z, h)) p.y = std::max(p.y, h + 0.7f);
+        // Not inside scenery either (rework): seen from what the shot looks at, anything solid in
+        // between brings the camera in front of it (story1_save_sm_2a's camera stood inside the rock
+        // pillars it films).
+        if (worldRay_ && cutscene_) {
+            const Vec3 tgt = cutscene_->targetNow();
+            const Vec3 d = p - tgt;
+            const float len = length(d);
+            float t;
+            Vec3 n;
+            if (len > 1.0f && worldRay_(tgt, d * (1.0f / len), len, t, n) && t > 1.0f) {
+                const Vec3 q = tgt + d * ((t - 0.5f) / len);
+                static const bool trace = std::getenv("GVR_CUT_TRACE") != nullptr;
+                if (trace) LOGI("cut camera pulled out of scenery: %.1f m nearer its target", len - (t - 0.5f));
+                p = q;
+            }
+        }
         return p;
     };
     if (cutscene_->active()) cutBlack_ = cutscene_->blackout();
@@ -2846,8 +2862,19 @@ void GameApp::updateCutscene(float dt, const InputFrame& in) {
         subInit_ = false;  // the subtitles jump with the cut
         if (std::getenv("GVR_CUT_TRACE")) {
             const Vec3 got = rig_.toWorld(in.head).position;
-            LOGI("cut eye: shot (%.1f %.1f %.1f) head (%.2f %.2f %.2f) scale %.2f -> (%.1f %.1f %.1f)", eye.x, eye.y, eye.z, in.head.position.x,
-                 in.head.position.y, in.head.position.z, rig_.comfort.worldScale, got.x, got.y, got.z);
+            float gh = -1e9f;
+            if (assetWorld_) assetWorld_->terrain().heightAt(eye.x, eye.z, gh);
+            const Vec3 tg = cutscene_->targetNow();
+            float t1 = -1, t2 = -1;
+            Vec3 nn;
+            const Vec3 dd = normalize(tg - eye);
+            if (worldRay_) {
+                if (!worldRay_(eye, dd, length(tg - eye), t1, nn)) t1 = -1;
+                if (!worldRay_(tg, dd * -1.0f, length(tg - eye), t2, nn)) t2 = -1;
+            }
+            LOGI("cut target (%.1f %.1f %.1f), %.1f m: ray eye->target hit %.1f, target->eye hit %.1f", tg.x, tg.y, tg.z, length(tg - eye), t1, t2);
+            LOGI("cut eye: shot (%.1f %.1f %.1f) ground %.1f head (%.2f %.2f %.2f) scale %.2f -> (%.1f %.1f %.1f)", eye.x, eye.y, eye.z, gh,
+                 in.head.position.x, in.head.position.y, in.head.position.z, rig_.comfort.worldScale, got.x, got.y, got.z);
         }
     } else if (cutscene_->active()) {
         // Travel with a moving shot camera (translation only; the view never rotates by itself).
