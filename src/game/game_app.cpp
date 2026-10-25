@@ -771,6 +771,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateAmbush(dt);
     updateMotes(dt);
     updateCreatureFlashes(dt);
+    updateFireballs(dt);
     updateCombat(dt);
     { GVR_PROF("audio"); updateAudio(dt); }
         updateFlashes(dt);
@@ -3063,6 +3064,7 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
 
 void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int hurtsPlayer) {
     addFlash(at + Vec3{0, 1.0f, 0}, fire ? Vec3{2.6f, 1.5f, 0.6f} : Vec3{1.8f, 1.5f, 1.2f}, std::min(30.0f, 4.0f + radius * 3.0f), 0.45f);
+    if (fire || damage > 0) addFireball(at + Vec3{0, 0.4f, 0}, radius);
     if (at.y < player_.seaLevel + 1.0f && (!enemies_.groundHeight || enemies_.groundHeight(at.x, at.z) < player_.seaLevel - 0.2f))
         waterSplash(at, std::min(3.0f, 0.5f * radius), 2);  // in (or just over) the water
     creatures_.disturb(at, std::max(15.0f, radius * 4.0f));  // the ground shakes: buried Rippers come up
@@ -4390,6 +4392,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     renderFx();
     renderDataFx();
     if (playMode_ && !cut) renderMotes();
+    renderFireballs();
     if (title_) renderTitle();
     beginUiFrame(eyes, n);  // the HUD, menu and hands at human scale (Kabuto)
     if (cut) renderCutscene();

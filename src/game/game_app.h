@@ -1365,6 +1365,16 @@ private:  // the mission placed enemies: no test waves
     void updateMotes(float dt);
     std::vector<float> creatureHp_;  // last frame's creature health (hit flashes)
     void updateCreatureFlashes(float dt);
+    // Explosion punch (rework): a fireball that swells and fades, and embers thrown out.
+    struct Fireball { Vec3 pos; float radius, t; };
+    struct Ember { Vec3 pos, vel; float t, life, size; };
+    std::vector<Fireball> fireballs_;
+    std::vector<Ember> embers_;
+    QuadBatch fireBatch_;
+    void addFireball(const Vec3& at, float radius);
+    void updateFireballs(float dt);
+    void renderFireballs();
+    TextureId glowTexture();
     void renderMotes();
     void renderObjectiveMarker();
     float playerHitTop() const;

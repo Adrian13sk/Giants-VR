@@ -173,16 +173,7 @@ void GameApp::updateMotes(float dt) {
 void GameApp::renderMotes() {
     if (motes_.empty() || renderer_.inReflectionPass()) return;
     if (!moteTex_) {
-        std::vector<uint8_t> px(32 * 32 * 4);
-        for (int y = 0; y < 32; ++y)
-            for (int x = 0; x < 32; ++x) {
-                const float dx = (float(x) + 0.5f) / 16.0f - 1.0f, dy = (float(y) + 0.5f) / 16.0f - 1.0f;
-                const float a = std::max(0.0f, 1.0f - std::sqrt(dx * dx + dy * dy));
-                uint8_t* p = &px[size_t(y * 32 + x) * 4];
-                p[0] = p[1] = p[2] = 255;
-                p[3] = uint8_t(255.0f * a * a);
-            }
-        moteTex_ = renderer_.uploadTexture(32, 32, px.data(), true, false);
+        moteTex_ = glowTexture();
         moteBatch_.init(renderer_, 128);
     }
     const EnvironmentParams& env = renderer_.environment();
@@ -218,6 +209,76 @@ void GameApp::updateCreatureFlashes(float dt) {
             chars_[size_t(cs[i].slot)].flash = 1.0f;
         creatureHp_[i] = cs[i].health;
     }
+}
+
+TextureId GameApp::glowTexture() {
+    static TextureId tex = 0;
+    if (tex) return tex;
+    std::vector<uint8_t> px(32 * 32 * 4);
+    for (int y = 0; y < 32; ++y)
+        for (int x = 0; x < 32; ++x) {
+            const float dx = (float(x) + 0.5f) / 16.0f - 1.0f, dy = (float(y) + 0.5f) / 16.0f - 1.0f;
+            const float a = std::max(0.0f, 1.0f - std::sqrt(dx * dx + dy * dy));
+            uint8_t* p = &px[size_t(y * 32 + x) * 4];
+            p[0] = p[1] = p[2] = 255;
+            p[3] = uint8_t(255.0f * a * a);
+        }
+    tex = renderer_.uploadTexture(32, 32, px.data(), true, false);
+    return tex;
+}
+
+void GameApp::addFireball(const Vec3& at, float radius) {
+    if (fireballs_.size() < 12) fireballs_.push_back({at, radius, 0.0f});
+    const int n = std::min(24, int(6 + radius * 3.0f));
+    for (int i = 0; i < n && embers_.size() < 160; ++i) {
+        const Vec3 d = normalize(Vec3{frand() - 0.5f, 0.3f + frand(), frand() - 0.5f});
+        embers_.push_back({at, d * (4.0f + 8.0f * frand()) * std::min(2.0f, 0.4f + radius * 0.25f), 0.0f, 0.6f + 0.8f * frand(), 0.05f + 0.07f * frand()});
+    }
+}
+
+void GameApp::updateFireballs(float dt) {
+    for (auto& f : fireballs_) f.t += dt;
+    fireballs_.erase(std::remove_if(fireballs_.begin(), fireballs_.end(), [](const Fireball& f) { return f.t > 0.55f; }), fireballs_.end());
+    for (auto& e : embers_) {
+        e.t += dt;
+        e.vel.y -= 9.8f * dt;
+        e.vel = e.vel * (1.0f - 0.8f * dt);
+        e.pos = e.pos + e.vel * dt;
+    }
+    embers_.erase(std::remove_if(embers_.begin(), embers_.end(), [](const Ember& e) { return e.t > e.life; }), embers_.end());
+}
+
+void GameApp::renderFireballs() {
+    if ((fireballs_.empty() && embers_.empty()) || renderer_.inReflectionPass()) return;
+    static bool init = false;
+    if (!init) { init = true; fireBatch_.init(renderer_, 200); }
+    const Vec3 right = headWorldRot_.rotate({1, 0, 0}), up = headWorldRot_.rotate({0, 1, 0});
+    fireBatch_.clear();
+    for (const auto& f : fireballs_) {
+        const float k = f.t / 0.55f;
+        const float size = f.radius * (0.6f + 1.4f * std::sqrt(k)) * 1.6f;
+        const float a = (1.0f - k);
+        // A white-hot core turning orange, then dark red as it fades.
+        const Vec3 col = Vec3{1.0f, 0.75f - 0.45f * k, 0.45f - 0.4f * k} * (a * 1.0f);
+        const uint8_t rgba[4] = {uint8_t(255 * col.x), uint8_t(255 * std::max(0.0f, col.y)), uint8_t(255 * std::max(0.0f, col.z)), 255};
+        fireBatch_.addBillboard(f.pos, size, right, up, f.t * 2.0f, rgba);
+        const uint8_t core[4] = {uint8_t(255 * a), uint8_t(240 * a), uint8_t(200 * a), 255};
+        if (k < 0.4f) fireBatch_.addBillboard(f.pos, size * 0.5f, right, up, 0.0f, core);
+    }
+    for (const auto& e : embers_) {
+        const float a = 1.0f - e.t / e.life;
+        const uint8_t rgba[4] = {255, uint8_t(160 * a + 60), uint8_t(60 * a), 255};
+        const uint8_t dim[4] = {uint8_t(rgba[0] * a), uint8_t(rgba[1] * a), uint8_t(rgba[2] * a), 255};
+        fireBatch_.addBillboard(e.pos, e.size * (0.6f + 0.4f * a), right, up, 0.0f, dim);
+    }
+    fireBatch_.upload(renderer_);
+    DrawParams dp;
+    dp.texture = glowTexture();
+    dp.unlit = true;
+    dp.blend = BlendMode::Additive;
+    dp.depthWrite = false;
+    dp.doubleSided = true;
+    fireBatch_.draw(renderer_, dp);
 }
 
 void GameApp::updateFlashes(float dt) {
