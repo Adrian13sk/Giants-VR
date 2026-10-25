@@ -515,6 +515,14 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             whiteTex_ = renderer_.uploadTexture(1, 1, white, false, false);
             LOGI("Enemies: %zu Reaper model slots", enemyPool_.size());
             initCharacters(w, mc);
+            // (before the mission: a multiplayer map's computer players copy the player's ground and sea)
+            player_.collision = &w->collision();
+            // Off the terrain heightfield is open sea; the sea (surface at 0) holds the player up.
+            player_.groundHeight = [w](float x, float z) {
+                float y;
+                return w->terrain().heightAt(x, z, y) ? y : -20.0f;
+            };
+            player_.seaLevel = 0.0f;
             initMission();
             cutscene_ = std::make_unique<CutscenePlayer>(w->fs(), *mc, renderer_, w->registry());
             cutscene_->groundHeight = [w](float x, float y, float z) {
@@ -534,13 +542,6 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     gameText_ = std::move(gt);
                 }
             }
-            player_.collision = &w->collision();
-            // Off the terrain heightfield is open sea; the sea (surface at 0) holds the player up.
-            player_.groundHeight = [w](float x, float z) {
-                float y;
-                return w->terrain().heightAt(x, z, y) ? y : -20.0f;
-            };
-            player_.seaLevel = 0.0f;
         } else {
             LOGW("Player model unavailable; free camera only");
         }

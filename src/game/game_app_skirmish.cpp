@@ -116,6 +116,48 @@ void GameApp::skOwnShots() {
     }
 }
 
+// The flag stands at the side's build pad, but the Reaper command centre is a 40 m wide building on
+// its pad, its floor 8 m up (the flag ended up inside it: no flag was ever taken on the Reaper maps).
+// The nearest spot by the pad, first towards `toward` (the base's middle), that is open sky, where a
+// player stands free and can walk out (a clear line outwards); ours.
+Vec3 GameApp::skFlagSpot(const Vec3& pad, const Vec3& toward) const {
+    const AssetWorld* w = assetWorld_.get();
+    if (!w) return pad;
+    const CollisionWorld& cw = w->collision();
+    const Vec3 tw = toward - pad;
+    const float a0 = std::atan2(tw.z, tw.x);
+    for (float r = 0.0f; r <= 40.0f; r += 2.0f) {
+        const int n = r <= 0.0f ? 1 : 16;
+        for (int k = 0; k < n; ++k) {
+            // a0, then either side of it in turn
+            const float a = a0 + float((k + 1) / 2) * (k % 2 ? 1.0f : -1.0f) * 6.2832f / float(n);
+            const Vec3 dir{std::cos(a), 0, std::sin(a)};
+            Vec3 p = pad + dir * r;
+            float gy;
+            if (w->terrain().heightAt(p.x, p.z, gy)) p.y = gy;
+            float fy;
+            if (cw.groundAt(p.x, p.z, p.y + 0.5f, fy)) p.y = std::max(p.y, fy);
+            float roof;
+            if (cw.groundAt(p.x, p.z, p.y + 60.0f, roof) && roof > p.y + 2.0f) continue;  // under (or in) a building
+            Vec3 q = p;
+            if (cw.pushOut(q, 0.6f, 1.8f, 0.5f)) continue;  // inside a wall
+            // Open to the outside: clear at chest height outwards (or, at the pad itself, any way).
+            bool open = false;
+            for (int j = 0; j < 8 && !open; ++j) {
+                const float b = r <= 0.0f ? float(j) * 0.7854f : a + (float(j) - 3.5f) * 0.15f;
+                const Vec3 d{std::cos(b), 0, std::sin(b)};
+                float t;
+                Vec3 nrm;
+                open = !cw.raycast(p + Vec3{0, 1.0f, 0}, d, 25.0f, t, nrm);
+            }
+            if (!open) continue;
+            if (r > 0.0f) LOGI("Skirmish: flag set %.0f m from the pad (%.0f %.0f %.0f)", r, p.x, p.y, p.z);
+            return p;
+        }
+    }
+    return pad;
+}
+
 void GameApp::initSkirmish() {
     if (skirmish_ && toLower(worldName_).rfind("m_", 0) != 0) {  // left the multiplayer maps
         skHost_.stop();
@@ -183,7 +225,7 @@ void GameApp::initSkirmish() {
             if (bl.pad) {
                 // "The Command Center protects your build pad and your flag holder": the flag stands at the pad.
                 if (bi < sk_.flags.size() && sk_.flags[bi].used) {
-                    const Vec3 pad{bl.xf.m[12], bl.xf.m[13], bl.xf.m[14]};
+                    const Vec3 pad = skFlagSpot(Vec3{bl.xf.m[12], bl.xf.m[13], bl.xf.m[14]}, at);
                     sk_.flags[bi].home = sk_.flags[bi].pos = pad;
                     sk_.teams[bi].base = pad;  // (where captures are scored)
                 }
@@ -192,12 +234,7 @@ void GameApp::initSkirmish() {
             Vec3 mn, mx;
             if (bl.model) bl.model->posedBounds(mn, mx);
             else { mn = bl.still->boundsMin; mx = bl.still->boundsMax; }
-            float x0 = 1e9f, z0 = 1e9f, x1 = -1e9f, z1 = -1e9f;
-            for (int c = 0; c < 8; ++c) {
-                const Vec4 q = bl.xf * Vec4{c & 1 ? mx.x : mn.x, c & 2 ? mx.y : mn.y, c & 4 ? mx.z : mn.z, 1.0f};
-                x0 = std::min(x0, q.x); z0 = std::min(z0, q.z); x1 = std::max(x1, q.x); z1 = std::max(z1, q.z);
-            }
-            sk_.nav.block(x0, z0, x1, z1);
+            sk_.nav.blockBox(bl.xf, mn, mx, 1.0f);
         }
     }
     // Which team the player is on, how many a side: GVR_SKIRMISH="<team>,<per team>" (default 0, 3).
@@ -234,6 +271,10 @@ void GameApp::initSkirmish() {
             myTeam = std::max(0, std::min(int(heroes.size()) - 1, skClient_.myTeam));
             if (toLower(skClient_.map) != toLower(worldName_)) LOGW("Skirmish: the host plays %s, this is %s", skClient_.map.c_str(), worldName_.c_str());
         }
+    }
+    if (skNet_ != SkNetMode::Join) {
+        GVR_PROF("skirmish reach");
+        sk_.prepareRoutes();
     }
     myTeam = std::max(0, std::min(int(heroes.size()) - 1, myTeam));
     perTeam = std::max(1, std::min(6, perTeam));
@@ -491,6 +532,13 @@ void GameApp::updateSkirmish(float dt) {
                           p.body.position.x, p.body.position.y, p.body.position.z, sk_.groundAt ? sk_.groundAt(p.body.position.x, p.body.position.z) : 0.0f,
                           length(p.moveTo - p.body.position),
                           p.body.swimming() ? " swim" : "", p.body.onGround ? "" : " air", p.target, p.routeAt, p.route.size(), nx.x, nx.y, nx.z);
+            s += b;
+        }
+        for (size_t i = 0; i < sk_.flags.size(); ++i) {
+            const SkFlag& f = sk_.flags[i];
+            if (!f.used) continue;
+            char b[96];
+            std::snprintf(b, sizeof b, " | flag%zu %s c%d (%.0f %.0f %.0f)", i, f.atHome ? "home" : "out", f.carrier, f.pos.x, f.pos.y, f.pos.z);
             s += b;
         }
         LOGI("Skirmish %.1f s:%s", sk_.time, s.c_str());

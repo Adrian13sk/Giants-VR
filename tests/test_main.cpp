@@ -1648,6 +1648,39 @@ static void testSkirmish() {
                 sk.teams[0].captures, sk.teams[1].captures, sk.teams[0].kills, sk.teams[1].kills);
 }
 
+static Vec3 flat3(const Vec3& v) { return Vec3{v.x, 0, v.z}; }
+
+static void testSkNav() {
+    // A sea (surface 0) with a round island 0.5 m high, its beach shelving into the sea down to a
+    // floor 20 m down.
+    auto ground = [](float x, float z) {
+        const float r = std::sqrt(x * x + z * z);
+        return std::max(-20.0f, r < 40.0f ? 0.5f : 0.5f - 0.3f * (r - 40.0f));
+    };
+    SkNav nav;
+    nav.build(-100, -100, 100, 100, 4.0f, ground, 0.0f);
+    std::vector<Vec3> way;
+    // A swimmer climbs out of the sea onto the beach (the step is surface to surface, not from the floor).
+    CHECK(nav.path({-80, 0, 0}, {0, 0.5f, 0}, SkNav::Swimmer, way, 1 << 30) && length(flat3(way.back() - Vec3{0, 0.5f, 0})) < 0.5f);
+    // A turned building: its footprint is blocked, not its axis-aligned bounds; a goal inside it is
+    // still reached (a flag among buildings); the cells beside it stay open.
+    const Mat4 xf = Mat4::translation({0, 0.5f, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, 0.7854f));
+    nav.blockBox(xf, {-12, 0, -4}, {12, 5, 4}, 0.0f);
+    CHECK(nav.blocked({0, 0, 0}) && nav.blocked({6, 0, -6}) && !nav.blocked({8, 0, 8}) && !nav.blocked({-8, 0, -8}));
+    CHECK(nav.blocked({8, 0, -4}) && !nav.blocked({8, 0, 0}));
+    CHECK(nav.path({-30, 0.5f, 30}, {8, 0.5f, -4}, SkNav::Walker, way, 1 << 30) && length(flat3(way.back() - Vec3{8, 0, -4})) < 0.5f);
+    for (const Vec3& p : way) CHECK(!nav.blocked(p) || length(flat3(p - Vec3{8, 0, -4})) < 0.5f);  // (never through it)
+    // Learnt: after bots stuck three times going into a cell, routes go round it.
+    for (int k = 0; k < 3; ++k) nav.penalize({20, 0.5f, -20}, SkNav::Walker);
+    CHECK(nav.path({-30, 0.5f, 30}, {20, 0.5f, -20}, SkNav::Walker, way, 1 << 30));
+    CHECK(length(flat3(way.back() - Vec3{20, 0.5f, -20})) < 0.5f);  // (still the goal: it's the last cell)
+    for (int k = 0; k < 3; ++k) nav.penalize({24, 0.5f, -24}, SkNav::Walker);
+    CHECK(nav.path({28, 0.5f, -28}, {28, 0.5f, 28}, SkNav::Walker, way, 1 << 30));
+    bool through = false;
+    for (const Vec3& p : way) through = through || length(flat3(p - Vec3{24, 0.5f, -24})) < 1.0f;
+    CHECK(!through);
+}
+
 static void testSkNet() {
     // A host on localhost with one bot a side, and a joiner, exchanging packets as two games would.
     Skirmish host;
@@ -1724,6 +1757,7 @@ static void testSkNet() {
 
 int main() {
     testSkirmish();
+    testSkNav();
     testSkNet();
     testSoundTable();
     testFxLibrary();

@@ -939,6 +939,7 @@ private:  // the mission placed enemies: no test waves
     void skOwnShots();             // the local player's new shots, for the others to see
     void skHandleEvent(const SkEvent& e);
     void initSkirmish();
+    Vec3 skFlagSpot(const Vec3& pad, const Vec3& toward) const;  // where a side's flag stands: the pad, or the nearest open spot by it
     void updateSkirmish(float dt);
     void renderSkirmish(bool shadow, const Vec3& eye);
     void renderSkirmishHud();

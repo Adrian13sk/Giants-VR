@@ -1,9 +1,11 @@
 #include "game/skirmish.h"
 
+#include "core/log.h"
 #include "core/prof.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 namespace gvr {
 
@@ -29,8 +31,11 @@ void SkNav::build(float x0, float z0, float x1, float z1, float cell, const std:
     hgt_.assign(size_t(w_) * size_t(h_), seaLevel - 30.0f);
     for (int z = 0; z < h_; ++z)
         for (int x = 0; x < w_; ++x) hgt_[size_t(z) * size_t(w_) + size_t(x)] = ground(x0_ + float(x) * cell_, z0_ + float(z) * cell_);
-    // The steepest rise along each step out of a cell (a bank between two samples blocks a walker).
+    // The steepest rise along each step out of a cell (a bank between two samples blocks a walker). On
+    // the water's surface, not its bottom: a swimmer climbs out onto a beach, not up from the sea floor.
     static const int dx8[8] = {1, -1, 0, 0, 1, 1, -1, -1}, dz8[8] = {0, 0, 1, -1, 1, -1, 1, -1};
+    const float surf = seaLevel - 1.0f;
+    auto top = [&](float x, float z) { return std::max(ground(x, z), surf); };
     up_.assign(size_t(w_) * size_t(h_) * 8, 0.0f);
     for (int z = 0; z < h_; ++z)
         for (int x = 0; x < w_; ++x)
@@ -38,10 +43,10 @@ void SkNav::build(float x0, float z0, float x1, float z1, float cell, const std:
                 const float L = cell_ * (k < 4 ? 1.0f : 1.4142f);
                 const int n = std::max(3, int(L * 2.0f));  // every half metre
                 const float sx = x0_ + float(x) * cell_, sz = z0_ + float(z) * cell_;
-                float prev = hgt_[size_t(z) * size_t(w_) + size_t(x)], worst = 0;
+                float prev = std::max(hgt_[size_t(z) * size_t(w_) + size_t(x)], surf), worst = 0;
                 for (int i = 1; i <= n; ++i) {
                     const float f = float(i) / float(n);
-                    const float hh = ground(sx + float(dx8[k]) * cell_ * f, sz + float(dz8[k]) * cell_ * f);
+                    const float hh = top(sx + float(dx8[k]) * cell_ * f, sz + float(dz8[k]) * cell_ * f);
                     worst = std::max(worst, (hh - prev) / (L / float(n)));
                     prev = hh;
                 }
@@ -58,6 +63,42 @@ void SkNav::block(float bx0, float bz0, float bx1, float bz1) {
         for (int x = cx0; x <= cx1; ++x) blocked_[size_t(z) * size_t(w_) + size_t(x)] = 1;
 }
 
+void SkNav::blockBox(const Mat4& xf, const Vec3& mn, const Vec3& mx, float margin) {
+    if (w_ <= 0) return;
+    if (blocked_.size() != size_t(w_) * size_t(h_)) blocked_.assign(size_t(w_) * size_t(h_), 0);
+    // The box's horizontal axes in the world (the building stands upright: yaw only).
+    const Vec4 c4 = xf * Vec4{0.5f * (mn.x + mx.x), 0.5f * (mn.y + mx.y), 0.5f * (mn.z + mx.z), 1.0f};
+    const Vec3 c{c4.x, c4.y, c4.z};
+    Vec3 ax{xf.m[0], 0, xf.m[2]}, az{xf.m[8], 0, xf.m[10]};
+    const float sx = length(ax), sz = length(az);
+    if (sx < 1e-6f || sz < 1e-6f) return;
+    ax = ax * (1.0f / sx);
+    az = az * (1.0f / sz);
+    const float hx = 0.5f * (mx.x - mn.x) * sx + margin, hz = 0.5f * (mx.z - mn.z) * sz + margin;
+    const float r = std::sqrt(hx * hx + hz * hz);
+    const int cx0 = std::max(0, int(std::floor((c.x - r - x0_) / cell_))), cx1 = std::min(w_ - 1, int(std::ceil((c.x + r - x0_) / cell_)));
+    const int cz0 = std::max(0, int(std::floor((c.z - r - z0_) / cell_))), cz1 = std::min(h_ - 1, int(std::ceil((c.z + r - z0_) / cell_)));
+    for (int z = cz0; z <= cz1; ++z)
+        for (int x = cx0; x <= cx1; ++x) {
+            const Vec3 d{x0_ + float(x) * cell_ - c.x, 0, z0_ + float(z) * cell_ - c.z};
+            if (std::fabs(dot(d, ax)) <= hx && std::fabs(dot(d, az)) <= hz) blocked_[size_t(z) * size_t(w_) + size_t(x)] = 1;
+        }
+}
+
+void SkNav::penalize(const Vec3& p, Profile prof) {
+    int cx, cz;
+    if (!cellOf(p, cx, cz)) return;
+    if (pen_.size() != size_t(w_) * size_t(h_) * 4) pen_.assign(size_t(w_) * size_t(h_) * 4, 0);
+    uint8_t& v = pen_[(size_t(cz) * size_t(w_) + size_t(cx)) * 4 + size_t(prof)];
+    if (v < 255) ++v;
+}
+
+bool SkNav::blocked(const Vec3& p) const {
+    int cx, cz;
+    if (blocked_.empty() || !cellOf(p, cx, cz)) return false;
+    return blocked_[size_t(cz) * size_t(w_) + size_t(cx)] != 0;
+}
+
 bool SkNav::cellOf(const Vec3& p, int& cx, int& cz) const {
     cx = int(std::lround((p.x - x0_) / cell_));
     cz = int(std::lround((p.z - z0_) / cell_));
@@ -69,11 +110,13 @@ bool SkNav::cellOf(const Vec3& p, int& cx, int& cz) const {
 // Cost of a step between neighbouring cells (< 0: impassable for that profile).
 float SkNav::stepCost(int a, int b, int dir, float dist, Profile prof) const {
     const float ha = hgt_[size_t(a)], hb = hgt_[size_t(b)];
-    const float dh = hb - ha, s = dh / dist;
+    const float dh = std::max(hb, sea_ - 1.0f) - std::max(ha, sea_ - 1.0f), s = dh / dist;  // (surface to surface)
     const float up = up_[size_t(a) * 8 + size_t(dir)];  // the steepest metre of it
-    if (!blocked_.empty() && blocked_[size_t(b)]) return -1;  // a building
     const float depth = sea_ - hb;
     float k = 1.0f + 0.5f * std::max(0.0f, s);
+    if (!pen_.empty()) {
+        k += 4.0f * float(std::min<uint8_t>(pen_[size_t(b) * 4 + size_t(prof)], 3));  // (3 and more: no way, unless the goal - path())
+    }
     if (depth > 0.8f) {  // water: swimming (the Sea Reaper is at home in it; a Meccaryn swims slowly)
         k *= prof == Swimmer ? 1.0f : (prof == Giant ? (depth > 12.0f ? 3.0f : 1.3f) : (depth > 3.0f ? 5.0f : 2.5f));
         return dist * k;
@@ -138,6 +181,13 @@ bool SkNav::path(const Vec3& from, const Vec3& to, Profile prof, std::vector<Vec
             if (nx < 0 || nz < 0 || nx >= w_ || nz >= h_) continue;
             const int ni = nz * w_ + nx;
             if (isClosed(ni)) continue;
+            if (!blocked_.empty()) {
+                // A building (its cell may still be the goal: a flag among the base's buildings); and no
+                // cutting diagonally past a building's corner.
+                if (blocked_[size_t(ni)] && ni != goal) continue;
+                if (k >= 4 && (blocked_[size_t(cz * w_ + nx)] || blocked_[size_t(nz * w_ + cx)])) continue;
+            }
+            if (!pen_.empty() && pen_[size_t(ni) * 4 + size_t(prof)] >= 3 && ni != goal) continue;
             const float c = stepCost(cur.i, ni, k, cell_ * (k < 4 ? 1.0f : 1.4142f), prof);
             if (c < 0) continue;
             const float ng = gOf(cur.i) + c;
@@ -227,6 +277,30 @@ void Skirmish::setup(const std::vector<SkHero>& heroes, const std::vector<Vec3>&
                 p.y = ground(p);
                 t.spawns.push_back(p);
             }
+        }
+}
+
+SkNav::Profile Skirmish::profileOf(int team) const {
+    const SkHero h = size_t(team) < teams.size() ? teams[size_t(team)].hero : SkHero::Mecc;
+    return h == SkHero::Mecc ? SkNav::Jetter : (h == SkHero::Reaper ? SkNav::Swimmer : SkNav::Giant);
+}
+
+void Skirmish::prepareRoutes() {
+    reach_.assign(teams.size() * flags.size(), 1);
+    if (!nav.ready()) return;
+    std::vector<Vec3> way;
+    const int all = 1 << 30;  // unbounded: once per pair, at the start
+    for (size_t t = 0; t < teams.size(); ++t)
+        for (size_t f = 0; f < flags.size(); ++f) {
+            if (t == f || !flags[f].used) continue;
+            const SkNav::Profile prof = profileOf(int(t));
+            const bool there = nav.path(teams[t].base, flags[f].home, prof, way, all) && !way.empty() &&
+                               length(flat(way.back() - flags[f].home)) < 1.0f;
+            const bool back = there && nav.path(flags[f].home, teams[t].base, prof, way, all) && !way.empty() &&
+                              length(flat(way.back() - teams[t].base)) < 1.0f;
+            reach_[t * flags.size() + f] = there && back;
+            if (!(there && back))
+                LOGI("Skirmish: no way for %s to the %s flag%s - its bots leave it alone", teams[t].name.c_str(), teams[f].name.c_str(), there ? " and back" : "");
         }
 }
 
@@ -428,18 +502,31 @@ void Skirmish::think(SkPlayer& p) {
     if (seen >= 0) p.target = seen;
     else if (const SkPlayer* t = player(p.target); !t || !t->alive || length(t->body.position - p.body.position) > sightRange) p.target = -1;
     const SkFlag& own = flags[size_t(p.team)];
+    // Our flag taken or lying out: the defenders go for it, and attackers only when it's near them (a
+    // whole team running home left nobody to attack: no captures at all in 10-minute bot matches).
+    const float kNearFlag = 150.0f;
+    const SkPlayer* thief = own.used && own.carrier >= 0 ? player(own.carrier) : nullptr;
+    const bool chase = thief && (p.role == SkPlayer::Defend || length(flat(thief->body.position - p.body.position)) < kNearFlag);
+    const bool fetch = own.used && !own.atHome && own.carrier < 0 &&
+                       (p.role == SkPlayer::Defend || length(flat(own.pos - p.body.position)) < kNearFlag);
+    // A team-mate carrying a flag home: the attackers go with it.
+    const SkPlayer* mate = nullptr;
+    for (const auto& o : players)
+        if (o.alive && o.team == p.team && o.carrying >= 0 && o.id != p.id) mate = &o;
     if (p.carrying >= 0) {
         p.moveTo = teams[size_t(p.team)].base;                 // home with it
-    } else if (own.used && own.carrier >= 0) {
-        if (const SkPlayer* c = player(own.carrier)) p.moveTo = c->body.position;  // after the thief
-    } else if (own.used && !own.atHome) {
+    } else if (chase) {
+        p.moveTo = thief->body.position;                       // after the thief
+    } else if (fetch) {
         p.moveTo = own.pos;                                    // bring it back
+    } else if (p.role == SkPlayer::Attack && mate) {
+        p.moveTo = mate->body.position;                        // escort
     } else if (p.role == SkPlayer::Attack) {
         // The nearest enemy flag that isn't already carried (Kabuto's team has none).
         float bd = 1e9f;
         bool any = false;
-        for (size_t t = 0; t < flags.size(); ++t) {
-            if (int(t) == p.team || !flags[t].used || flags[t].carrier >= 0) continue;
+        for (size_t t = 0; t < flags.size() && p.giveUpT <= 0; ++t) {
+            if (int(t) == p.team || !flags[t].used || flags[t].carrier >= 0 || !canReach(p.team, int(t))) continue;
             const float d = length(flags[t].pos - p.body.position);
             if (d < bd) { bd = d; p.moveTo = flags[t].pos; any = true; }
         }
@@ -465,10 +552,12 @@ void Skirmish::think(SkPlayer& p) {
     p.routeAge += 0.4f;
     if (nav.ready() && routesThisUpdate == 0 && (p.route.empty() || p.routeAge > 6.0f || length(flat(p.moveTo - p.routeGoal)) > 10.0f)) {
         ++routesThisUpdate;
-        const SkHero h = teams[size_t(p.team)].hero;
-        const SkNav::Profile prof = h == SkHero::Mecc ? SkNav::Jetter : (h == SkHero::Reaper ? SkNav::Swimmer : SkNav::Giant);
+        const SkNav::Profile prof = profileOf(p.team);
         GVR_PROF("skirmish route");
-        if (!nav.path(p.body.position, p.moveTo, prof, p.route)) p.route.clear();
+        if (!nav.path(p.body.position, p.moveTo, prof, p.route)) {
+            p.route.clear();
+            if (p.carrying < 0) p.giveUpT = 10.0f;  // nowhere to go from here: hunt for a while
+        }
         p.routeAt = 0;
         p.routeGoal = p.moveTo;
         p.routeAge = 0;
@@ -520,8 +609,17 @@ void Skirmish::moveBot(SkPlayer& p, float dt) {
         while (p.routeAt + 1 < p.route.size() && length(flat(p.route[p.routeAt] - p.body.position)) < reach) ++p.routeAt;
         goal = p.route[p.routeAt];
         // The end of a partial route (the search ran out short of the goal): plan on from here.
-        if (p.routeAt + 1 == p.route.size() && length(flat(goal - p.body.position)) < reach && length(flat(goal - p.moveTo)) > 5.0f)
-            p.route.clear();
+        // Close by, the last stretch is walked straight (re-planning would end at the same cell).
+        if (p.routeAt + 1 == p.route.size() && length(flat(goal - p.body.position)) < reach && length(flat(goal - p.moveTo)) > 5.0f) {
+            if (length(flat(p.moveTo - p.body.position)) < 40.0f) {
+                p.route.assign(1, p.moveTo);
+                p.routeAt = 0;
+                p.routeGoal = p.moveTo;
+                goal = p.moveTo;
+            } else {
+                p.route.clear();
+            }
+        }
     }
     Vec3 d = flat(goal - p.body.position);
     const float dist = length(d);
@@ -538,11 +636,32 @@ void Skirmish::moveBot(SkPlayer& p, float dt) {
     } else {
         p.aim = Quat::fromAxisAngle({0, 1, 0}, p.body.yaw).rotate(Vec3{0, 0, -1});
     }
+    // Getting no nearer the waypoint for seconds (swimming along a bank it can't climb, sliding along a
+    // wall: moving, but not getting anywhere) counts as stuck too.
+    bool noProgress = false;
+    if (p.detourT > 0 || length(flat(goal - p.progGoal)) > 1.0f) {
+        p.progGoal = goal;
+        p.bestDist = dist;
+        p.progT = 0;
+    } else if (dist < p.bestDist - 1.0f) {
+        p.bestDist = dist;
+        p.progT = 0;
+    } else if ((p.progT += dt) > 5.0f && dist > arrive * 2.0f) {
+        noProgress = true;
+        p.progT = 0;
+        p.bestDist = 1e9f;
+    }
     // Stuck (a wall, a cliff): step aside, the Meccaryn jets over.
     p.stuckT += dt;
-    if (p.stuckT > 1.5f) {
+    if (p.stuckT > 1.5f || noProgress) {
         const float moved = length(flat(p.body.position - p.lastPos));
-        if (dist > arrive * 2.0f && moved < 0.8f) {
+        if (dist > arrive * 2.0f && (moved < 0.8f || noProgress)) {
+            // Following a route: the grid was wrong about the way ahead (learnt for everyone of this kind).
+            if (p.detourT <= 0 && p.routeAt < p.route.size()) {
+                const SkNav::Profile prof = profileOf(p.team);
+                const Vec3 ahead = p.body.position + d * (std::min(dist, nav.cell()) / std::max(1e-3f, dist));
+                nav.penalize(ahead, prof);
+            }
             const Vec3 side = Vec3{-d.z, 0, d.x} * (1.0f / std::max(1e-3f, dist)) * ((rnd() < 0.5f ? -1.0f : 1.0f) * (8.0f + 8.0f * rnd()));
             p.moveTo = p.body.position + side + d * (std::min(dist, 10.0f) / std::max(1e-3f, dist));
             p.detourT = 2.5f;
@@ -570,12 +689,20 @@ void Skirmish::moveBot(SkPlayer& p, float dt) {
     }
     // A goal well above: jet up to it. Far away, a Meccaryn travels in jetpack hops (thrust while the
     // tank is well filled, glide, land and refill).
+    // A flag carrier (and anyone whose fight is still well off) keeps travelling at full speed.
+    const float toGoal = length(flat(p.moveTo - p.body.position));
+    const bool hurry = !t || p.carrying >= 0 || length(flat(t->body.position - p.body.position)) > 30.0f;
     if (teams[size_t(p.team)].hero == SkHero::Mecc) {
         if (goal.y > p.body.position.y + 4.0f && dist < 40.0f) in.jet = true;
-        if (dist > 60.0f && !t && p.jetT <= 0 && p.body.onGround && p.body.fuel() > 0.7f) p.jetT = 1.6f;
+        if (toGoal > 60.0f && hurry && p.jetT <= 0 && p.body.onGround && p.body.fuel() > 0.7f) p.jetT = 1.6f;
     }
-    in.sprint = dist > 30.0f && !t;
+    in.sprint = toGoal > 30.0f && hurry;
     p.body.update(dt, in);
+    static const int dbgId = std::getenv("GVR_SK_DEBUG") ? std::atoi(std::getenv("GVR_SK_DEBUG")) : -1;  // test hook
+    if (p.id == dbgId && std::floor(time * 2.0f) != std::floor((time - dt) * 2.0f))
+        LOGI("skdbg %.1f pos(%.1f %.1f %.1f) gnd%.1f sea%.1f on%d swim%d spd%.1f goal(%.1f %.1f %.1f) moveTo(%.1f %.1f %.1f) r%zu/%zu det%.1f blk%.2f jet%.2f mv%.1f,%.1f",
+             time, p.body.position.x, p.body.position.y, p.body.position.z, ground(p.body.position), p.body.seaLevel, p.body.onGround, p.body.swimming(),
+             p.body.horizontalSpeed(), goal.x, goal.y, goal.z, p.moveTo.x, p.moveTo.y, p.moveTo.z, p.routeAt, p.route.size(), p.detourT, p.blockedT, p.jetT, in.move.x, in.move.y);
 }
 
 void Skirmish::updateShots(float dt) {
@@ -707,6 +834,7 @@ void Skirmish::update(float dt) {
         }
         if (!p.bot) continue;  // the local and remote players move themselves
         p.fireCool -= dt;
+        p.giveUpT -= dt;
         p.think -= dt;
         if (p.think <= 0) {
             p.think = 0.35f + 0.1f * rnd();

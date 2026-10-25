@@ -34,12 +34,21 @@ public:
     float cell() const { return cell_; }
     // A building's footprint (world box): no route through it.
     void block(float x0, float z0, float x1, float z1);
+    // The same for a turned building: the cells whose centres lie in its footprint (local box
+    // mn..mx under `xf`, grown by `margin` metres). Its axis-aligned bounds blocked far too much
+    // round a turned base (the flag's own cell, inside the ring of buildings).
+    void blockBox(const Mat4& xf, const Vec3& mn, const Vec3& mx, float margin);
+    bool blocked(const Vec3& p) const;
+    // A bot couldn't get through here (a rock, a ledge the samples missed): costlier for its kind of
+    // mover, impassable after a few such reports (the map's buildings and rocks aren't in the grid).
+    void penalize(const Vec3& p, Profile prof);
 
 private:
     int w_ = 0, h_ = 0;
     float x0_ = 0, z0_ = 0, cell_ = 6, sea_ = 0;
     std::vector<float> hgt_;
     std::vector<uint8_t> blocked_;
+    std::vector<uint8_t> pen_;    // per cell and profile (4): times bots got stuck going into it
     std::vector<float> up_;       // per cell and direction (8): the steepest rise along the step, sampled every half metre
     // Search scratch, kept between searches (a stamp per search instead of clearing).
     mutable std::vector<float> g_;
@@ -94,6 +103,9 @@ struct SkPlayer {
     size_t routeAt = 0;
     Vec3 routeGoal;
     float routeAge = 0;
+    float giveUpT = 0;
+    Vec3 progGoal;               // the waypoint being closed on, the nearest it got, for how long not nearer
+    float bestDist = 1e9f, progT = 0;           // no way to its goal at all: does something else for this long
     bool firing = false;         // fired this update (for the shot animation / sound)
 };
 
@@ -146,6 +158,14 @@ public:
     // base within reach as spawn points; a ring round the base where a team gets none).
     void setup(const std::vector<SkHero>& heroes, const std::vector<Vec3>& bases, const std::vector<Vec3>& markers);
     // A player of `team` whose movement follows `proto` (the hero's parameters); returns its id.
+    // After the map's buildings are blocked in the nav: which sides can walk (swim, jet) to which flags
+    // and back home. A flag no route reaches is left alone (bots stood at the foot of a cliff for the
+    // whole match). Without it every flag counts as reachable.
+    void prepareRoutes();
+    bool canReach(int team, int flag) const {
+        const size_t i = size_t(team) * flags.size() + size_t(flag);
+        return reach_.empty() || i >= reach_.size() || reach_[i] != 0;
+    }
     int addPlayer(const std::string& name, int team, bool bot, bool local, const PlayerController& proto, float maxHp = 100);
     SkPlayer* player(int id);
     const SkPlayer* player(int id) const;
@@ -182,6 +202,8 @@ private:
     float touchRadius(const SkPlayer& p) const;
     uint32_t rng_ = 12345;
     float rnd();
+    std::vector<uint8_t> reach_;   // [team * flags + flag]
+    SkNav::Profile profileOf(int team) const;
 };
 
 }  // namespace gvr
