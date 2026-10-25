@@ -51,6 +51,7 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Kabuto | Climbs like a giant: slopes up to 68 degrees (a man's limit is 50), judged over his stride, so banks and ledges small beside him are steps. The test walker reached the portals of k1b, k2d and kstory4_3. kstory3_4's portal is on a plateau 109 m up, ringed by 67-80 degree faces: it may still be out of reach - please try it. | HARNESS |
 | Kabuto | Jump for real: a quick hop of your own (your head rising fast from standing) makes him leap, about half as high again as the A-button jump. | HARNESS |
 | Guidance | One-time hints the first time Kabuto has something grabbable at his feet and the first time a bolt flies close by Delphi with her sword out. | HARNESS |
+| Menus | Title and options panels: dark glass with a thin gold edge and a gold highlight on the chosen row. | HARNESS |
 
 Harness regression: all 56 missions exit 0 with no errors (latest run after the grass).
 
