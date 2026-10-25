@@ -705,3 +705,16 @@ one machine (one Quest available).
   measures Rippers at arm's length more than the collapse. Rippers that close cost ~6 ms of GPU.
 - Original effects: +2.9 ms GPU in the 1.5 s after each blast (71.6 fps). Sniper zoom: its pass rendered (44 draws);
   the comparison window (mortar) was busier, so its cost isn't separated; no fps loss (71.7).
+
+## Device run 20261025-045902 — APK 521cea6 (branch `next`: multiplayer, bot fixes, ammo drops, trails, Delphi's mine, launch fix), Quest 2
+- 12/12 tests `done` with nobody wearing the headset; 0 app errors; one warning (RP_command_coll.gbs absent: the
+  model's own triangles are used - expected). Nothing flagged by review_results.py.
+- fps: delphi_bows 71.6, delphi_mine 71.7, delphi_r1 71.8, fx_original 71.7, fx_trails 71.6, kabuto_k1a 71.7,
+  perf_1a_village 71.5, perf_1c_flight 71.6, perf_1d_tower 70.5, skirmish_3way 71.8, warmup_k1a 71.1,
+  weapons_mecc 71.7. Against 043504 (d295fa1 code): equal or better everywhere; memory 205-238 MB.
+- **skirmish_3way (DEVICE VERIFIED, bots only):** M_3WAY_L1 with 6 computer players and both standing bases:
+  71.8 fps, frame p95 14.2 ms, GPU 8.8 ms (VrApi), update 0.84 ms mean / 5.1 ms max, render CPU 2.7 ms; the Reaper
+  flag placed 18 m from its pad; Kabuto's bot took the Green flag within 30 s; bots routing (traces).
+- **fx_trails:** the rockets carry FX_rocket from fx.bin (logged per rocket), 71.6 fps. **delphi_mine:** the mine in
+  her hand and set down ("Mine set ... 4 left"), 71.7 fps. Screenshots not yet looked at by a person.
+- Still unverified on a headset: play between two headsets; Reaper ammo drops (no test kills Reapers yet).
