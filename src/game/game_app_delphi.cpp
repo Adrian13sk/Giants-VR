@@ -127,13 +127,15 @@ void GameApp::heroBody(Hero h, PlayerController& pc, float& scale, float& lift) 
         scale = H / kMeccHeightD;
         lift = kabutoFeet_;
         p.jumper = true;
-        p.runSpeed = 8.7f;
+        // Rework (user, device test 2026-10-25: "he is too slow"): a giant covers ground - 14 m/s
+        // walking, 23 m/s charging; his clips play faster to keep up.
+        p.runSpeed = 14.0f;
         p.strideSpeed = 8.7f;
         p.turboStride = 13.0f;
-        p.sprintFactor = 1.55f;
+        p.sprintFactor = 1.65f;
         p.strafeStride = 6.0f;
-        p.maxPlayback = 1.8f;
-        p.turnRate = 3.0f;
+        p.maxPlayback = 2.2f;
+        p.turnRate = 5.0f;
         p.gravity = 30.0f;
         p.jumpSpeed = 24.0f;      // ~10 m up
         p.airControl = 10.0f;

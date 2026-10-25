@@ -486,6 +486,21 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
                 LOGI("Spawn at the player's own Kabuto (id 1): %.1f %.1f %.1f", p.x, p.y, p.z);
                 break;
             }
+        // Kabuto's missions (race 1) have no id-1 marker: each has one marker with id 3, where his
+        // story starts (k1a: the Smartie village of its opening cutscene; the Meccaryns' start is
+        // id 1, Delphi's missions use id 2). Without it he began at the terrain's default point,
+        // in a canyon far from everything (device test 2026-10-25).
+        if (!haveMarker && startObject_ < 0 && mission_.setup[0] == 1)
+            for (const auto& o : mission_.objects) {
+                if (o.group != 3 || o.parent >= 0 || toLower(registry_.modelName(o.type)) != "marker") continue;
+                Vec3 p = giantsToRuntime(o.x, o.y, o.z);
+                float gy;
+                if (terrain_.heightAt(p.x, p.z, gy)) p.y = gy;
+                spawn_ = p;
+                spawnYaw_ = o.yaw * kPi / 180.0f;
+                LOGI("Spawn from Kabuto's start marker (id 3): %.1f %.1f %.1f yaw %.0f deg", p.x, p.y, p.z, o.yaw);
+                break;
+            }
         for (size_t oi = 0; oi < mission_.objects.size(); ++oi) {
             const auto& o = mission_.objects[oi];
             if (int(oi) == startObject_) continue;  // the player himself

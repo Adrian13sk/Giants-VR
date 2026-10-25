@@ -107,7 +107,8 @@ void GameApp::applyKabutoGrowth(float g) {
     kbGrowShown_ = g;
     const PlayerParams& b = kbBaseParams_;
     PlayerParams p = player_.params;  // keeps what was set since (stun and landing times)
-    p.runSpeed = b.runSpeed * g;
+    // Speed with the square root of his size: a half-grown Kabuto is still quick (71 %).
+    p.runSpeed = b.runSpeed * std::sqrt(g);
     p.strideSpeed = b.strideSpeed * g;
     p.turboStride = b.turboStride * g;
     p.strafeStride = b.strafeStride * g;
@@ -126,7 +127,8 @@ void GameApp::applyKabutoGrowth(float g) {
 
 void GameApp::kabutoAte(int what) {
     if (hero_ != Hero::Kabuto || kbGrow_ >= 1.0f) return;
-    const float add = what == 0 ? 0.08f : (what == 1 ? 0.05f : 0.03f);
+    // A Smartie, a Vimp, anything else (Reapers, creatures): quicker growth than before (rework).
+    const float add = what == 0 ? 0.10f : (what == 1 ? 0.07f : 0.05f);
     kbGrow_ = std::min(1.0f, kbGrow_ + add);
     timmyLine_ = kbGrow_ >= 1.0f ? std::string("KABUTO: FULL STRENGTH AND SIZE!") : "KABUTO GROWS: " + std::to_string(int(kbGrow_ * 100.0f + 0.5f)) + "%";
     timmyLineT_ = 2.5f;
