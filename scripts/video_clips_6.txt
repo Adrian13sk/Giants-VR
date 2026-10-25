@@ -1,0 +1,4 @@
+# Progress video 6 (rework): caption|world|mission|from frame|frames|env and harness args
+Marksman Reapers: a red line from his gun before each aimed shot - move!|Story1|1c_1_firstmecc|200|500|GVR_CUTSCENE=none GVR_GOD=1 GVR_MARKSMEN=1 --pitch -4 --spawn-reaper 16
+Kabuto: drop into a crouch and he slams the ground|Kstory4|kstory4_1|20|300|GVR_CUTSCENE=none GVR_REAPER_NEAR=1 GVR_HEAD_DROP=1 GVR_HEAD_JUMP=120 --pitch -30
+Delphi: her blade leaves a trail as it deflects bolts|Rstory2|rstory2_battle_1|60|540|--script scripts/video3/parry.txt
