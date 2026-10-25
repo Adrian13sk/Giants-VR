@@ -1864,3 +1864,19 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Mesa llvmpipe (harness renderer) miscompiles exp2/pow in the new specular block (whole frame wrong);
   softpipe renders it right. Specular uses repeated squaring.
 - Harness sweeps: 56/56 missions clean after each batch. scripts/make_video.sh renders progress videos.
+- Later the same day: grass tufts (green worlds only, lit like the ground, swaying); Kabuto's first-person
+  hand grab (reach down, squeeze: a Reaper or boulder stays in that hand to throw or bring to the mouth;
+  Smarties, Vimps and small creatures are eaten); Delphi's sword deflects Reaper bolts (a swing returns them
+  at the shooter); impact sparks and a soft glow replace the blocky 32 px flash sprite (rework look only).
+- Bug found by the parry test: Reaper grenades left from inside the thrower's own capsule and burst on him at
+  once (Delphi, r1_saveyan). They now start over his head, toward the target.
+- Cutscene review: every mission's opening cutscene rendered to a contact sheet (30 missions). Two fade
+  cases blacked out whole shots: an opening shot whose only fade is out at its end (rstory3_channel_islands_1,
+  10 s black) and a shot starting black after its predecessor faded out whose script only fades out again
+  (story3_lift_2). Both fixed in CutscenePlayer::loadShot. Steep shot cameras (more than 28 degrees down on or up
+  at their target) are swung round the target to 28 degrees, since the VR view never pitches by itself.
+- Kabuto's story completability (harness, scripted, full size): every "destroy" objective completes with its
+  own mechanic - giantwall1/2 by punches (k1a, k1b, kstory3_1, kstory3_2), giantwall3 with adrenaline (k2a,
+  kstory4_2, kstory5_1/2/3), giantwall4 with the magnifying glass (kstory3_3, kstory4_1); kstory5_4's boss (the
+  other Kabuto, 2500 hp) falls to punches in 17 hits. Not checked: walking to the "reach" objectives (portals in
+  k1b, k2d, kstory3_4, kstory4_3) along the terrain; growth from eating to the sizes the gates need in play.
