@@ -40,6 +40,34 @@ float GameApp::playerHitTop() const {
     return 1.65f * hs;
 }
 
+// Reaper grenades (rework; ours): a Reaper who knows where you are but has lost sight of you for
+// 1.5 s (you ducked behind cover) lobs a grenade at where you are - between 8 and 26 m, each at
+// most every 9 s, the squad at most every 3.5 s. A throw sound warns you; it bounces like yours.
+void GameApp::updateReaperGrenades(float dt) {
+    if (hero_ == Hero::Kabuto || !playMode_ || dying_ || std::getenv("GVR_NO_REAPER_GRENADES")) return;
+    rpGrenadeCool_ = std::max(0.0f, rpGrenadeCool_ - dt);
+    for (auto& e : enemies_.enemies) {
+        e.grenadeCool = std::max(0.0f, e.grenadeCool - dt);
+        const bool fighting = e.aware && (e.state == EnemyState::Fire || e.state == EnemyState::Advance) && !e.posted;
+        if (!fighting) { e.hiddenT = 0; continue; }
+        e.hiddenT = e.los ? 0.0f : e.hiddenT + dt;
+        const Vec3 to = player_.position - e.pos;
+        const float d = std::sqrt(to.x * to.x + to.z * to.z);
+        if (e.hiddenT < 1.5f || e.grenadeCool > 0 || rpGrenadeCool_ > 0 || d < 8.0f || d > 26.0f) continue;
+        const Vec3 from = e.pos + Vec3{0, 1.7f, 0};
+        const Vec3 aim = player_.position + Vec3{(frand() - 0.5f) * 2.0f, 0.2f, (frand() - 0.5f) * 2.0f};
+        const float t = std::max(0.9f, std::min(1.8f, d / 13.0f));
+        Vec3 v = (aim - from) * (1.0f / t);
+        v.y += 0.5f * 9.8f * t;
+        rockets_.push_back({from, v, 0.0f, 6});
+        e.grenadeCool = 9.0f;
+        rpGrenadeCool_ = 3.5f;
+        e.hiddenT = 0;
+        sfx("me_grnth", from, 1.0f, 0.8f);
+        LOGI("Reaper %u lobs a grenade (%.0f m, you were out of sight)", e.uid, d);
+    }
+}
+
 void GameApp::updateFlashes(float dt) {
     float best = 0;
     const Flash* pick = nullptr;

@@ -68,6 +68,7 @@ struct Enemy {
     bool weaponOn = false;
     Mat4 weaponXf = Mat4::identity();
     float rocketCool = 0;
+    float hiddenT = 0, grenadeCool = 0;  // rework: the player out of sight this long -> a grenade (game layer)
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
 
