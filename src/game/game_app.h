@@ -1384,6 +1384,8 @@ private:  // the mission placed enemies: no test waves
     float rpGrenadeCool_ = 0;
     void updateReaperGrenades(float dt);
     float ambushT_ = 0, ambushDue_ = 0;
+    std::string ambushMission_;
+    bool ambushAllowed_ = false;
     void updateAmbush(float dt);
     // Holsters on the body and punches (game_app_vr.cpp).
     int holsterZone_ = -1;

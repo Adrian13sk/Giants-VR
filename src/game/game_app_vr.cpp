@@ -87,6 +87,13 @@ void GameApp::updateAmbush(float dt) {
     if (!playMode_ || dying_ || cutsceneActive() || hero_ == Hero::Kabuto || skirmish_ || base_.on || riding_ || enemyPool_.empty() ||
         !assetWorld_ || load_.phase != LoadPhase::Idle || std::getenv("GVR_NO_AMBUSH") || !settings_.ambushes)
         return;
+    // Only where the mission has Reapers of its own (Story 1's opening has none: no ambush there).
+    if (ambushMission_ != assetWorld_->missionName()) {
+        ambushMission_ = assetWorld_->missionName();
+        ambushAllowed_ = !enemies_.enemies.empty();
+        ambushT_ = ambushDue_ = 0;
+    }
+    if (!ambushAllowed_) return;
     bool fighting = false;
     for (const auto& e : enemies_.enemies)
         if (e.state != EnemyState::Dead && e.aware && length(e.pos - player_.position) < 70.0f) { fighting = true; break; }
