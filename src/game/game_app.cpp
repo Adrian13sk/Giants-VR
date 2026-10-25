@@ -4343,6 +4343,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     if (showTestScene_ || !hasOriginalAssets()) testScene_.render(renderer_, rig_, lastInput_);
     else if (menuOpen_ || title_ || !playMode_ || briefHeld_) testScene_.renderPointers(renderer_, rig_, lastInput_);  // (in play: your hero's own hands)
     if (load_.phase == LoadPhase::FadeOut) renderLoading();
+    renderVignette();
     endUiFrame();
     // Death: fade to black before the respawn, and back in after it.
     const float black = dying_ ? std::min(1.0f, std::max(0.0f, (deathTime_ - 4.3f) / 1.0f)) : respawnFade_;

@@ -1343,6 +1343,11 @@ private:  // the mission placed enemies: no test waves
     float gunKick_ = 0, gunKickV_ = 0;
     bool twoHand_ = false;
     void gunKick(float strength);
+    // Comfort vignette (rework): the view's edges darken while the stick moves or turns you.
+    float vignette_ = 0;
+    MeshId vignetteMesh_ = 0;
+    void updateVignette(float dt, const InputFrame& in);
+    void renderVignette();
     void updateGunKick(float dt);
     Mat4 gunDrawXf() const;
     void drawModel(const RenderModel* m, const Mat4& xf, bool additive, float alpha = 1.0f);

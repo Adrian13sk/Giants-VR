@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 #include "core/log.h"
 #include "game/arm_ik.h"
@@ -29,7 +30,70 @@ bool GameApp::bodyRef(const char* ref, const char* parent, RefCache& c, Mat4& ou
     return true;
 }
 
+// Comfort vignette (rework; standard in VR games): while the stick moves you or turns you smoothly,
+// the edges of the view darken so the motion your eyes see without your body feeling it shrinks to
+// the middle. Off / low / high in Options.
+void GameApp::updateVignette(float dt, const InputFrame& in) {
+    float want = 0;
+    if (settings_.vignette > 0 && playMode_ && !cutsceneActive() && !menuOpen_) {
+        const Vec2 mv = in.hand[rig_.moveHand()].thumbstick;
+        const float move = std::min(1.0f, std::sqrt(mv.x * mv.x + mv.y * mv.y));
+        const float turn = rig_.comfort.snapTurn ? 0.0f : std::fabs(in.hand[rig_.turnHand()].thumbstick.x);
+        float k = std::max(move > 0.2f ? move : 0.0f, turn > 0.2f ? turn : 0.0f);
+        if (riding_ || !player_.onGround) k = std::max(k, std::min(1.0f, player_.horizontalSpeed() / 12.0f));
+        want = k * (settings_.vignette == 1 ? 0.55f : 0.9f);
+    }
+    vignette_ += (want - vignette_) * std::min(1.0f, dt * (want > vignette_ ? 6.0f : 3.0f));
+    static const bool trace = std::getenv("GVR_VIGNETTE_TRACE") != nullptr;
+    if (trace) LOGI("vignette %.2f (want %.2f, setting %d)", vignette_, want, settings_.vignette);
+}
+
+void GameApp::renderVignette() {
+    if (vignette_ < 0.02f || !lastInput_.headValid) return;
+    // An annulus 1 m ahead of the eyes: clear inside, a soft edge, black outside.
+    const int seg = 48;
+    const float inner = std::tan((60.0f - 32.0f * vignette_) * kPi / 180.0f);
+    const float soft = std::tan((75.0f - 30.0f * vignette_) * kPi / 180.0f);
+    const float outer = std::tan(85.0f * kPi / 180.0f);
+    MeshData md;
+    for (int i = 0; i < seg; ++i) {
+        const float a = 2.0f * kPi * float(i) / float(seg);
+        const float c = std::cos(a), s = std::sin(a);
+        const float rs[3] = {inner, std::max(inner + 0.05f, soft), outer};
+        const uint8_t al[3] = {0, 255, 255};
+        for (int k = 0; k < 3; ++k) {
+            Vertex v{};
+            v.pos[0] = c * rs[k]; v.pos[1] = s * rs[k]; v.pos[2] = -1.0f;
+            v.normal[2] = 1.0f;
+            v.color[3] = al[k];
+            md.vertices.push_back(v);
+        }
+    }
+    for (int i = 0; i < seg; ++i) {
+        const uint32_t a = uint32_t(i * 3), b = uint32_t(((i + 1) % seg) * 3);
+        for (uint32_t k = 0; k < 2; ++k) {
+            md.indices.insert(md.indices.end(), {a + k, b + k, b + k + 1, a + k, b + k + 1, a + k + 1});
+        }
+    }
+    if (!vignetteMesh_) vignetteMesh_ = renderer_.uploadMesh(md);
+    else renderer_.updateMeshVertices(vignetteMesh_, md.vertices);
+    const Pose head = rig_.toWorld(lastInput_.head);
+    DrawParams dp;
+    dp.unlit = true;
+    dp.blend = BlendMode::AlphaBlend;
+    dp.depthTest = false;
+    dp.depthWrite = false;
+    dp.doubleSided = true;
+    dp.noFog = true;
+    dp.tint = {1, 1, 1, std::min(1.0f, vignette_ * 1.1f)};
+    static bool once = false;
+    if (!once) { once = true; LOGI("Comfort vignette drawn (mesh %u, %.2f, head %.1f %.1f %.1f)", vignetteMesh_, vignette_, head.position.x, head.position.y, head.position.z); }
+    renderer_.draw(vignetteMesh_, Mat4::translation(head.position) * Mat4::rotation(head.orientation) *
+                                      Mat4::scale(Vec3{1, 1, 1} * rig_.comfort.worldScale), dp);
+}
+
 void GameApp::updateFeel(float dt, const InputFrame& in) {
+    updateVignette(dt, in);
     // --- Rumble.
     auto both = [&](float a, float s) {
         haptics_.push_back({kLeft, a, s});
