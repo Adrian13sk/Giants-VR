@@ -1992,3 +1992,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   Reaper's next flank spot, and a spot beside its far side from the player; on repositioning (60 %, GVR_COVER) he runs
   there (Enemy::inCover) and fires crouched; abandoned when the player moves 10 m from where it was chosen.
   Unit test: runs to the offered spot; harness 1c: "Reaper 1 takes cover 7.3 m away". Sweep 56/56 clean.
+- Knockdowns: a non-lethal hit of 45+ (head shots, close shotgun, blast edges) plays rpman_hit_big then
+  rpman_hit_big_getup before he fights on; bodyHeight 0.45 / 0.75 of his height meanwhile. Unit test (down, up,
+  fighting; a light hit only flinches). Sweep 56/56 clean.

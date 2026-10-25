@@ -151,7 +151,9 @@ bool EnemyDirector::damage(int i, float amount, bool blast) {
     e.hitHeight = 0.5f;
     e.state = EnemyState::Hit;
     e.stateTime = 0;
-    const EnemyClip hc = (nextRand() & 1) ? EnemyClip::Hit1 : EnemyClip::Hit2;
+    // Rework: a heavy blow (a rocket's edge, the shotgun up close) knocks him off his feet; he gets
+    // up again (rpman_hit_big, rpman_hit_big_getup).
+    const EnemyClip hc = amount >= 45.0f && !e.posted ? EnemyClip::HitBig : ((nextRand() & 1) ? EnemyClip::Hit1 : EnemyClip::Hit2);
     setClip(e, hc, false);
     e.clipTime = 0;  // restart the reaction even if already playing
     e.fade = std::min(e.fade, params.crossfade * 0.5f);
@@ -480,6 +482,11 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 }
                 break;
             case EnemyState::Hit:
+                if (e.clip == EnemyClip::HitBig && e.stateTime >= clipDuration[int(e.clip)] * 0.95f) {
+                    setClip(e, EnemyClip::GetUp, false);  // down: up again
+                    e.stateTime = 0;
+                    break;
+                }
                 if (e.stateTime >= clipDuration[int(e.clip)] * 0.95f) {
                     // After being hit: usually run for cover to a new spot.
                     e.state = EnemyState::Advance;

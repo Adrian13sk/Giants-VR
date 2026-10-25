@@ -534,6 +534,21 @@ static void testEnemies() {
             tookCover = c.enemies[0].inCover && length(c.enemies[0].pos - Vec3{6, 0, -14}) < 1.2f;
         }
         CHECK(tookCover);
+        // A heavy blow knocks him down (a low hit box), he gets up, then fights on.
+        EnemyDirector k;
+        k.groundHeight = r.groundHeight;
+        for (auto& cd : k.clipDuration) cd = 0.6f;
+        k.params.punch = false;
+        k.spawn({0, 0, -15}, kPi);
+        CHECK(!k.damage(0, 50.0f) && k.enemies[0].clip == EnemyClip::HitBig && k.bodyHeight(k.enemies[0]) < 0.5f * k.params.height + 0.01f);
+        bool gotUp = false, fought = false;
+        for (int i = 0; i < 72 * 3; ++i) {
+            k.update(1.0f / 72.0f, Vec3{0, 0, 0}, true, sh);
+            gotUp |= k.enemies[0].clip == EnemyClip::GetUp;
+            fought |= gotUp && k.enemies[0].state != EnemyState::Hit;
+        }
+        CHECK(gotUp && fought);
+        CHECK(!k.damage(0, 10.0f) && k.enemies[0].clip != EnemyClip::HitBig);  // a light hit: a flinch
     }
 
     EnemyDirector d;
