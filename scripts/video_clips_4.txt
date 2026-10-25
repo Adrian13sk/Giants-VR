@@ -1,0 +1,5 @@
+# Progress video 4 (rework): caption|world|mission|from frame|frames|env and harness args
+Fixed: the ground's blocky texture doubling (now smooth)|Rstory2|rstory2_battle_1|0|360|GVR_CUTSCENE=none --pitch -25 --move 0 0.4
+Shots shove Reapers back; a killing shot sends the body sliding|Story1|1c_1_firstmecc|60|540|GVR_CUTSCENE=none GVR_GOD=1 --pitch -10 --spawn-reaper 12 --auto-aim --trigger-window 90 600 --trigger-pulse 8
+Near misses: Reapers flinch and dive aside|Story1|1c_1_firstmecc|60|420|GVR_CUTSCENE=none GVR_GOD=1 GVR_AUTOAIM_MISS=3.5 --pitch -10 --spawn-reaper 12 --auto-aim --trigger-window 90 480 --trigger-pulse 8
+Kabuto: jump for real and he leaps|Kstory4|kstory4_1|30|300|GVR_CUTSCENE=none GVR_HEAD_JUMP=90 --move 0 0.5
