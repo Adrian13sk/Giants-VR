@@ -510,7 +510,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                                     "rpman_hit_fall_cycle.anm", "rpman_hit_fall_land.anm", "rpman_poke_bush.anm",
                                     // rework: kneeling marksman, punch, head-shot and leg-shot deaths, grenade throw
                                     "rpman_snipe_kneel_fire.anm", "rpman_punch.anm", "rpman_hit_eye_die.anm",
-                                    "rpman_hit_to_knees_die.anm", "rpman_grenade.anm"};
+                                    "rpman_hit_to_knees_die.anm", "rpman_grenade.anm", "rpman_Hover.anm"};
             int poolSize = 6;
             {
                 int missionReapers = 0;

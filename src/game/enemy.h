@@ -17,7 +17,7 @@
 namespace gvr {
 
 enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, FallCycle, FallLand, Poke,
-                             KneelFire, Punch, DieHead, DieKnees, Throw, Count };  // (the last five: rework)
+                             KneelFire, Punch, DieHead, DieKnees, Throw, Hover, Count };  // (the last six: rework)
 enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead, Falling };
 
 struct Enemy {
@@ -75,6 +75,7 @@ struct Enemy {
     // death); a one-shot action playing (a punch, a throw) holds his clip; the punch's blow pending.
     float hitHeight = 0.5f, actT = 0, punchCool = 0;
     bool punchPending = false;
+    bool dropping = false;  // rework: coming down on a hover pack (an ambush from the air)
     float hitFlash = 0;     // rework: > 0 just hit (the body flashes)  // rework: the player out of sight this long -> a grenade (game layer)
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
 };
@@ -114,7 +115,7 @@ public:
     EnemyParams params;
     std::function<float(float, float)> groundHeight;
     const CollisionWorld* collision = nullptr;
-    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     // The player hidden in his bush pack (2b): an unaware Reaper only finds him by walking up and
     // poking the bush (rpman_poke_bush); an engaged one loses him when he's far enough.
     bool playerHidden = false;

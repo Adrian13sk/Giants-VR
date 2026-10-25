@@ -1975,3 +1975,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   punches; off for Kabuto); Enemy::hitHeight (set by the shot) picks the head or leg death; Reaper grenade throws play
   the throw clip. One-shot actions hold the clip (Enemy::actT; hits, deaths and falls cancel them). Unit test: head /
   leg / body deaths and exactly one punch in 2 s; harness: "Reaper 1 punches you"; sweep 56/56 clean.
+- Air ambushes: updateAmbush picks an air squad half the time (GVR_AMBUSH_AIR=1/0 forces): spawned 22-32 m ahead and
+  18-24 m up with Enemy::dropping - EnemyDirector drifts them toward the player and down (slowing near the ground,
+  clip rpman_Hover), then Advance; one killed in the air falls with gravity. Flame/smoke puffs and a jet sound
+  under each. Harness: 2a_1 -> "Ambush: 3 Reapers dropping from the sky", landed and firing 11-16 m away by 9 s.
+  Sweep 56/56 clean.

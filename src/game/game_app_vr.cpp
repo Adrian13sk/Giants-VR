@@ -193,6 +193,14 @@ bool GameApp::handReach(const Vec3& p, float r) const {
 // while (70-110 s) in a mission with Reapers in it, a squad of 2-3 comes at him from ahead, 40-55 m
 // out on dry ground. Not in base missions (they have raids), races, multiplayer or as Kabuto.
 void GameApp::updateAmbush(float dt) {
+    // Hover packs: flame and smoke under a Reaper coming down (and their roar).
+    for (const auto& e : enemies_.enemies)
+        if (e.dropping && e.state != EnemyState::Dead) {
+            const Vec3 at = e.pos + Vec3{0, 0.9f, 0} + Quat::fromAxisAngle({0, 1, 0}, e.yaw).rotate(Vec3{0, 0, 0.3f});
+            smokePuff(FxTex::Fire, at, Vec3{0, -6.0f, 0}, 0.25f, 0.6f, 0.25f, 0.9f, 0.0f);
+            if (frand() < 0.3f) smokePuff(FxTex::SmokeGrey, at + Vec3{0, -0.8f, 0}, Vec3{0, -2.0f, 0}, 0.4f, 1.3f, 0.8f, 0.22f, 0.3f);
+            if (int(time_ * 4) != int((time_ - dt) * 4)) sfx("me_jtlp1", e.pos, 0.5f, 0.8f);
+        }
     if (!playMode_ || dying_ || cutsceneActive() || hero_ == Hero::Kabuto || skirmish_ || base_.on || riding_ || enemyPool_.empty() ||
         !assetWorld_ || load_.phase != LoadPhase::Idle || std::getenv("GVR_NO_AMBUSH") || !settings_.ambushes)
         return;
@@ -215,9 +223,12 @@ void GameApp::updateAmbush(float dt) {
     const float yaw = lastInput_.headValid ? yawOf(rig_.toWorld(lastInput_.head).orientation) : player_.yaw;
     const int n = 2 + int(frand() * 1.99f);
     int placed = 0;
+    // Half the squads come down from the sky on hover packs (rpman_Hover), closer in (GVR_AMBUSH_AIR=1/0 forces).
+    const char* airEnv = std::getenv("GVR_AMBUSH_AIR");
+    const bool air = airEnv ? airEnv[0] == '1' : frand() < 0.5f;
     for (int attempt = 0; attempt < 24 && placed < n; ++attempt) {
-        const float a = yaw + (frand() - 0.5f) * 2.1f;
-        const float r = 40.0f + 15.0f * frand();
+        const float a = yaw + (frand() - 0.5f) * (air ? 1.4f : 2.1f);
+        const float r = air ? 22.0f + 10.0f * frand() : 40.0f + 15.0f * frand();
         Vec3 p = player_.position + Vec3{-std::sin(a) * r, 0, -std::cos(a) * r};
         float h;
         if (!assetWorld_->terrain().heightAt(p.x, p.z, h) || h < player_.seaLevel + 0.2f || std::fabs(h - player_.position.y) > 25.0f) continue;
@@ -228,13 +239,17 @@ void GameApp::updateAmbush(float dt) {
         e.aware = true;
         e.alert = 0.3f;
         e.home = e.patrolTo = player_.position;
+        if (air) {
+            e.dropping = true;
+            e.pos.y = h + 18.0f + 6.0f * frand();
+        }
         ++placed;
     }
     if (placed) {
-        timmyLine_ = "REAPERS AHEAD!";
+        timmyLine_ = air ? "REAPERS - ABOVE YOU!" : "REAPERS AHEAD!";
         timmyLineT_ = 2.5f;
         sfx2D("rs_attk2", 0.6f, 0.9f);
-        LOGI("Ambush: %d Reapers %s", placed, "ahead of the player");
+        LOGI("Ambush: %d Reapers %s", placed, air ? "dropping from the sky" : "ahead of the player");
     }
 }
 

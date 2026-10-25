@@ -131,6 +131,7 @@ bool EnemyDirector::damage(int i, float amount, bool blast) {
     e.hitFlash = 1.0f;
     e.aware = true;
     e.actT = 0;
+    if (e.dropping && e.health <= 0) e.dropping = false;  // (falls from the sky: see update)
     e.punchPending = false;
     if (e.health <= 0) {
         e.state = EnemyState::Dead;
@@ -199,6 +200,32 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
         const int burstN = marks ? 1 : params.burstSize;
         const float burstP = marks ? 2.6f : params.burstPause;
         (void)shootR; (void)fireR; (void)burstN; (void)burstP;
+        // Rework: coming down on a hover pack - drifting toward the player, then on his feet and fighting.
+        if (e.dropping && e.state != EnemyState::Dead) {
+            const float g = groundHeight ? groundHeight(e.pos.x, e.pos.z) : 0.0f;
+            setClip(e, EnemyClip::Hover, true);
+            turn(faceYaw);
+            if (dist > 6.0f) tryMove(e, Vec3{to.x, 0, to.z} * (3.0f * dt / std::max(dist, 1e-3f)));
+            e.pos.y -= std::min(6.0f, 1.5f + 0.4f * (e.pos.y - g)) * dt;  // slowing as he nears the ground
+            if (e.pos.y <= g + 0.05f) {
+                e.pos.y = g;
+                e.dropping = false;
+                e.state = EnemyState::Advance;
+                e.stateTime = 0;
+                e.flankTimer = 0.5f;
+            }
+            e.clipTime += dt;
+            continue;
+        }
+        if (e.state == EnemyState::Dead && !e.posted && groundHeight) {
+            // Shot out of the air: he drops.
+            const float g = groundHeight(e.pos.x, e.pos.z);
+            if (e.pos.y > g + 0.05f) {
+                e.vel.y -= 14.0f * dt;
+                e.pos.y = std::max(g, e.pos.y + e.vel.y * dt);
+                if (e.pos.y <= g) e.vel.y = 0;
+            }
+        }
         // Rework: an action clip (punch, throw) plays out; he turns to you meanwhile and the punch
         // lands a little before the middle of the swing if you are still in reach.
         e.punchCool = std::max(0.0f, e.punchCool - dt);
