@@ -691,3 +691,17 @@ one machine (one Quest available).
 - Campaign sweep (plain build, 56 missions x 500 frames): 56/56 exit 0, 0 errors.
 - APK e4c2818: `scripts/build_apk.sh` exit 0, 0 warnings; zipalign + v3 signature verified by the build.
 - **Not verified:** anything on a headset; play between two headsets.
+## Device run 20261025-043504 — APK e5a4c27 (d295fa1 game code + launch fix), Quest 2
+- Started from `devtest.ps1` with nobody wearing the headset and no trigger press: all 9 tests `done`, 0 app errors
+  logged, no system dialog reported. **The launch fix is DEVICE VERIFIED** (before it, the "Controllers required"
+  dialog held every launch: LaunchCheckControllerRequiredDialogActivity in the 2026-10-24 logs).
+- fps (frame p95 ms, GPU ms mean): delphi_bows 71.8 (14.2, 9.2); delphi_r1 71.8 (14.1, 8.0); fx_original 71.7 (14.2,
+  12.2); kabuto_k1a 71.6 (14.3, 13.7); perf_1a_village 71.5 (14.3, 12.1); perf_1c_flight 71.6 (14.3, 13.2);
+  perf_1d_tower 69.3 (16.3, 14.4); warmup_k1a 71.3 (14.3, 13.5); weapons_mecc 71.7 (14.2, 8.3). Memory 216-237 MB.
+- Against 20261024-121735 (an older APK): kabuto_k1a 65.6 -> 71.6, perf_1c_flight 66.4 -> 71.6, perf_1d_tower
+  62.4 -> 69.3, perf_1a_village 68.7 -> 71.5, delphi_r1 71.1 -> 71.8.
+- perf_1d_tower: GPU 8-9 ms before the blasts, 15-17 ms from 7 s to the end with the same draw count. The "after"
+  screenshot shows why: two Rippers right in front of the (god-mode, standing) player fill the view - the test
+  measures Rippers at arm's length more than the collapse. Rippers that close cost ~6 ms of GPU.
+- Original effects: +2.9 ms GPU in the 1.5 s after each blast (71.6 fps). Sniper zoom: its pass rendered (44 draws);
+  the comparison window (mortar) was busier, so its cost isn't separated; no fps loss (71.7).
