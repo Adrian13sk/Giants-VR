@@ -368,7 +368,7 @@ void main() {
         float p2 = nh * nh, p4 = p2 * p2, p8 = p4 * p4, p16 = p8 * p8, p32 = p16 * p16, p64 = p32 * p32;
         float pw = mix(p16, mix(p32, p64, max(lum * 2.0 - 1.0, 0.0)), min(lum * 2.0, 1.0));
         float sp = SPECEXPR;
-        rgb += uSunColor * clamp(sp * (gloss + 8.0) * 0.06, 0.0, 4.0);
+        rgb += uSunColor * clamp(sp * (gloss + 8.0) * 0.025, 0.0, 0.8);
     }
     if (uPointColor.r + uPointColor.g + uPointColor.b > 0.0) {
         // The game's point light: smooth falloff to its radius, half-wrapped so it reaches round.
