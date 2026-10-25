@@ -17,7 +17,7 @@
 namespace gvr {
 
 enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, FallCycle, FallLand, Poke,
-                             KneelFire, Punch, DieHead, DieKnees, Throw, Hover, Count };  // (the last six: rework)
+                             KneelFire, Punch, DieHead, DieKnees, Throw, Hover, CrouchFire, Count };  // (the last seven: rework)
 enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead, Falling };
 
 struct Enemy {
@@ -84,6 +84,7 @@ struct EnemyParams {
     float sightRange = 60.0f;     // m: sees the player in front with a clear line (was 50, any side)
     float shootRange = 30.0f;     // m: stops running to shoot when this close
     float fireRange = 10.0f;      // m: closest stand-off distance
+    float crouchers = 0.3f;       // rework: share of the others that fire from a crouch (a smaller target)
     float marksmen = 0.25f;       // rework: share of Reapers that are marksmen (0: none)
     float runSpeed = 4.2f;        // m/s (rpman_bzka_run stride: 18.4 units/s = 3.7; the rework runs them faster)
     float walkSpeed = 1.65f;      // m/s (rpman_walk_fire stride: pressing in while firing)
@@ -115,7 +116,7 @@ public:
     EnemyParams params;
     std::function<float(float, float)> groundHeight;
     const CollisionWorld* collision = nullptr;
-    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     // The player hidden in his bush pack (2b): an unaware Reaper only finds him by walking up and
     // poking the bush (rpman_poke_bush); an engaged one loses him when he's far enough.
     bool playerHidden = false;
@@ -142,6 +143,10 @@ public:
     // Closest capsule hit along origin + dir * t (t <= maxDist); living and dead bodies.
     bool raycast(const Vec3& origin, const Vec3& dir, float maxDist, float& t, Vec3& normal, int& index) const;
     size_t aliveCount() const;
+    // His body's height now: kneeling or crouched to fire, lower (hit capsule, head shots).
+    float bodyHeight(const Enemy& e) const {
+        return (e.clip == EnemyClip::CrouchFire || e.clip == EnemyClip::KneelFire) && e.state == EnemyState::Fire ? params.height * 0.66f : params.height;
+    }
     // A one-shot action clip that holds until it ends (rework: the grenade throw).
     void playAction(int i, EnemyClip c);
 

@@ -450,13 +450,13 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     return;
                 }
                 // Headshots (hit above the shoulders) hurt a Reaper two and a half times as much.
-                const bool head = p.y - enemies_.enemies[size_t(target)].pos.y > 1.6f;
+                const bool head = p.y - enemies_.enemies[size_t(target)].pos.y > 1.6f * enemies_.bodyHeight(enemies_.enemies[size_t(target)]) / std::max(0.5f, enemies_.params.height);
                 if (head) sfx("bi_hit2", p, 0.8f, 1.4f);
                 // Rework: the hit shoves him (a killing shot sends the body back - it slides on), more for
                 // heavier guns and head hits.
                 if (const float hl = std::sqrt(shotDir.x * shotDir.x + shotDir.z * shotDir.z); hl > 1e-3f)
                     enemies_.push(target, Vec3{shotDir.x / hl, 0, shotDir.z / hl} * ((head ? 3.0f : 1.8f) * std::min(3.0f, std::max(0.6f, hm))));
-                enemies_.enemies[size_t(target)].hitHeight = (p.y - enemies_.enemies[size_t(target)].pos.y) / std::max(0.5f, enemies_.params.height);
+                enemies_.enemies[size_t(target)].hitHeight = (p.y - enemies_.enemies[size_t(target)].pos.y) / std::max(0.5f, enemies_.bodyHeight(enemies_.enemies[size_t(target)]));
                 const bool killed = enemies_.damage(target, (head ? 62.5f : 25.0f) * hm);
                 if (killed && enemies_.enemies[size_t(target)].objective >= 0)
                     completeObjective(enemies_.enemies[size_t(target)].objective);
@@ -510,7 +510,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                                     "rpman_hit_fall_cycle.anm", "rpman_hit_fall_land.anm", "rpman_poke_bush.anm",
                                     // rework: kneeling marksman, punch, head-shot and leg-shot deaths, grenade throw
                                     "rpman_snipe_kneel_fire.anm", "rpman_punch.anm", "rpman_hit_eye_die.anm",
-                                    "rpman_hit_to_knees_die.anm", "rpman_grenade.anm", "rpman_Hover.anm"};
+                                    "rpman_hit_to_knees_die.anm", "rpman_grenade.anm", "rpman_Hover.anm", "rpman_crouch_fire.anm"};
             int poolSize = 6;
             {
                 int missionReapers = 0;
@@ -1529,6 +1529,7 @@ void GameApp::initGore(AssetWorld* w, ModelCache* mc) {
     };
     enemies_.params.corpsesPersist = true;
     if (const char* m = std::getenv("GVR_MARKSMEN")) enemies_.params.marksmen = float(std::atof(m));  // test hook: share of marksmen
+    if (const char* c = std::getenv("GVR_CROUCHERS")) enemies_.params.crouchers = float(std::atof(c));  // test hook: share crouching to fire
     creatures_.params.corpsesPersist = true;
 }
 

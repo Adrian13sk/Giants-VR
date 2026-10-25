@@ -1984,3 +1984,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   when that goes from yes to no and the number of living threats fell (one died - not one walking off),
   VillagerDirector::cheer() puts the calm ones into sm_celebrate for 3.5 s and the nearest calls out. Harness: 5a
   village 0, two Reapers spawned and blasted -> "The danger is over: 6 Smarties cheer". Sweep 56/56 clean.
+- Crouchers: EnemyParams::crouchers (0.3 of the non-marksmen; GVR_CROUCHERS) fire with rpman_crouch_fire; while a
+  kneeling or crouched Reaper is firing, EnemyDirector::bodyHeight is 0.66 x his height - the hit capsule, the
+  head-shot line and the hit-height death choice follow it. Harness: two crouchers firing crouched; auto-aim still
+  hits (target 0 at 12 m). Unit tests pass, sweep 56/56 clean.

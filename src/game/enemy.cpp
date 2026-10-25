@@ -33,6 +33,7 @@ int EnemyDirector::spawn(const Vec3& pos, float yaw) {
     e.clipTime = e.stateTime;
     e.uid = nextUid_++;
     if (params.marksmen > 0 && float(nextRand() % 1000) < params.marksmen * 1000.0f) e.role = 1;
+    else if (params.crouchers > 0 && float(nextRand() % 1000) < params.crouchers * 1000.0f) e.role = 2;
     e.home = e.patrolTo = e.pos;
     e.patrolWait = 2.0f + float(nextRand() % 4000) * 0.001f;
     enemies.push_back(e);
@@ -434,7 +435,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                         const Vec3 f{-std::sin(e.yaw), 0, -std::cos(e.yaw)};
                         tryMove(e, f * (params.walkSpeed * dt));
                     } else {
-                        setClip(e, marks ? EnemyClip::KneelFire : EnemyClip::Fire, true);  // (a marksman kneels to aim)
+                        setClip(e, marks ? EnemyClip::KneelFire : (e.role == 2 ? EnemyClip::CrouchFire : EnemyClip::Fire), true);  // (a marksman kneels to aim; a croucher crouches)
                     }
                     const bool facing = std::fabs(angleDelta(e.yaw, faceYaw)) < 0.35f;
                     if (e.fireCooldown <= 0 && facing) {
@@ -549,7 +550,7 @@ bool EnemyDirector::raycast(const Vec3& o, const Vec3& d, float maxDist, float& 
         const Enemy& e = enemies[i];
         if (e.state == EnemyState::Dead) continue;  // shots pass over corpses
         float th;
-        const Vec3 a = e.pos + Vec3{0, params.radius, 0}, b = e.pos + Vec3{0, params.height - params.radius, 0};
+        const Vec3 a = e.pos + Vec3{0, params.radius, 0}, b = e.pos + Vec3{0, bodyHeight(e) - params.radius, 0};
         if (rayCapsule(o, d, maxDist, a, b, params.radius, th) && th < best) {
             best = th;
             index = int(i);
