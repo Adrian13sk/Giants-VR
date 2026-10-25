@@ -60,6 +60,8 @@ Adb shell am broadcast -a com.oculus.vrpowermanager.prox_close | Out-Null
 # The test list.
 $scripts = @()
 $testDir = Join-Path $PSScriptRoot $Set
+# (-File passes "a,b" as one string: split on commas and spaces; a trailing .txt is fine too)
+$Tests = @($Tests | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } | ForEach-Object { $_ -replace '\.txt$', '' })
 if ($Tests.Count -gt 0) { $scripts = @($Tests | ForEach-Object { Join-Path $testDir "$_.txt" }) }
 else { $scripts = @(Get-ChildItem $testDir -Filter *.txt | Sort-Object Name | ForEach-Object { $_.FullName }) }
 # Mission name prefix -> world (as scripts/mission_sweep.sh).
