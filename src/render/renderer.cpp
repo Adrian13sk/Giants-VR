@@ -242,11 +242,11 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
         }
         col = mix(col, rock, rockW);
     }
-    if (uTerrDetail > 0.5 && d < 30.0) {
+    if (uTerrDetail > 0.5 && d < 30.0 && bias < 1.0) {  // (not for grass blades: their ground colour is an average)
         float g = texture(uTerrNoise, xz * 1.7).g;  // grain up close (fades out by 30 m)
         col *= mix(1.0, 0.82 + 0.36 * g, 1.0 - smoothstep(10.0, 30.0, d));
     }
-    if (uLook > 0.5 && uLook < 1.5 && d < 60.0) {
+    if (uLook > 0.5 && uLook < 1.5 && d < 60.0 && bias < 1.0) {
         // Rework: two more octaves of detail (clumps ~2.3 m, grit ~0.3 m) so the ground under your
         // feet isn't one blurred texel; fades with distance.
         float c1 = texture(uTerrNoise, xz * 0.43 + vec2(0.13, 0.57)).r;
