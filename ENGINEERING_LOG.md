@@ -2386,3 +2386,14 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   docs/INSTALL.md and the rework's hand mechanics; any button, B or the stick closes it (row navigation and
   settings changes are suspended while it shows); reset whenever the menu opens. Harness: opened as the
   Meccaryn (1c), Delphi (r1_saveyan) and Kabuto (k1a) - the card renders legibly over the world.
+
+### 2026-10-26 — Rework: scorch marks
+- Found in the data: blastmark_1.tga (w_menus.gzp: a near-black starburst in its alpha; blastmark_2 is the Ripper
+  hole we already use), Kabuto_footprint.tga (xx_kabutolev1.gzp) and mc_machinegun_shell.gbs - none used before.
+- game_app_marks.cpp: GroundMark (kind 0 scorch, 1 footprint - next), up to 48, each drawn as a 3x3 grid whose
+  corners sit on the terrain (+4 cm): a flat quad on uneven ground sank in or floated. Fades in 0.15 s, out over the
+  last third of its life. explode() adds a scorch (0.8 + 0.55 x radius m, at most 7; 75 s) for fire, grenades and
+  blasts with damage - not Kabuto's quakes, not under water or in the air. A fresh scorch glows (additive, a soft
+  speckled disc made in code - the game's glow textures are coloured), fading over 4 s, flickering.
+- Measured (harness, 5a, two blasts 3 m ahead): the ground inside the mark at half its brightness (58/45/14 against
+  118/90/32). Test hooks GVR_MARK_TRACE, GVR_MARK_DEBUG (draws the marks opaque).

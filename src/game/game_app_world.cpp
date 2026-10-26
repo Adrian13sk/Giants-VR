@@ -582,6 +582,7 @@ void GameApp::buildBatches() {
     for (auto& b : fxBatch_) b.upload(renderer_);
     for (auto& b : bloodBatch_) b.upload(renderer_);
     holeBatch_.upload(renderer_);
+    buildGroundMarks(eye, assetWorld_ ? assetWorld_->models() : nullptr);
     buildStreaks(eye);
     jetGlowBatch_.clear();
     if (jetGlow_ > 0.01f) {
@@ -608,6 +609,7 @@ void GameApp::renderFx() {
         dp.texture = holeTex_;
         holeBatch_.draw(renderer_, dp);
     }
+    renderGroundMarks();
     if (jetGlowTex_ && jetGlowBatch_.count()) {
         DrawParams gp = dp;
         gp.texture = jetGlowTex_;

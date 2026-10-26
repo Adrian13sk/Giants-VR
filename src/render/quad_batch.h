@@ -28,6 +28,7 @@ public:
     void upload(Renderer& r);
     void draw(Renderer& r, const DrawParams& dp) const;
     size_t count() const { return count_; }
+    size_t capacity() const { return capacity_; }
 
 private:
     MeshId mesh_ = 0;

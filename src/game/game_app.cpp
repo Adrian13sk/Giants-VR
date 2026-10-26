@@ -3378,6 +3378,9 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
 
 void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int hurtsPlayer) {
     recentBlasts_.push_back({at, radius, time_});  // (rework: ragdolls take the push)
+    // Rework: the ground is charred where it went off (not Kabuto's quakes: no fire there).
+    if (fire || hurtsPlayer == 1 || (damage > 0 && hero_ != Hero::Kabuto))
+        addGroundMark(0, at, std::min(7.0f, 0.8f + 0.55f * radius), frand() * 6.2832f, 75.0f);
     addFlash(at + Vec3{0, 1.0f, 0}, fire ? Vec3{2.6f, 1.5f, 0.6f} : Vec3{1.8f, 1.5f, 1.2f}, std::min(30.0f, 4.0f + radius * 3.0f), 0.45f);
     // Fireballs for fire, grenades and rockets - not Kabuto's quakes and bursting boulders (one at his own feet filled the view).
     if (fire || hurtsPlayer == 1 || (damage > 0 && hero_ != Hero::Kabuto)) addFireball(at + Vec3{0, 0.4f, 0}, radius);
@@ -3899,6 +3902,7 @@ void GameApp::updateCombat(float dt) {
     }
     bushEvents();
     { GVR_PROF("skirmish"); updateSkirmish(dt); }
+    updateGroundMarks(dt);
     { GVR_PROF("ragdolls"); updateBodyGrab(dt, lastInput_); updateStones(dt, lastInput_); updateRagdolls(dt); updateHints(dt); }
     // Model slots follow the enemies (the director removes sunk corpses).
     std::fill(slotUsed_.begin(), slotUsed_.end(), 0);
