@@ -2189,3 +2189,16 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   away from the player, with a tree flag; such a Reaper hides standing (TreeHide -> TreeBreathe, a TreePeek now and
   then; bodyHeight 0.25 x while hidden), rocks/walls keep the duck (RockInto -> RockBreathe). Unit test for both;
   1c_1: four Reapers take cover behind palms and fire round them. Sweep 56/56.
+
+### 2026-10-26 morning — Rework: dismemberment fixed for the soldiers; heavy guns
+- Regression check after the night's work: all 12 completion scripts reach their objectives; all 29 device-test
+  scripts run clean in the harness with their mechanics firing.
+- Bug: dismember() looked up "arm l"/"leg l", names from another skin; the Reaper soldier (rpman_l0) has l_arm,
+  r_arm, l_thigh, r_thigh - so every cut could only ever take the head (and a chest blow took the head too, its
+  centre being nearer than anything else found). Limbs now try each skin's names; the head only for a blow within
+  0.22 m of its centre's height. Delphi's chest-height slash now takes the arm it crossed.
+- Sniper head-shot kills take the head; a shotgun shell (it bursts: the direct hit goes through onHit, then the
+  burst) that kills a Reaper within 8 m takes the struck limb 55 % of the time (in updateRockets, where the shell
+  lands); blast deaths aim at the limb nearest the burst. Cutting the right arm drops the gun as a gib (Gib::base is
+  now a rotation matrix, so it keeps the gun's in-hand orientation) and stops placing it (Enemy::gunArmOff).
+- Test hooks: GVR_DISMEMBER_TRACE, GVR_DISMEMBER_ALWAYS, GVR_DISMEMBER_LIMB=<bone>. Tests pass; sweep 56/56.

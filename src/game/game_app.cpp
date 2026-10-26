@@ -475,6 +475,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 if (killed) {
                     blood_.pool(enemies_.enemies[size_t(target)].pos, 1.3f);
                     enemies_.alertNear(enemies_.enemies[size_t(target)].pos, 25.0f);  // a comrade falls
+                    // Rework: a sniper's head shot takes the head off. (The shotgun's shells burst: the
+                    // blast path in game_app_ragdoll.cpp tears off the limb nearest the burst.)
+                    Enemy& ke = enemies_.enemies[size_t(target)];
+                    if (hero_ == Hero::Mecc && gunValid_ && !ke.gibbed && head && gunOfSel(weaponSel_) == kGunSniper) dismember(ke, p, shotDir);
                 }
                 haptics_.push_back({rig_.turnHand(), killed ? 0.8f : 0.5f, killed ? 0.12f : 0.05f});
                 sfx("ex_bdys1", p, 0.35f, 1.1f + 0.2f * frand());
@@ -3564,9 +3568,19 @@ void GameApp::updateRockets(float dt) {
                 // same numbers): the hit itself like a bullet of that weight, then a small burst round it.
                 const Vec3 at = hit ? r.pos + dir * t : r.pos;
                 if (hit && target != -1 && weapon_.onHit) {
+                    const bool wasAlive = target >= 0 && target < 1000 && size_t(target) < enemies_.enemies.size() &&
+                                          enemies_.enemies[size_t(target)].state != EnemyState::Dead;
                     hitMul_ = r.dmg > 0 ? r.dmg : guns_[kGunShotgun].damage;
                     weapon_.onHit(target, at, dir);
                     hitMul_ = 1.0f;
+                    // Rework: a shotgun shell that kills a Reaper close by tears off the limb it struck (often).
+                    static const bool always = std::getenv("GVR_DISMEMBER_ALWAYS") != nullptr;  // (test hook)
+                    if (std::getenv("GVR_DISMEMBER_TRACE")) LOGI("shell hit target %d alive-before %d", target, int(wasAlive));
+                    if (wasAlive && r.kind == 4) {
+                        Enemy& ke = enemies_.enemies[size_t(target)];
+                        if (ke.state == EnemyState::Dead && !ke.gibbed && length(ke.pos - player_.position) < 8.0f && (always || frand() < 0.55f))
+                            dismember(ke, at, dir);
+                    }
                 }
                 explode(at, 1.8f, 40.0f, false, 1);
                 if (!playDataFx("fx_Explosion_shotgun", at)) {  // weapon 6's / the RPG bow's impact effect
@@ -4604,7 +4618,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     renderVimps(false, renderer_.currentView().eyePosition, 150.0f);
     renderJetski(false, renderer_.currentView().eyePosition);
     for (const auto& g : gibs_)
-        drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle) * g.base) *
+        drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) * g.base *
                                Mat4::scale({g.scale, g.scale, g.scale}),
                   false);
     for (const auto& e : enemies_.enemies)

@@ -60,7 +60,7 @@ void GameApp::placeReaperWeapons() {
     for (auto& e : enemies_.enemies) {
         if (e.weapon < 0) e.weapon = (e.uid % 4u == 3u) ? 1 : 0;
         e.weaponOn = false;
-        if (e.slot < 0 || !rpWeapon_[e.weapon].model) continue;
+        if (e.slot < 0 || e.gunArmOff || !rpWeapon_[e.weapon].model) continue;
         Mat4 hand;
         if (!enemyPool_[size_t(e.slot)]->nodeWorld("ref_rhand", hand)) continue;
         const Mat4 body = Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw));

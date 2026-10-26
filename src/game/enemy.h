@@ -79,6 +79,7 @@ struct Enemy {
     bool inCover = false;   // rework: running to / firing from coverAt
     bool ducked = false;    // rework: down behind its cover between bursts (rpman_rock_into, then rpman_rock_breathe)
     bool treeCover = false; // rework: its cover is a tree trunk (stands behind it, peeks out)
+    bool gunArmOff = false; // rework: the right arm was cut off (no gun in the hand)
     Vec3 coverAt, coverFrom; // the spot, and where the player was when it was chosen  // rework: coming down on a hover pack (an ambush from the air)
     // Rework: ragdolls (game_app_ragdoll.cpp). kick: the impulses of the last moments (m/s, decaying,
     // shots, blasts, blows - also on the dead); ragdoll: the body is a ragdoll (the game layer moves it).

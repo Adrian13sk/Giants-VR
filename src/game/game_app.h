@@ -488,7 +488,7 @@ private:
         const RenderModel* model = nullptr;
         Vec3 pos, vel, axis{0, 1, 0};
         float angle = 0, spin = 0, scale = 1, life = 0;
-        Quat base;                          // rework: a cut-off limb starts as it was on the body
+        Mat4 base = Mat4::identity();       // rework: a cut-off limb (or a dropped gun) starts as it was on the body (rotation only)
         std::shared_ptr<RenderModel> own;   // rework: the limb's own meshes (freed with the gib)
     };
     // Rework, dismemberment (game_app_ragdoll.cpp): cuts off the limb of dead Reaper `e` nearest the

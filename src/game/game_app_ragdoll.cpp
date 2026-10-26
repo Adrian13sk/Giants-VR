@@ -82,11 +82,16 @@ void GameApp::updateRagdolls(float dt) {
             if (e.clip == EnemyClip::Blown) v.y = std::max(v.y, std::min(6.0f, 2.5f + 0.25f * k));
             startRagdoll(e, v, hl > 0.1f ? cross(Vec3{0, 1, 0}, h * (1.0f / hl)) * std::min(4.0f, 0.8f + 0.35f * hl) : Vec3{0, 0, 0});
             // A blast right at him tears a limb off now and then (the one nearest the burst).
+            static const bool always = std::getenv("GVR_DISMEMBER_ALWAYS") != nullptr;  // (test hook)
+            if (std::getenv("GVR_DISMEMBER_TRACE"))
+                for (const auto& b : recentBlasts_) LOGI("dismember trace: Reaper %u clip %d, a blast %.2f m away (radius %.1f)", e.uid, int(e.clip), length(b.pos - e.pos), b.radius);
             if (e.clip == EnemyClip::Blown && !e.gibbed)
                 for (const auto& b : recentBlasts_)
-                    if (length(b.pos - e.pos) < std::max(2.0f, b.radius * 0.6f) && frand() < 0.6f) {
-                        const Vec3 up = e.pos + Vec3{0, 1.0f, 0};
-                        dismember(e, b.pos + (up - b.pos) * 0.5f, up - b.pos);
+                    if (length(b.pos - e.pos) < std::max(2.0f, b.radius * 0.6f) && (always || frand() < 0.6f)) {
+                        const Vec3 mid = e.pos + Vec3{0, 1.0f, 0};
+                        // The limb nearest the burst (pulled toward the body's middle, so a burst at
+                        // the feet takes a leg and one at the chest an arm).
+                        dismember(e, b.pos + (mid - b.pos) * 0.35f, mid - b.pos);
                         break;
                     }
             if (trace) LOGI("ragdoll: Reaper %u goes limp (push %.1f m/s%s)", e.uid, k, now ? ", at once" : "");
@@ -254,16 +259,28 @@ bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
     // The blow in model space; the limb whose vertices lie nearest it.
     const Quat inv{-yq.x, -yq.y, -yq.z, yq.w};
     const Vec3 local = inv.rotate(at - origin);
-    static const char* kLimbs[] = {"head", "arm l", "arm r", "leg l", "leg r"};
+    // Each limb by the first name the skin has (rpman_l0: l_arm, l_thigh; others: "arm l", "leg l").
+    static const std::vector<std::vector<const char*>> kLimbs = {
+        {"head"}, {"l_arm", "arm l", "l-arm"}, {"r_arm", "arm r"}, {"l_thigh", "leg l", "l_thigh01"}, {"r_thigh", "leg r"}};
+    static const bool tr = std::getenv("GVR_DISMEMBER_TRACE") != nullptr;
     std::string best;
     float bd = 1e30f;
-    for (const char* b : kLimbs) {
+    Vec3 headC;
+    const bool haveHead = m.boneCentre("head", headC);
+    for (const auto& names : kLimbs) {
         Vec3 c;
-        if (!m.boneCentre(b, c)) continue;
+        const char* b = nullptr;
+        for (const char* nm : names)
+            if (m.boneCentre(nm, c)) { b = nm; break; }
+        if (!b) continue;
+        // The head only for a blow at head height (its centre is nearer a chest hit than the arms are).
+        if (haveHead && std::string(b) == "head" && local.y < headC.y - 0.22f) continue;
         const float d = length(c - local);
+        if (tr) LOGI("dismember trace: %s %.2f m from the blow", b, d);
         if (d < bd) { bd = d; best = b; }
     }
     if (best.empty() || bd > 1.2f) return false;
+    if (const char* force = std::getenv("GVR_DISMEMBER_LIMB")) best = force;  // (test hook: that limb)
     std::vector<SkinnedModel::Piece> pieces;
     Vec3 joint;
     if (!m.sever(renderer_, best, pieces, joint)) return false;
@@ -284,7 +301,7 @@ bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
     Gib g;
     g.model = own.get();
     g.own = own;
-    g.base = yq;
+    g.base = Mat4::rotation(yq);
     g.pos = origin + yq.rotate(joint);
     Vec3 h{dir.x, 0, dir.z};
     if (length(h) > 1e-3f) h = normalize(h);
@@ -293,6 +310,20 @@ bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
     g.spin = 3.0f + 5.0f * frand();
     g.scale = 1.0f;
     gibs_.push_back(g);
+    // The gun hand off: the gun goes with it (thrown along, from where it was in the hand).
+    if ((best == "r_arm" || best == "arm r") && e.weaponOn && e.weapon >= 0 && e.weapon < 2 && rpWeapon_[e.weapon].model) {
+        Gib gun;
+        gun.model = rpWeapon_[e.weapon].model;
+        gun.pos = Vec3{e.weaponXf.m[12], e.weaponXf.m[13], e.weaponXf.m[14]};
+        gun.base = e.weaponXf;
+        gun.base.m[12] = gun.base.m[13] = gun.base.m[14] = 0;
+        gun.vel = g.vel * 0.8f + Vec3{0, 1.0f, 0};
+        gun.axis = normalize(Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} + Vec3{0.01f, 0, 0});
+        gun.spin = 2.0f + 4.0f * frand();
+        gun.scale = 1.0f;
+        gibs_.push_back(gun);
+    }
+    if (best == "r_arm" || best == "arm r") e.gunArmOff = true;
     // The stump and the piece bleed.
     blood_.burst(g.pos, h + Vec3{0, 1.2f, 0}, 30, 4.5f, 0.08f);
     blood_.pool(e.pos, 1.0f);
