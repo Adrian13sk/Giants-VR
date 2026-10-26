@@ -23,7 +23,7 @@ namespace {
 constexpr int kMaxBirds = 20;
 constexpr int kLobirds = 3;
 enum { kPeck1, kPeck2, kHop, kFly, kGlide, kLand, kLoFly };
-enum { kPecking, kHopping, kFlying, kFalling, kDead };
+enum { kPecking, kHopping, kFlying, kFalling, kDead, kSwoop, kHeld };
 Vec3 fwdOf(float yaw) { return Vec3{-std::sin(yaw), 0, -std::cos(yaw)}; }
 }  // namespace
 
@@ -227,6 +227,7 @@ void GameApp::updateBirds(float dt) {
         b.stateT += dt;
         if (b.kind == 1) {
             // Lobird: a slow wide circle; its centre follows the player at walking pace.
+            if (b.state == kSwoop || b.state == kHeld) continue;  // (updateKabutoLobirds)
             if (b.state == kFlying) {
                 if (length(Vec3{me.x - b.centre.x, 0, me.z - b.centre.z}) > 200.0f) {  // (a new level / a jump: place it again)
                     b.centre = me;
@@ -238,8 +239,13 @@ void GameApp::updateBirds(float dt) {
                 if (d > 1.0f) b.centre = b.centre + to * (std::min(d, 3.0f * dt) / d);
                 b.circleAng += b.circleSpeed * dt;
                 const float g = std::max(ground(b.centre.x, b.centre.z), player_.seaLevel);
-                const Vec3 want = Vec3{b.centre.x + std::cos(b.circleAng) * b.circleR, std::max(g, me.y) + b.circleH + 3.0f * std::sin(b.t * 0.3f),
-                                       b.centre.z + std::sin(b.circleAng) * b.circleR};
+                // (round Kabuto: lower and closer - about twice his height up, three to five heights out)
+                const bool giant = hero_ == Hero::Kabuto;
+                const float H = player_.height;
+                const float cr = giant ? H * (2.5f + (b.circleR - 55.0f) / 35.0f * 2.0f) : b.circleR;
+                const float ch = giant ? H * (1.3f + (b.circleH - 60.0f) / 30.0f * 0.7f) : b.circleH;
+                const Vec3 want = Vec3{b.centre.x + std::cos(b.circleAng) * cr, std::max(g, me.y) + ch + 3.0f * std::sin(b.t * 0.3f),
+                                       b.centre.z + std::sin(b.circleAng) * cr};
                 const Vec3 v = (want - b.pos) * (1.0f / std::max(dt, 1e-3f));
                 b.vel = b.vel + (v - b.vel) * std::min(1.0f, dt * 2.0f);
                 b.pos = b.pos + b.vel * dt;
@@ -356,6 +362,7 @@ void GameApp::updateBirds(float dt) {
     feathers_.erase(std::remove_if(feathers_.begin(), feathers_.end(), [](const Feather& f) { return f.age > f.life; }), feathers_.end());
     birds_.erase(std::remove_if(birds_.begin(), birds_.end(), [](const Bird& b) { return b.gone && b.kind == 0; }), birds_.end());
 
+    updateKabutoLobirds(dt);
     // Pose the visible ones.
     for (Bird& b : birds_) {
         if (b.gone || length(b.pos - me) > 130.0f * big) continue;
@@ -371,8 +378,16 @@ void GameApp::renderBirds(const Vec3& eye) {
     if (!birdsReady_) return;
     for (const Bird& b : birds_) {
         if (b.gone || length(b.pos - eye) > 160.0f) continue;
+        if (b.state == kHeld && b.hand >= 0 && lastInput_.hand[b.hand].gripPoseValid) {
+            // In the giant's fist by the neck: hanging below it, wings drooping.
+            const Pose g = rig_.toWorld(lastInput_.hand[b.hand].gripPose);
+            birdModels_[size_t(b.slot)]->render(renderer_, Mat4::translation(g.position) * Mat4::rotation(g.orientation) *
+                                                               Mat4::rotation(Quat::fromAxisAngle({1, 0, 0}, -1.2f)) *
+                                                               Mat4::translation(Vec3{0, -birdLift_[1] * 0.4f, 1.5f}));
+            continue;
+        }
         float pitch = 0;
-        if (b.state == kFlying) pitch = std::max(-0.5f, std::min(0.5f, std::atan2(b.vel.y, std::max(0.5f, length(Vec3{b.vel.x, 0, b.vel.z}))))) * 0.6f;
+        if (b.state == kFlying || b.state == kSwoop) pitch = std::max(-0.5f, std::min(0.5f, std::atan2(b.vel.y, std::max(0.5f, length(Vec3{b.vel.x, 0, b.vel.z}))))) * 0.6f;
         const Mat4 xf = Mat4::translation(b.pos + Vec3{0, b.state == kDead ? 0.05f : birdLift_[b.kind], 0}) *
                         Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, b.yaw)) * Mat4::rotation(Quat::fromAxisAngle({1, 0, 0}, pitch)) *
                         Mat4::rotation(Quat::fromAxisAngle({0, 0, 1}, b.bank));
@@ -384,6 +399,133 @@ void GameApp::renderBirds(const Vec3& eye) {
             drawModel(featherModel_, Mat4::translation(f.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, f.yaw)) *
                                          Mat4::rotation(Quat::fromAxisAngle({1, 0, 0}, std::sin(f.sway) * 0.6f)) * Mat4::scale(Vec3{0.45f, 0.45f, 0.45f}),
                       false, a);
+        }
+}
+
+void GameApp::updateKabutoLobirds(float dt) {
+    const bool giant = hero_ == Hero::Kabuto && playMode_ && !dying_ && !cutsceneActive();
+    const float H = player_.height;
+    const Vec3 head = rig_.toWorld(lastInput_.head).position;
+    Vec3 fwd = rig_.toWorld(lastInput_.head).orientation.rotate(Vec3{0, 0, -1});
+    fwd.y = 0;
+    fwd = length(fwd) > 1e-3f ? normalize(fwd) : Vec3{0, 0, -1};
+    // Hands: positions and speeds (tracking space -> world, as the throws elsewhere).
+    Vec3 hand[2];
+    bool valid[2], edge[2], open[2];
+    for (int h = 0; h < 2; ++h) {
+        const ControllerState& c = lastInput_.hand[h];
+        valid[h] = c.gripPoseValid;
+        const bool g = c.squeeze > 0.7f;
+        edge[h] = g && !birdGripWas_[h];
+        open[h] = !g;
+        birdGripWas_[h] = g;
+        hand[h] = valid[h] ? rig_.toWorld(c.gripPose).position : head;
+        if (valid[h] && dt > 0) birdHandVel_[h] = birdHandVel_[h] * 0.5f + handVelocity(c.gripPose.position, birdHandPrev_[h], dt) * 0.5f;
+    }
+    // Now and then a Lobird swoops past his head.
+    if (giant) {
+        static const bool swoopTest = std::getenv("GVR_LOBIRD_SWOOP") != nullptr;
+        if (swoopTest && lobirdSwoopT_ > 3.0f) lobirdSwoopT_ = 3.0f;
+        lobirdSwoopT_ -= dt;
+        if (lobirdSwoopT_ <= 0) {
+            lobirdSwoopT_ = 22.0f + 20.0f * frand();
+            if (swoopTest) lobirdSwoopT_ = 6.0f;  // (tests: often)
+            for (Bird& b : birds_)
+                if (b.kind == 1 && b.state == kFlying) {
+                    const float side = frand() < 0.5f ? -1.0f : 1.0f;
+                    const Vec3 right{-fwd.z, 0, fwd.x};
+                    b.state = kSwoop;
+                    b.stateT = 0;
+                    b.swoopAt = head + fwd * (0.45f * H) + right * (side * 0.15f * H) - Vec3{0, 0.05f * H, 0};
+                    sfx(frand() < 0.5f ? "cr_caw1" : "cr_caw2", b.pos, 1.0f, 0.55f);
+                    LOGI("Birds: a Lobird swoops at Kabuto");
+                    break;
+                }
+        }
+    }
+    for (Bird& b : birds_) {
+        if (b.kind != 1 || b.gone) continue;
+        if (b.state == kSwoop) {
+            // Down at the point beside his head, then on and up again.
+            b.stateT += dt;
+            const Vec3 to = b.swoopAt - Vec3{0, birdLift_[1] * 0.5f, 0} - b.pos;  // (its body's middle through the point)
+            const float d = length(to);
+            const float speed = 16.0f + 0.4f * H;
+            if (d > 2.0f && b.stateT < 12.0f) b.vel = b.vel + (to * (speed / d) - b.vel) * std::min(1.0f, dt * 2.5f);
+            else { b.state = kFlying; b.vel = b.vel + Vec3{0, 6.0f, 0}; }  // (passed: climbs back to its circle)
+            b.pos = b.pos + b.vel * dt;
+            const Vec3 hv{b.vel.x, 0, b.vel.z};
+            if (length(hv) > 0.5f) b.yaw = std::atan2(-hv.x, -hv.z);
+            b.bank = 0.2f * std::sin(b.t * 2.0f);
+            static const bool trace = std::getenv("GVR_BIRD_TRACE") != nullptr;
+            if (trace && int(b.stateT * 4.0f) != int((b.stateT - dt) * 4.0f))
+                LOGI("Birds: swoop %.1f m from its point, %.1f m from the right hand (H %.1f)", d, length(b.pos + Vec3{0, birdLift_[1] * 0.5f, 0} - hand[1]), H);
+        }
+        if ((b.state == kSwoop || b.state == kFlying) && giant && kbHold_ == HoldNone) {
+            const Vec3 c = b.pos + Vec3{0, birdLift_[1] * 0.5f, 0};
+            for (int h = 0; h < 2; ++h) {
+                if (!valid[h] || !edge[h] || stoneInHand(h) || climbHold_[h]) continue;
+                bool other = false;
+                for (const Bird& o : birds_) other |= o.state == kHeld && o.hand == h;
+                if (other || length(hand[h] - c) > 0.3f * H + 2.0f) continue;  // (+ its size: a 17 m wingspan)
+                b.state = kHeld;
+                b.hand = h;
+                b.stateT = 0;
+                haptics_.push_back({h, 0.9f, 0.15f});
+                sfx(frand() < 0.5f ? "cr_deat1" : "cr_deat2", c, 1.0f, 0.5f);
+                LOGI("Birds: Kabuto catches a Lobird in his hand %d (t %.2f s)", h, float(time_));
+                break;
+            }
+        }
+        if (b.state == kHeld) {
+            b.stateT += dt;
+            const int h = b.hand;
+            if (h < 0 || !giant) { b.state = kFlying; b.hand = -1; continue; }
+            b.pos = hand[h];
+            if (int(b.stateT * 3.0f) != int((b.stateT - dt) * 3.0f)) haptics_.push_back({h, 0.35f, 0.05f});  // (it struggles)
+            // To the mouth: eaten.
+            const Vec3 mouth = head + fwd * (0.06f * H) - Vec3{0, 0.06f * H, 0};
+            if (length(hand[h] - mouth) < 0.22f * H) {
+                b.gone = true;
+                b.hand = -1;
+                b.state = kDead;
+                playerHealth_ = std::min(100.0f, playerHealth_ + 15.0f);
+                sfx2D(frand() < 0.5f ? "ka_vimp1" : "ka_vimp2", 0.9f);
+                for (int k = 0; k < 14 && feathers_.size() < 96; ++k) {
+                    Feather f;
+                    f.pos = mouth;
+                    f.vel = Vec3{(frand() - 0.5f) * 4.0f, frand() * 3.0f, (frand() - 0.5f) * 4.0f};
+                    f.yaw = frand() * 6.2832f;
+                    f.spin = (frand() - 0.5f) * 6.0f;
+                    f.sway = frand() * 6.2832f;
+                    f.life = 5.0f + 3.0f * frand();
+                    feathers_.push_back(f);
+                }
+                LOGI("Birds: Kabuto eats the Lobird");
+                // (a new one comes to circle later: the slot is reused)
+                continue;
+            }
+            if (open[h] || !valid[h]) {
+                // Let go: flung off at the hand's speed; dazed, it flaps away and back up to its circle.
+                b.state = kFlying;
+                b.hand = -1;
+                b.vel = birdHandVel_[h] * 1.0f;
+                LOGI("Birds: Kabuto throws the Lobird at %.0f m/s", length(b.vel));
+            }
+        }
+    }
+    // An eaten Lobird is replaced after a while (a new one far off, joining the circle).
+    for (Bird& b : birds_)
+        if (b.kind == 1 && b.gone && b.stateT > -1.0f) {
+            b.stateT += dt;
+            if (b.stateT > 40.0f) {
+                b.gone = false;
+                b.state = kFlying;
+                b.stateT = 0;
+                b.centre = player_.position;
+                b.pos = player_.position + Vec3{std::cos(b.circleAng) * 150.0f, 80.0f, std::sin(b.circleAng) * 150.0f};
+                b.vel = Vec3{};
+            }
         }
 }
 

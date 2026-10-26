@@ -1,0 +1,26 @@
+# Rework (2026-10-26): Kabuto and the Lobirds. Round the giant they circle low (about twice his height); now and then
+# one swoops past his head (GVR_LOBIRD_SWOOP: every 6 s). Hold a hand up in front and squeeze as it passes: caught -
+# it struggles in his fist (buzz). Bring it to the mouth: eaten (+health, feathers). Log: "Kabuto catches a Lobird",
+# "Kabuto eats the Lobird".
+name kabuto_lobird
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_LOBIRD_SWOOP 1
+env GVR_BIRD_TRACE 1
+duration 11
+at -1563 -2820
+look -1563 -2845
+hand_r 0 0.35 -0.25 0.5 1.5
+hold grip_r 3.00 3.12
+hold grip_r 3.30 3.42
+hold grip_r 3.60 3.72
+hold grip_r 3.90 4.02
+hold grip_r 4.20 4.32
+hold grip_r 4.50 4.62
+hold grip_r 4.80 4.92
+hold grip_r 5.10 5.22
+hold grip_r 5.40 9.00
+hand_r -0.2 0.0 0.32 6.0 7.0

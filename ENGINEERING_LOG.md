@@ -2502,3 +2502,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Smartie touch: an open hand (grip < 0.35) within 0.3 m of a calm Smartie's head: a pat (sm_laugh1, turns to you) or
   a high five (it was waving, or the hand moved > 1.3 m/s: sm_celebrate, a slap); 3 s per Smartie; not while they fear
   you. devtest smartie_pat.
+- Kabuto and the Lobirds: round Kabuto the circle is 1.3-2.0 H up and 2.5-4.5 H out (H his height); every 22-42 s
+  one swoops so its body's middle passes 0.45 H in front of his eyes, 0.15 H to a side (GVR_LOBIRD_SWOOP: every 6 s).
+  A grip's edge within 0.3 H + 2 m of it (its 17 m span) catches it (the hand must be free: no kbHold_, stone, climb);
+  held hanging from the fist; within 0.22 H of the mouth: eaten (+15 health, feathers, ka_vimp); opened: flung at the
+  hand's speed, it flies back up. Eaten / shot-down Lobirds are re-made after 40 s far off. devtest kabuto_lobird
+  (deterministic: caught at 5.43 s, eaten at ~6.6 s).

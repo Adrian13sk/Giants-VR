@@ -1445,6 +1445,8 @@ private:  // the mission placed enemies: no test waves
         float circleAng = 0, circleR = 0, circleH = 0, circleSpeed = 0;
         Vec3 centre;
         bool gone = false;
+        int hand = -1;      // rework: a Lobird caught in Kabuto's hand
+        Vec3 swoopAt;       // where a swooping Lobird passes him
     };
     struct Feather { Vec3 pos, vel; float yaw = 0, spin = 0, sway = 0, age = 0, life = 6; };
     std::vector<Bird> birds_;
@@ -1464,6 +1466,13 @@ private:  // the mission placed enemies: no test waves
     bool birdHitBy(const Vec3& a, const Vec3& b, float radius, const Vec3& dir);
     void killBird(Bird& bd, const Vec3& dir);
     bool spawnFlock(const Vec3& near, bool test);
+    // Kabuto (rework): the Lobirds circle low round the giant and now and then one swoops past his
+    // head - grab it out of the air, bring it to the mouth to eat it, or throw it.
+    float lobirdSwoopT_ = 20.0f;
+    bool birdGripWas_[2] = {};
+    Vec3 birdHandPrev_[2];
+    Vec3 birdHandVel_[2];
+    void updateKabutoLobirds(float dt);
     // Rework, fish (game_app_fish.cpp): schools of Shiners (the original's unused xx_fish art) in
     // the clear shallows near the player; they dart away from a wading / swimming player, a hand
     // in the water, a splash or a shot, then gather again.
