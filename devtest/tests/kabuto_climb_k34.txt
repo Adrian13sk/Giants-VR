@@ -1,5 +1,6 @@
 # Rework (2026-10-25): kstory3_4 - Kabuto climbs the cliff to the portal plateau (109 m) hand over hand, then walks
 # to the portal. Harness: objective done, mission complete (about 78 s).
+# Log (checked by devtest.ps1): "Chapter complete: next world kstory4".
 name kabuto_climb_k34
 world Kstory3
 mission kstory3_4

@@ -1,6 +1,7 @@
 # Rework (2026-10-26): arrows stay where they strike - Delphi's plain bow (left hand holds it, the right
 # draws), two arrows at a Reaper standing 4 m ahead (GVR_PASSIVE_REAPERS, lots of health), then one into the
 # ground. Look at the arrows in him and in the ground (they ride on him while he stands, fade after 20 s).
+# Log (checked by devtest.ps1): "Arrow from the BOW".
 name arrows_stick
 world Rstory2
 mission rstory2_battle_1

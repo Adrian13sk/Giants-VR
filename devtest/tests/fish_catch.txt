@@ -1,5 +1,5 @@
 # Rework (2026-10-26): catch a fish by hand. Wade into the shallows of island 1, put the right hand into the water
-# and hold it still: fish swim round it (GVR_FISH_TEST=hand gathers a school there). Squeeze the grip - one is
+# slowly and hold it still: fish swim round it (GVR_FISH_TEST=hand gathers a school there). Squeeze the grip - one is
 # caught and wriggles in the hand (buzz); lift it out, turn to the beach and throw it: it flops on the sand.
 # A moving hand in the water scares them. Log: "Fish: caught by hand 1", "Fish: let go at N m/s".
 name fish_catch
@@ -14,8 +14,9 @@ at 345 4617
 look 300 4617
 pitch -55
 move 0 1 0.5 1.45
-hand_r 0 -1.25 -0.2 2.5 3.1
-hold grip_r 3.6 6.4
+hand_r 0 -1.0 -0.16 2.5 2.9
+hand_r 0 -0.25 -0.04 2.9 3.5
+hold grip_r 3.9 6.4
 hand_r 0 1.35 0 4.0 4.8
 turn -1 0 4.9 6.0
 hand_r 0 0.4 -0.7 6.1 6.35

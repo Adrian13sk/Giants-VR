@@ -1,4 +1,5 @@
 # Rework (2026-10-26): three Reapers 6 m ahead in Delphi's shallow sea (r4a) are blown up - they splash in and sink.
+# Log (checked by devtest.ps1): "ragdoll: a body splashes into the water".
 name reaper_ragdolls_water
 world Rstory4
 mission r4a_buildbase

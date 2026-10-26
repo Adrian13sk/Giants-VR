@@ -1,5 +1,6 @@
 # Rework (2026-10-25, user: "Try to implement ragdolls somehow"): three Reapers 6 m ahead are blown up at
 # 1 s - they fly limp, tumble and come to rest; look at how they lie.
+# Log (checked by devtest.ps1): "ragdoll: Reaper N goes limp".
 name reaper_ragdolls
 world Rstory2
 mission rstory2_battle_1

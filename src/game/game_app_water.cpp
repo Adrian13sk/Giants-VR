@@ -176,9 +176,9 @@ void GameApp::updateHandWater(float dt) {
         const Vec3 at{p.x, sea + 0.03f, p.z};
         if (had && in && !w.in) {
             const float down = std::max(0.0f, -v.y) / sbig;
-            if (down > 1.6f) {
+            if (down > 2.5f) {
                 // A slap.
-                const float k = std::min(1.0f, (down - 1.6f) / 3.0f);
+                const float k = std::min(1.0f, (down - 2.5f) / 3.0f);
                 waterSplash(at, (0.18f + 0.3f * k) * big, 0);
                 sfx(frand() < 0.5f ? "ms_spla1" : "ms_spla2", at, (0.35f + 0.45f * k) * std::min(2.0f, sbig), (1.3f - 0.25f * k) / std::sqrt(sbig));
                 haptics_.push_back({h, 0.5f + 0.4f * k, 0.05f + 0.04f * k});

@@ -1,5 +1,6 @@
 # Rework (2026-10-26): Delphi slashes across a Reaper in front of her (fast sideways swings at chest height)
 # until he dies - the limb the blade crosses comes off and flies, the body falls as a ragdoll.
+# Log (checked by devtest.ps1): "dismember: Reaper N loses his".
 name delphi_dismember
 world Rstory2
 mission rstory2_battle_1

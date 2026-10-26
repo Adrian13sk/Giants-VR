@@ -111,6 +111,20 @@ void GameApp::initVillagers(AssetWorld* w, ModelCache* mc) {
 
 void GameApp::updateVillagers(float dt) {
     if (villagers_.villagers.empty()) return;
+    // (test hook GVR_SMARTIE_AHEAD=<m>: once play starts, the first Smartie stands that far in front of the player -
+    // hand tests that must not depend on where the villagers have wandered; with GVR_STILL_SMARTIES it stays)
+    static const char* ahead = std::getenv("GVR_SMARTIE_AHEAD");
+    static bool placed = false;
+    if (ahead && !placed && playMode_ && dt > 0) {
+        placed = true;
+        Villager& v = villagers_.villagers[0];
+        const Vec3 f{-std::sin(player_.yaw), 0.0f, -std::cos(player_.yaw)};
+        v.pos = player_.position + f * float(std::atof(ahead));
+        if (player_.groundHeight) v.pos.y = player_.groundHeight(v.pos.x, v.pos.z);
+        v.home = v.target = v.pos;
+        v.yaw = player_.yaw + 3.14159f;
+        LOGI("Smartie test: Smartie %u placed %.1f m ahead", v.uid, float(std::atof(ahead)));
+    }
     std::vector<Vec3> threats, scares;
     for (const auto& e : enemies_.enemies)
         if (e.state != EnemyState::Dead) threats.push_back(e.pos);

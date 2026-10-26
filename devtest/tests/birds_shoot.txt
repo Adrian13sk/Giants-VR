@@ -12,5 +12,6 @@ env GVR_WEAPON 5
 view first
 duration 8
 pitch -8
-aim 10 -6
+aim -10 -6
 hold trigger_r 2.0 3.2
+turn 0.3 0 2.0 3.2

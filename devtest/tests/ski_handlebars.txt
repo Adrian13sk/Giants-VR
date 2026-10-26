@@ -1,6 +1,7 @@
 # Rework (2026-10-26): the Reaperski's handlebars - both grips held, the right wrist twisted back (throttle: the ski
 # speeds up to 21 m/s after the start), the right grip pulled back 0.25 m at 8 s (steer right), back at 10 s.
 # GVR_SKI_TRACE logs steer, throttle and speed.
+# Log (checked by devtest.ps1): "ski trace: bars steer".
 name ski_handlebars
 world Rstory3_race_1
 mission rstory3_race_1

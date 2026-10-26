@@ -1,4 +1,5 @@
 # Rework (2026-10-25): Delphi draws a circle above her head with the left (casting) hand, trigger held -> the tornado.
+# Log (checked by devtest.ps1): "Delphi casts the TORNADO".
 name delphi_tornado_circle
 world Rstory2
 mission rstory2_battle_1

@@ -22,6 +22,7 @@ bool WeaponSystem::update(float dt, bool triggerHeld, const Vec3& muzzle, const 
         int target = -1;
         if (raycast && raycast(p.pos, dir, len, t, n, target)) {
             const Vec3 hp = p.pos + dir * t;
+            if (onSegment) onSegment(p.pos, hp, dir);
             effects_.push_back({WeaponEffect::Impact, hp + n * 0.05f, n, 0.0f, 0.25f, p.style});
             p.life = -1.0f;
             ++hits_;
@@ -32,6 +33,7 @@ bool WeaponSystem::update(float dt, bool triggerHeld, const Vec3& muzzle, const 
             hitDamage_ = 1.0f;
             hitStyle_ = 0;
         } else {
+            if (onSegment) onSegment(p.pos, p.pos + step, dir);
             p.pos += step;
             p.travelled += len;
         }

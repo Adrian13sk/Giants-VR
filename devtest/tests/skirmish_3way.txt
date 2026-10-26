@@ -1,5 +1,6 @@
 # Multiplayer against computer players (3-way map: Meccaryns, Sea Reapers, Kabuto): the frame cost of 6 computer
 # players routing and fighting, and screenshots of the score panel and the map. GVR_SKIRMISH: <team>,<per side>.
+# Log (checked by devtest.ps1): "Skirmish: flag set".
 name skirmish_3way
 world M_3WAY_L1
 env GVR_CUTSCENE none

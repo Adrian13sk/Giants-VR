@@ -14,13 +14,13 @@ duration 11
 at -1563 -2820
 look -1563 -2845
 hand_r 0 0.35 -0.25 0.5 1.5
-hold grip_r 3.00 3.12
-hold grip_r 3.30 3.42
-hold grip_r 3.60 3.72
-hold grip_r 3.90 4.02
-hold grip_r 4.20 4.32
-hold grip_r 4.50 4.62
-hold grip_r 4.80 4.92
-hold grip_r 5.10 5.22
+hold grip_r 3.00 3.24
+hold grip_r 3.30 3.54
+hold grip_r 3.60 3.84
+hold grip_r 3.90 4.14
+hold grip_r 4.20 4.44
+hold grip_r 4.50 4.74
+hold grip_r 4.80 5.04
+hold grip_r 5.10 5.34
 hold grip_r 5.40 9.00
 hand_r -0.2 0.0 0.32 6.0 7.0

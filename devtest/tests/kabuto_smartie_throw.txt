@@ -5,6 +5,8 @@ world Kstory1
 mission k1a_smarties
 env GVR_CUTSCENE none
 env GVR_GOD 1
+env GVR_STILL_SMARTIES 1
+env GVR_SMARTIE_AHEAD 3.6
 duration 8
 at -1563 -2820
 look -1563 -2845

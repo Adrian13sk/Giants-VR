@@ -14,7 +14,7 @@ view first
 pitch -30
 duration 7
 reapers 1 1.4 0.3 1.0
-hand_l 0.5 -0.95 -0.45 2.6 3.2
+hand_l -0.3 -0.95 -0.45 2.6 3.2
 hold grip_l 3.4 5.06
 hand_l 0 1.1 0.35 3.8 4.6
 hand_l -0.15 0.3 -1.2 4.9 5.05

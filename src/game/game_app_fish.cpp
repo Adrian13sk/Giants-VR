@@ -145,7 +145,9 @@ void GameApp::updateFish(float dt) {
     // What frightens them: the player in the water, hands in the water, splashes, blasts.
     std::vector<std::pair<Vec3, float>> scares;  // position, radius
     std::vector<Vec3> stillHands;  // hands held still in the water: the fish come to look
-    if (me.y < sea + 0.3f) scares.push_back({me, 3.5f});
+    // Someone wading or swimming scares them for 3.5 m round; standing still, only right at the legs (a
+    // still hand in the water draws them in - on the headset they fled a still player for good).
+    if (me.y < sea + 0.3f) scares.push_back({me, player_.horizontalSpeed() > 0.4f ? 3.5f : 0.5f});
     for (int h = 0; h < 2; ++h) {
         // A hand moving in the water scares them; one held still, they swim up to.
         const auto& hs = lastInput_.hand[h];
@@ -354,7 +356,16 @@ void GameApp::updateFishCatch(float dt) {
                 if (d < r && d < bd) { bd = d; bs = &sc; bi = i; }
             }
         }
-        if (!bs) continue;
+        static const bool ftrace = std::getenv("GVR_FISH_TEST") != nullptr;
+        if (!bs) {
+            if (ftrace) {
+                float nd = 1e9f;
+                for (const ShinerSchool& sc : shinerSchools_)
+                    if (sc.live) for (const ShinerFish& f : sc.fish) nd = std::min(nd, length(f.pos - hp));
+                LOGI("Fish test: the hand closes - nearest fish %.2f m away", nd);
+            }
+            continue;
+        }
         bs->fish.erase(bs->fish.begin() + long(bi));
         hf = HeldFish{};
         hf.active = true;

@@ -37,6 +37,9 @@ public:
     std::function<bool(const Vec3&, const Vec3&, float, float&, Vec3&, int&)> raycast;
     // Called on every hit (target id, hit point, bolt direction).
     std::function<void(int, const Vec3&, const Vec3&)> onHit;
+    // Called with each projectile's path this frame (from, to - the hit point when it struck - and its
+    // unit direction): small things a shot passes through, such as birds, test against it.
+    std::function<void(const Vec3&, const Vec3&, const Vec3&)> onSegment;
 
     // Advances projectiles/effects; fires if the trigger is held and the weapon is ready.
     // Returns true if a shot was fired this frame.

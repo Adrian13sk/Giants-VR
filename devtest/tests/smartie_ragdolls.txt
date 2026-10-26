@@ -1,4 +1,5 @@
 # Rework (2026-10-26): a blast among the Smarties of 5a - they fly limp, tumble and come to rest.
+# Log (checked by devtest.ps1): "Smartie N killed".
 name smartie_ragdolls
 world Story5
 mission 5a_killcharger

@@ -1,5 +1,6 @@
 # Rework (2026-10-25): Kabuto's hand grab - reach down, squeeze the right grip on a Reaper, then
 # swing and open the hand (thrown).
+# Log (checked by devtest.ps1): "Kabuto: hand N grabs Reaper" "Kabuto throws Reaper".
 name kabuto_grab_throw
 world Kstory4
 mission kstory4_1

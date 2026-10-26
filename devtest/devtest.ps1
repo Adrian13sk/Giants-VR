@@ -150,13 +150,51 @@ while ($queue.Count -gt 0) {
     if ($vr.Count -gt 6) { $use = $vr[4..($vr.Count - 2)] }
     $appMs = @(); $gpuPct = @(); $fpsV = @()
     foreach ($l in $use) {
-        if ($l -match 'App=([\d.]+)ms') { $appMs += [double]$Matches[1] }
+        if ($l -match 'App=([\d.]+)ms') { $v = [double]$Matches[1]; if ($v -lt 1000) { $appMs += $v } }  # (now and then a garbage 1e5+ value)
         if ($l -match 'GPU%=([\d.]+)') { $gpuPct += [double]$Matches[1] }
         if ($l -match 'FPS=(\d+)/') { $fpsV += [double]$Matches[1] }
     }
     $vrs = 'vrapi fps {0}, app gpu {1} ms, gpu load {2} ({3} s)' -f (Avg $fpsV), (Avg $appMs), (Avg $gpuPct), $use.Count
+    # Another app drawing while the test ran (the system shell behind a pop-up: on 2026-10-26 it took 12-36 ms of
+    # GPU a frame in some tests): the GPU figures are then not the game's own.
+    $first = -1; $last = -1
+    for ($i = 0; $i -lt $log.Count; $i++) {
+        if ($log[$i] -match ('VrApi\s*\(\s*' + $appPid + '\):\s*FPS=')) { if ($first -lt 0) { $first = $i }; $last = $i }
+    }
+    $shellN = 0; $shellMs = @(); $handOver = 0
+    if ($first -ge 0) {
+        for ($i = $first; $i -le $last; $i++) {
+            if ($log[$i] -match 'VrApi\s*\(\s*(\d+)\):\s*FPS=(\d+)/.*App=([\d.]+)ms') {
+                if ($Matches[1] -eq $appPid) { continue }
+                $handOver++
+                if ($handOver -le 2) { continue }   # (the hand-over as the app starts)
+                if ([double]$Matches[2] -gt 5 -and [double]$Matches[3] -gt 3) { $shellN++; $shellMs += [double]$Matches[3] }
+            }
+        }
+    }
+    $shell = ''
+    if ($shellN -ge 2) {
+        $shell = "; OTHER APP DRAWING for $shellN s (its gpu $(Avg $shellMs) ms): these GPU figures are not the game's own"
+        Write-Host "   Another app drew alongside the game (a system pop-up in the headset?) - take it off and run this test again." -ForegroundColor Yellow
+    }
+    # The events the script's comment lists (Log: "...") seen in the app's log.
+    $events = ''
+    $head = ((Get-Content $script) | Where-Object { $_ -match '^#' } | ForEach-Object { $_.Substring(1).Trim() }) -join ' '
+    if ($head -match '(?i)(\blog\b|pass:)(.*)') {
+        $exp = @([regex]::Matches($Matches[2], '"([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
+        $text = (Get-Content (Join-Path $dest 'logcat.txt')) -join "`n"
+        $missing = @()
+        foreach ($e in $exp) {
+            $pat = [regex]::Escape($e) -replace '\\\.\\\.\\\.', '.*' -replace '(?<![A-Za-z])N(?![A-Za-z])', '[\d.]+'
+            if ($text -notmatch $pat) { $missing += $e }
+        }
+        if ($exp.Count -gt 0) {
+            $events = "; events $($exp.Count - $missing.Count)/$($exp.Count)"
+            if ($missing.Count -gt 0) { $events += ' (MISSING: ' + ($missing -join ' | ') + ')' }
+        }
+    }
     $errs = (Select-String -Path (Join-Path $dest 'logcat.txt') -Pattern ' E/GiantsVR' -SimpleMatch -ErrorAction SilentlyContinue | Measure-Object).Count
-    $line = "{0}: {1}; {2}; {3}; {4} errors logged" -f $name, $status, $fps, $vrs, $errs
+    $line = "{0}: {1}; {2}; {3}{4}{5}; {6} errors logged" -f $name, $status, $fps, $vrs, $shell, $events, $errs
     Write-Host "   $line"
     $line | Add-Content $summary
     $fpsNum = 99.0

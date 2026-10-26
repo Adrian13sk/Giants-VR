@@ -36,6 +36,7 @@ void GameApp::initBirds(AssetWorld* w, ModelCache* mc) {
     flockTimer_ = 6.0f;
     nextFlock_ = 0;
     birdShots_ = weapon_.shotsFired();
+    weapon_.onSegment = [this](const Vec3& a, const Vec3& b, const Vec3& dir) { birdHitBy(a, b, 0.05f, dir); };
     if (!w || !w->hasTerrain() || !mc || std::getenv("GVR_NO_BIRDS")) return;
     // The skins are the same in every level: loaded once (they were re-made at every mission load).
     if (birdModels_.size() == size_t(kMaxBirds) && birdCache_ == mc) {
@@ -180,7 +181,7 @@ bool GameApp::birdHitBy(const Vec3& a, const Vec3& bEnd, float radius, const Vec
         if (b.gone || b.state == kFalling || b.state == kDead) continue;
         const Vec3 c = b.pos + Vec3{0, birdLift_[b.kind] * 0.6f, 0};
         const float u = len2 > 1e-8f ? std::max(0.0f, std::min(1.0f, dot(c - a, seg) / len2)) : 0.0f;
-        const float r = radius + (b.kind == 1 ? 4.0f : 0.3f);
+        const float r = radius + (b.kind == 1 ? 4.0f : 0.4f);
         if (length(a + seg * u - c) < r) {
             killBird(b, dir);
             return true;
@@ -221,12 +222,10 @@ void GameApp::updateBirds(float dt) {
         if (bl.age < 0.05f) scares.push_back(bl.pos);
     const bool fired = weapon_.shotsFired() != birdShots_;
     birdShots_ = weapon_.shotsFired();
-    // Shots through birds; and shots that strike the ground beside a pecking bird.
-    for (const Projectile& p : weapon_.projectiles()) {
-        const float sp = length(p.vel);
-        if (sp < 1.0f) continue;
-        birdHitBy(p.pos - p.vel * dt, p.pos, 0.05f, p.vel * (1.0f / sp));
-    }
+    // Shots through birds: WeaponSystem::onSegment (set in initBirds) tests each shot's whole path as it
+    // moves - a fast bullet reaches the ground 10 m off within a frame, before a check here would see it in
+    // flight (on the headset at 24 fps no machine-gun round ever hit a bird). And shots that strike the
+    // ground beside a pecking bird:
     for (const WeaponEffect& e : weapon_.effects())
         if (e.kind == WeaponEffect::Impact && e.age <= dt) birdHitBy(e.pos, e.pos + e.dir * 0.3f, 0.25f, Vec3{0, 1, 0} - e.dir);
 
@@ -440,7 +439,10 @@ void GameApp::updateKabutoLobirds(float dt) {
         valid[h] = c.gripPoseValid;
         const bool g = c.squeeze > 0.7f;
         edge[h] = g && !birdGripWas_[h];
-        open[h] = !g;
+        // Let go only once the grip has really opened (below half) for a tenth of a second: a squeeze that
+        // flickers round the threshold, or a hand closed again at once, doesn't drop the struggling bird.
+        birdOpenT_[h] = c.squeeze < 0.5f ? birdOpenT_[h] + dt : 0.0f;
+        open[h] = birdOpenT_[h] >= 0.1f;
         birdGripWas_[h] = g;
         hand[h] = valid[h] ? rig_.toWorld(c.gripPose).position : head;
         if (valid[h] && dt > 0) birdHandVel_[h] = birdHandVel_[h] * 0.5f + handVelocity(c.gripPose.position, birdHandPrev_[h], dt) * 0.5f;

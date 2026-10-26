@@ -1,4 +1,5 @@
 # Rework (2026-10-25): Delphi sweeps her left (casting) hand fast across her body, trigger held -> the fire wall.
+# Log (checked by devtest.ps1): "Delphi casts the FIRE WALL".
 name delphi_firewall_sweep
 world Rstory2
 mission rstory2_battle_1

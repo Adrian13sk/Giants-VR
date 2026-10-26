@@ -1,6 +1,7 @@
 # Delphi's bow (rework 2026-10-25): held in the LEFT hand; the RIGHT hand goes to the string, grips,
 # pulls back and lets go - the arrow flies only then. Homing bow, then the power-up bow (right stick
 # forward), each shot twice. (The trigger no longer draws in first person.)
+# Log (checked by devtest.ps1): "Arrow from the" "POWER-UP BOW".
 name delphi_bows
 world Rstory4
 mission r4a_buildbase

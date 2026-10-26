@@ -321,7 +321,13 @@ bool GameApp::grabGib(int h, const Vec3& hand, const Vec3& reach, const Quat& ha
         const float d = std::min(length(m - hand), length(m - reach));
         if (d < bd) { bd = d; best = &g; }
     }
-    if (!best) return false;
+    if (!best) {
+        static const bool trace = std::getenv("GVR_GRAB_TRACE") != nullptr;
+        if (trace)
+            for (const auto& g : gibs_)
+                if (g.owner && g.hand < 0) LOGI("grab trace: a dropped gun lies at (%.2f %.2f %.2f), %.2f m from the hand", g.pos.x, g.pos.y, g.pos.z, length(g.pos - hand));
+        return false;
+    }
     Gib& g = *best;
     // Held where it is relative to the hand, brought to the hand (the grip is on it).
     const Quat inv{-handRot.x, -handRot.y, -handRot.z, handRot.w};

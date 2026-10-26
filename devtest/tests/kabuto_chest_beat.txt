@@ -1,4 +1,5 @@
 # Rework (2026-10-25): Kabuto beats his chest with his fists, right, left, right -> the roar (Reapers knocked back).
+# Log (checked by devtest.ps1): "Kabuto beats his chest (3)" "Kabuto roars".
 name kabuto_chest_beat
 world Kstory1
 mission k1a_smarties

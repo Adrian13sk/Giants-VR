@@ -1,5 +1,6 @@
 # Rework (2026-10-26): swimming by arm strokes - in deep water off r4a, six breaststrokes: both grips squeezed, both
 # hands pulled back 0.6 m, let go, brought forward. GVR_SWIM_TRACE logs the stroke speed (about 2-3 m/s).
+# Log (checked by devtest.ps1): "swim trace: stroke".
 name swim_strokes
 world Rstory4
 mission r4a_buildbase

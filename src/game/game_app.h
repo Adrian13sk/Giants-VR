@@ -1498,6 +1498,7 @@ private:  // the mission placed enemies: no test waves
     // head - grab it out of the air, bring it to the mouth to eat it, or throw it.
     float lobirdSwoopT_ = 20.0f;
     bool birdGripWas_[2] = {};
+    float birdOpenT_[2] = {};  // how long each grip has been open (a Lobird is let go after 0.1 s)
     Vec3 birdHandPrev_[2];
     Vec3 birdHandVel_[2];
     void updateKabutoLobirds(float dt);

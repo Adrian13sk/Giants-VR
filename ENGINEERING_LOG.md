@@ -2568,3 +2568,16 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Night plankton: sparks (up to 400, glow texture, additive, unlit, no fog) at night >= 0.35 with AMBIENCE on: 14 + 30 x size per new splash, dt x (25 + 30 v) per frame while wading/swimming faster than 0.3 m/s, and behind fleeing fish; 0-12 cm under the surface, 0.8-2.2 s life. First tries were invisible: placed up to 25 cm down they sat under the bed of the 10-20 cm shallows and the terrain's depth test hid them (fixed: 12 cm at most, cyan 30/170/200 x tint 2.5). GVR_PLANKTON_TRACE logs the count (night 1.0: 13-58 sparks wading).
 - Hands in the water (updateHandWater, game_app_water.cpp): per hand, in = under the surface (+-2 cm hysteresis) over water (bed below the surface). Entering faster than 1.6 m/s down (/ sqrt of hero scale) = a slap: waterSplash (0.18-0.48 x scale), ms_spla1/2, haptic 0.5-0.9; slower = a dip: ring 0.22 m+, bi_watr1 at pitch 1.6, haptic 0.15. Dragged within 35 cm of the surface faster than 0.4 m/s: rings every 0.3 m of travel, spray + drops above 1.4 m/s, a swish (bi_watr1 at pitch 0.75, halved while swimming) above 1 m/s, a 0.06-0.14 haptic hum. Out: a ring, 2-6 drops, then drips for 0.6-1.8 s. Plankton bursts round a moving hand at night. Harness hand_water: dip, slap (5.2 m/s), sounds in the --audio-out mix; ASan clean; sweep 56/56.
 - Fish for a Smartie: a held fish within 0.45 m of a live Smartie's chest (pos + 0.5 m), not Kabuto, not during the fear: VillagerDirector::touched(.., highFive=true) (the dance), smartieLaugh (factored out of the pat code), the fish gone. Test hook GVR_FISH_TEST=gift (a fish in the right hand once the grip is held). smartie_fish: "Smartie 5: takes the fish" - log only: the right hand holds the gun, so the fish isn't clearly seen being handed over. Sweep 56/56; hand_water, fish_catch, smartie_pat unchanged.
+
+## 2026-10-26 evening — comprehensive device run (20261026-204701, APK fccc02d) and its fixes
+- 116/116 runs on the Quest finished, 0 crashes, 0 errors. Frame rate is the problem: the rework's look costs a median
+  26 ms of GPU a frame (classic: 9.9 ms in the same village test). Not caused by today's additions (4514eda vs fccc02d:
+  0-2 ms). B19; experiment set devtest/perf to price each feature next.
+- A first reading blamed a regression since 4514eda: wrong - four tests had the system shell drawing alongside the game
+  (VrApi lines of com.oculus.vrshell at 40-70 fps, 12-36 ms GPU), which doubled their GPU figures. Detection is now in
+  devtest.ps1 (B20). Lesson: compare only tests without another drawing process.
+- Functional checks against each script's expected log lines found 7 misses on the headset; four were frame-rate
+  bugs in the game (bird hits, fish scare, Lobird grip flicker, a test target dodging) and four fragile scripts. The
+  harness got `--hz <rate>` so scripts run at the headset's 24 fps; all fixed tests pass at 18/24/72 Hz.
+- Bird hits: WeaponSystem::onSegment(from, to, dir) reports each projectile's path as it moves (before, birds looked
+  at projectiles once a frame and a fast round could spawn and hit the ground between looks).

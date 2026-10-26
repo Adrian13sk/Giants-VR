@@ -66,6 +66,7 @@ int main(int argc, char** argv) {
     int videoEvery = 3, videoFrom = 0, vw = 1280, vh = 720, videoN = 0;
     GLuint vTex = 0, vDepth = 0, vFbo = 0, vMsFbo = 0, vMsColor = 0, vMsDepth = 0;
     float triggerAmount = 0.0f, aimPitchDeg = -17.2f, aimYawDeg = 0.0f;
+    float hz = 72.0f;  // --hz: the game's frame rate in a scripted run (the headset's 24 or 36 fps: timing checks)
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         auto next = [&]() { return i + 1 < argc ? argv[++i] : ""; };
@@ -81,6 +82,7 @@ int main(int argc, char** argv) {
         else if (a == "--no-test-scene") testScene = false;
         else if (a == "--hold-brief") holdBrief = true;  // hold the left stick down (mission briefing overlay)
         else if (a == "--world") world = next();
+        else if (a == "--hz") hz = std::max(5.0f, float(std::atof(next())));  // with --script: update at this rate
         else if (a == "--script") scriptPath = next();  // a device test script (devtest/tests/*.txt), run at 72 fps
         else if (a == "--pitch") pitchDeg = std::atof(next());
         else if (a == "--height") headHeight = std::atof(next());
@@ -142,7 +144,7 @@ int main(int argc, char** argv) {
         world = script.world;
         if (!script.mission.empty()) setenv("GVR_MISSION", script.mission.c_str(), 1);
         for (const auto& e : script.env) setenv(e.first.c_str(), e.second.c_str(), 1);
-        frames = int(script.duration * 72.0f);
+        frames = int(script.duration * hz);
         firstPerson = script.firstPerson;
         pitchDeg = script.pitchDeg;
         aimYawDeg = script.aimYawDeg;
@@ -268,7 +270,7 @@ int main(int argc, char** argv) {
             in.hand[kRight].aimPose.position = in.hand[kRight].aimPose.position + Vec3{handDx, handDy, handDz} * k;
         }
         if (useScript) {
-            const float t = float(f) / 72.0f, tp = float(f - 1) / 72.0f;
+            const float t = float(f) / hz, tp = float(f - 1) / hz;
             const Pose head = in.head;
             script.inputAt(t, in);
             in.head = head;  // (the harness's own head pose: --look-at already turned the rig)
@@ -301,7 +303,7 @@ int main(int argc, char** argv) {
             LOGI("blast x%d: %zu objects destroyed", blastN, app.destroyedCount());
         }
         const auto u0 = std::chrono::steady_clock::now();
-        app.update(1.0f / 72.0f, in);
+        app.update(1.0f / (useScript ? hz : 72.0f), in);
         const double ums = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - u0).count();
         if (f >= 30) { updSum += ums; ++updN; if (ums > updMax) { updMax = ums; updMaxF = f; } }
         // GVR_CUT_EXIT=1: stop once the cutscene that played has ended (cutscene reviews).

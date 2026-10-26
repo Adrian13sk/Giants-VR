@@ -833,3 +833,50 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
   sea_monster - surfaces, rears, dives (harness; ASan with audio: 0 reports, se_first/roar1/firnd loaded on first
   use); sweep 56/56; unit tests pass.
 - 2026-10-26, Delphi diving + lightning bolt: delphi_dive and weather_storm pass (harness; ASan 0 reports); sweep 56/56.
+
+## Device run 20261026-204701 — comprehensive test, user's Quest 2 (APK fccc02d, 2026-10-26 20:47-21:33)
+`devtest.ps1 -Apk ..\GiantsVR-rework-fccc02d.apk -Sweep`: install verified (sha256 4e858586...), all 60 test scripts
+plus 56 mission sweeps (20 s each), unattended. Analysis scripts: per-test VrApi lines of the app vs other processes;
+expected log events per script.
+
+| Check | Result | Evidence |
+|---|---|---|
+| Stability | **PASS** 116/116 done, 0 crashes, 0 `E/GiantsVR` lines | summary.txt; every log ends "GiantsVR exited cleanly" |
+| Frame rate | **FAIL** median 28 fps, 1 of 93 clean tests at 69+ fps | VrApi `FPS=` per test |
+| GPU time (game's own) | **FAIL** median 26.1 ms (p10 18.2, p90 36.1, max 55.9) vs 13.9 ms budget | VrApi `App=` of the app's pid; B19 |
+| Same scene, classic version (2026-10-25) | 9.9 ms, 71.6 fps (perf_1a_village) | device run 20261025-110318 |
+| Since APK 4514eda (17:02 run) | 0-2 ms more (birds_takeoff 34.7 -> 35.1 ms, kabuto_lobird 25.2 -> 25.1, scorch_marks 31.3 -> 30.8) | same tests, both runs |
+| Other app drawing during the test | 4 tests (kabuto_climb, hand_water, arrows_stick, birds_lobirds): vrshell 40-70 fps, 12-36 ms GPU | VrApi lines of pid 17530 (com.oculus.vrshell); B20 |
+| Expected events seen (scripts with a Log list) | 19 of 26 | see the failures below |
+
+Under budget on the headset: delphi_dive (8.9 ms, 70 fps - under the water the haze ends the view at ~25 m), sea_monster
+(9.6 ms), hitchers (11.5 ms), skirmish_3way (13.4 ms). Slowest: Kabuto's storm (kstory5_1/4, weather_storm: 54-56 ms).
+
+Mechanics confirmed on the headset by their log lines (scripted hands, no one wearing it): Kabuto's grab/eat/throw of
+Reapers, tree uprooting, chest beat and roar, the kstory3_4 cliff climb to the portal ("Chapter complete: next world
+kstory4", B18), Lobird catch; Delphi's tornado, fire wall, slash dismemberment, mine, bows, dive; body grab/throw/hit,
+stones, Reaper ammo drops, ragdolls (also into water), swimming strokes, Reaperski handlebars, original effects and
+trails, skirmish, Smartie pat/high five/fear/fish gift, hand water, hitchers, sea monster, plankton, palms shaking,
+weather (rain, snow, storm), Lobirds circling.
+
+Failures and what was done (fixes verified in the harness at 24 Hz - the headset's rate - and 72 Hz; new harness option
+`--hz`):
+
+| Test | On the headset | Cause | Fix |
+|---|---|---|---|
+| birds_shoot (also 17:02) | no bird ever hit | GAME BUG: birds checked bullets only when seen in flight; a 300 m/s round hits the ground 10 m off within a frame (at 24 fps always) | WeaponSystem::onSegment: every shot's path is tested; Flak hit radius 0.3 -> 0.4 m; the script sweeps the burst across the flock |
+| fish_catch (also 17:02) | no catch | GAME BUG: a player standing still in the water scared fish within 3.5 m for good, so a still hand never drew them; + a 1.7 m/s hand entry counted as a slap and splashed them away | still player scares only 0.5 m round; slap needs 2.5 m/s; script eases the hand in and waits |
+| kabuto_lobird (also 17:02) | caught, then dropped at 0 m/s | a grip pulse ended right after the catch | GAME: a Lobird is let go only after the grip is open (< 0.5) for 0.1 s (grip flicker); script pulses 0.24 s on / 0.06 s off |
+| gun_grab | no pickup | GAME: a GVR_PASSIVE_REAPERS test target dodged the aim laser, so the gun fell elsewhere; and the script reached 0.75 m off | passive targets don't dodge; script reaches where the gun lies (trace of its position) |
+| delphi_impale | no thrust | the scripted thrust (3.75 m/s) was barely over the 3 m/s threshold; a slow frame dropped it under | script thrusts at 5.5 m/s (passes at 18, 24, 72 Hz) |
+| kabuto_smartie_throw | nothing in reach | the test relied on a Smartie wandering under his hand | test hook GVR_SMARTIE_AHEAD places one; GVR_STILL_SMARTIES |
+| smartie_throw_hit | thrown past the Reaper | script threw 21 degrees to the left | straight throw: hits at 24 and 72 Hz |
+| delphi_dive | "surfaces" missing | a deeper dive on the headset (bed 3.8 m) needs ~15 s to drift up; test lasted 16 s | 22 s |
+
+Known limitation found: below ~20 fps a Reaper bolt can reach the player inside the enemy weapon's own update before
+the sword's parry check (delphi_parry deflects 0 at 18 Hz in the harness, 3-6 at 24-72 Hz).
+
+devtest.ps1 now: flags OTHER APP DRAWING per test, checks the events each script lists ("Log ...") and prints
+`events n/m (MISSING: ...)`, and ignores garbage App= values (1e5+ ms). 25 more scripts got event lists.
+New experiment set `devtest/perf` (16 runs): the 5a meadow and Kabuto's storm, each with one feature off at a time
+(look0, nograss, msaa0, up0, noclouds, noweather, quality 1/3, all off) - the next device run, to price each feature.

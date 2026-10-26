@@ -8,7 +8,7 @@ mission r1_saveyan
 env GVR_CUTSCENE none
 env GVR_GOD 1
 view first
-duration 16
+duration 22
 at 3639 -397
 look 3610 -460
 pitch -30

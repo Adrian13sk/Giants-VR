@@ -1,5 +1,6 @@
 # Delphi's mine (rp_mine, her weapon cycle's last slot): one set down, the screenshot of it on the ground and of the
 # one in her hand.
+# Log (checked by devtest.ps1): "Mine set at".
 name delphi_mine
 world Rstory4
 mission r4a_buildbase

@@ -1,5 +1,6 @@
 # Rework (2026-10-25): Kabuto uproots a palm with his right hand (reach down to it, squeeze the grip),
 # swings it, then throws it (a fast push forward and the grip let go).
+# Log (checked by devtest.ps1): "uproots a tree" "Kabuto throws the tree".
 name kabuto_tree
 world Kstory1
 mission k1a_smarties

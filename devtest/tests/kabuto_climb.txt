@@ -1,11 +1,13 @@
 # Rework (2026-10-25): Kabuto climbs - the right hand grips a steep bank in front, pulls down, lets go, reaches
 # up again (5 times). Harness: he rises ~6 m a pull (one hand: he slips back a little between holds).
+# Log (checked by devtest.ps1): "climb: hand N takes hold".
 name kabuto_climb
 world Kstory3
 mission kstory3_4
 env GVR_CUTSCENE none
 env GVR_GOD 1
 env GVR_NO_AMBUSH 1
+env GVR_CLIMB_TRACE 1
 at 630 1310
 look 700 1380
 duration 12
