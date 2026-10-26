@@ -2,3 +2,4 @@
 Palms shake: a blast nearby sets the trees shivering and swinging|Story5|5a_killcharger|0|360|--script devtest/tests/palms_shake.txt
 Night plankton: the sea glows cyan in your wake and round the fleeing fish|Story1|1c_1_firstmecc|0|720|--script devtest/tests/plankton_night.txt
 Under the water, second pass: the bright surface overhead, the haze lighter above and darker below, fish in deeper water|Rstory1|r1_saveyan|0|1100|--script devtest/tests/delphi_dive.txt
+Hands in the water: dip, drag, lift out, slap|Story1|1c_1_firstmecc|0|480|--script devtest/tests/hand_water.txt

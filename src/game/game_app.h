@@ -1001,6 +1001,12 @@ private:
     bool shotIntoWater(const Vec3& p, const Vec3& dir);
     void piranhaBite(const Vec3& at, float size, bool loud);
     void updateWaterFlow(float dt);
+    // Hands in the water (game_app_water.cpp): dipped in, a plop and a ring; slapped down, a splash; dragged
+    // through it near the surface, ripples, spray and a swish; lifted out, drips. At night the plankton glows round them.
+    struct HandWater { bool have = false, in = false; Vec3 prev, pos; float speed = 0, ringT = 0, swishT = 0, dripT = 0, humT = 0, wet = 0; };
+    HandWater handWater_[2];
+    int handWaterLogs_ = 0;
+    void updateHandWater(float dt);
     static constexpr int kPiranhas = 5;
     struct Piranha { float angle = 0, jump = -1; };
     // A school circles its prey just under the surface: the swimming player (school 0) or a

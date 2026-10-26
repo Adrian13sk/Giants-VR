@@ -445,6 +445,9 @@ void GameApp::updatePlankton(float dt) {
     const float v = player_.horizontalSpeed();
     const bool inWater = player_.swimming() || (player_.onGround && player_.position.y < sea - 0.1f);
     if (inWater && v > 0.3f) burst(player_.position, int(dt * (25.0f + 30.0f * v) + frand()), 0.9f * std::max(1.0f, std::sqrt(heroScale_)));
+    // Hands moving in the water.
+    for (const auto& hw : handWater_)
+        if (hw.in && hw.speed > 0.4f) burst(hw.pos, int(dt * (20.0f + 40.0f * std::min(3.0f, hw.speed)) + frand()), 0.25f * std::max(1.0f, std::sqrt(heroScale_)));
     // Fish darting away.
     for (const auto& sc : shinerSchools_)
         for (const auto& f : sc.fish)

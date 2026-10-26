@@ -1,0 +1,21 @@
+# Rework (2026-10-26): hands in the water. Wade into the shallows of island 1 and look down. Dip the right hand
+# in slowly (a plop, a ring), drag it left and right through the water (ripples behind it, spray flicked up, a
+# swish, a faint hum in the controller), lift it out (water drips off). Then slap the water hard with the left
+# hand: a splash and a kick in the controller. Log: "Hand water: right hand dips in", "... left hand slaps the water".
+name hand_water
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 8
+at 345 4617
+look 300 4617
+pitch -55
+move 0 1 0.5 1.45
+hand_r 0 -1.2 -0.2 1.8 2.6
+hand_r -0.8 0 0 2.8 3.3
+hand_r 1.2 0 0 3.4 3.9
+hand_r 0 1.2 0 4.1 4.6
+hand_l 0 -1.3 -0.3 5.5 5.75
+hand_l 0 1.3 0.3 6.5 7.0

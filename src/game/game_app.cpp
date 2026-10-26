@@ -3856,7 +3856,7 @@ void GameApp::updateCombat(float dt) {
     // (shallows, the shore, the jetpack) sends them away. Rates and damage ours.
     const bool swim = playMode_ && player_.swimming();
     if (swim && !wasSwimming_) waterSplash(player_.position, 1.2f, 2);
-    { GVR_PROF("waterflow"); updateWaterFlow(dt); }
+    { GVR_PROF("waterflow"); updateWaterFlow(dt); updateHandWater(dt); }
     wasSwimming_ = swim;
     for (auto& f : waterFx_) f.age += dt;
     waterFx_.erase(std::remove_if(waterFx_.begin(), waterFx_.end(), [](const WaterFx& f) { return f.age > 2.0f; }), waterFx_.end());
