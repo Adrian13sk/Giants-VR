@@ -106,6 +106,13 @@ void GameApp::updateRagdolls(float dt) {
         e.kick = Vec3{0, 0, 0};
         if (rd->active && !rd->asleep) {
             rd->step(dt, enemies_.groundHeight);
+            // The body hits the ground: a thud with the force of it (at most every 0.3 s).
+            if (rd->impact > 2.5f && time_ - rd->lastThud > 0.3) {
+                rd->lastThud = time_;
+                const float loud = std::min(1.0f, 0.3f + rd->impact / 9.0f);
+                sfx(rd->impact > 6.0f ? (frand() < 0.5f ? "sr_fall1" : "sr_fall2") : (frand() < 0.5f ? "ex_bdyl1" : "ex_bdyl2"), rd->centre(), loud, 0.9f + 0.2f * frand());
+            }
+            rd->impact = 0;
             const Vec3 c = rd->centre();
             e.pos.x = c.x;
             e.pos.z = c.z;
@@ -239,6 +246,11 @@ void GameApp::updateNpcRagdolls(float dt) {
         }
         if (r.active && !r.asleep) {
             r.step(dt, enemies_.groundHeight);
+            if (r.impact > 2.5f && time_ - r.lastThud > 0.3) {
+                r.lastThud = time_;
+                sfx(frand() < 0.5f ? "ex_bdys1" : "ex_bdys2", r.centre(), std::min(1.0f, 0.25f + r.impact / 10.0f) * heavy, 1.0f + 0.2f * frand());
+            }
+            r.impact = 0;
             if (r.asleep && trace) LOGI("ragdoll: npc %u lies still (%.1f s)", uid, r.age);
         }
     };
@@ -295,15 +307,21 @@ void GameApp::dropReaperGun(Enemy& e, const Vec3& vel) {
     if (!e.weaponOn || e.weapon < 0 || e.weapon > 1 || !rpWeapon_[e.weapon].model) return;
     Gib gun;
     gun.model = rpWeapon_[e.weapon].model;
-    gun.pos = Vec3{e.weaponXf.m[12], e.weaponXf.m[13], e.weaponXf.m[14]};
+    // It falls and spins about its middle (the model's origin is far from the gun - near his feet -
+    // so a gib at the origin "landed" at once, silently, and turned about a point on the ground).
+    const RenderModel& m = *rpWeapon_[e.weapon].model;
+    const Vec3 c = (m.boundsMin + m.boundsMax) * 0.5f;
+    reaperGunCentre(e, gun.pos);
     gun.base = e.weaponXf;
     gun.base.m[12] = gun.base.m[13] = gun.base.m[14] = 0;
+    gun.base = gun.base * Mat4::translation(c * -1.0f);
     gun.vel = vel;
     gun.axis = normalize(Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} + Vec3{0.01f, 0, 0});
     gun.spin = 2.0f + 4.0f * frand();
     gun.scale = 1.0f;
     gibs_.push_back(gun);
     e.weaponOn = false;
+    LOGI("Reaper %u drops his gun at (%.1f %.1f %.1f)", e.uid, gun.pos.x, gun.pos.y, gun.pos.z);
 }
 
 bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
@@ -348,6 +366,7 @@ bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
     // The gun hand off: the gun goes with it (thrown along, from where it was in the hand).
     if (best == "r_arm" || best == "arm r") dropReaperGun(e, g.vel * 0.8f + Vec3{0, 1.0f, 0});
     if (best == "r_arm" || best == "arm r") e.gunArmOff = true;
+    sfx(frand() < 0.5f ? "ex_bdyl1" : "ex_bdyl2", g.pos, 1.0f, 0.8f + 0.15f * frand());  // the cut
     // The stump and the piece bleed.
     blood_.burst(g.pos, h + Vec3{0, 1.2f, 0}, 30, 4.5f, 0.08f);
     blood_.pool(e.pos, 1.0f);

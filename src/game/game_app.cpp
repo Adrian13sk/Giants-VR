@@ -464,7 +464,14 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 // (a shot at the gun he holds up to his face is a gun hit, not a head shot)
                 Vec3 gunAt{1e9f, 1e9f, 1e9f};
                 reaperGunCentre(enemies_.enemies[size_t(target)], gunAt);
-                const bool atGun = length(p - gunAt) < 0.45f && !enemies_.enemies[size_t(target)].disarmed;
+                // (the shot stops at his capsule; the gun he holds out is often in front of it, so the shot
+                // whose line passed through the gun, near where it stopped, hit the gun)
+                const Vec3 sd = length(shotDir) > 1e-4f ? normalize(shotDir) : Vec3{0, 0, -1};
+                const Vec3 toGun = gunAt - p;
+                const float along = dot(toGun, sd);
+                const float offLine = length(toGun - sd * along);
+                const bool atGun = (length(toGun) < 0.45f || (offLine < 0.22f && std::fabs(along) < 0.9f)) &&
+                                   !enemies_.enemies[size_t(target)].disarmed;
                 const bool head = !atGun && p.y - enemies_.enemies[size_t(target)].pos.y > 1.6f * enemies_.bodyHeight(enemies_.enemies[size_t(target)]) / std::max(0.5f, enemies_.params.height);
                 if (head) sfx("bi_hit2", p, 0.8f, 1.4f);
                 // Rework: the hit shoves him (a killing shot sends the body back - it slides on), more for
@@ -480,7 +487,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 // (shots stop at his capsule, a little in front of the gun: 0.45 m)
                 const bool gunHit = he.weaponOn && !he.disarmed && (atGun || ((limb == "r_arm" || limb == "arm r") && limbD < 0.3f));
                 const bool legHit = !gunHit && (limb == "l_thigh" || limb == "r_thigh" || limb == "leg l" || limb == "leg r") && he.hitHeight < 0.45f;
-                if (std::getenv("GVR_HIT_TRACE")) LOGI("hit trace: Reaper %u at height %.2f, %.2f m from his gun, nearest limb %s %.2f m", he.uid, he.hitHeight, length(p - gunAt), limb.c_str(), limbD);
+                if (std::getenv("GVR_HIT_TRACE")) LOGI("hit trace: Reaper %u (state %d, slot %d, head %d, gun %d) at height %.2f, line %.2f along %.2f, %.2f m from his gun, nearest limb %s %.2f m", he.uid, int(he.state), he.slot, int(head), int(atGun), he.hitHeight, offLine, along, length(p - gunAt), limb.c_str(), limbD);
                 const bool killed = enemies_.damage(target, (head ? 62.5f : (atGun ? 12.0f : 25.0f)) * hm);  // (the gun takes most of it)
                 if (!killed && gunHit && (atGun ? frand() < 0.7f : frand() < 0.4f)) {
                     Vec3 away = shotDir + Vec3{0, 0.6f, 0};
@@ -1048,7 +1055,10 @@ void GameApp::updateRescue(float dt, const InputFrame& in) {
 }
 
 void GameApp::sfx(const char* name, const Vec3& pos, float vol, float pitch) {
-    if (audio_) audio_->play(name, pos, vol, pitch);
+    if (!audio_) return;
+    const uint32_t id = audio_->play(name, pos, vol, pitch);
+    static const bool trace = std::getenv("GVR_SFX_TRACE") != nullptr;  // (tests: which sounds play)
+    if (trace) LOGI("Sfx %s %s vol %.2f at (%.1f %.1f %.1f)", name, id ? "played" : "MISSING", vol, pos.x, pos.y, pos.z);
 }
 void GameApp::sfx2D(const char* name, float vol, float pitch) {
     if (audio_) audio_->play2D(name, vol, pitch);
@@ -1072,6 +1082,8 @@ void GameApp::setAudio(AudioMixer* mixer) {
         "rm_atfr1", "rm_atfr2", "rm_attk1", "rm_chitt", "rm_deat1", "rm_deat2", "rm_feet", "rm_frexp", "rm_inj01",
         "rm_inj02", "rl_atfr1", "rl_atfr2", "rl_attk1", "rl_chitt", "rl_deat1", "rl_deat2", "rl_feet", "rl_frexp1",
         "rl_frexp2", "rl_injr1", "rl_injr2", "ex_bdyl1", "ex_bdyl2",
+        // Ragdoll landings, a cut limb, a dropped gun.
+        "ex_bdys2", "sr_fall1", "sr_fall2", "me_drpwp",
         // Scenery breaking: trees, stone, wood, metal (large and small).
         "ex_treel", "ex_trees", "ex_stonl", "ex_stons", "ex_woodl", "ex_woods", "ex_metll", "ex_metls", "ex_dirtl", "ex_dirts",
         // Carrying Smarties (1b): pick up / let go / drop off, splash, piranhas.
@@ -1945,6 +1957,12 @@ void GameApp::updateCharacters(float dt) {
             continue;
         }
         if (g.pos.y < ground + 0.1f * g.scale) {  // bounce, then settle
+            // Rework: it lands with a sound - a gun clatters, a limb or a piece thuds.
+            if (g.vel.y < -3.0f && length(g.pos - player_.position) < 40.0f) {
+                const bool gun = g.model && (g.model == rpWeapon_[0].model || g.model == rpWeapon_[1].model);
+                sfx(gun ? (frand() < 0.5f ? "me_drpwp" : "ex_metls") : (frand() < 0.5f ? "ex_bdys1" : "ex_bdys2"), g.pos,
+                    std::min(1.0f, 0.2f - g.vel.y * 0.08f), gun ? 1.0f + 0.1f * frand() : 1.1f + 0.2f * frand());
+            }
             g.pos.y = ground + 0.1f * g.scale;
             g.vel = Vec3{g.vel.x * 0.5f, std::fabs(g.vel.y) * 0.3f, g.vel.z * 0.5f};
             g.spin *= 0.5f;

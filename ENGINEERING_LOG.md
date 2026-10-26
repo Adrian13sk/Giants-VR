@@ -2211,3 +2211,17 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   0.42 x speed and a walk clip. Unit tests (disarmed: never shoots, punches; limping: under 0.6 x the distance).
   Harness 1c_1 with GVR_AUTOAIM_PART=gun (new hook; =legs too): "his gun shot out of his hand", "punches you".
   Completion kill scripts and sweep 56/56 still pass. devtest reaper_disarm.
+
+### 2026-10-26 — Rework: impact sounds; gun hits along the shot line
+- Sounds (the game's own): a ragdoll records its hardest landing (Ragdoll::impact, downward speed at ground contact);
+  the game layer plays sr_fall1/2 for a Reaper over 6 m/s, else ex_bdyl1/2, louder with speed, at most every 0.3 s;
+  Smarties/Vimps/Rippers ex_bdys1/2. A cut limb: ex_bdyl1/2. Gibs landing over 3 m/s: guns me_drpwp/ex_metls, else
+  ex_bdys1/2. sr_fall1/2, ex_bdys2 and me_drpwp added to the preload list. New test hook GVR_SFX_TRACE logs each
+  sfx and whether it resolved; reaper_ragdolls and smartie_ragdolls: every one resolved, ~3 thuds per body.
+- Bug found doing that: a dropped gun gib sat at the gun model's origin (near the Reaper's feet), so it "landed"
+  at once without a sound and turned about a point on the ground. It now starts at the gun's middle
+  (reaperGunCentre) with the model offset into Gib::base, so it falls and spins about itself.
+- Bug: in 1c_1 shots aimed at the gun stopped on his capsule 0.46-0.51 m beyond it (the gun is held out in front)
+  and counted as head shots (hit height 0.8 is above the head line). A gun hit is now also a shot whose line passes
+  within 0.22 m of the gun's middle within 0.9 m of where it stopped. Harness: "drops his gun", the clatter plays.
+- GVR_HIT_TRACE prints state, head/gun flags and the line distance. Tests pass; completion checks 12/12; sweep 56/56.

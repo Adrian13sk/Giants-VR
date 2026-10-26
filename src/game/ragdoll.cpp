@@ -202,6 +202,7 @@ void Ragdoll::step(float dt, const std::function<float(float, float)>& ground) {
                 for (size_t k = 0; k < x_.size(); ++k) {
                     const float g = ground(x_[k].x, x_[k].z) + r;
                     if (x_[k].y < g) {
+                        if (it == 0) impact = std::max(impact, (xp_[k].y - x_[k].y) / h);  // (the speed it came down at)
                         x_[k].y = g;
                         // Friction: most of the sliding stops on contact.
                         xp_[k].x += (x_[k].x - xp_[k].x) * 0.6f;

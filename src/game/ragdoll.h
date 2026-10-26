@@ -43,6 +43,8 @@ public:
     uint32_t uid = 0;  // owner (the game layer: the enemy using this model)
     int clip = -1;     // the clip the pose was captured from (keep posing with it)
     float age = 0;
+    float impact = 0;
+    double lastThud = -1e9;  // (game layer: when its last landing sound played)  // the hardest landing (m/s, downward) since the game layer last read it (sounds)
     // Game layer: start at the next pose with this velocity and spin; posed once since asleep.
     bool pending = false, posedAsleep = false;
     Vec3 startVel, startSpin;
