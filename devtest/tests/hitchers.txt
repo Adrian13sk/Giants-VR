@@ -1,0 +1,16 @@
+# Rework (2026-10-26): hitchers - the original's unused perching bird (xx_birds hitcher) rides on the Vimps' backs
+# (Story 2). Watch a herd graze with them aboard, then shoot near the herd: the Vimps run, the hitchers flap off
+# (cawing), circle, and later land on calm Vimps again. Log: "Hitchers: 6 riding on Vimps".
+name hitchers
+world Story2
+mission 2a_1_getmeat
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_WEAPON 3
+view first
+duration 32
+at 1474 -290
+look 1474 -411
+pitch -3
+hold trigger_r 6.0 6.3

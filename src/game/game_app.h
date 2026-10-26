@@ -1462,6 +1462,18 @@ private:  // the mission placed enemies: no test waves
     bool birdsReady_ = false;
     void initBirds(AssetWorld* w, ModelCache* mc);
     void placeLobirds();
+    // Hitchers (game_app_hitchers.cpp): perching birds riding on the Vimps' backs.
+    struct Hitcher { int vimp = -1, slot = 0, state = 0; Vec3 pos, vel, circle; float yaw = 0, yawOff = 0, t = 0, stateT = 0; };
+    std::vector<Hitcher> hitchers_;
+    std::vector<std::unique_ptr<SkinnedModel>> hitcherModels_;
+    ModelCache* hitcherCache_ = nullptr;
+    int hitcherFly_ = 0;
+    float hitcherLift_ = 0, vimpBack_ = 0;
+    void initHitchers(AssetWorld* w, ModelCache* mc);
+    void updateHitchers(float dt);
+    void renderHitchers(const Vec3& eye);
+    void hitHitcher(Hitcher& h, const Vec3& dir);
+    Vec3 vimpBackPos(int i) const;
     ModelCache* birdCache_ = nullptr;
     void updateBirds(float dt);
     void renderBirds(const Vec3& eye);

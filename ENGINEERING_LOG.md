@@ -2511,3 +2511,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Bird and fish skins are loaded once and kept across mission loads (they were re-parsed and re-uploaded at every
   mission: 22 skins); soak 1a -> 2a: Flak loaded once, Shiner once. Vimp meat can also be taken by hand (a grip's edge
   within 0.35 m of a piece, GROUND REACH applies) - BUILD only, no harness test for it yet.
+- Hitchers: xx_birds' hitcher.gbs (+ hitcher_idle / hitcher_fly; 1.6 m tall, a perching bird) - unused by the levels;
+  charsheet render showed what it is. game_app_hitchers.cpp: up to 6, one on every other Vimp, on its back (the
+  Vimp's rest-pose top x 0.78 above its model origin), turning with it; off when the Vimp runs / is hit / dies or
+  the player is within 3.5 m; circles 18 s, lands on the nearest calm Vimp > 12 m from you. birdHitBy also hits
+  them. devtest hitchers (Story2 herd 0): two take off when the herd runs from a shot, both land again.

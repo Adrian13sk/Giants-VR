@@ -172,7 +172,7 @@ void GameApp::killBird(Bird& b, const Vec3& dir) {
 }
 
 bool GameApp::birdHitBy(const Vec3& a, const Vec3& bEnd, float radius, const Vec3& dir) {
-    if (!birdsReady_) return false;
+    if (!birdsReady_ && hitchers_.empty()) return false;
     const Vec3 seg = bEnd - a;
     const float len2 = dot(seg, seg);
     for (Bird& b : birds_) {
@@ -182,6 +182,15 @@ bool GameApp::birdHitBy(const Vec3& a, const Vec3& bEnd, float radius, const Vec
         const float r = radius + (b.kind == 1 ? 4.0f : 0.3f);
         if (length(a + seg * u - c) < r) {
             killBird(b, dir);
+            return true;
+        }
+    }
+    for (Hitcher& h : hitchers_) {  // (and the hitchers on the Vimps)
+        if (h.state == 3 || h.state == 4) continue;
+        const Vec3 c = h.pos + Vec3{0, 0.8f, 0};
+        const float u = len2 > 1e-8f ? std::max(0.0f, std::min(1.0f, dot(c - a, seg) / len2)) : 0.0f;
+        if (length(a + seg * u - c) < radius + 0.45f) {
+            hitHitcher(h, dir);
             return true;
         }
     }

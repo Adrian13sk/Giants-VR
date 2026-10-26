@@ -1565,6 +1565,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initVillagers(w, mc);
     initVimps(w, mc);
     initBirds(w, mc);
+    initHitchers(w, mc);
     initFish(w, mc);
     initAmbience(w);
     initDestruction(w, mc);
@@ -4026,7 +4027,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("burn"); updateBurn(); }
     { GVR_PROF("villagers"); updateVillagers(dt); updateVillagerHands(dt, lastInput_); updateSmartieTouch(dt, lastInput_); }
     { GVR_PROF("vimps"); updateVimps(dt); }
-    { GVR_PROF("birds"); updateBirds(dt); }
+    { GVR_PROF("birds"); updateBirds(dt); updateHitchers(dt); }
     { GVR_PROF("fish"); updateFish(dt); }
     { GVR_PROF("ambience"); updateAmbience(dt); }
     { GVR_PROF("npc ragdolls"); updateNpcRagdolls(dt); }
@@ -4710,6 +4711,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     renderVillagers(false, renderer_.currentView().eyePosition, 90.0f);
     renderVimps(false, renderer_.currentView().eyePosition, 150.0f);
     renderBirds(renderer_.currentView().eyePosition);
+    renderHitchers(renderer_.currentView().eyePosition);
     renderJetski(false, renderer_.currentView().eyePosition);
     renderCasings();
     for (const auto& g : gibs_)

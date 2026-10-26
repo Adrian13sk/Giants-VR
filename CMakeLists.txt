@@ -58,6 +58,7 @@ add_library(gvr_core STATIC
   src/game/game_app_marks.cpp
   src/game/game_app_casings.cpp
   src/game/game_app_birds.cpp
+  src/game/game_app_hitchers.cpp
   src/game/game_app_fish.cpp
   src/game/game_app_ambience.cpp
   src/game/game_app_cinema.cpp
