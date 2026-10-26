@@ -195,10 +195,21 @@ void Ragdoll::step(float dt, const std::function<float(float, float)>& ground) {
         acc_ -= h;
         age += h;
         float moved = 0;
+        bool sinking = false;
         for (size_t k = 0; k < x_.size(); ++k) {
             const Vec3 v = (x_[k] - xp_[k]) * 0.995f;
             xp_[k] = x_[k];
             x_[k] = x_[k] + v + Vec3{0, -9.8f * h * h, 0};
+            if (x_[k].y < waterLevel) {
+                // In the water: through the surface (a splash), then held back by it and nearly
+                // floating - it sinks at about 0.2 m/s.
+                if (xp_[k].y >= waterLevel) {
+                    const float down = (xp_[k].y - x_[k].y) / h;
+                    if (down > splash) { splash = down; splashAt = x_[k]; }
+                }
+                x_[k] = x_[k] - (x_[k] - xp_[k]) * 0.15f + Vec3{0, 9.8f * h * h * 0.8f, 0};
+                if (!ground || x_[k].y > ground(x_[k].x, x_[k].z) + r + 0.05f) sinking = true;
+            }
         }
         // (held by one point the whole body hangs from it through a long chain: more passes, or the
         // limbs stretch while it is lifted)
@@ -233,8 +244,8 @@ void Ragdoll::step(float dt, const std::function<float(float, float)>& ground) {
                 }
         }
         for (size_t k = 0; k < x_.size(); ++k) moved = std::max(moved, length(x_[k] - xp_[k]));
-        still_ = moved < 0.004f ? still_ + h : 0.0f;
-        if (pinned_ < 0 && ((age > 1.0f && still_ > 0.5f) || age > 10.0f)) { asleep = true; break; }
+        still_ = moved < 0.004f && !sinking ? still_ + h : 0.0f;
+        if (pinned_ < 0 && ((age > 1.0f && still_ > 0.5f) || (age > 10.0f && !sinking) || age > 60.0f)) { asleep = true; break; }
     }
 }
 

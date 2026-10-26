@@ -2254,3 +2254,12 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   the last 12 frames (0.17 s; a scripted release 0.15 s after the swing stopped found none in 8). Test hook
   GVR_PASSIVE_REAPERS (they never notice the player). devtest body_throw_hit: "The thrown body hits Reaper 2 at
   9.0 m/s" (he moved 1 m). Sweep 56/56 clean.
+
+### 2026-10-26 — Rework: ragdolls in water
+- Ragdoll::waterLevel (the game sets the sea level): a particle under it is slowed 15 % per substep and buoyed by
+  0.8 g - it sinks at ~0.2 m/s; going in through the surface records the speed and place (splash/splashAt);
+  a body still sinking does not count as still (sleep waits; forced sleep at 10 s waits too, up to 60 s).
+  GameApp::ragdollSplash plays waterSplash there (se_splsh over 3.5 m/s, else bi_watr1) for Reapers and NPCs.
+- Unit test: dropped into water over a 5 m bed - splash over 4 m/s, under the surface but above -2 m after 2 s,
+  sinking under 0.5 m in the next second. Harness r4a (shallow sea): three Reapers blasted - "a body splashes
+  into the water at 6.1 m/s", se_splsh.

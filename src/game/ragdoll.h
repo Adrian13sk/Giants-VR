@@ -50,6 +50,11 @@ public:
     int clip = -1;     // the clip the pose was captured from (keep posing with it)
     float age = 0;
     float impact = 0;
+    // Water (rework): below this level a body is slowed and sinks slowly; splash = the fastest a part
+    // went in through the surface since the game layer last read it, splashAt where.
+    float waterLevel = -1e9f;
+    float splash = 0;
+    Vec3 splashAt;
     double lastThud = -1e9;  // (game layer: when its last landing sound played; impact: the hardest landing, m/s downward, since the game layer last read it)
     // Game layer: start at the next pose with this velocity and spin; posed once since asleep.
     bool pending = false, posedAsleep = false;

@@ -2096,6 +2096,24 @@ static void testRagdoll() {
     r.kick(Vec3{6.0f, 0, 0} * 0.55f);
     for (int i = 0; i < 600 && !r.asleep; ++i) r.step(1.0f / 60.0f, ground);
     CHECK(r.centre().x > before.x + 1.0f);  // thrown
+    // Into the water (level 0, the bed 5 m down): a splash, then it sinks slowly instead of dropping.
+    std::vector<Mat4> high;
+    for (const auto& p : pts) high.push_back(Mat4::translation(p + Vec3{0, 2.0f, 0}));
+    Ragdoll wet;
+    wet.waterLevel = 0.0f;
+    wet.start(high, parent, Mat4::identity(), Vec3{0, -2.0f, 0}, Vec3{0, 0, 0}, 0.05f);
+    auto bed = [](float, float) { return -5.0f; };
+    float splashed = 0;
+    for (int i = 0; i < 120; ++i) {
+        wet.step(1.0f / 60.0f, bed);
+        splashed = std::max(splashed, wet.splash);
+        wet.splash = 0;
+    }
+    CHECK(splashed > 4.0f);  // it went in at speed
+    const float y2 = wet.centre().y;
+    CHECK(y2 < 0.0f && y2 > -2.0f);  // under, but nowhere near the bed after 2 s
+    for (int i = 0; i < 60; ++i) wet.step(1.0f / 60.0f, bed);
+    CHECK(!wet.asleep && y2 - wet.centre().y < 0.5f);  // still sinking, slowly
     std::printf("ragdoll ok\n");
 }
 

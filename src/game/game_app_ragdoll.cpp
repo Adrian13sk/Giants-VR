@@ -39,6 +39,16 @@ Ragdoll* GameApp::ragdollOf(const Enemy& e) {
     return (r.active || r.pending) && r.uid == e.uid ? &r : nullptr;
 }
 
+void GameApp::ragdollSplash(Ragdoll& r, float size) {
+    // A body (or a limb of it) going into the water fast: a splash where it went in.
+    if (r.splash > 2.0f && length(r.splashAt - player_.position) < 80.0f) {
+        waterSplash(r.splashAt, size * std::min(1.6f, 0.35f + r.splash * 0.12f), r.splash > 3.5f ? 2 : 1);
+        static const bool trace = std::getenv("GVR_RAGDOLL_TRACE") != nullptr;
+        if (trace) LOGI("ragdoll: a body splashes into the water at %.1f m/s", r.splash);
+    }
+    r.splash = 0;
+}
+
 Ragdoll* GameApp::startRagdoll(Enemy& e, const Vec3& vel, const Vec3& spin) {
     if (ragdolls_.size() != enemyPool_.size()) ragdolls_.resize(enemyPool_.size());
     static const bool off = std::getenv("GVR_NO_RAGDOLL") != nullptr;
@@ -105,7 +115,9 @@ void GameApp::updateRagdolls(float dt) {
         }
         e.kick = Vec3{0, 0, 0};
         if (rd->active && !rd->asleep) {
+            rd->waterLevel = player_.seaLevel;
             rd->step(dt, enemies_.groundHeight);
+            ragdollSplash(*rd, 1.0f);
             // The body hits the ground: a thud with the force of it (at most every 0.3 s).
             if (rd->impact > 2.5f && time_ - rd->lastThud > 0.3) {
                 rd->lastThud = time_;
@@ -245,7 +257,9 @@ void GameApp::updateNpcRagdolls(float dt) {
             return;
         }
         if (r.active && !r.asleep) {
+            r.waterLevel = player_.seaLevel;
             r.step(dt, enemies_.groundHeight);
+            ragdollSplash(r, 0.6f * heavy);
             if (r.impact > 2.5f && time_ - r.lastThud > 0.3) {
                 r.lastThud = time_;
                 sfx(frand() < 0.5f ? "ex_bdys1" : "ex_bdys2", r.centre(), std::min(1.0f, 0.25f + r.impact / 10.0f) * heavy, 1.0f + 0.2f * frand());

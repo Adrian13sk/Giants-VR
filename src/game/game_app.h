@@ -422,6 +422,7 @@ private:
     Ragdoll* ragdollOf(const Enemy& e);
     void updateRagdolls(float dt);
     Ragdoll* startRagdoll(Enemy& e, const Vec3& vel, const Vec3& spin);
+    void ragdollSplash(Ragdoll& r, float size);
     // Rework: ragdolls for the other NPCs (game_app_ragdoll.cpp): Rippers and other creatures (per
     // character model), Smarties (per villager slot), Vimps (per vimp slot).
     enum NpcKind { kNpcCreature = 0, kNpcVillager = 1, kNpcVimp = 2 };
