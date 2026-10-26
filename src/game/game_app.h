@@ -1567,6 +1567,8 @@ private:  // the mission placed enemies: no test waves
     void undoUnderwater();
     void makeAmbienceSounds();
     void applyWeatherLight(float dt);
+    void updateTreeShake(float dt);  // rework: palms shaken by a giant stomping by and by blasts
+    int treesShaking_ = 0;
     void undoWeatherLight();
     struct WeatherLit { Vec3 sun, ambient, fog, clear, horizon, skyTint; };
     WeatherLit weatherIn_{}, weatherOut_{};

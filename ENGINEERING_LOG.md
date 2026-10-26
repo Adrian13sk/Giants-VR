@@ -2557,3 +2557,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Underwater look, second pass: the surface seen from below is a bright rippling ceiling (the sky through Snell's
   window straight up, the haze colour at a slant), and the haze (and the empty deep sea, drawn by the sky dome's
   pass) is lighter looking up, darker looking down.
+- Shaken palms: WorldObject::shake (decays 0.6/s) widens a tree's wind swing (x1 + 2.5 shake) and jitters its clock
+  (DrawParams::swayPhase: a fast shiver); set by blasts (6 + 4 x size m) and by Kabuto walking (1.3 x his height,
+  with his speed). scorch_marks: "Trees: 3 shaking"; GVR_SHAKE_TRACE logs the nearest tree to Kabuto.

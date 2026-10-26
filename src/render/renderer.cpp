@@ -958,7 +958,7 @@ void Renderer::draw(MeshId id, const Mat4& model, const DrawParams& p) {
     }
     glUniformMatrix4fv(U_->uModel_, 1, GL_FALSE, model.m);
     glUniform4f(U_->uTint_, p.tint.x, p.tint.y, p.tint.z, p.tint.w);
-    glUniform2f(U_->uSway_, p.sway, p.sway != 0 ? std::fmod(env_.time, 1000.0f) : 0.0f);
+    glUniform2f(U_->uSway_, p.sway, p.sway != 0 ? std::fmod(env_.time, 1000.0f) + p.swayPhase : 0.0f);
     // Light mode: lit, baked (unlit but shadowed), emissive (additive effects and overlays).
     const bool emissive = p.unlit && (p.blend == BlendMode::Additive || p.noFog || !p.depthTest);
     glUniform1f(U_->uUnlit_, emissive ? 2.0f : (p.unlit ? 1.0f : 0.0f));

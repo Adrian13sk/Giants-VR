@@ -764,7 +764,10 @@ void AssetWorld::render(Renderer& r, bool reflection) {
                 const float b = std::min(1.0f, o.burn);
                 dp.tint = {1.0f - 0.72f * b, 1.0f - 0.8f * b, 1.0f - 0.88f * b, dp.tint.w};
             }
-            if (windOn_ && o.burn < 0.3f) dp.sway = o.sway;
+            if (windOn_ && o.burn < 0.3f) {
+                dp.sway = o.sway * (1.0f + 2.5f * o.shake);
+                if (o.shake > 0.01f) dp.swayPhase = o.shake * 0.35f * std::sin(r.environment().time * 11.0f + o.centre.x);
+            }
             r.draw(part.mesh, o.transform, dp);
         }
         if (o.burn > 0.01f && burnTex_[0] && !reflection) {

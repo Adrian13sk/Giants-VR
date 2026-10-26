@@ -40,6 +40,7 @@ struct DrawParams {
     bool noFog = false;
     bool depthWrite = true;
     bool depthTest = true;  // false: drawn over everything (overlays such as subtitles)
+    float swayPhase = 0.0f; // rework: added to the wind's clock (a tree shaken: a fast jitter in its swing)
     float sway = 0.0f;      // wind: metres the top (uv v = 0) of a card sways (grass); 0 = still; < 0: a tree bending (-sway m at 10 m up)
     // Material: Standard (lit/unlit textured), Water (animated surface: waves, fresnel sky
     // reflection, sun glints), Sky (drifting clouds, sun disc and glow).

@@ -129,6 +129,7 @@ public:
         uint32_t type = 0;
         std::string name;     // model name (lower case)
         float sway = 0;       // rework: palms bend in the wind (DrawParams::sway, negative)
+        float shake = 0;      // rework: shaken (a giant stomping by, a blast): 1 hard .. 0 still
         Mat4 placement;       // original transform
         float scale = 1;
         int collision = -1;   // CollisionWorld index (-1: not solid)

@@ -368,4 +368,36 @@ void GameApp::undoWeatherLight() {
     if (same(env.skyTint, weatherOut_.skyTint)) env.skyTint = weatherIn_.skyTint;
 }
 
+void GameApp::updateTreeShake(float dt) {
+    if (!assetWorld_ || !playMode_) return;
+    struct Src { Vec3 p; float r, k; };
+    std::vector<Src> src;
+    if (hero_ == Hero::Kabuto && player_.horizontalSpeed() > 0.5f)
+        src.push_back({player_.position, 1.3f * player_.height, std::min(1.0f, player_.horizontalSpeed() / 3.0f)});
+    for (const auto& b : blasts_)
+        if (b.age < 0.05f) src.push_back({b.pos, 6.0f + 4.0f * float(b.size), 1.0f});
+    static const bool trace = std::getenv("GVR_SHAKE_TRACE") != nullptr;
+    if (trace && !src.empty()) {
+        int trees = 0;
+        float nearest = 1e9f;
+        for (const auto& o : assetWorld_->worldObjects())
+            if (o.sway != 0) { ++trees; nearest = std::min(nearest, length(Vec3{o.centre.x - src[0].p.x, 0, o.centre.z - src[0].p.z})); }
+        static float tt = 0;
+        if ((tt += dt) > 1.0f) { tt = 0; LOGI("shake trace: %d swaying trees, nearest %.1f m (reach %.1f)", trees, nearest, src[0].r); }
+    }
+    if (src.empty() && treesShaking_ == 0) return;
+    int shaking = 0;
+    for (auto& o : assetWorld_->worldObjects()) {
+        if (o.sway == 0) continue;
+        if (o.shake > 0) o.shake = std::max(0.0f, o.shake - dt * 0.6f);
+        for (const Src& s : src) {
+            const float d = length(Vec3{o.centre.x - s.p.x, 0, o.centre.z - s.p.z});
+            if (d < s.r) o.shake = std::max(o.shake, s.k * (1.0f - d / s.r));
+        }
+        shaking += o.shake > 0;
+    }
+    if (shaking > 0 && treesShaking_ == 0) LOGI("Trees: %d shaking", shaking);
+    treesShaking_ = shaking;
+}
+
 }  // namespace gvr
