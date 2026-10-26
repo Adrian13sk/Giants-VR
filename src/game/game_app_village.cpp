@@ -219,6 +219,41 @@ void GameApp::hitVillager(int i, float amount, const Vec3& at, const Vec3& dir) 
 // The Meccaryn and Delphi pick Smarties up too (rework): squeeze a grip with the hand on one (a
 // squirming Smartie in your hand); open it gently to set it down, throw it and it flies - a hard
 // landing kills it. A gun or bow held on one for a moment: it puts its hands up.
+void GameApp::updateSmartieTouch(float dt, const InputFrame& in) {
+    for (auto& c : touchCool_) c.second -= dt;
+    touchCool_.erase(std::remove_if(touchCool_.begin(), touchCool_.end(), [](const std::pair<uint32_t, float>& c) { return c.second <= 0; }),
+                     touchCool_.end());
+    const bool can = playMode_ && firstPerson_ && !dying_ && hero_ != Hero::Kabuto && !cutsceneActive() && villagerFearT_ <= 0;
+    for (int h = 0; h < 2; ++h) {
+        const ControllerState& c = in.hand[h];
+        if (!c.gripPoseValid) { touchHave_[h] = false; continue; }
+        const float speed = touchHave_[h] && dt > 0 ? length(handVelocity(c.gripPose.position, touchPrev_[h], dt) - player_.velocity) : 0.0f;
+        touchPrev_[h] = c.gripPose.position;
+        touchHave_[h] = true;
+        // An open hand (a squeezed grip picks them up instead), holding nothing.
+        if (!can || c.squeeze > 0.35f || stoneInHand(h) || heldBody_.hand == h || (heldVillager_ != 0 && heldVillagerHand_ == h)) continue;
+        const Vec3 hp = rig_.toWorld(c.gripPose).position;
+        for (size_t i = 0; i < villagers_.villagers.size(); ++i) {
+            const Villager& v = villagers_.villagers[i];
+            if (!VillagerDirector::alive(v) || length(hp - (v.pos + Vec3{0, 0.62f, 0})) > 0.3f) continue;
+            bool cool = false;
+            for (const auto& tc : touchCool_) cool |= tc.first == v.uid;
+            if (cool) continue;
+            const bool highFive = v.state == VillagerState::Wave || speed > 1.3f;
+            if (!villagers_.touched(int(i), player_.position, highFive)) continue;
+            touchCool_.push_back({v.uid, 3.0f});
+            haptics_.push_back({h, highFive ? 0.45f : 0.2f, highFive ? 0.06f : 0.1f});
+            if (highFive) sfx("bi_hit1", hp, 0.35f, 2.0f);  // (the slap of hands)
+            static const int voices[] = {1, 2, 3, 4, 13, 14};
+            char nm[16];
+            std::snprintf(nm, sizeof nm, "gsm%02d_%d", voices[int(frand() * 5.99f)], frand() < 0.5f ? 1 : 2);
+            sfx(nm, v.pos + Vec3{0, 0.6f, 0}, 0.8f, highFive ? 1.25f : 1.15f);
+            LOGI("Smartie %u: %s", v.uid, highFive ? "a high five!" : "a pat on the head - it laughs");
+            break;
+        }
+    }
+}
+
 void GameApp::updateVillagerHands(float dt, const InputFrame& in) {
     const bool can = playMode_ && firstPerson_ && !dying_ && hero_ != Hero::Kabuto && !cutsceneActive();
     auto indexOf = [&](uint32_t uid) {

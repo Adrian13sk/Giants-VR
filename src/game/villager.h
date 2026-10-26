@@ -63,6 +63,9 @@ public:
     int waveBack(const Vec3& player, float radius);
     // The danger has passed: the calm ones celebrate (sm_celebrate). Returns how many.
     int cheer();
+    // Rework: touched by the player's open hand - a pat (a laugh) or a high five (a little dance).
+    // Only a calm one reacts; returns true if it did.
+    bool touched(int i, const Vec3& player, bool highFive);
     // Rework: hurt / killed (returns true if this killed it); held in a hand (squirming) or let go;
     // hands up (a gun pointed at it).
     bool damage(int i, float amount, const Vec3& from);

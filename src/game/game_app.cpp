@@ -4023,7 +4023,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("gore"); updateGore(dt); }
     { GVR_PROF("destruction"); updateDestruction(dt); }
     { GVR_PROF("burn"); updateBurn(); }
-    { GVR_PROF("villagers"); updateVillagers(dt); updateVillagerHands(dt, lastInput_); }
+    { GVR_PROF("villagers"); updateVillagers(dt); updateVillagerHands(dt, lastInput_); updateSmartieTouch(dt, lastInput_); }
     { GVR_PROF("vimps"); updateVimps(dt); }
     { GVR_PROF("birds"); updateBirds(dt); }
     { GVR_PROF("fish"); updateFish(dt); }

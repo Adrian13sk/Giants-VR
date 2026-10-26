@@ -1,0 +1,19 @@
+# Rework (2026-10-26): touch a Smartie with an open hand (5a; GVR_STILL_SMARTIES keeps them in place): a gentle pat
+# on the head - it laughs, turns to you; then a quick slap down on it (a high five) - it celebrates. Log:
+# "Smartie N: a pat on the head - it laughs", "Smartie N: a high five!".
+name smartie_pat
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_GRAB_TRACE 1
+env GVR_STILL_SMARTIES 1
+view first
+pitch -20
+duration 8
+at 143 -141
+look 143 -170
+hand_l 0.2 -0.58 -0.25 0.3 1.2
+hand_l 0 0.35 0 2.0 2.6
+hand_l 0 -0.35 0 4.0 4.12

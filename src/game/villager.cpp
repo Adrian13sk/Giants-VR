@@ -245,6 +245,22 @@ int VillagerDirector::waveBack(const Vec3& player, float radius) {
     return n;
 }
 
+bool VillagerDirector::touched(int i, const Vec3& player, bool highFive) {
+    if (i < 0 || size_t(i) >= villagers.size()) return false;
+    Villager& v = villagers[size_t(i)];
+    if (v.state != VillagerState::Idle && v.state != VillagerState::Walk && v.state != VillagerState::Act && v.state != VillagerState::Wave)
+        return false;
+    if (v.calm < params.calmAfter) return false;
+    v.state = VillagerState::Act;
+    v.stateTime = 0;
+    v.duration = highFive ? 2.6f : 2.0f;
+    v.waveCooldown = std::max(v.waveCooldown, 4.0f);
+    const Vec3 d{player.x - v.pos.x, 0, player.z - v.pos.z};
+    if (length(d) > 0.05f) v.yaw = std::atan2(-d.x, -d.z);  // (turns to you)
+    setClip(v, highFive ? VillagerClip::Celebrate : VillagerClip::Laugh);
+    return true;
+}
+
 int VillagerDirector::cheer() {
     int n = 0;
     for (auto& v : villagers) {

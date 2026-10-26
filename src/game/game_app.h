@@ -1392,6 +1392,12 @@ private:  // the mission placed enemies: no test waves
     bool villagerRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
     void hitVillager(int i, float amount, const Vec3& at, const Vec3& dir);
     void updateVillagerHands(float dt, const InputFrame& in);
+    // Rework: an open hand touching a calm Smartie - a pat on the head (it laughs) or a high five
+    // (a waving one, or a quick slap: it celebrates). game_app_village.cpp.
+    void updateSmartieTouch(float dt, const InputFrame& in);
+    Vec3 touchPrev_[2];
+    bool touchHave_[2] = {};
+    std::vector<std::pair<uint32_t, float>> touchCool_;  // Smartie uid, seconds until it reacts again
     uint32_t heldVillager_ = 0;
     int heldVillagerHand_ = -1;
     bool villagerGripWas_[2] = {false, false};
