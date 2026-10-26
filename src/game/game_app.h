@@ -1608,6 +1608,9 @@ private:  // the mission placed enemies: no test waves
     size_t stoneUsed_ = 0;
     const void* stonesWorld_ = nullptr;
     bool stoneInHand(int h) const;
+    // GROUND REACH: EASY - a hand reaching low in front of you takes things from the ground below it
+    // (the point it reaches lowered by up to 0.55 m: a stoop, not a crouch). The hand itself otherwise.
+    Vec3 reachPoint(const Vec3& hand) const;
     void updateStones(float dt, const InputFrame& in);
     void renderStones();
     void renderObjectiveMarker();

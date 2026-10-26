@@ -217,12 +217,12 @@ void GameApp::updateVillagerHands(float dt, const InputFrame& in) {
         const bool edge = g && !villagerGripWas_[h];
         villagerGripWas_[h] = g;
         if (!can || !edge || heldVillager_ != 0 || !c.gripPoseValid || heldBody_.hand == h || stoneInHand(h)) continue;
-        const Vec3 p = rig_.toWorld(c.gripPose).position;
+        const Vec3 hp = rig_.toWorld(c.gripPose).position, p = reachPoint(hp);  // (GROUND REACH)
         for (const auto& v : villagers_.villagers) {
-            if (!VillagerDirector::alive(v) || length(p - (v.pos + Vec3{0, 0.45f, 0})) > 0.45f) continue;
+            if (!VillagerDirector::alive(v) || std::min(length(hp - (v.pos + Vec3{0, 0.45f, 0})), length(p - (v.pos + Vec3{0, 0.45f, 0}))) > 0.45f) continue;
             heldVillager_ = v.uid;
             heldVillagerHand_ = h;
-            heldVillagerPrev_ = p;
+            heldVillagerPrev_ = hp;
             heldVillagerVel_ = Vec3{0, 0, 0};
             villagers_.hold(indexOf(v.uid), true);
             haptics_.push_back({h, 0.5f, 0.08f});

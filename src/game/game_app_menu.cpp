@@ -24,7 +24,7 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 }
 
 namespace {
-enum MenuRow { kRowResume, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -83,6 +83,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowVignette: s.vignette = (s.vignette + dx + 3) % 3; changed = true; break;
             case kRowAmbush: s.ambushes = !s.ambushes; changed = true; break;
             case kRowLaser: s.aimLaser = !s.aimLaser; changed = true; break;
+            case kRowReach: s.reachAssist = !s.reachAssist; changed = true; break;
             case kRowLook: s.classicLook = !s.classicLook; changed = true; break;
             case kRowHand: s.leftHanded = !s.leftHanded; changed = true; break;
             case kRowView: s.thirdPerson = !s.thirdPerson; firstPerson_ = !s.thirdPerson; changed = true; break;
@@ -155,6 +156,7 @@ void GameApp::renderMenu() {
         {"COMFORT VIGNETTE", s.vignette == 0 ? "OFF" : (s.vignette == 1 ? "LOW" : "HIGH")},
         {"AMBUSHES", s.ambushes ? "ON" : "OFF"},
         {"AIM LASER", s.aimLaser ? "ON" : "OFF"},
+        {"GROUND REACH", s.reachAssist ? "EASY (BEND DOWN)" : "NATURAL (CROUCH)"},
         {"LIGHTING", s.classicLook ? "CLASSIC" : "REWORK"},
         {"MAIN HAND", s.leftHanded ? "LEFT" : "RIGHT"},
         {"VIEW", firstPerson_ ? "FIRST PERSON" : "THIRD PERSON"},

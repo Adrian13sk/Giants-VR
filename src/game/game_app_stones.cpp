@@ -37,7 +37,8 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
         const bool edge = g && !stoneGripWas_[h];
         stoneGripWas_[h] = g;
         if (!can || !edge || !c.gripPoseValid || stoneInHand(h) || heldBody_.hand == h || (heldVillager_ != 0 && heldVillagerHand_ == h)) continue;
-        const Vec3 p = rig_.toWorld(c.gripPose).position;
+        const Vec3 hp = rig_.toWorld(c.gripPose).position;
+        const Vec3 p = reachPoint(hp);  // (where it reaches: the hand, or lower - GROUND REACH)
         float best = 1e9f;
         int loose = -1;
         for (size_t i = 0; i < stones_.size(); ++i) {
@@ -211,6 +212,22 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
     const size_t upto = std::max(used, stoneUsed_);
     if (upto) renderer_.updateMeshVertexRange(stoneMesh_, 0, stoneBuf_.data(), upto);
     stoneUsed_ = used;
+}
+
+Vec3 GameApp::reachPoint(const Vec3& hand) const {
+    if (!settings_.reachAssist || hero_ == Hero::Kabuto || !player_.groundHeight || !lastInput_.headValid) return hand;
+    // Only a hand reaching out in front (arms hanging at your sides, or a grip squeezed to sprint, take nothing).
+    const Pose head = rig_.toWorld(lastInput_.head);
+    Vec3 f = head.orientation.rotate(Vec3{0, 0, -1});
+    f.y = 0;
+    if (length(f) < 1e-3f) return hand;
+    f = normalize(f);
+    const float ahead = dot(Vec3{hand.x - head.position.x, 0, hand.z - head.position.z}, f);
+    if (ahead < 0.22f) return hand;
+    const float h = hand.y - player_.groundHeight(hand.x, hand.z);
+    if (h > 1.1f) return hand;
+    const float drop = std::clamp(h - 0.12f, 0.0f, 0.55f) * std::clamp((1.1f - h) / 0.3f, 0.0f, 1.0f) * std::clamp((ahead - 0.22f) / 0.1f, 0.0f, 1.0f);
+    return hand - Vec3{0, drop, 0};
 }
 
 bool GameApp::stoneInHand(int h) const {

@@ -99,7 +99,7 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
         bodyGripWas_[h] = g;
         if (!can || !edge || heldBody_.kind >= 0 || !c.gripPoseValid || (heldVillager_ != 0 && heldVillagerHand_ == h)) continue;
         if (kab && (kbHold_ != HoldNone || kbGrabHand_ == h || kb_.eatT >= 0 || climbHold_[h])) continue;  // (that hand has his own grab)
-        const Vec3 p = handAt(c);
+        const Vec3 p = kab ? handAt(c) : reachPoint(handAt(c));  // (GROUND REACH)
         float best = reach, nearestAny = 1e30f;
         HeldBody pick;
         int part = -1;

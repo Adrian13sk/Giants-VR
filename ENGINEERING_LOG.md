@@ -2289,3 +2289,13 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - devtest stone_throw (1c_1, player placed by a stone, a passive Reaper 6 m ahead): "Picked up a stone (0.30 m)",
   "Threw a stone at 10.0 m/s", "A stone hits Reaper 1 at 10.5 m/s". Harness frames show the stone in the gauntlet.
   GVR_GRAB_TRACE lists the nearest hand-sized stone on a miss. Sweep 56/56 clean.
+
+### 2026-10-26 — Rework: GROUND REACH option
+- Picking things off the ground meant crouching to the floor. GameApp::reachPoint: with GROUND REACH: EASY (new
+  Options row, settings key reach_assist, default on) a hand under 1.1 m above the ground and at least 0.22 m in
+  front of the head (horizontally, along the view) reaches up to 0.55 m lower (fading in over the top 0.3 m and
+  the first 0.1 m ahead) - used by the stone, body (Meccaryn/Delphi) and Smartie pickups, which also still take
+  what is at the hand itself. Not for Kabuto. Arms hanging at the sides take nothing, so a grip squeezed to sprint
+  doesn't pick up stones; sprint is off while the move hand holds a stone.
+- Harness stone_throw with the hand stopping higher: tracking y -1.05 / -0.7 / -0.5 pick the stone up, -0.3
+  (0.9 m above the ground) doesn't. Unit tests pass.

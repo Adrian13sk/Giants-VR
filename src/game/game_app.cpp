@@ -801,7 +801,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.jet = in.hand[th].primary;              // A
     pi.sprint = in.hand[mh].squeeze > 0.5f && !twoHand_;    // move-hand grip (not while it steadies a gun)
     if (hero_ == Hero::Kabuto && kbGrabHand_ == mh) pi.sprint = false;  // that grip holds something
-    if (heldBody_.hand == mh || (heldVillager_ != 0 && heldVillagerHand_ == mh)) pi.sprint = false;  // (a body, a Smartie)
+    if (heldBody_.hand == mh || (heldVillager_ != 0 && heldVillagerHand_ == mh) || stoneInHand(mh)) pi.sprint = false;  // (a body, a Smartie, a stone)
     if (!reachPath_.empty()) reachWalkInput(pi.move, pi.viewYaw, pi.jet, dt);  // test hook GVR_REACH_WALK
     // Rework: Kabuto leaps when you jump - a quick rise of your real head from standing (first person)
     // springs him up half as high again as the button's jump.
