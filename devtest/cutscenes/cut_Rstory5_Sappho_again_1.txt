@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory5_Sappho_again_1 (33 shots, 119 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory5_Sappho_again_1 started" "Cutscene finished".
+name cut_Rstory5_Sappho_again_1
+world Rstory5
+mission rstory5_battle_2
+env GVR_CUTSCENE Rstory5_Sappho_again_1
+env GVR_GOD 1
+view first
+duration 129
+perf 3 129
+shot 39 third
+shot 79 twothirds

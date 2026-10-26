@@ -1,0 +1,14 @@
+# Kabuto lays two Offspring eggs (Y held). (2026-10-27, full test)
+# Log (checked by devtest.ps1): "Kabuto lays an Offspring egg".
+name w_kabuto_offspring
+world Kstory4
+mission kstory4_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_KABUTO_GROW 1
+env GVR_OFFSPRING 2
+view third
+duration 40
+hold y 2 3
+hold y 6 7
+shot 10 offspring

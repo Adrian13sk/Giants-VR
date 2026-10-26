@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory2_out_of_portal_4 (11 shots, 61 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory2_out_of_portal_4 started" "Cutscene finished".
+name cut_Rstory2_out_of_portal_4
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE Rstory2_out_of_portal_4
+env GVR_GOD 1
+view first
+duration 71
+perf 3 71
+shot 20 third
+shot 40 twothirds

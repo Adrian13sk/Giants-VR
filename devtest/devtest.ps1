@@ -11,13 +11,20 @@
     .\devtest.ps1 -Sweep               # also every mission for 20 s (needs the game's Bin folder)
     .\devtest.ps1 -NoInstall           # keep the installed APK
     .\devtest.ps1 -Set experiments     # the scripts in .\experiments instead of .\tests
+    .\devtest.ps1 -Set missions,weapons # several folders, one after another
+    .\devtest.ps1 -All                 # THE WHOLE TEST (2026-10-27): tests, missions, weapons, npcs, ui, cutscenes,
+                                       # the whole campaign, then the mission sweep - about 5 h 20 min. Keep the
+                                       # headset on its charger (a USB cable from a PC charges too slowly).
+    .\devtest.ps1 -All -Skip campaign  # ... without some sets
 
   If Windows refuses to run scripts:  powershell -ExecutionPolicy Bypass -File .\devtest.ps1
 #>
 param(
     [string]$Apk = (Join-Path $PSScriptRoot "..\GiantsVR-dev.apk"),
     [string[]]$Tests = @(),
-    [string]$Set = 'tests',
+    [string[]]$Set = @('tests'),
+    [switch]$All,
+    [string[]]$Skip = @(),
     [switch]$Sweep,
     [switch]$NoInstall,
     [string]$GameBin = "C:\GOG Games\Giants - Citizen Kabuto\Bin",
@@ -59,11 +66,32 @@ Adb shell am broadcast -a com.oculus.vrpowermanager.prox_close | Out-Null
 
 # The test list.
 $scripts = @()
-$testDir = Join-Path $PSScriptRoot $Set
 # (-File passes "a,b" as one string: split on commas and spaces; a trailing .txt is fine too)
+$Set = @($Set | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ })
+$Skip = @($Skip | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ })
+if ($All) {
+    # The whole test: the short checks first, the long runs (cutscenes, the campaign) after, the sweep last.
+    $Set = @('tests', 'missions', 'weapons', 'npcs', 'ui', 'cutscenes', 'campaign')
+    $Sweep = $true
+    if ($Skip -contains 'sweep') { $Sweep = $false }
+}
+$Set = @($Set | Where-Object { $Skip -notcontains $_ })
 $Tests = @($Tests | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } | ForEach-Object { $_ -replace '\.txt$', '' })
-if ($Tests.Count -gt 0) { $scripts = @($Tests | ForEach-Object { Join-Path $testDir "$_.txt" }) }
-else { $scripts = @(Get-ChildItem $testDir -Filter *.txt | Sort-Object Name | ForEach-Object { $_.FullName }) }
+if ($Tests.Count -gt 0) {
+    # Named tests: looked up in the chosen folders (the first that has it).
+    foreach ($t in $Tests) {
+        $found = $null
+        foreach ($d in $Set) { $p = Join-Path (Join-Path $PSScriptRoot $d) "$t.txt"; if (Test-Path $p) { $found = $p; break } }
+        if (-not $found) { $found = Join-Path (Join-Path $PSScriptRoot $Set[0]) "$t.txt" }
+        $scripts += $found
+    }
+} else {
+    foreach ($d in $Set) {
+        $testDir = Join-Path $PSScriptRoot $d
+        if (-not (Test-Path $testDir)) { Write-Host "No such test folder: $testDir"; continue }
+        $scripts += @(Get-ChildItem $testDir -Filter *.txt | Sort-Object Name | ForEach-Object { $_.FullName })
+    }
+}
 # Mission name prefix -> world (as scripts/mission_sweep.sh).
 $worldOf = @(@('^1', 'Story1'), @('^2', 'Story2'), @('^story3', 'Story3'), @('^4', 'Story4'), @('^5', 'Story5'),
              @('^r1', 'Rstory1'), @('^r4', 'Rstory4'), @('^rstory2', 'Rstory2'), @('^rstory3_race_2', 'Rstory3_race_2'), @('^rstory3_race_3', 'Rstory3_race_3'), @('^rstory3', 'Rstory3_race_1'), @('^rstory5', 'Rstory5'),
@@ -84,6 +112,19 @@ if ($Sweep) {
     }
 }
 
+# How long it will take: each script's duration, plus ~25 s a test to start, load and pull its results.
+$planned = 0.0
+foreach ($s in $scripts) {
+    $d = 20.0
+    if (Test-Path $s) { foreach ($line in Get-Content $s) { if ($line -match '^\s*duration\s+([\d.]+)') { $d = [double]$Matches[1] } } }
+    $planned += $d + 25
+}
+$msg = "{0} tests in {1}{2}: about {3:N0} h {4:N0} min" -f $scripts.Count, ($Set -join ', '), $(if ($Sweep) { ' + sweep' } else { '' }), [math]::Floor($planned / 3600), [math]::Floor(($planned % 3600) / 60)
+Write-Host $msg
+$msg | Add-Content $summary
+$startAll = Get-Date
+function Battery { $b = (Adb shell dumpsys battery) -join "`n"; if ($b -match 'level:\s*(\d+)') { [int]$Matches[1] } else { -1 } }
+
 # A test that ran but hardly drew (the headset dozing off as it started: 1-2 fps, "fps 0.0") runs once more.
 $queue = [System.Collections.Generic.Queue[string]]::new()
 foreach ($s in $scripts) { $queue.Enqueue($s) }
@@ -96,7 +137,14 @@ while ($queue.Count -gt 0) {
     foreach ($line in Get-Content $script) { if ($line -match '^\s*duration\s+([\d.]+)') { $dur = [double]$Matches[1] } }
     $dest = Join-Path $outRoot $name
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
-    Write-Host ("[{0}] {1} ({2} s)" -f (Get-Date -Format 'HH:mm:ss'), $name, $dur)
+    $bat = Battery
+    $elapsed = ((Get-Date) - $startAll).TotalMinutes
+    Write-Host ("[{0}] {1} ({2} s) - battery {3}%, {4:N0} min in" -f (Get-Date -Format 'HH:mm:ss'), $name, $dur, $bat, $elapsed)
+    if ($bat -ge 0 -and $bat -lt 15) {
+        Write-Host "   Battery at $bat% - waiting for it to charge to 30% (plug the headset in)." -ForegroundColor Yellow
+        "battery $bat% before $name - waited to charge" | Add-Content $summary
+        while ((Battery) -lt 30) { Start-Sleep -Seconds 60; Adb shell input keyevent KEYCODE_WAKEUP | Out-Null }
+    }
 
     Adb shell am force-stop $pkg | Out-Null
     Adb shell input keyevent KEYCODE_WAKEUP | Out-Null   # (each time: a long run or a pause lets the headset sleep)
@@ -106,6 +154,11 @@ while ($queue.Count -gt 0) {
     [IO.File]::WriteAllText($tmp, ((Get-Content $script) -join "`n") + "`n")
     Adb push $tmp "$files/autotest.txt" | Out-Null
     Adb logcat -c | Out-Null
+    # The app's log streamed to a file while the test runs: a long test (the campaign, 55 min) outgrows the
+    # log buffer, which would drop its early lines before the end.
+    $logFile = Join-Path $dest 'logcat.txt'
+    $logProc = Start-Process -FilePath $adb -ArgumentList @('logcat', '-v', 'time', 'GiantsVR:V', 'OpenXR:V', 'VrApi:V', 'AndroidRuntime:V', 'DEBUG:V', 'libc:V', '*:S') `
+        -RedirectStandardOutput $logFile -NoNewWindow -PassThru
     Adb shell am broadcast -a com.oculus.vrpowermanager.prox_close | Out-Null
     Adb shell am start -n "$pkg/android.app.NativeActivity" | Out-Null
     # A system dialog in front of the app (e.g. "Controllers required" from APKs built before 2026-10-25,
@@ -133,8 +186,12 @@ while ($queue.Count -gt 0) {
     Start-Sleep -Seconds 2
     Adb pull "$files/autotest_out" $dest | Out-Null
     Adb logcat -d -v time | Out-File -Encoding utf8 (Join-Path $dest 'logcat_full.txt')
-    Adb logcat -d -v time 'GiantsVR:V' 'OpenXR:V' 'VrApi:V' 'AndroidRuntime:V' 'DEBUG:V' 'libc:V' '*:S' |
-        Out-File -Encoding utf8 (Join-Path $dest 'logcat.txt')
+    if ($logProc -and -not $logProc.HasExited) { Stop-Process -Id $logProc.Id -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Milliseconds 500
+    if (-not (Test-Path $logFile) -or (Get-Item $logFile).Length -lt 100) {
+        # (the stream failed: the buffer's copy instead)
+        Adb logcat -d -v time 'GiantsVR:V' 'OpenXR:V' 'VrApi:V' 'AndroidRuntime:V' 'DEBUG:V' 'libc:V' '*:S' | Out-File -Encoding utf8 $logFile
+    }
     Adb shell am force-stop $pkg | Out-Null
 
     $res = Join-Path $dest 'autotest_out\result.txt'
@@ -208,4 +265,16 @@ while ($queue.Count -gt 0) {
 }
 
 Adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable | Out-Null
+# One line per set: how many tests finished with every listed event seen.
+$lines = @(Get-Content $summary)
+foreach ($d in $Set + $(if ($Sweep) { @('sweep') } else { @() })) {
+    $prefix = @{ tests = ''; missions = 'm_'; weapons = 'w_'; npcs = 'npc_'; ui = 'ui_'; cutscenes = 'cut_'; campaign = 'camp_'; sweep = 'sweep_' }[$d]
+    if ($null -eq $prefix -or $prefix -eq '') { continue }
+    $mine = @($lines | Where-Object { $_ -match ('^' + [regex]::Escape($prefix) + '\S*: ') })
+    $good = @($mine | Where-Object { $_ -match ': done;' -and $_ -notmatch 'MISSING' })
+    $t = "{0}: {1}/{2} done with all their events" -f $d, $good.Count, $mine.Count
+    Write-Host $t
+    $t | Add-Content $summary
+}
+"total time {0:N0} min" -f ((Get-Date) - $startAll).TotalMinutes | Add-Content $summary
 Write-Host "Results: $outRoot"

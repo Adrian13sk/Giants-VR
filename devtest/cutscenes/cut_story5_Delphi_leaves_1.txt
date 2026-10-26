@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at story5_Delphi_leaves_1 (10 shots, 47 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene story5_Delphi_leaves_1 started" "Cutscene finished".
+name cut_story5_Delphi_leaves_1
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE story5_Delphi_leaves_1
+env GVR_GOD 1
+view first
+duration 57
+perf 3 57
+shot 15 third
+shot 31 twothirds

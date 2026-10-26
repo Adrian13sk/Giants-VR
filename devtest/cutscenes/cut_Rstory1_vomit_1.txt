@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory1_vomit_1 (23 shots, 123 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory1_vomit_1 started" "Cutscene finished".
+name cut_Rstory1_vomit_1
+world Rstory1
+mission r1_saveyan
+env GVR_CUTSCENE Rstory1_vomit_1
+env GVR_GOD 1
+view first
+duration 133
+perf 3 133
+shot 41 third
+shot 82 twothirds

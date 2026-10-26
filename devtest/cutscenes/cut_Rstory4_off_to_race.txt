@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory4_off_to_race (1 shots, 8 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory4_off_to_race started" "Cutscene finished".
+name cut_Rstory4_off_to_race
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE Rstory4_off_to_race
+env GVR_GOD 1
+view first
+duration 18
+perf 3 18
+shot 2 third
+shot 5 twothirds

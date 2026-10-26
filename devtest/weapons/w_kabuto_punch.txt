@@ -1,0 +1,90 @@
+# Kabuto (third person) punching four Reapers in front of him. (2026-10-27, full test)
+# Log (checked by devtest.ps1): "Kabuto punch (third person): hit" "goes limp".
+name w_kabuto_punch
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_KABUTO_GROW 1
+env GVR_RAGDOLL_TRACE 1
+env GVR_KB_TRACE 1
+view third
+duration 25
+reapers 4 14 1 999
+autoaim r 1.5 25
+move 0 0.3 2 25
+hold trigger_r 2.00 2.14
+hold trigger_r 2.30 2.44
+hold trigger_r 2.60 2.74
+hold trigger_r 2.90 3.04
+hold trigger_r 3.20 3.34
+hold trigger_r 3.50 3.64
+hold trigger_r 3.80 3.94
+hold trigger_r 4.10 4.24
+hold trigger_r 4.40 4.54
+hold trigger_r 4.70 4.84
+hold trigger_r 5.00 5.14
+hold trigger_r 5.30 5.44
+hold trigger_r 5.60 5.74
+hold trigger_r 5.90 6.04
+hold trigger_r 6.20 6.34
+hold trigger_r 6.50 6.64
+hold trigger_r 6.80 6.94
+hold trigger_r 7.10 7.24
+hold trigger_r 7.40 7.54
+hold trigger_r 7.70 7.84
+hold trigger_r 8.00 8.14
+hold trigger_r 8.30 8.44
+hold trigger_r 8.60 8.74
+hold trigger_r 8.90 9.04
+hold trigger_r 9.20 9.34
+hold trigger_r 9.50 9.64
+hold trigger_r 9.80 9.94
+hold trigger_r 10.10 10.24
+hold trigger_r 10.40 10.54
+hold trigger_r 10.70 10.84
+hold trigger_r 11.00 11.14
+hold trigger_r 11.30 11.44
+hold trigger_r 11.60 11.74
+hold trigger_r 11.90 12.04
+hold trigger_r 12.20 12.34
+hold trigger_r 12.50 12.64
+hold trigger_r 12.80 12.94
+hold trigger_r 13.10 13.24
+hold trigger_r 13.40 13.54
+hold trigger_r 13.70 13.84
+hold trigger_r 14.00 14.14
+hold trigger_r 14.30 14.44
+hold trigger_r 14.60 14.74
+hold trigger_r 14.90 15.04
+hold trigger_r 15.20 15.34
+hold trigger_r 15.50 15.64
+hold trigger_r 15.80 15.94
+hold trigger_r 16.10 16.24
+hold trigger_r 16.40 16.54
+hold trigger_r 16.70 16.84
+hold trigger_r 17.00 17.14
+hold trigger_r 17.30 17.44
+hold trigger_r 17.60 17.74
+hold trigger_r 17.90 18.04
+hold trigger_r 18.20 18.34
+hold trigger_r 18.50 18.64
+hold trigger_r 18.80 18.94
+hold trigger_r 19.10 19.24
+hold trigger_r 19.40 19.54
+hold trigger_r 19.70 19.84
+hold trigger_r 20.00 20.14
+hold trigger_r 20.30 20.44
+hold trigger_r 20.60 20.74
+hold trigger_r 20.90 21.04
+hold trigger_r 21.20 21.34
+hold trigger_r 21.50 21.64
+hold trigger_r 21.80 21.94
+hold trigger_r 22.10 22.24
+hold trigger_r 22.40 22.54
+hold trigger_r 22.70 22.84
+hold trigger_r 23.00 23.14
+hold trigger_r 23.30 23.44
+hold trigger_r 23.60 23.74
+hold trigger_r 23.90 24.04
+shot 8 punch

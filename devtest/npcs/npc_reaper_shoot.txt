@@ -1,0 +1,13 @@
+# Three Reapers 18 m ahead fight back (shots, grenades); god mode. (2026-10-27, full test)
+# Log (checked by devtest.ps1): "enemy shot: Reaper".
+name npc_reaper_shoot
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_HIT_TRACE 1
+view first
+duration 20
+reapers 3 18 1 999
+shot 10 fire

@@ -1,0 +1,10 @@
+# Reaperski race rstory3_race_3 (2026-10-27, full test): Delphi on the jetski, the harness autopilot along the racing line (GVR_SKI_AUTOPILOT).
+# Log (checked by devtest.ps1): "Race over: won".
+name m_race_rstory3_race_3
+world Rstory3_race_3
+mission rstory3_race_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_SKI_AUTOPILOT 1
+view first
+duration 330

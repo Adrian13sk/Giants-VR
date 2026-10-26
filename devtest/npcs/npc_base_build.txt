@@ -1,0 +1,14 @@
+# The Meccaryn base: everything ordered with a stocked store; the Smartie crew builds; raiders come. (2026-10-27, full test)
+# Log (checked by devtest.ps1): "Base: ... completed".
+name npc_base_build
+world Story5
+mission 5c_securebase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_BASE_FOOD 60
+env GVR_BASE_ORDER all
+env GVR_BASE_TRACE 1
+env GVR_RAID_SOON 1
+view third
+duration 90
+shot 45 base

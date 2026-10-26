@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory3_Yan_pleads_1 (12 shots, 62 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory3_Yan_pleads_1 started" "Cutscene finished".
+name cut_Rstory3_Yan_pleads_1
+world Rstory3_race_1
+mission rstory3_pre_race_1
+env GVR_CUTSCENE Rstory3_Yan_pleads_1
+env GVR_GOD 1
+view first
+duration 72
+perf 3 72
+shot 20 third
+shot 41 twothirds

@@ -1,0 +1,9 @@
+# The main menu: NEW GAME with the trigger starts the Meccaryn story. (2026-10-27, full test)
+# Log (checked by devtest.ps1): "Main menu: new game Story1" "Briefing:".
+name ui_title_newgame
+world Story1
+title
+duration 40
+hold trigger_r 6 6.3
+shot 4 title
+shot 30 started

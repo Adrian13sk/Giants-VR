@@ -1,0 +1,12 @@
+# Two Reapers right against you punch instead of shooting. (2026-10-27, full test)
+# Log (checked by devtest.ps1): "Reaper N punches you".
+name npc_reaper_punch
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+view first
+duration 20
+reapers 2 1.2 1 999
+shot 6 punch

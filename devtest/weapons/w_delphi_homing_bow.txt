@@ -1,0 +1,28 @@
+# Delphi's homing bow at four Reapers. (2026-10-27, full test)
+# Log (checked by devtest.ps1): "Arrow from the HOMING BOW" "goes limp".
+name w_delphi_homing_bow
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BOWS 1
+env GVR_DELPHI_WEAPON 3
+env GVR_RAGDOLL_TRACE 1
+env GVR_HIT_TRACE 1
+view third
+duration 25
+reapers 4 16 1 999
+autoaim r 1.5 25
+hold trigger_r 2.00 3.30
+hold trigger_r 4.00 5.30
+hold trigger_r 6.00 7.30
+hold trigger_r 8.00 9.30
+hold trigger_r 10.00 11.30
+hold trigger_r 12.00 13.30
+hold trigger_r 14.00 15.30
+hold trigger_r 16.00 17.30
+hold trigger_r 18.00 19.30
+hold trigger_r 20.00 21.30
+hold trigger_r 22.00 23.30
+shot 9 homing_bow

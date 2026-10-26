@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
 
     GameApp app;
     if (!savePath.empty()) app.setSavePath(savePath);
-    if (mainMenu) app.setMainMenu(true);
+    if (mainMenu || (useScript && script.title)) app.setMainMenu(true);
     if (!app.init(dataDir, world)) return 3;
     // Test only: force the Ripper death type (GVR_BURST_CHANCE=1 -> always burst into gore).
     if (const char* bc = std::getenv("GVR_BURST_CHANCE"))

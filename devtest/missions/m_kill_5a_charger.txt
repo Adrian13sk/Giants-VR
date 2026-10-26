@@ -1,0 +1,14 @@
+# Mission objective by its own mechanic (2026-10-27, full test; from scripts/completion/kill_5a_charger.txt): fighting the boss or guards (auto-aimed).
+# Log (checked by devtest.ps1): "Objective N done".
+name m_kill_5a_charger
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_KB_TRACE 1
+duration 30
+at -1382 -1640
+look -1382 -1790
+hold trigger_r 1 88
+autoaim r 0.5 30

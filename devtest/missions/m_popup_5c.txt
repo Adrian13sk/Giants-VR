@@ -1,0 +1,15 @@
+# Mission objective by its own mechanic (2026-10-27, full test; from scripts/completion/popup_5c.txt): the pop-up bomb.
+# Log (checked by devtest.ps1): "Objective N done".
+name m_popup_5c
+world Story5
+mission 5c_securebase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_POPUP 1
+env GVR_POPUP_SEL 1
+duration 16
+at 1081 1729
+look 1081 1679
+hold trigger_r 2 4.2
+move 0 -1 2.6 6.5

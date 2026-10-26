@@ -1,0 +1,25 @@
+# The Millenium mortar lobbed at four Reapers. (2026-10-27, full test)
+# Log (checked by devtest.ps1): "Millenium bomb lobbed" "goes limp".
+name w_mecc_mortar
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_ARSENAL 1
+env GVR_LAUNCHER 1
+env GVR_WEAPON 7
+env GVR_RAGDOLL_TRACE 1
+env GVR_HIT_TRACE 1
+view first
+duration 25
+reapers 4 16 1 999
+autoaim r 1.5 25
+hold trigger_r 2.00 2.30
+hold trigger_r 5.30 5.60
+hold trigger_r 8.60 8.90
+hold trigger_r 11.90 12.20
+hold trigger_r 15.20 15.50
+hold trigger_r 18.50 18.80
+hold trigger_r 21.80 22.10
+shot 9 mortar

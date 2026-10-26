@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at story5_get_food_1 (2 shots, 17 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene story5_get_food_1 started" "Cutscene finished".
+name cut_story5_get_food_1
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE story5_get_food_1
+env GVR_GOD 1
+view first
+duration 27
+perf 3 27
+shot 5 third
+shot 11 twothirds

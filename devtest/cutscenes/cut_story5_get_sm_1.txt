@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at story5_get_sm_1 (4 shots, 25 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene story5_get_sm_1 started" "Cutscene finished".
+name cut_story5_get_sm_1
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE story5_get_sm_1
+env GVR_GOD 1
+view first
+duration 35
+perf 3 35
+shot 8 third
+shot 16 twothirds

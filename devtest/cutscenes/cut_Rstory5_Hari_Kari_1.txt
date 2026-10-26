@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory5_Hari_Kari_1 (19 shots, 63 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory5_Hari_Kari_1 started" "Cutscene finished".
+name cut_Rstory5_Hari_Kari_1
+world Rstory5
+mission rstory5_battle_2
+env GVR_CUTSCENE Rstory5_Hari_Kari_1
+env GVR_GOD 1
+view first
+duration 73
+perf 3 73
+shot 21 third
+shot 42 twothirds

@@ -1,0 +1,60 @@
+# The Meccaryn's handgun at four Reapers 16 m ahead, auto-aimed, pulled twice a second. (2026-10-27, full test)
+# Log (checked by devtest.ps1): "hit trace: Reaper" "goes limp".
+name w_mecc_handgun
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_ARSENAL 1
+env GVR_LAUNCHER 1
+env GVR_WEAPON 0
+env GVR_RAGDOLL_TRACE 1
+env GVR_HIT_TRACE 1
+view first
+duration 25
+reapers 4 16 1 999
+autoaim r 1.5 25
+hold trigger_r 2.00 2.25
+hold trigger_r 2.50 2.75
+hold trigger_r 3.00 3.25
+hold trigger_r 3.50 3.75
+hold trigger_r 4.00 4.25
+hold trigger_r 4.50 4.75
+hold trigger_r 5.00 5.25
+hold trigger_r 5.50 5.75
+hold trigger_r 6.00 6.25
+hold trigger_r 6.50 6.75
+hold trigger_r 7.00 7.25
+hold trigger_r 7.50 7.75
+hold trigger_r 8.00 8.25
+hold trigger_r 8.50 8.75
+hold trigger_r 9.00 9.25
+hold trigger_r 9.50 9.75
+hold trigger_r 10.00 10.25
+hold trigger_r 10.50 10.75
+hold trigger_r 11.00 11.25
+hold trigger_r 11.50 11.75
+hold trigger_r 12.00 12.25
+hold trigger_r 12.50 12.75
+hold trigger_r 13.00 13.25
+hold trigger_r 13.50 13.75
+hold trigger_r 14.00 14.25
+hold trigger_r 14.50 14.75
+hold trigger_r 15.00 15.25
+hold trigger_r 15.50 15.75
+hold trigger_r 16.00 16.25
+hold trigger_r 16.50 16.75
+hold trigger_r 17.00 17.25
+hold trigger_r 17.50 17.75
+hold trigger_r 18.00 18.25
+hold trigger_r 18.50 18.75
+hold trigger_r 19.00 19.25
+hold trigger_r 19.50 19.75
+hold trigger_r 20.00 20.25
+hold trigger_r 20.50 20.75
+hold trigger_r 21.00 21.25
+hold trigger_r 21.50 21.75
+hold trigger_r 22.00 22.25
+hold trigger_r 22.50 22.75
+shot 9 handgun

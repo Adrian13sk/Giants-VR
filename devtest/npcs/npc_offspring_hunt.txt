@@ -1,0 +1,14 @@
+# Kabuto's Offspring hatches and hunts four Reapers. (2026-10-27, full test)
+# Log (checked by devtest.ps1): "An Offspring kills target".
+name npc_offspring_hunt
+world Kstory4
+mission kstory4_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_KABUTO_GROW 1
+env GVR_OFFSPRING 1
+view third
+duration 50
+hold y 2 3
+reapers 4 30 6 999
+shot 25 offspring

@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory1_Yan_1 (6 shots, 55 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory1_Yan_1 started" "Cutscene finished".
+name cut_Rstory1_Yan_1
+world Rstory1
+mission r1_saveyan
+env GVR_CUTSCENE Rstory1_Yan_1
+env GVR_GOD 1
+view first
+duration 65
+perf 3 65
+shot 18 third
+shot 36 twothirds

@@ -1,0 +1,31 @@
+# The sniper gun at four Reapers, auto-aimed. (2026-10-27, full test)
+# Log (checked by devtest.ps1): "hit trace: Reaper" "goes limp".
+name w_mecc_sniper
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_ARSENAL 1
+env GVR_LAUNCHER 1
+env GVR_WEAPON 6
+env GVR_RAGDOLL_TRACE 1
+env GVR_HIT_TRACE 1
+view first
+duration 25
+reapers 4 16 1 999
+autoaim r 1.5 25
+hold trigger_r 2.00 2.30
+hold trigger_r 3.70 4.00
+hold trigger_r 5.40 5.70
+hold trigger_r 7.10 7.40
+hold trigger_r 8.80 9.10
+hold trigger_r 10.50 10.80
+hold trigger_r 12.20 12.50
+hold trigger_r 13.90 14.20
+hold trigger_r 15.60 15.90
+hold trigger_r 17.30 17.60
+hold trigger_r 19.00 19.30
+hold trigger_r 20.70 21.00
+hold trigger_r 22.40 22.70
+shot 9 sniper

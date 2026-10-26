@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at story3_popup_bomb_1 (18 shots, 109 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene story3_popup_bomb_1 started" "Cutscene finished".
+name cut_story3_popup_bomb_1
+world Story3
+mission story3_sonak_1
+env GVR_CUTSCENE story3_popup_bomb_1
+env GVR_GOD 1
+view first
+duration 119
+perf 3 119
+shot 36 third
+shot 72 twothirds

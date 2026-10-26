@@ -2581,3 +2581,22 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   harness got `--hz <rate>` so scripts run at the headset's 24 fps; all fixed tests pass at 18/24/72 Hz.
 - Bird hits: WeaponSystem::onSegment(from, to, dir) reports each projectile's path as it moves (before, birds looked
   at projectiles once a frame and a fast round could spawn and hit the ground between looks).
+
+### 2026-10-27 — the whole test (harness verified; not yet run on the headset)
+- The user asked for "a complete whole test" covering mechanics, cutscenes, progression, NPCs and weapons, started
+  with one command. `devtest.ps1 -All` runs tests, missions, weapons, npcs, ui, cutscenes and campaign (191
+  scripts), then the sweep: about 5 h 20 min. `-Skip campaign,sweep` and `-Set a,b` select sets.
+- devtest.ps1 now streams the app's log to a file during each test (`adb logcat` in the background), because the
+  55-minute campaign outgrows the 16 MB log buffer. It also prints the battery level before each test, waits to
+  charge below 15 %, prints the planned length, and adds a done/total line per set to summary.txt. The PowerShell
+  is reviewed by reading only (it can't run here).
+- Script commands: `autoaim r|l t0 t1`, `complete t` (ab52691), `title` (start at the main menu).
+  Test hooks: GVR_AUTOCOMPLETE=<s> (each mission completed after s seconds of play: the campaign run),
+  GVR_AUTOAIM_VIMPS. The auto-aim no longer picks buried Rippers.
+- Fixes: the Reaperski autopilot's stuck test (reversed for 1 km after a bump); the options menu opening from
+  the main menu with the trigger still held closed at once (menuActHeld_ now set on opening).
+- Kabuto's gates per mechanic (harness): giantwall1/2 by punches from 12 m (k1a, k1b, kstory3_1/2); giantwall3
+  needs adrenaline (both grips when full; k2a, kstory4_2, kstory5_1/2/3); giantwall4 needs the glass (kstory3_3,
+  kstory4_1). Bosses: GVR_KB_FACE_BOSS; kstory5_4's boss was 171 m behind the start without it.
+- Development plan written: docs/ROADMAP.md (performance first, then the bugs this suite finds, comfort with the
+  user, fidelity, content, infrastructure).

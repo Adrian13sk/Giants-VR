@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Kstory5_End_1 (19 shots, 235 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Kstory5_End_1 started" "Cutscene finished".
+name cut_Kstory5_End_1
+world Kstory5
+mission kstory5_5
+env GVR_CUTSCENE Kstory5_End_1
+env GVR_GOD 1
+view first
+duration 245
+perf 3 245
+shot 78 third
+shot 156 twothirds

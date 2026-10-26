@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory1_bubble_1 (2 shots, 19 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory1_bubble_1 started" "Cutscene finished".
+name cut_Rstory1_bubble_1
+world Rstory1
+mission r1_saveyan
+env GVR_CUTSCENE Rstory1_bubble_1
+env GVR_GOD 1
+view first
+duration 29
+perf 3 29
+shot 6 third
+shot 12 twothirds

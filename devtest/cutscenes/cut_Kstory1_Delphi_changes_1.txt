@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Kstory1_Delphi_changes_1 (24 shots, 141 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Kstory1_Delphi_changes_1 started" "Cutscene finished".
+name cut_Kstory1_Delphi_changes_1
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE Kstory1_Delphi_changes_1
+env GVR_GOD 1
+view first
+duration 151
+perf 3 151
+shot 47 third
+shot 94 twothirds

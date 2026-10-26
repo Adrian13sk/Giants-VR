@@ -1,0 +1,14 @@
+# Mission objective by its own mechanic (2026-10-27, full test; from scripts/completion/kill_4b_offspring.txt): fighting the boss or guards (auto-aimed).
+# Log (checked by devtest.ps1): "Objective N done".
+name m_kill_4b_offspring
+world Story4
+mission 4b_bigfight
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_KB_TRACE 1
+duration 90
+at 169 647
+look 169 497
+hold trigger_r 1 88
+autoaim r 0.5 90

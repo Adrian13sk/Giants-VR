@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at story1_Hatch_into_mine (1 shots, 7 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene story1_Hatch_into_mine started" "Cutscene finished".
+name cut_story1_Hatch_into_mine
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE story1_Hatch_into_mine
+env GVR_GOD 1
+view first
+duration 17
+perf 3 17
+shot 2 third
+shot 4 twothirds

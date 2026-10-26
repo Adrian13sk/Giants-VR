@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory3_channel_islands_1 (5 shots, 32 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory3_channel_islands_1 started" "Cutscene finished".
+name cut_Rstory3_channel_islands_1
+world Rstory3_race_1
+mission rstory3_pre_race_1
+env GVR_CUTSCENE Rstory3_channel_islands_1
+env GVR_GOD 1
+view first
+duration 42
+perf 3 42
+shot 10 third
+shot 21 twothirds

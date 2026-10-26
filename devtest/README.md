@@ -9,6 +9,27 @@ powershell -ExecutionPolicy Bypass -File .\devtest.ps1            # all tests in
 powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Sweep     # plus all 56 missions, 20 s each (~40 min)
 ```
 
+**The whole test** (2026-10-27): every set, then the sweep, in one run of about 5 h 20 min. Keep the
+headset on its charger: a PC's USB port charges it too slowly for five hours. The runner prints the
+battery level before each test and waits to charge if it drops under 15 %.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Apk ..\GiantsVR-rework-<commit>.apk -All
+powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -All -Skip campaign      # without the 55 min campaign
+powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Set missions,weapons    # some sets only
+```
+
+| Folder | Tests | Length | What |
+|---|---|---|---|
+| tests | 60 | ~39 min | feature tests |
+| missions | 29 | ~58 min | objectives by their own mechanic: fights, pop-up bombs, tornadoes, races, Kabuto's gates and bosses |
+| weapons | 18 | ~15 min | every weapon and ability of the three heroes |
+| npcs | 7 | ~8 min | Reapers, Rippers, Vimps, the base crew, Offspring |
+| ui | 10 | ~9 min | main menu, options, map, briefing, shop, hints |
+| cutscenes | 66 | ~91 min | every cutscene chain to its end |
+| campaign | 1 | ~55 min | the whole campaign in one run, each mission completed after 25 s of play |
+| (sweep) | 56 | ~42 min | every mission for 20 s |
+
 To run the GPU experiments (same scenes with foveation levels, shadows or reflections off):
 `powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Set experiments` (~9 min).
 

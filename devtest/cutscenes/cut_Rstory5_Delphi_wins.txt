@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory5_Delphi_wins (1 shots, 8 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory5_Delphi_wins started" "Cutscene finished".
+name cut_Rstory5_Delphi_wins
+world Rstory5
+mission rstory5_battle_2
+env GVR_CUTSCENE Rstory5_Delphi_wins
+env GVR_GOD 1
+view first
+duration 18
+perf 3 18
+shot 2 third
+shot 5 twothirds

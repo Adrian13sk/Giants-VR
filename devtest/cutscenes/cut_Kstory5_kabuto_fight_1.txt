@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Kstory5_kabuto_fight_1 (8 shots, 64 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Kstory5_kabuto_fight_1 started" "Cutscene finished".
+name cut_Kstory5_kabuto_fight_1
+world Kstory5
+mission kstory5_5
+env GVR_CUTSCENE Kstory5_kabuto_fight_1
+env GVR_GOD 1
+view first
+duration 74
+perf 3 74
+shot 21 third
+shot 42 twothirds

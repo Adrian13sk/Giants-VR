@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Kstory1_intro (1 shots, 13 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Kstory1_intro started" "Cutscene finished".
+name cut_Kstory1_intro
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE Kstory1_intro
+env GVR_GOD 1
+view first
+duration 23
+perf 3 23
+shot 4 third
+shot 8 twothirds

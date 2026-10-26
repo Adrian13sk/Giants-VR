@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at story3_rocket_launcher_1 (11 shots, 71 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene story3_rocket_launcher_1 started" "Cutscene finished".
+name cut_story3_rocket_launcher_1
+world Story3
+mission story3_sonak_1
+env GVR_CUTSCENE story3_rocket_launcher_1
+env GVR_GOD 1
+view first
+duration 81
+perf 3 81
+shot 23 third
+shot 47 twothirds

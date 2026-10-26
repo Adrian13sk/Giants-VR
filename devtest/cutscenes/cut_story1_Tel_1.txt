@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at story1_Tel_1 (27 shots, 97 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene story1_Tel_1 started" "Cutscene finished".
+name cut_story1_Tel_1
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE story1_Tel_1
+env GVR_GOD 1
+view first
+duration 107
+perf 3 107
+shot 32 third
+shot 64 twothirds

@@ -49,6 +49,7 @@ public:
     float atX = 0, atY = 0, lookX = 0, lookY = 0;
     float pitchDeg = -8.6f, aimYawDeg = 0.0f, aimPitchDeg = -17.2f;
     float duration = 20.0f, perfFrom = 3.0f, perfTo = -1.0f;  // perfTo < 0: the end
+    bool title = false;     // (2026-10-27) start at the main menu (title scene) instead of in the mission
     bool briefing = false;  // start through the loading screen and briefing (as the game does); `at` is ignored
 
     struct Span {

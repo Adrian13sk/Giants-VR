@@ -2790,6 +2790,7 @@ void GameApp::updateLoading(float dt, const InputFrame& in) {
                 if (!load_.mission.empty() || (assetWorld_ && assetWorld_->missions().empty())) loadMission(load_.mission);
                 load_.phase = LoadPhase::Brief;
                 load_.t = 0;
+                LOGI("Briefing: %s (%zu characters of objectives)", load_.title.c_str(), load_.brief.size());
             }
             break;
         case LoadPhase::Brief:
@@ -2899,8 +2900,24 @@ void GameApp::completeObjective(int index) {
 }
 
 void GameApp::updateMission(float dt) {
-    (void)dt;
     if (missionComplete_ || !playMode_) return;
+    // Test hook GVR_AUTOCOMPLETE=<s>: each mission is marked complete after that much play (loading and
+    // cutscenes don't count) - the whole campaign's progression in one run (the headset's full test).
+    static const float autoComplete = std::getenv("GVR_AUTOCOMPLETE") ? float(std::atof(std::getenv("GVR_AUTOCOMPLETE"))) : 0.0f;
+    if (autoComplete > 0 && dt > 0 && !cutsceneActive() && load_.phase == LoadPhase::Idle && assetWorld_) {
+        if (assetWorld_->missionName() != autoMission_) { autoMission_ = assetWorld_->missionName(); autoPlayT_ = 0; }
+        autoPlayT_ += dt;
+        if (autoPlayT_ >= autoComplete) {
+            LOGI("Test: mission %s completed after %.0f s of play (GVR_AUTOCOMPLETE)", autoMission_.c_str(), autoPlayT_);
+            // As in play: each objective done (the log, the outro cutscene, the jetpack after 1a).
+            for (size_t i = 0; i < objectives_.size(); ++i) completeObjective(int(i));
+            if (!missionComplete_) {
+                missionComplete_ = true;
+                LOGI("Mission %s complete", assetWorld_->missionName().c_str());
+            }
+            return;
+        }
+    }
     // Proximity: within 2 m (10 game units) of the object's bounds.
     const Vec3 p = player_.position + Vec3{0, 0.9f, 0};
     for (size_t i = 0; i < objectives_.size(); ++i) {
@@ -4351,6 +4368,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             gunKick(0.30f);
             addFlash(muzzle, {2.2f, 1.4f, 0.6f}, 9.0f, 0.18f);
             sfx("me_msls1", muzzle, 1.0f, 0.95f + 0.1f * frand());
+            LOGI("Rocket fired (%d left)", launcherAmmo_);
         }
         rocketTriggerHeld_ = trigger;
         return;

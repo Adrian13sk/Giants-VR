@@ -56,6 +56,10 @@ void GameApp::openMenu(const InputFrame& in) {
     menuYaw_ = yawOf(head.orientation);
     menuPos_ = head.position + Quat::fromAxisAngle({0, 1, 0}, menuYaw_).rotate(Vec3{0, -0.1f, -1.3f});
     haptics_.push_back({kLeft, 0.4f, 0.05f});
+    // (A trigger still held from choosing OPTIONS on the main menu must not press RESUME at once: it
+    // closed the options the frame they opened - found by the ui_title_options test, 2026-10-27.)
+    menuActHeld_ = true;
+    LOGI("Options menu opened%s", title_ ? " (main menu)" : "");
 }
 
 void GameApp::updateMenu(float dt, const InputFrame& in) {
@@ -109,6 +113,8 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             default: break;
         }
         if (changed) {
+            static const char* kRowNames[kRowCount] = {"resume", "controls", "turn", "vignette", "ambushes", "aim laser", "reach assist", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "new game"};
+            LOGI("Options: %s changed", kRowNames[menuRow_]);
             applySettings();
             saveSettings();
             haptics_.push_back({kRight, 0.3f, 0.03f});
@@ -120,8 +126,9 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
     if (menuRow_ == kRowControls && act && !menuActHeld_) {
         menuControls_ = true;
         sfx2D("ph_selct", 0.6f, 1.2f);
+        LOGI("Options: controls card shown");
     }
-    if (menuRow_ == kRowResume && act && !menuActHeld_) menuOpen_ = false;
+    if (menuRow_ == kRowResume && act && !menuActHeld_) { menuOpen_ = false; LOGI("Options menu closed (resume)"); }
     if (menuRow_ == kRowNewGame && act) {
         menuNewGame_ += dt;
         if (menuNewGame_ > 2.0f) {

@@ -1,0 +1,13 @@
+# The main menu: MISSION row, right three times, trigger. (2026-10-27, full test)
+# Log (checked by devtest.ps1): "Mission select:" "Briefing:".
+name ui_title_mission_select
+world Story1
+title
+duration 40
+move 0 -1 5.0 5.25
+move 1 0 6.0 6.25
+move 1 0 6.6 6.85
+move 1 0 7.2 7.45
+hold trigger_r 9 9.3
+shot 8 select
+shot 32 started

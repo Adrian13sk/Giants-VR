@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at story5_charger_1 (4 shots, 10 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene story5_charger_1 started" "Cutscene finished".
+name cut_story5_charger_1
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE story5_charger_1
+env GVR_GOD 1
+view first
+duration 20
+perf 3 20
+shot 3 third
+shot 6 twothirds

@@ -1,0 +1,13 @@
+# Mission objective by its own mechanic (2026-10-27, full test; from scripts/completion/tornado_rstory5.txt): Delphi's tornado.
+# Log (checked by devtest.ps1): "Objective N done".
+name m_tornado_rstory5
+world Rstory5
+mission rstory5_battle_2
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BASE 0
+duration 16
+at 1420 1317
+look 1420 1207
+hold trigger_l 2 4.2

@@ -1,0 +1,13 @@
+# Mission objective by its own mechanic (2026-10-27, full test; from scripts/completion/kill_sonak1.txt): fighting the boss or guards (auto-aimed).
+# Log (checked by devtest.ps1): "Objective N done".
+name m_kill_sonak1
+world Story3
+mission story3_sonak_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+duration 60
+at -2334 -843
+look -2334 -943
+hold trigger_r 1 58
+autoaim r 0.5 60

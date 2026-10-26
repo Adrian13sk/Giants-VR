@@ -163,6 +163,7 @@ void android_main(android_app* app) {
     if (scripted) {
         xr.setTestMode(true);
         if (autotest.finished()) ok = false;  // a bad script: reported, exit
+        if (autotest.script().title) game.setMainMenu(true);  // (a menu test: from the main menu)
         ok = ok && game.init(dataDir, autotest.world());
     } else {
         // Progress checkpoint next to the Bin folder (app storage, no permission needed).

@@ -1,0 +1,13 @@
+# Two flares thrown (the move hand's trigger). (2026-10-27, full test)
+# Log (checked by devtest.ps1): "Flare away".
+name w_mecc_flares
+world Story1
+mission 1d_1_sneakpast
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_FLARES 3
+view first
+duration 12
+hold trigger_l 2 2.3
+hold trigger_l 5 5.3
+shot 3 flare

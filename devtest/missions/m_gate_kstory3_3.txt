@@ -1,0 +1,16 @@
+# Kabuto's gate in kstory3_3 by its own mechanic (2026-10-27, full test): full size, 12 m from the wall, burning it down with the magnifying glass (trigger held).
+# Log (checked by devtest.ps1): "Objective 0 done".
+name m_gate_kstory3_3
+world Kstory3
+mission kstory3_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_KABUTO_GROW 1
+env GVR_GLASS 1
+view third
+duration 45
+at 846 1356
+look 786 1356
+move 0 0.25 1 45
+hold trigger_l 21 21.1
+hold trigger_r 1 44

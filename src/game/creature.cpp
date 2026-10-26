@@ -4,6 +4,7 @@
 
 #include "game/enemy.h"   // rayCapsule
 #include "game/player.h"  // angleDelta
+#include "core/log.h"
 
 namespace gvr {
 
@@ -121,6 +122,7 @@ bool CreatureDirector::damage(int i, float amount, const Vec3& dir, std::vector<
         c.speed = 0;
         c.exploded = rnd() < params.burstChance;
         setClip(c, CreatureClip::Die, false);
+        LOGI("Creature %d dies%s", i, c.exploded ? " (bursts)" : "");
         if (events) {
             CreatureEvent e{CreatureEvent::Die, i, 0, c.pos, c.size, c.exploded, dir};
             events->push_back(e);

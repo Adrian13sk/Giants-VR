@@ -77,6 +77,8 @@ public:
     void setMainMenu(bool on) { titleWanted_ = on; }
     bool inMainMenu() const { return title_; }
     void debugCompleteMission() { missionComplete_ = true; }  // test hook (harness --complete-at)
+    std::string autoMission_;  // GVR_AUTOCOMPLETE: the mission being timed
+    float autoPlayT_ = 0;
     // Test hook: reload the current mission through the loading screen and briefing.
     void debugReloadWithBriefing(const InputFrame& in);
     int effectsQuality() const { return quality_; }  // adaptive fallback level (0 = full effects)
@@ -146,7 +148,7 @@ public:
             if (d < best) { best = d; chest = at; found = true; }
         }
         for (const auto& c : creatures_.creatures) {
-            if (c.state == CreatureState::Dead) continue;
+            if (c.state == CreatureState::Dead || CreatureDirector::underground(c)) continue;  // (buried: the ground takes shots)
             const float d = length(c.pos - player_.position);
             if (d < best) { best = d; chest = c.pos + Vec3{0, 0.45f * c.scale, 0}; found = true; }
         }
@@ -161,7 +163,17 @@ public:
     // GVR_AUTOAIM_MISS=<deg> aims that far to the side (near-miss tests). False: nothing to aim at.
     bool debugAutoAim(InputFrame& in, int hand) const {
         Vec3 chest;
-        if (!nearestEnemy(chest)) return false;
+        // (GVR_AUTOAIM_VIMPS=1: the nearest grown, living Vimp instead - the hunting test)
+        static const bool vimps = std::getenv("GVR_AUTOAIM_VIMPS") != nullptr;
+        if (vimps) {
+            float best = 1e30f;
+            for (const auto& v : vimps_.vimps)
+                if (v.state != VimpState::Dead && v.growth >= 1.0f && length(v.pos - player_.position) < best) {
+                    best = length(v.pos - player_.position);
+                    chest = v.pos + Vec3{0, 0.9f, 0};
+                }
+            if (best > 1e29f) return false;
+        } else if (!nearestEnemy(chest)) return false;
         const Pose& rigPose = rig_.worldFromTracking;
         const Vec3 ctrlWorld = rig_.toWorld(in.hand[hand].aimPose).position;
         const Vec3 d = rigPose.orientation.conjugate().rotate(normalize(chest - ctrlWorld));

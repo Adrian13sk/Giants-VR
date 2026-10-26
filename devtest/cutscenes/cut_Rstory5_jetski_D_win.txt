@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory5_jetski_D_win (1 shots, 4 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory5_jetski_D_win started" "Cutscene finished".
+name cut_Rstory5_jetski_D_win
+world Rstory5
+mission rstory5_battle_2
+env GVR_CUTSCENE Rstory5_jetski_D_win
+env GVR_GOD 1
+view first
+duration 14
+perf 3 14
+shot 2 third
+shot 3 twothirds

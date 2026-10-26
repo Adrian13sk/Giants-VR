@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at Rstory4_fleet_1 (6 shots, 23 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene Rstory4_fleet_1 started" "Cutscene finished".
+name cut_Rstory4_fleet_1
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE Rstory4_fleet_1
+env GVR_GOD 1
+view first
+duration 33
+perf 3 33
+shot 7 third
+shot 15 twothirds

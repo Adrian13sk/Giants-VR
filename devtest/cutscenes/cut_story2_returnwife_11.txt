@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at story2_returnwife_11 (18 shots, 107 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene story2_returnwife_11 started" "Cutscene finished".
+name cut_story2_returnwife_11
+world Story2
+mission 2a_1_getmeat
+env GVR_CUTSCENE story2_returnwife_11
+env GVR_GOD 1
+view first
+duration 117
+perf 3 117
+shot 35 third
+shot 71 twothirds

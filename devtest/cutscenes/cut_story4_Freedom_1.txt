@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at story4_Freedom_1 (11 shots, 67 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene story4_Freedom_1 started" "Cutscene finished".
+name cut_story4_Freedom_1
+world Story4
+mission 4a_gainaccess
+env GVR_CUTSCENE story4_Freedom_1
+env GVR_GOD 1
+view first
+duration 77
+perf 3 77
+shot 22 third
+shot 44 twothirds

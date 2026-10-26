@@ -1,0 +1,12 @@
+# Cutscene (2026-10-27, full test): the chain starting at story4_T_square_1 (54 shots, 234 s), played to its end on the cinema screen.
+# Log (checked by devtest.ps1): "Cutscene story4_T_square_1 started" "Cutscene finished".
+name cut_story4_T_square_1
+world Story4
+mission 4a_gainaccess
+env GVR_CUTSCENE story4_T_square_1
+env GVR_GOD 1
+view first
+duration 244
+perf 3 244
+shot 78 third
+shot 156 twothirds

@@ -1,0 +1,16 @@
+# Walking into the shop: the counter opens (taking an item by hand is not checked yet). (2026-10-27, full test)
+# Log (checked by devtest.ps1): "Entered the shop" "Shop item N".
+name ui_shop
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_ARSENAL half
+view first
+duration 15
+at -1434 -1748
+look -1434 -1848
+hand_r 0.75 -0.2 -1.0 3 4.5
+hand_l -0.75 -0.2 -1.0 6 7.5
+shot 2.5 shop

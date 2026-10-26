@@ -332,9 +332,13 @@ void GameApp::updateRiding(float dt, const InputFrame& in) {
         const Vec3 d = tgt - ski_.pos;
         steer = std::max(-1.0f, std::min(1.0f, -angleDelta(ski_.yaw, std::atan2(-d.x, -d.z)) * 2.0f));
         throttle = 1.0f;
-        static float backUp = 0;
+        static float backUp = 0, stuckT = 0;
         backUp = std::max(0.0f, backUp - dt);
-        if (std::fabs(ski_.speed) < 1.0f && race_.time > 2.0f && backUp <= 0) backUp = 1.2f;  // stuck: back off, turn
+        // Stuck (under 1 m/s for a second while driving forward): back off 0.8 s, turned. (Was: any
+        // moment under 1 m/s - which the way back to forward speed after backing off passes through,
+        // so it reversed again and again, 1 km backwards on rstory3_race_3 after a bump.)
+        stuckT = ski_.speed < 1.0f && race_.time > 2.0f && backUp <= 0 ? stuckT + dt : 0.0f;
+        if (stuckT > 1.0f) { backUp = 1.2f; stuckT = 0; }
         if (backUp > 0.4f) { throttle = -1.0f; steer = -steer; }
     }
     if (std::fabs(throttle) < 0.15f) throttle = 0;
