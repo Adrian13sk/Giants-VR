@@ -938,3 +938,19 @@ The haze cube saves 19-21 ms (full look 32.6 -> ~15.5 meadow, 43.9 -> 20.9 storm
 1.1 / 9.0). Variants compile in 1986 ms at start on the Quest (12 programs). Commit (lite level): the fallback's level 1
 is now the rework look without relief, highlights and detail octaves (~12.7 ms in the meadow); devtest/levels measures
 levels 0-3 and the adaptive choice in five scenes.
+
+## Device run 20261026-233657 — quality levels (APK 854e651, `-Set levels`)
+GPU ms (fps) per level pinned; "auto" = the adaptive fallback (level it ended at). *another app drew during the run.
+
+| Scene | level 0 | level 1 (lite look) | level 2 | level 3 | auto |
+|---|---|---|---|---|---|
+| Delphi r1 | 13.9* (58) | 10.3 (72) | 9.4 (72) | 8.5 (72) | 0, 70 fps |
+| Kabuto k1a | 16.6* (47) | 11.4 (72) | 9.8 (72) | 9.6 (72) | 1, 65 fps |
+| 5a meadow | 15.6 (53) | 11.8 (72) | 9.3 (72) | 8.8 (72) | 1, 65 fps |
+| 1a village | 19.8 (36) | 13.9 (60) | 10.8 (72) | 9.9 (72) | 1, 60 fps |
+| Kstory5 storm | 21.1 (36) | 17.9 (40) | 13.4 (66) | 12.7 (72) | 3, 58 fps |
+
+Every scene holds 72 Hz at some level. The automatic choice started too high and stepped back up after 12 s to a level
+that failed again (the village: 2 -> 1 at 60 fps). Changed (next APK): starting levels per world from these runs
+(Kstory5 3; Story1, Kstory3, Rstory2 2; others 1), a failed step up is not retried for 10 min, levels saved by
+older builds ignored (quality2.txt).

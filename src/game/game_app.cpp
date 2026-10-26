@@ -2522,7 +2522,7 @@ void GameApp::writeCheckpoint() {
 
 void GameApp::loadWorldQuality() {
     if (settingsPath_.empty()) return;
-    const std::string path = settingsPath_.substr(0, settingsPath_.rfind('/') + 1) + "quality.txt";
+    const std::string path = settingsPath_.substr(0, settingsPath_.rfind('/') + 1) + "quality2.txt";
     std::ifstream f(path);
     std::string line;
     while (std::getline(f, line)) {
@@ -2533,7 +2533,7 @@ void GameApp::loadWorldQuality() {
 
 void GameApp::saveWorldQuality() const {
     if (settingsPath_.empty()) return;
-    const std::string path = settingsPath_.substr(0, settingsPath_.rfind('/') + 1) + "quality.txt";
+    const std::string path = settingsPath_.substr(0, settingsPath_.rfind('/') + 1) + "quality2.txt";
     std::ofstream f(path, std::ios::trunc);
     for (const auto& [w, q] : worldQuality_) f << w << "=" << q << "\n";
 }
@@ -2551,7 +2551,10 @@ void GameApp::updateQuality(float dt) {
         auto it = worldQuality_.find(w);
         // Measured on the Quest 2 (2026-10-25 device runs): Kabuto's story 3 world held 72 Hz only at
         // level 2, and so did Reaper story 2 once its jet-ski races and first battle got going (it stepped down to 2 in all three, 9ed3505).
-        const int measured = (w == "kstory3" || w == "rstory2") ? 2 : 0;
+        // 2026-10-26 (run 20261026-233657, shader variants + haze cube): level 1 held 72 Hz in the 5a meadow,
+        // Kabuto's k1a and Delphi's r1; 1a's village needed 2, Kabuto's storm (Kstory5) 3. Elsewhere start at 1
+        // (level 0, the full look, rarely fits; the fallback steps up to it after 12 s at full rate).
+        const int measured = w == "kstory5" ? 3 : (w == "story1" || w == "kstory3" || w == "rstory2") ? 2 : 1;
         quality_ = std::max(measured, it != worldQuality_.end() ? it->second : 0);
         perfGood_ = 0;
         upHold_ = 0;
@@ -2571,7 +2574,7 @@ void GameApp::updateQuality(float dt) {
         // Far below (under 50 fps): two steps at once - one a window left a heavy scene stuttering for 10 s+.
         quality_ = std::min(3, quality_ + (avg > 1.0f / 50.0f ? 2 : 1));
         perfGood_ = 0;
-        if (sinceUp_ < 10.0f) upHold_ = 60.0f;  // the last step up didn't hold
+        if (sinceUp_ < 10.0f) upHold_ = 600.0f;  // the last step up didn't hold: not again for 10 min (it oscillated)
         LOGW("perf: %.1f fps average, effects quality down to level %d", 1.0f / avg, quality_);
         worldQuality_[toLower(worldName_)] = std::max(quality_, worldQuality_[toLower(worldName_)]);
         saveWorldQuality();
