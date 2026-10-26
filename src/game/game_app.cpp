@@ -1058,14 +1058,34 @@ void GameApp::updateRescue(float dt, const InputFrame& in) {
     }
 }
 
+bool GameApp::ensureSound(const char* name) {
+    // Sounds not in the preloaded list are loaded the first time they're asked for (several of the
+    // rework's were never in that list and played nothing: birds, splashes, Kabuto's throws...).
+    if (!audio_ || !name || !*name) return false;
+    if (audio_->hasSound(name)) return true;
+    if (missingSounds_.count(name) || !assetWorld_) return false;
+    std::vector<uint8_t> bytes;
+    WavData w;
+    std::string err;
+    if (assetWorld_->fs().read(std::string(name) + ".wav", bytes) && parseWav(bytes.data(), bytes.size(), w, &err) &&
+        audio_->addSound(name, std::move(w))) {
+        LOGI("Sound %s loaded on first use", name);
+        return true;
+    }
+    missingSounds_.insert(name);
+    LOGW("Sound %s unavailable %s", name, err.c_str());
+    return false;
+}
+
 void GameApp::sfx(const char* name, const Vec3& pos, float vol, float pitch) {
     if (!audio_) return;
+    ensureSound(name);
     const uint32_t id = audio_->play(name, pos, vol, pitch);
     static const bool trace = std::getenv("GVR_SFX_TRACE") != nullptr;  // (tests: which sounds play)
     if (trace) LOGI("Sfx %s %s vol %.2f at (%.1f %.1f %.1f)", name, id ? "played" : "MISSING", vol, pos.x, pos.y, pos.z);
 }
 void GameApp::sfx2D(const char* name, float vol, float pitch) {
-    if (audio_) audio_->play2D(name, vol, pitch);
+    if (audio_ && ensureSound(name)) audio_->play2D(name, vol, pitch);
 }
 
 void GameApp::setAudio(AudioMixer* mixer) {

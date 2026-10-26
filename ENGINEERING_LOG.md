@@ -2516,3 +2516,10 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   Vimp's rest-pose top x 0.78 above its model origin), turning with it; off when the Vimp runs / is hit / dies or
   the player is within 3.5 m; circles 18 s, lands on the nearest calm Vimp > 12 m from you. birdHitBy also hits
   them. devtest hitchers (Story2 herd 0): two take off when the herd runs from a shot, both land again.
+- **Bug found: sounds outside the preloaded list never played.** GameApp loads a fixed list of original sounds at
+  start; sfx() of any other name failed silently (GVR_SFX_TRACE: "cr_caw2 MISSING"). A scan of the sources found
+  ~15 such names in use: the birds' caws and death squawks, bi_watr1 (shots / stones into water, the fish), Kabuto's
+  ka_bite1/2, ka_grnd1, ka_throw, me_flare, me_gtfr1 / me_rtfr1 / ph_enter (base), me_jtlp1, of_eat1 / of_grow /
+  of_hatch (Kabuto's powers), sr_fswd1 (climbing). Fix: GameApp::ensureSound loads any sound from the archives the
+  first time it is played (a negative cache for names that don't exist; logged once). Trace after: cr_caw2 and
+  cr_deat2 "loaded on first use", played.

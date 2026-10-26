@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <set>
 #include <vector>
 
 #include "core/log.h"
@@ -1645,6 +1646,8 @@ private:  // the mission placed enemies: no test waves
     AudioMixer* audio_ = nullptr;
     void sfx(const char* name, const Vec3& pos, float vol = 1.0f, float pitch = 1.0f);
     void sfx2D(const char* name, float vol = 1.0f, float pitch = 1.0f);
+    bool ensureSound(const char* name);  // loads a sound the first time it is played
+    std::set<std::string> missingSounds_;
     void updateAudio(float dt);
     uint32_t jetLoop_ = 0, slideLoop_ = 0;
     bool wasThrusting_ = false, wasSliding_ = false, wasOnGround_ = true;
