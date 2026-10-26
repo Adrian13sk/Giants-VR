@@ -3,7 +3,11 @@
 // the heavy guns); it tumbles, tinks on the ground, bounces and lies a few seconds. Our own design.
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
+#include "core/log.h"
+
+#include "game/arm_ik.h"
 #include "game/game_app.h"
 #include "scene/asset_world.h"
 #include "scene/model_cache.h"
@@ -32,8 +36,38 @@ void GameApp::ejectCasing(const Vec3& muzzle, const Vec3& fwd, float scale) {
     casings_.push_back(c);
 }
 
+void GameApp::stickArrow(int enemy, const Vec3& at, const Vec3& dir) {
+    if (stuckArrows_.size() >= 30) stuckArrows_.erase(stuckArrows_.begin());
+    StuckArrow a;
+    a.dir = normalize(dir);
+    a.pos = at + a.dir * 0.12f;  // (its head in a little)
+    if (enemy >= 0 && size_t(enemy) < enemies_.enemies.size()) {
+        const Enemy& e = enemies_.enemies[size_t(enemy)];
+        const Quat inv = Quat::fromAxisAngle({0, 1, 0}, -e.yaw);
+        a.uid = e.uid;
+        a.local = inv.rotate(a.pos - e.pos);
+        a.localDir = inv.rotate(a.dir);
+    }
+    stuckArrows_.push_back(a);
+    static const bool trace = std::getenv("GVR_HIT_TRACE") != nullptr;
+    if (trace) LOGI("arrow stuck at (%.2f %.2f %.2f)%s", a.pos.x, a.pos.y, a.pos.z, a.uid ? " in a Reaper" : "");
+}
+
 void GameApp::updateCasings(float dt) {
-    if (casingsWorld_ != assetWorld_.get()) { casingsWorld_ = assetWorld_.get(); casings_.clear(); casingModel_ = nullptr; }
+    if (casingsWorld_ != assetWorld_.get()) { casingsWorld_ = assetWorld_.get(); casings_.clear(); casingModel_ = nullptr; stuckArrows_.clear(); }
+    // Arrows in a Reaper ride on him (standing, falling, lying); a ragdoll or a torn-up body drops them.
+    for (auto& a : stuckArrows_) {
+        a.age += dt;
+        if (!a.uid) continue;
+        const Enemy* e = nullptr;
+        for (const auto& en : enemies_.enemies)
+            if (en.uid == a.uid) e = &en;
+        if (!e || e->ragdoll || e->gibbed || e->remove) { a.age = 1e9f; continue; }
+        const Quat r = Quat::fromAxisAngle({0, 1, 0}, e->yaw);
+        a.pos = e->pos + Vec3{0, e->sink * -1.0f, 0} + r.rotate(a.local);
+        a.dir = r.rotate(a.localDir);
+    }
+    stuckArrows_.erase(std::remove_if(stuckArrows_.begin(), stuckArrows_.end(), [](const StuckArrow& a) { return a.age > 20.0f; }), stuckArrows_.end());
     for (auto& c : casings_) {
         c.life += dt;
         if (c.resting) continue;
@@ -55,8 +89,9 @@ void GameApp::updateCasings(float dt) {
 }
 
 void GameApp::renderCasings() {
-    if (!casingModel_) return;
     const Vec3 eye = renderer_.currentView().eyePosition;
+    (void)eye;
+    if (!casingModel_) return;
     for (const auto& c : casings_) {
         if (length(c.pos - eye) > 25.0f) continue;
         drawModel(casingModel_, Mat4::translation(c.pos) * Mat4::rotation(Quat::fromAxisAngle(c.axis, c.angle)) *

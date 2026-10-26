@@ -50,6 +50,7 @@ void GameApp::buildGroundMarks(const Vec3& eye, ModelCache* mc) {
         markBatch_[0].init(renderer_, 40 * 9);
         markBatch_[1].init(renderer_, 40 * 9);
         markGlow_.init(renderer_, 12 * 9);
+        arrowBatch_.init(renderer_, 30 * 4);
         {
             // The embers' light: a soft white disc with a speckled middle (made here; tinted by the
             // vertex colour - the game's glow textures are coloured).
@@ -110,6 +111,25 @@ void GameApp::buildGroundMarks(const Vec3& eye, ModelCache* mc) {
                 if (ember > 0.02f && !markGlow_.full()) markGlow_.add(q, uv, eg);
             }
     }
+    // Arrows that stuck (game_app_casings.cpp): a dark shaft back from where each went in, teal
+    // fletching near its end, as two crossed quads (the original's arrow is only a glowing streak).
+    arrowBatch_.clear();
+    for (const auto& a : stuckArrows_) {
+        if (length(a.pos - eye) > 60.0f || arrowBatch_.count() + 4 > arrowBatch_.capacity()) continue;
+        const float fade = std::max(0.0f, std::min(1.0f, (20.0f - a.age) / 4.0f));
+        Vec3 s1 = cross(a.dir, Vec3{0, 1, 0});
+        s1 = length(s1) > 1e-3f ? normalize(s1) : Vec3{1, 0, 0};
+        const Vec3 s2 = normalize(cross(a.dir, s1));
+        const Vec3 head = a.pos, tail = a.pos - a.dir * 0.75f, fl = a.pos - a.dir * 0.55f;
+        const uint8_t shaft[4] = {70, 48, 30, uint8_t(255.0f * fade)}, feather[4] = {40, 170, 160, uint8_t(255.0f * fade)};
+        for (const Vec3& s : {s1, s2}) {
+            const Vec3 q[4] = {head - s * 0.016f, head + s * 0.016f, tail + s * 0.016f, tail - s * 0.016f};
+            arrowBatch_.add(q, shaft);
+            const Vec3 f[4] = {fl - s * 0.06f, fl + s * 0.06f, tail + s * 0.06f, tail - s * 0.06f};
+            arrowBatch_.add(f, feather);
+        }
+    }
+    arrowBatch_.upload(renderer_);
     for (auto& b : markBatch_) b.upload(renderer_);
     markGlow_.upload(renderer_);
     static const bool trace = std::getenv("GVR_MARK_TRACE") != nullptr;
@@ -130,6 +150,13 @@ void GameApp::renderGroundMarks() {
         static const bool dbg = std::getenv("GVR_MARK_DEBUG") != nullptr;
         if (dbg) dp.blend = BlendMode::Opaque;
         markBatch_[k].draw(renderer_, dp);
+    }
+    if (arrowBatch_.count()) {
+        DrawParams ap;
+        ap.blend = BlendMode::AlphaBlend;
+        ap.unlit = true;
+        ap.doubleSided = true;
+        arrowBatch_.draw(renderer_, ap);
     }
     if (markGlowTex_ && markGlow_.count()) {
         // (additive: the scorch texture is near black, so the embers' glow is a soft round light

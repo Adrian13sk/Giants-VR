@@ -2406,3 +2406,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   x0.45 across / x0.35 up, a quiet high ex_metls "tink" within 12 m, rests after 3 bounces, gone after 9 s or in
   water; at most 40. Machine gun x1, sniper x1.8, shotgun x2.2. Weapon test indices (GVR_WEAPON): 3 handgun,
   4 shotgun, 5 machine gun, 6 sniper, 7 mortar. Harness 1c machine gun: casings fly out right of the gun.
+- Arrows stick (StuckArrow): WeaponSystem::hitStyle() tells onHit a style-3 shot (an arrow) struck; it stays -
+  in the world, or on a Reaper (his uid, the point and direction in his own yaw frame, following his position and
+  sink; dropped when he goes ragdoll or is torn apart), 20 s, at most 30. The original's rparrow is only a glowing
+  streak (two crossed quads of b_streak2): stuck, it was invisible, so a stuck arrow is drawn as a dark shaft
+  (0.75 m, two crossed quads) with teal fletching. devtest arrows_stick (Rstory2): "arrow stuck ... in a Reaper"
+  twice, once in the ground.

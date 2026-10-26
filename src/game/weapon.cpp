@@ -27,8 +27,10 @@ bool WeaponSystem::update(float dt, bool triggerHeld, const Vec3& muzzle, const 
             ++hits_;
             lastHitDist_ = p.travelled + t;
             hitDamage_ = p.damage;
+            hitStyle_ = p.style;
             if (onHit) onHit(target, hp, dir);
             hitDamage_ = 1.0f;
+            hitStyle_ = 0;
         } else {
             p.pos += step;
             p.travelled += len;

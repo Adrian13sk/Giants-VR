@@ -53,6 +53,7 @@ public:
     float lastHitDistance() const { return lastHitDist_; }
     // While onHit runs: the damage factor of the shot that hit (1 otherwise).
     float hitDamage() const { return hitDamage_; }
+    int hitStyle() const { return hitStyle_; }  // (rework: inside onHit, the style of the shot that hit)
 
 private:
     std::vector<Projectile> projectiles_;
@@ -61,6 +62,7 @@ private:
     size_t shots_ = 0, hits_ = 0;
     float lastHitDist_ = 0;
     float hitDamage_ = 1.0f;
+    int hitStyle_ = 0;
 };
 
 }  // namespace gvr

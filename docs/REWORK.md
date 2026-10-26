@@ -93,6 +93,7 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Graphics | Explosions char the ground: a blackened burst (the original's blastmark art) where a rocket, grenade, mortar bomb or barrel goes off, glowing with embers for the first seconds, fading after about a minute. | HARNESS |
 | Kabuto | His feet leave footprints in the ground (the original's Kabuto footprint art, left foot mirrored) that fade after about 45 s - clearest on sand and light ground. | HARNESS |
 | VR feel | Spent casings: the machine gun, sniper gun and shotgun throw a casing out to the right with every shot (the original's own shell model); it tumbles, tinks on the ground and lies a few seconds. | HARNESS |
+| Delphi | Her arrows stay where they strike: in the ground, in the scenery, in a Reaper (riding on him while he stands or lies; a ragdoll or a body torn apart drops them), fading after 20 s. | HARNESS |
 | Graphics | Water at the reduced quality levels (heavy worlds such as Kabuto's start there on the headset): without the reflection pass the sea was one flat colour; it now reflects the world's own sky - its clouds and colours ripple in the water. | HARNESS |
 | Graphics | The editor's red marker cones (the armies' routes, the race rivals' lines, "invisible" stand-ins) no longer stand in the sea, on the ice or in the air - hundreds in some missions. | HARNESS |
 | Sound | Bodies land with a thud (a heavy fall for a Reaper thrown hard, lighter for Smarties, Vimps and Rippers, once per landing), a limb coming off makes a wet tearing sound, cut-off pieces thud and a dropped gun clatters - all from the game's own sounds. | HARNESS |
@@ -112,7 +113,7 @@ AIM LASER, LIGHTING. With the headset on USB, the usual tests plus the rework's 
 cd $env:USERPROFILE\Documents\GiantsQuestVR\devtest
 powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Apk ..\GiantsVR-rework-<commit>.apk
 powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Set experiments -Tests x_village_base,x_village_look0,x_village_msaa0,x_village_up0,x_k3_base,x_k3_look0,x_k3_msaa0,x_k3_up0,x_village_nograss
-powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Tests kabuto_grab_eat,kabuto_grab_throw,delphi_parry,delphi_throw_bolt,kabuto_climb,kabuto_climb_k34,kabuto_chest_beat,wave_smarties,delphi_tornado_circle,delphi_firewall_sweep,kabuto_tree,kabuto_smartie_throw,delphi_bows,delphi_impale,delphi_dismember,reaper_ragdolls,smartie_ragdolls,reaper_disarm,body_grab,body_throw_hit,kabuto_body_eat,stone_throw,gun_grab,swim_strokes,smartie_throw_hit,ski_handlebars
+powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -NoInstall -Tests kabuto_grab_eat,kabuto_grab_throw,delphi_parry,delphi_throw_bolt,kabuto_climb,kabuto_climb_k34,kabuto_chest_beat,wave_smarties,delphi_tornado_circle,delphi_firewall_sweep,kabuto_tree,kabuto_smartie_throw,delphi_bows,delphi_impale,delphi_dismember,reaper_ragdolls,smartie_ragdolls,reaper_disarm,body_grab,body_throw_hit,kabuto_body_eat,stone_throw,gun_grab,swim_strokes,smartie_throw_hit,ski_handlebars,arrows_stick
 ```
 
 The second compares the rework's look (`_base`) with the classic lighting (`_look0`), no anti-aliasing

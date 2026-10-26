@@ -1,0 +1,28 @@
+# Rework (2026-10-26): arrows stay where they strike - Delphi's plain bow (left hand holds it, the right
+# draws), two arrows at a Reaper standing 4 m ahead (GVR_PASSIVE_REAPERS, lots of health), then one into the
+# ground. Look at the arrows in him and in the ground (they ride on him while he stands, fade after 20 s).
+name arrows_stick
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_BOWS 1
+env GVR_DELPHI_WEAPON 0
+env GVR_PASSIVE_REAPERS 1
+env GVR_REAPER_HP 2000
+view first
+duration 10
+aim 0 0
+reapers 1 4 0.3 99
+hand_r -0.4 0 0.31 0.5 1.0
+hold grip_r 1.2 2.6
+hand_r 0 0 0.5 1.4 2.2
+hand_r 0 0 -0.5 2.8 3.2
+hold grip_r 3.4 4.8
+hand_r 0 0 0.5 3.6 4.4
+hand_r 0 0 -0.5 5.0 5.4
+pitch_l -25 5.5 5.8
+hold grip_r 6.0 7.4
+hand_r 0 0 0.5 6.2 7.0
+hand_r 0 0 -0.5 7.6 8.0
+move 1 0 8.2 8.8

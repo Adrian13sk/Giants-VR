@@ -391,6 +391,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 if (hitTrace)
                     LOGI("hit trace: target %d at %.1f m (%.1f %.1f %.1f), damage x%.1f, world object %s", target, length(p - player_.position), p.x, p.y, p.z, hm,
                          lastWorldTag_ >= 0 && assetWorld_ && size_t(lastWorldTag_) < assetWorld_->worldObjects().size() ? assetWorld_->worldObjects()[size_t(lastWorldTag_)].name.c_str() : "-");
+                // Rework: an arrow stays where it struck (in the ground, the scenery, a Reaper).
+                if (weapon_.hitStyle() == 3) stickArrow(target >= 0 && target < kCreatureTarget ? target : -1, p, shotDir);
                 if (target >= kVillagerShot) {
                     hitVillager(target - kVillagerShot, 25.0f * hm, p, shotDir);
                     haptics_.push_back({rig_.turnHand(), 0.4f, 0.04f});

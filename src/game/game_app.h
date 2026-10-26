@@ -567,6 +567,7 @@ private:
     TextureId markTex_[2] = {0, 0};
     QuadBatch markBatch_[2], markGlow_;
     TextureId markGlowTex_ = 0;
+    QuadBatch arrowBatch_;  // (stuck arrows, built with the marks)
     void addGroundMark(int kind, const Vec3& at, float size, float angle, float life, float width = 1.0f);
     void updateGroundMarks(float dt);
     void buildGroundMarks(const Vec3& eye, ModelCache* mc);
@@ -577,6 +578,11 @@ private:
     const RenderModel* casingModel_ = nullptr;
     const void* casingsWorld_ = nullptr;
     void ejectCasing(const Vec3& muzzle, const Vec3& fwd, float scale);
+    // Rework: arrows that stay where they struck (game_app_casings.cpp) - in the world, or riding on a
+    // Reaper (his uid; the point and direction in his own frame).
+    struct StuckArrow { Vec3 pos, dir, local, localDir; uint32_t uid = 0; float age = 0; };
+    std::vector<StuckArrow> stuckArrows_;
+    void stickArrow(int enemy, const Vec3& at, const Vec3& dir);
     void updateCasings(float dt);
     void renderCasings();
     struct SpitDrop { Vec3 pos; int big; float age; };
