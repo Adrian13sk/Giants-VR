@@ -129,6 +129,8 @@ public:
         terrainTex_[0] = rock; terrainTex_[1] = sand; terrainTex_[2] = grass2; terrainTex_[3] = rock2; terrainTex_[4] = noise;
     }
     void setTerrainDetail(bool on) { terrainDetail_ = on; }
+    // Rework: shadows of passing clouds on everything sunlit (0 = off; the strength they take off the sun).
+    void setCloudShadow(float strength) { cloudShadow_ = strength; }
     // 0: the classic look; 1: the rework's lighting (detail relief, specular, filmic tone, sun haze).
     void setLook(int look) { look_ = float(look); }
     int look() const { return int(look_); }
@@ -193,7 +195,7 @@ private:
         GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
         GLint uClipY_ = -1, uGrade_ = -1, uReflTex_ = -1, uReflDepth_ = -1, uReflMat_ = -1, uReflEye_ = -1, uReflNear_ = -1,
               uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
-        GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1, uSway_ = -1, uSkyTex_ = -1, uSkyOn_ = -1, uNearCut_ = -1, uGrassTex_ = -1;
+        GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uCloud_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1, uSway_ = -1, uSkyTex_ = -1, uSkyOn_ = -1, uNearCut_ = -1, uGrassTex_ = -1;
         GLint uViewProj_ = -1, uEyePosV_ = -1;  // multiview: both eyes' view-projection and position
         GLint uLook_ = -1;
     };
@@ -210,6 +212,7 @@ private:
     bool msaa_ = false;
     bool skyHaze_ = true;
     bool terrainDetail_ = true;
+    float cloudShadow_ = 0.0f;
     float look_ = 1.0f;
     GLuint reflFbo_ = 0, reflColor_ = 0, reflDepth_ = 0, waterDepthTex_ = 0;
     int reflW_ = 0, reflH_ = 0;

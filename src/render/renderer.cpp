@@ -138,6 +138,7 @@ uniform sampler2D uTerrSand;
 uniform sampler2D uTerrGrass2;
 uniform sampler2D uTerrRock2;
 uniform sampler2D uTerrNoise;
+uniform float uCloud;  // rework: cloud shadows (strength; 0 off)
 uniform sampler2D uGrassTex;  // rework grass (material 4): the blades' shape and shading
 uniform float uTerrDetail;
 uniform vec3 uSkyTint;
@@ -273,7 +274,17 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
     return col;
 }
 
-float sunShadow(highp vec3 wp, vec3 n) {
+float sunShadowMap(highp vec3 wp, vec3 n);
+// Rework: clouds passing over the sun - big soft patches of shade drifting with the wind (the
+// terrain's own tileable noise: ~30 m patches, 4.5 m/s).
+float cloudShade(highp vec3 wp) {
+    if (uCloud <= 0.0) return 1.0;
+    highp vec2 q = wp.xz * 0.008 + vec2(uTime * 0.02, uTime * 0.008);
+    float c = texture(uTerrNoise, q).r;  // (an sRGB texture: 0.24-0.40 here is 0.52-0.66 as stored)
+    return 1.0 - uCloud * smoothstep(0.24, 0.40, c);
+}
+float sunShadow(highp vec3 wp, vec3 n) { return sunShadowMap(wp, n) * cloudShade(wp); }
+float sunShadowMap(highp vec3 wp, vec3 n) {
     if (uShadowOn < 0.5) return 1.0;
     highp vec4 sp = uShadowMat * vec4(wp + n * 0.035, 1.0);
     highp vec3 c = sp.xyz / sp.w * 0.5 + 0.5;
@@ -602,7 +613,7 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u) {
     u.uWaterDepth_ = L("uWaterDepth"); u.uWaterDepthRect_ = L("uWaterDepthRect"); u.uWaterDepthOn_ = L("uWaterDepthOn");
     const char* tn[5] = {"uTerrRock", "uTerrSand", "uTerrGrass2", "uTerrRock2", "uTerrNoise"};
     for (int k = 0; k < 5; ++k) u.uTerr_[k] = L(tn[k]);
-    u.uTerrDetail_ = L("uTerrDetail"); u.uSway_ = L("uSway"); u.uSkyTint_ = L("uSkyTint"); u.uNight_ = L("uNight"); u.uBakedLight_ = L("uBakedLight");
+    u.uTerrDetail_ = L("uTerrDetail"); u.uCloud_ = L("uCloud"); u.uSway_ = L("uSway"); u.uSkyTint_ = L("uSkyTint"); u.uNight_ = L("uNight"); u.uBakedLight_ = L("uBakedLight");
     u.uPointPos_ = L("uPointPos"); u.uPointColor_ = L("uPointColor");
     u.uSkyTex_ = L("uSkyTex"); u.uSkyOn_ = L("uSkyOn"); u.uGrassTex_ = L("uGrassTex");
     u.uViewProj_ = L("uViewProj"); u.uEyePosV_ = L("uEyePosV"); u.uLook_ = L("uLook");
@@ -880,6 +891,7 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
         glBindTexture(GL_TEXTURE_2D, t);
     }
     glUniform1f(U_->uTerrDetail_, terrainDetail_ ? 1.0f : 0.0f);
+    glUniform1f(U_->uCloud_, terrainTex_[4] != 0 ? cloudShadow_ : 0.0f);  // (needs the noise texture: unit 9)
     // The sky band for the haze: unit 10 (not while drawing the reflection - it has its own sky).
     {
         GLuint t = 0;

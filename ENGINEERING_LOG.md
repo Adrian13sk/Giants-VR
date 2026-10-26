@@ -2459,3 +2459,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Harness: fish_school (GVR_FISH_TEST: a school straight ahead; walking in scatters it), fish_catch
   (GVR_FISH_TEST=hand: a school round the right hand; "caught by hand 1", "let go at 3.2 m/s", "lands on the
   ground - it flops"). Meccaryn can only wade (swimming = piranhas, original rule); Delphi swims freely.
+- Cloud shadows: cloudShade() multiplies the sun term of sunShadow() everywhere (terrain, objects, characters,
+  water spec): the terrain's tileable noise (unit 9, bound for every draw) at 0.008/m, drifting (uTime), strength
+  uCloud = 0.5 (GVR_CLOUDS=<s> to test; 0 off). Off at quality >= 2 and in the classic look. Found while tuning:
+  the noise texture is uploaded SRGB8_ALPHA8, so the shader reads it gamma-decoded (median 0.56 stored -> ~0.27
+  read); the first threshold (0.5-0.66) never triggered - now 0.24-0.40. Baked-light terrain mutes the effect.

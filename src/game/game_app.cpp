@@ -2281,6 +2281,11 @@ void GameApp::updateSun(float dt) {
 
 void GameApp::renderShadows() {
     renderer_.setTerrainDetail(quality_ < 2);  // the adaptive fallback drops the extra terrain layers too
+    {  // rework: clouds' shadows drifting over the land (not at the reduced levels, nor in the classic look)
+        static const char* ce = std::getenv("GVR_CLOUDS");
+        const bool on = quality_ < 2 && renderer_.look() != 0 && !settings_.classicLook && !(ce && ce[0] == '0');
+        renderer_.setCloudShadow(on ? (ce ? float(std::atof(ce)) : 0.5f) : 0.0f);
+    }
     // ...and the rework's per-pixel relief and highlights (keeping its tone and haze).
     if (renderer_.look() != 0 && !settings_.classicLook) renderer_.setLook(quality_ >= 2 ? 2 : 1);
     buildBatches();
