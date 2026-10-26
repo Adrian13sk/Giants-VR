@@ -519,6 +519,7 @@ private:
         uint32_t owner = 0;                 // rework: a dropped gun - the Reaper it belongs to
         // Rework (game_app_stones.cpp): in a hand - its rotation and offset relative to the hand.
         int hand = -1;
+        bool thrown = false;  // let go of fast: it hits the first Reaper it meets
         Quat heldRot{0, 0, 0, 1};
         Vec3 heldOff, prev, recent[12];
         int nRecent = 0;

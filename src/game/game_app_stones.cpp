@@ -133,6 +133,7 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
             g.spin = length(thr) > 1.5f ? 3.0f + 6.0f * frand() : 0.0f;
             g.hand = -1;
             g.life = 0;
+            g.thrown = length(g.vel) > 4.0f;
             LOGI("Let go of a %s (%.1f m/s)", g.owner ? "gun" : "piece", length(g.vel));
         }
     }

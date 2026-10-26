@@ -2340,3 +2340,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   GVR_GRAB_TRACE logs the nearest Smartie on a grip and the flight; test hook GVR_STILL_SMARTIES (they stand
   where they are). devtest smartie_throw_hit (5a): "Threw Smartie 5 (11.2 m/s)", "A thrown Smartie hits Reaper 1 at
   11.5 m/s".
+- Thrown guns and limbs (Gib::thrown, let go over 4 m/s) hit the first living Reaper they meet: a gun 6 + 1.6 x speed,
+  a limb 3 + 0.8 x speed, a shove, a clang or a thud, and bounce off. Harness (gun_grab with a second Reaper 4.5 m
+  ahead): "A thrown gun hits Reaper 2 at 8.3 m/s". Sweep 56/56.

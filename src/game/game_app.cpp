@@ -1953,6 +1953,23 @@ void GameApp::updateCharacters(float dt) {
         g.life += dt;
         g.vel.y -= 14.0f * dt;
         g.pos += g.vel * dt;
+        // Rework: a gun or a limb thrown by hand hits the first Reaper it meets (a gun hard, a limb less).
+        if (g.thrown && length(g.vel) > 4.0f)
+            for (size_t k = 0; k < enemies_.enemies.size(); ++k) {
+                const Enemy& e = enemies_.enemies[k];
+                if (e.state == EnemyState::Dead || std::hypot(e.pos.x - g.pos.x, e.pos.z - g.pos.z) > 0.6f || g.pos.y < e.pos.y ||
+                    g.pos.y > e.pos.y + enemies_.bodyHeight(e))
+                    continue;
+                const float sp = length(g.vel);
+                enemies_.push(int(k), normalize(Vec3{g.vel.x, 0, g.vel.z} + Vec3{0.001f, 0, 0}) * std::min(4.0f, 0.4f * sp));
+                const bool killed = enemies_.damage(int(k), (g.owner ? 6.0f + 1.6f * sp : 3.0f + 0.8f * sp));
+                sfx(g.owner ? "ex_metls" : "ex_bdys1", g.pos, 0.9f, 1.0f);
+                LOGI("A thrown %s hits Reaper %u at %.1f m/s%s", g.owner ? "gun" : "piece", e.uid, sp, killed ? " - he's down" : "");
+                g.vel = g.vel * -0.2f;
+                g.thrown = false;
+                break;
+            }
+        if (g.thrown && length(g.vel) < 2.0f) g.thrown = false;
         g.angle += g.spin * dt;
         const float ground = enemies_.groundHeight ? enemies_.groundHeight(g.pos.x, g.pos.z) : 0.0f;
         if (g.life > 18.0f) {  // sink away
