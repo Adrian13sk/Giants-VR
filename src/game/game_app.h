@@ -1427,6 +1427,37 @@ private:  // the mission placed enemies: no test waves
     bool vimpRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
     void hitVimp(int i, float amount, const Vec3& at, const Vec3& dir);
     void dropMeat(const Vec3& at, int pieces);
+    // Rework, ambient birds (game_app_birds.cpp): the original's unused xx_birds archive - Flak
+    // flocks pecking on the ground that take off when you come near, shoot or blast, Lobirds
+    // circling high overhead. Shot (or stoned) they fall in a burst of feathers.
+    struct Bird {
+        int kind = 0;    // 0 Flak (ground flock), 1 Lobird (circles high)
+        int state = 0;   // 0 pecking, 1 hopping, 2 flying, 3 falling dead, 4 lying dead
+        int clip = 0, slot = -1, flock = -1;
+        Vec3 pos, vel;
+        float yaw = 0, t = 0, stateT = 0, clipLen = 1, bank = 0;
+        float circleAng = 0, circleR = 0, circleH = 0, circleSpeed = 0;
+        Vec3 centre;
+        bool gone = false;
+    };
+    struct Feather { Vec3 pos, vel; float yaw = 0, spin = 0, sway = 0, age = 0, life = 6; };
+    std::vector<Bird> birds_;
+    std::vector<std::unique_ptr<SkinnedModel>> birdModels_;  // one per bird (each is posed on its own)
+    std::vector<Feather> feathers_;
+    const RenderModel* featherModel_ = nullptr;
+    int birdClip_[8] = {};       // Flak: 0 peck1 1 peck2 2 hop 3 fly 4 glide 5 land; Lobird: 6 fly
+    float birdLift_[2] = {};     // per kind: model origin to its feet
+    float flockTimer_ = 0;
+    int nextFlock_ = 0;
+    size_t birdShots_ = 0;
+    bool birdsReady_ = false;
+    void initBirds(AssetWorld* w, ModelCache* mc);
+    void updateBirds(float dt);
+    void renderBirds(const Vec3& eye);
+    // A segment (a shot, a thrown stone) through a bird kills it. Returns true on a hit.
+    bool birdHitBy(const Vec3& a, const Vec3& b, float radius, const Vec3& dir);
+    void killBird(Bird& bd, const Vec3& dir);
+    bool spawnFlock(const Vec3& near, bool test);
     static constexpr int kBossTarget = 8000;  // weapon target ids for boss characters (index into chars_)
     bool bossRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
     void hitBoss(int i, float amount, const Vec3& at, const Vec3& dir);

@@ -1561,6 +1561,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initMines();
     initVillagers(w, mc);
     initVimps(w, mc);
+    initBirds(w, mc);
     initDestruction(w, mc);
     initSpawners();
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
@@ -4014,6 +4015,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("burn"); updateBurn(); }
     { GVR_PROF("villagers"); updateVillagers(dt); updateVillagerHands(dt, lastInput_); }
     { GVR_PROF("vimps"); updateVimps(dt); }
+    { GVR_PROF("birds"); updateBirds(dt); }
     { GVR_PROF("npc ragdolls"); updateNpcRagdolls(dt); }
     { GVR_PROF("bosses"); updateBosses(dt); }
     { GVR_PROF("sams"); updateSams(dt); }
@@ -4715,6 +4717,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     renderHealthBars();
     renderVillagers(false, renderer_.currentView().eyePosition, 90.0f);
     renderVimps(false, renderer_.currentView().eyePosition, 150.0f);
+    renderBirds(renderer_.currentView().eyePosition);
     renderJetski(false, renderer_.currentView().eyePosition);
     renderCasings();
     for (const auto& g : gibs_)

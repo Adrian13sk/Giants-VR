@@ -1,0 +1,13 @@
+# Rework (2026-10-26): ambient birds. A Flak flock (the original's unused xx_birds art) lands 12 m ahead
+# (GVR_BIRDS_TEST), pecks and hops; walk at it and the whole flock takes off cawing, climbs away and is
+# gone. Look up: the Lobirds circle high over you. Log: "Birds: flock 0 takes off".
+name birds_takeoff
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_BIRDS_TEST 12
+view first
+duration 10
+pitch -8
+move 0 1 3.0 5.0

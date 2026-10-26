@@ -1,0 +1,12 @@
+# Rework (2026-10-26): look up and turn round - three Lobirds (the original's unused 17 m glider, xx_birds)
+# circle 60-90 m over the player's area; their circle follows you at walking pace.
+name birds_lobirds
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_BIRD_TRACE 1
+view first
+duration 12
+pitch 35
+turn 0.7 0 1.0 11.0

@@ -1,0 +1,16 @@
+# Rework (2026-10-26): shoot into a Flak flock pecking 10 m ahead (machine gun): a hit bird tumbles down
+# in a puff of feathers (Feather1.gbs) with the crow's death squawk, the rest of the flock bolts.
+# Log: "Birds: a Flak is shot down".
+name birds_shoot
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_BIRDS_TEST 10
+env GVR_ARSENAL 1
+env GVR_WEAPON 5
+view first
+duration 8
+pitch -8
+aim 10 -6
+hold trigger_r 2.0 3.2

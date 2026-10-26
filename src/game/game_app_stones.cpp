@@ -208,6 +208,10 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
                 hitVillager(int(k), 2.0f + 0.6f * speed, st.pos, dir);
                 LOGI("A stone hits Smartie %u at %.1f m/s", v.uid, speed);
             }
+            if (st.hit == 0 && birdHitBy(was, st.pos, sz, dir)) {
+                st.hit = 0x20000000u;
+                LOGI("A stone hits a bird at %.1f m/s", speed);
+            }
             if (st.hit != 0) st.vel = st.vel * -0.2f;  // (it bounces off)
         }
         // The ground: a clatter and a bounce, then it lies.
