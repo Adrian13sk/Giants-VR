@@ -81,6 +81,14 @@ void GameApp::updateRagdolls(float dt) {
             v = Vec3{h.x, std::min(6.0f, v.y), h.z};
             if (e.clip == EnemyClip::Blown) v.y = std::max(v.y, std::min(6.0f, 2.5f + 0.25f * k));
             startRagdoll(e, v, hl > 0.1f ? cross(Vec3{0, 1, 0}, h * (1.0f / hl)) * std::min(4.0f, 0.8f + 0.35f * hl) : Vec3{0, 0, 0});
+            // A blast right at him tears a limb off now and then (the one nearest the burst).
+            if (e.clip == EnemyClip::Blown && !e.gibbed)
+                for (const auto& b : recentBlasts_)
+                    if (length(b.pos - e.pos) < std::max(2.0f, b.radius * 0.6f) && frand() < 0.6f) {
+                        const Vec3 up = e.pos + Vec3{0, 1.0f, 0};
+                        dismember(e, b.pos + (up - b.pos) * 0.5f, up - b.pos);
+                        break;
+                    }
             if (trace) LOGI("ragdoll: Reaper %u goes limp (push %.1f m/s%s)", e.uid, k, now ? ", at once" : "");
             continue;
         }
@@ -234,6 +242,62 @@ void GameApp::updateNpcRagdolls(float dt) {
             body(kNpcCreature, c.slot, c.uid, c.state == CreatureState::Dead, c.stateTime, c.pos, 1.0f);
     for (const auto& v : villagers_.villagers) body(kNpcVillager, v.slot, v.uid, v.state == VillagerState::Dead, v.stateTime, v.pos, 1.1f);
     for (const auto& v : vimps_.vimps) body(kNpcVimp, v.slot, v.uid, v.state == VimpState::Dead && !v.eaten, v.stateTime, v.pos, 0.6f);
+}
+
+// --- Dismemberment (rework: "Make Delphi's sword stick in enemies, perhaps dismemberment?") ----
+bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
+    if (e.slot < 0 || size_t(e.slot) >= enemyPool_.size()) return false;
+    SkinnedModel& m = *enemyPool_[size_t(e.slot)];
+    const float lift = size_t(e.slot) < slotLift_.size() ? slotLift_[size_t(e.slot)] : 0.0f;
+    const Quat yq = Quat::fromAxisAngle({0, 1, 0}, e.yaw);
+    const Vec3 origin = e.pos + Vec3{0, lift + e.sink, 0};
+    // The blow in model space; the limb whose vertices lie nearest it.
+    const Quat inv{-yq.x, -yq.y, -yq.z, yq.w};
+    const Vec3 local = inv.rotate(at - origin);
+    static const char* kLimbs[] = {"head", "arm l", "arm r", "leg l", "leg r"};
+    std::string best;
+    float bd = 1e30f;
+    for (const char* b : kLimbs) {
+        Vec3 c;
+        if (!m.boneCentre(b, c)) continue;
+        const float d = length(c - local);
+        if (d < bd) { bd = d; best = b; }
+    }
+    if (best.empty() || bd > 1.2f) return false;
+    std::vector<SkinnedModel::Piece> pieces;
+    Vec3 joint;
+    if (!m.sever(renderer_, best, pieces, joint)) return false;
+    Renderer* r = &renderer_;
+    std::shared_ptr<RenderModel> own(new RenderModel, [r](RenderModel* rm) {
+        for (const auto& p : rm->parts) r->destroyMesh(p.mesh);
+        delete rm;
+    });
+    own->name = "limb";
+    for (const auto& pc : pieces) {
+        RenderModel::Part part;
+        part.mesh = pc.mesh;
+        part.texture = pc.texture;
+        part.blend = pc.blend;
+        part.lit = pc.lit;
+        own->parts.push_back(part);
+    }
+    Gib g;
+    g.model = own.get();
+    g.own = own;
+    g.base = yq;
+    g.pos = origin + yq.rotate(joint);
+    Vec3 h{dir.x, 0, dir.z};
+    if (length(h) > 1e-3f) h = normalize(h);
+    g.vel = h * (2.5f + 2.0f * frand()) + Vec3{(frand() - 0.5f) * 1.5f, 2.5f + 2.0f * frand(), (frand() - 0.5f) * 1.5f};
+    g.axis = normalize(Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} + Vec3{0.01f, 0, 0});
+    g.spin = 3.0f + 5.0f * frand();
+    g.scale = 1.0f;
+    gibs_.push_back(g);
+    // The stump and the piece bleed.
+    blood_.burst(g.pos, h + Vec3{0, 1.2f, 0}, 30, 4.5f, 0.08f);
+    blood_.pool(e.pos, 1.0f);
+    LOGI("dismember: Reaper %u loses his %s", e.uid, best.c_str());
+    return true;
 }
 
 }  // namespace gvr

@@ -56,6 +56,15 @@ public:
         return v;
     }
     void setHideEnabled(bool on) { hideEnabled_ = on; }
+    // Rework, dismemberment: cuts `bone` and everything below it off this instance. From now on its
+    // vertices collapse onto the joint (the stump); the cut piece, as posed now, is returned as
+    // meshes in model space relative to the joint (the caller owns them), and the joint itself.
+    struct Piece { MeshId mesh = 0; TextureId texture = 0; BlendMode blend = BlendMode::Opaque; bool lit = true; };
+    bool sever(Renderer& r, const std::string& lowerCaseBone, std::vector<Piece>& out, Vec3& joint);
+    void clearSever() { severMask_.clear(); severBones_.clear(); }
+    bool severed() const { return !severMask_.empty(); }
+    // The model-space centre of a bone's vertices in the last pose (dismemberment: which limb a cut hits).
+    bool boneCentre(const std::string& lowerCaseBone, Vec3& out) const;
     // Centroid of the hidden-bone vertices in the last pose (model-local metres).
     Vec3 hiddenCentroid() const { return hiddenCentroid_; }
     // World matrix (model space, game units, Z-up) of a node in the last pose (dominant clip,
@@ -95,12 +104,15 @@ private:
     };
     PoseModifier modifier_;
     std::vector<uint8_t> hideMask_;  // per GBS position
+    std::vector<uint8_t> severMask_;  // per GBS position: 0, or 1 + the index of its cut in severBones_
+    std::vector<int> severBones_;     // bones_ indices of the cuts
     bool hideEnabled_ = false;
     bool keepFull_ = false, fullValid_ = false;
     Vec3 hiddenCentroid_{0, 0, 0};
     std::vector<Mat4> domWorld_;
     int domClip_ = -1;
     void skin(int anim, float t, std::vector<Vec3>& out);
+    Vec3 jointOf(int bone) const;
     struct Part {
         MeshId mesh = 0;
         MeshId fullMesh = 0;  // keepFull_: the same part with nothing hidden

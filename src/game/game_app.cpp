@@ -563,6 +563,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 auto em = std::make_unique<SkinnedModel>();
                 if (!em->load(w->fs(), *mc, renderer_, "rpman_l0", eclips[0])) break;
                 for (int c = 1; c < int(EnemyClip::Count); ++c) em->addAnimation(w->fs(), eclips[c]);
+                if (k == 0 && std::getenv("GVR_BONES")) em->setHiddenBones({});  // (debug: lists the Reaper's bones)
                 if (k == 0) {
                     for (int c = 0; c < int(EnemyClip::Count); ++c) enemies_.clipDuration[c] = std::max(0.1f, em->animDuration(c));
                     em->pose(renderer_, 0.0f);
@@ -3796,13 +3797,13 @@ void GameApp::updateCombat(float dt) {
     for (auto& e : enemies_.enemies)
         if (e.slot < 0) {
             for (size_t k = 0; k < slotUsed_.size(); ++k)
-                if (!slotUsed_[k]) { e.slot = int(k); slotUsed_[k] = 1; slotLift_[k] = enemyFootOffset_; break; }
+                if (!slotUsed_[k]) { e.slot = int(k); slotUsed_[k] = 1; slotLift_[k] = enemyFootOffset_; enemyPool_[k]->clearSever(); break; }
             if (e.slot < 0 && e.state != EnemyState::Dead) {
                 // Rework: every model in use - the living take the farthest corpse's (it goes).
                 Enemy* far = nullptr;
                 for (auto& c : enemies_.enemies)
                     if (c.state == EnemyState::Dead && c.slot >= 0 && !c.remove && (!far || length(c.pos - player_.position) > length(far->pos - player_.position))) far = &c;
-                if (far) { e.slot = far->slot; far->slot = -1; far->remove = true; slotLift_[size_t(e.slot)] = enemyFootOffset_; }
+                if (far) { e.slot = far->slot; far->slot = -1; far->remove = true; slotLift_[size_t(e.slot)] = enemyFootOffset_; enemyPool_[size_t(e.slot)]->clearSever(); }
             }
         }
     // Skinning is the costly part: Reapers too far to make out (the giant sees further) keep their
@@ -4595,7 +4596,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     renderVimps(false, renderer_.currentView().eyePosition, 150.0f);
     renderJetski(false, renderer_.currentView().eyePosition);
     for (const auto& g : gibs_)
-        drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) *
+        drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle) * g.base) *
                                Mat4::scale({g.scale, g.scale, g.scale}),
                   false);
     for (const auto& e : enemies_.enemies)
@@ -4767,6 +4768,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
 }
 
 void GameApp::shutdown() {
+    gibs_.clear();  // (cut limbs own meshes: freed while the renderer lives)
     playerModel_.reset();
     assetWorld_.reset();
     renderer_.shutdown();

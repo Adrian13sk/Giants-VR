@@ -175,6 +175,8 @@ void SkinnedModel::poseBlend(Renderer& r, int a, float ta, int b, float tb, floa
             collapse = hideEnabled_;
         }
     }
+    std::vector<Vec3> sevPoint;
+    for (int b : severBones_) sevPoint.push_back(jointOf(b));
     const bool full = collapse && keepFull_;
     for (Part& p : parts_) {
         std::vector<Vec3> acc(p.verts.size(), Vec3{0, 0, 0});
@@ -206,9 +208,101 @@ void SkinnedModel::poseBlend(Renderer& r, int a, float ta, int b, float tb, floa
         if (collapse)
             for (size_t v = 0; v < p.verts.size(); ++v)
                 if (hideMask_[p.posIndex[v]]) { p.verts[v].pos[0] = centre.x; p.verts[v].pos[1] = centre.y; p.verts[v].pos[2] = centre.z; }
+        if (!severMask_.empty())
+            for (size_t v = 0; v < p.verts.size(); ++v)
+                if (const uint8_t k = severMask_[p.posIndex[v]]; k && size_t(k) <= sevPoint.size()) {
+                    const Vec3& q = sevPoint[size_t(k) - 1];
+                    p.verts[v].pos[0] = q.x; p.verts[v].pos[1] = q.y; p.verts[v].pos[2] = q.z;
+                }
         r.updateMeshVertices(p.mesh, p.verts);
     }
     fullValid_ = full;
+}
+
+Vec3 SkinnedModel::jointOf(int bone) const {
+    // A bone's joint (its node's origin) in the last evaluated pose, model space.
+    if (bone < 0 || domClip_ < 0 || size_t(domClip_) >= anims_.size()) return Vec3{0, 0, 0};
+    const int node = anims_[size_t(domClip_)].boneToNode[size_t(bone)];
+    if (node < 0 || size_t(node) >= domWorld_.size()) return Vec3{0, 0, 0};
+    const Mat4& m = domWorld_[size_t(node)];
+    return giantsToRuntime(m.m[12], m.m[13], m.m[14]);
+}
+
+bool SkinnedModel::boneCentre(const std::string& name, Vec3& out) const {
+    Vec3 c{0, 0, 0};
+    size_t n = 0;
+    for (size_t i = 0; i < bindings_.size() && i < posed_.size(); ++i) {
+        const int b = bindings_[i].bone;
+        if (b >= 0 && bones_[size_t(b)] == name) { c += posed_[i]; ++n; }
+    }
+    if (!n) return false;
+    out = c * (1.0f / float(n));
+    return true;
+}
+
+bool SkinnedModel::sever(Renderer& r, const std::string& name, std::vector<Piece>& out, Vec3& joint) {
+    if (domClip_ < 0 || size_t(domClip_) >= anims_.size() || posed_.size() != bindings_.size()) return false;
+    int bone = -1;
+    for (size_t b = 0; b < bones_.size(); ++b)
+        if (bones_[b] == name) bone = int(b);
+    if (bone < 0) return false;
+    const Anim& a = anims_[size_t(domClip_)];
+    const int root = a.boneToNode[size_t(bone)];
+    if (root < 0) return false;
+    // The node and its descendants; the bones on them.
+    std::vector<char> inTree(a.anim.nodes.size(), 0);
+    std::vector<int> stack{root};
+    while (!stack.empty()) {
+        const int n = stack.back();
+        stack.pop_back();
+        if (n < 0 || size_t(n) >= inTree.size() || inTree[size_t(n)]) continue;
+        inTree[size_t(n)] = 1;
+        for (int c : a.children[size_t(n)]) stack.push_back(c);
+    }
+    std::vector<uint8_t> mask(bindings_.size(), 0);
+    size_t count = 0;
+    for (size_t i = 0; i < bindings_.size(); ++i) {
+        const int b = bindings_[i].bone;
+        if (b < 0) continue;
+        const int n = a.boneToNode[size_t(b)];
+        if (n >= 0 && inTree[size_t(n)]) { mask[i] = 1; ++count; }
+    }
+    if (!count) return false;
+    joint = jointOf(bone);
+    // The piece: every triangle all of whose corners are cut, as posed now, relative to the joint.
+    for (const Part& p : parts_) {
+        MeshData md;
+        std::vector<int> remap(p.verts.size(), -1);
+        for (size_t i = 0; i + 2 < p.indices.size(); i += 3) {
+            bool all = true;
+            for (int k = 0; k < 3; ++k) all = all && mask[p.posIndex[p.indices[i + size_t(k)]]];
+            if (!all) continue;
+            for (int k = 0; k < 3; ++k) {
+                const uint32_t v = p.indices[i + size_t(k)];
+                if (remap[v] < 0) {
+                    remap[v] = int(md.vertices.size());
+                    Vertex vx = p.verts[v];
+                    const Vec3 q = posed_[p.posIndex[v]] - joint;
+                    vx.pos[0] = q.x; vx.pos[1] = q.y; vx.pos[2] = q.z;
+                    md.vertices.push_back(vx);
+                }
+                md.indices.push_back(uint32_t(remap[v]));
+            }
+        }
+        if (md.indices.empty()) continue;
+        Piece pc;
+        pc.mesh = r.uploadMesh(md);
+        pc.texture = p.texture;
+        pc.blend = p.blend;
+        pc.lit = p.lit;
+        out.push_back(pc);
+    }
+    // Cumulative: a second cut keeps the first (each stump at its own joint).
+    if (severMask_.size() != mask.size()) severMask_.assign(mask.size(), 0);
+    severBones_.push_back(bone);
+    for (size_t i = 0; i < mask.size(); ++i)
+        if (mask[i] && !severMask_[i]) severMask_[i] = uint8_t(std::min<size_t>(255, severBones_.size()));
+    return !out.empty();
 }
 
 void SkinnedModel::boundsAt(int anim, float t, Vec3& mn, Vec3& mx) {

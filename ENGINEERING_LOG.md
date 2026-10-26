@@ -2159,3 +2159,16 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   efx_* actors (efx_portal: a "black" void quad and a glow bar) are drawn unlit (SkinnedModel::renderGlow, their own
   blending). scripts/make_video.sh captions now come from a text file (drawtext escaping cut "Delphi's sword: run
   through, ..." at the comma and the clip was dropped from the join).
+
+### 2026-10-26 — Rework: dismemberment
+- SkinnedModel::sever(bone): the bone's node and its descendants in the dominant clip's tree; their vertices are
+  collapsed onto that bone's joint from then on (per-cut joints, cumulative, cleared when the model slot is given
+  to another Reaper), and the cut triangles as posed now are uploaded as meshes relative to the joint (Piece).
+  GameApp::dismember: the limb (head, arm l/r, leg l/r) whose vertex centre is nearest the blow in model space
+  (<= 1.2 m), the piece thrown as a Gib that owns its meshes (shared_ptr with a destroyMesh deleter; Gib::base keeps
+  the body's yaw), blood from the stump. Delphi's killing slash now does this (the old chunk burst only if no limb
+  is near the cut); a Blown death within 0.6 radii of a blast loses a limb 60 % of the time.
+- Harness: devtest delphi_dismember (GVR_REAPER_HP=30, new test hook for one-blow kills): "Reaper 1 loses his
+  head", the head flies, the body lies headless; ragdoll blast script: "Reaper 5 loses his head". HARNESS only.
+- Graphics: non-green worlds now get sparse dry tufts (30 % density, the ground's own colour: orange scrub on
+  Story3's sand); snow/ice grounds (blue above green, or very bright) none - Rstory2's flats stay bare.

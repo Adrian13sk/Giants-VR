@@ -1,0 +1,20 @@
+# Rework (2026-10-26): Delphi slashes across a Reaper in front of her (fast sideways swings at chest height)
+# until he dies - the limb the blade crosses comes off and flies, the body falls as a ragdoll.
+name delphi_dismember
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_REAPER_HP 30
+duration 6
+aim 0 0
+reapers 1 1.7 0.3 99
+hand_r 0.45 0.25 -0.2 0.3 0.6
+hand_r -0.9 0 0 1.0 1.08
+hand_r 0.9 0 0 1.6 2.0
+hand_r -0.9 0 0 2.4 2.48
+hand_r 0.9 0 0 3.0 3.4
+hand_r -0.9 0 0 3.8 3.88
+pitch -25
+move 0 -0.6 1.6 2.6

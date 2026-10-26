@@ -63,8 +63,12 @@ void GameApp::initGrass() {
     // (The ground textures are olive/yellow: the shader's lush tint and the lightmap make them green.
     // Vegetation: green well above blue and not far below red; red earth and sand fail.)
     const bool green = gg > 2.5 * b + 0.02 && gg > 0.6 * r && gg > 0.08;
-    LOGI("Grass: ground %s average (%.2f %.2f %.2f) -> %s", g.c_str(), grassColor_.x, grassColor_.y, grassColor_.z, green ? "grass" : "none");
-    if (!green) return;
+    LOGI("Grass: ground %s average (%.2f %.2f %.2f) -> %s", g.c_str(), grassColor_.x, grassColor_.y, grassColor_.z, green ? "grass" : "dry tufts unless snow");
+    // Rework 2: other ground (desert sand, mud, ash) gets sparse dry tufts instead - the blades take that
+    // ground's colour, so they read as dry grass and scrub; snow and ice (bright, blue) get none.
+    const double lum = 0.3 * r + 0.59 * gg + 0.11 * b;
+    grassDry_ = !green;
+    if (!green && (b > gg * 1.05 || lum > 190.0)) return;
     if (!grassTex_) {
         // Blades: a tuft of ~34 thin, tapering, curving blades leaning out from the middle; each its
         // own shade and hue (fresh green, yellowed, a few dry); dark at the root (the ground's shade),
@@ -148,7 +152,7 @@ void GameApp::updateGrass() {
             const float x = (float(cx + dx) + h01(h, 1)) * kCell, z = (float(cz + dz) + h01(h, 2)) * kCell;
             // Clumps (~3 m) within patches (~14 m): thick in places, bare ground between.
             const float dens = 0.15f + 1.1f * vnoise(x, z, 14.0f, 7) * vnoise(x, z, 3.2f, 3);
-            if (h01(h, 0) > dens) continue;
+            if (h01(h, 0) > (grassDry_ ? dens * 0.3f : dens)) continue;
             float y, yx, yz;
             if (!terr.heightAt(x, z, y) || !terr.heightAt(x + 0.5f, z, yx) || !terr.heightAt(x, z + 0.5f, yz)) continue;
             if (y < renderer_.environment().seaLevel + 1.2f) continue;  // no grass on the beach or under water

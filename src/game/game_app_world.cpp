@@ -368,6 +368,9 @@ void GameApp::debugReapersAhead(int n, float dist) {
         float h;
         if (assetWorld_->terrain().heightAt(p.x, p.z, h)) p.y = h;
         debugReapers_.push_back(enemies_.spawn(p, player_.yaw + kPi));
+        // Test hook: GVR_REAPER_HP=<hp> spawns them with that much health (one-blow kill tests).
+        if (const char* hp = std::getenv("GVR_REAPER_HP"))
+            if (debugReapers_.back() >= 0) enemies_.enemies[size_t(debugReapers_.back())].health = float(std::atof(hp));
     }
     LOGI("test: %d Reapers %.0f m ahead", n, dist);
 }

@@ -484,7 +484,16 @@ private:
     const RenderModel* goreArm_ = nullptr;
     struct Blast { Vec3 pos; int size; float age; };
     std::vector<Blast> blasts_;
-    struct Gib { const RenderModel* model; Vec3 pos, vel, axis; float angle, spin, scale, life; };
+    struct Gib {
+        const RenderModel* model = nullptr;
+        Vec3 pos, vel, axis{0, 1, 0};
+        float angle = 0, spin = 0, scale = 1, life = 0;
+        Quat base;                          // rework: a cut-off limb starts as it was on the body
+        std::shared_ptr<RenderModel> own;   // rework: the limb's own meshes (freed with the gib)
+    };
+    // Rework, dismemberment (game_app_ragdoll.cpp): cuts off the limb of dead Reaper `e` nearest the
+    // blow at `at` (head, an arm or a leg), throws it along `dir`; false if none could be cut.
+    bool dismember(Enemy& e, const Vec3& at, const Vec3& dir);
     std::vector<Gib> gibs_;
     void spawnGore(const Vec3& pos, const Vec3& dir, float scale);
     // Burrowing Rippers (game_app_ripper.cpp): mounds over the buried ones, the dirt thrown up ahead
@@ -1515,7 +1524,7 @@ private:  // the mission placed enemies: no test waves
     void initGrass();
     void updateGrass();
     void renderGrass();
-    bool grassOn_ = false;
+    bool grassOn_ = false, grassDry_ = false;
     float grassRadius_ = 0;
     const AssetWorld* grassWorld_ = nullptr;
     Vec3 grassCentre_{1e9f, 0, 1e9f}, grassColor_{0.3f, 0.4f, 0.2f};

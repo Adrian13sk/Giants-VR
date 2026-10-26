@@ -327,11 +327,18 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
                                     haptics_.push_back({gh, 1.0f, 0.2f});
                                     LOGI("Delphi runs Reaper %u through", uid);
                                 } else if (slash && !e.gibbed) {
-                                    e.gibbed = true;
-                                    gibCorpse(e.pos, e.yaw, mv, true, 1.0f);
-                                    bleed(at, mv, true, 1.5f);
-                                    blood_.pool(e.pos, 1.2f);
-                                    LOGI("Delphi's slash cuts Reaper %u apart", uid);
+                                    // The limb the blade crossed comes off (head, arm, leg); the body falls
+                                    // as a ragdoll. (No limb near the cut: the old burst of pieces.)
+                                    if (dismember(e, at, mv)) {
+                                        bleed(at, mv, true, 1.2f);
+                                        LOGI("Delphi's slash cuts a limb off Reaper %u", uid);
+                                    } else {
+                                        e.gibbed = true;
+                                        gibCorpse(e.pos, e.yaw, mv, true, 1.0f);
+                                        bleed(at, mv, true, 1.5f);
+                                        blood_.pool(e.pos, 1.2f);
+                                        LOGI("Delphi's slash cuts Reaper %u apart", uid);
+                                    }
                                 }
                             }
                         }
