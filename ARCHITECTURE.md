@@ -54,7 +54,8 @@ Mesa llvmpipe, so rendering and asset code is verified on every build without a 
 - **Ragdolls** (`src/game/ragdoll.{h,cpp}`, `game_app_ragdoll.cpp`): a Verlet particle skeleton built from a
   skinned model's node tree at the moment of death, applied back through `SkinnedModel::setPoseModifier`. One per
   model slot (Reapers, character models, villager and vimp slots), keyed by the NPC's uid. `explode()` records
-  recent blasts for the push.
+  recent blasts for the push. A hand holds a body by pinning one particle to the grip pose (`game_app_bodygrab.cpp`:
+  `Ragdoll::pinParticle/movePin`, 24 constraint passes while pinned); a thrown body knocks living Reapers.
 - **Dismemberment** (`SkinnedModel::sever`, `GameApp::dismember`): a bone subtree's vertices collapse onto its
   joint; the cut triangles become a mesh owned by a gib.
 - **Cutscene cinema** (`game_app_cinema.cpp`, `Renderer::initScreen/beginScreenPass`): the shot camera renders the
