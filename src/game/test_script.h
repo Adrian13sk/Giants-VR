@@ -24,6 +24,8 @@
 //                                    him), each blown up by a rocket blast at tkill (their drops, deaths)
 //   shot <t> <label>                 left-eye screenshot at t
 //   briefing                         reload the mission through the loading screen + briefing first
+//   autoaim r|l <t0> <t1>            that controller points at the nearest living enemy, creature or boss
+//   complete <t>                     the current mission is marked complete at t (campaign progression)
 #pragma once
 
 #include <string>
@@ -61,6 +63,11 @@ public:
     std::vector<const ReaperEvent*> reapersIn(float t0, float t1) const;
     struct Shot { float t = 0; std::string label; };
     std::vector<Shot> shots;
+    std::vector<float> completes;
+    // Bit 0: the right controller auto-aims at t; bit 1: the left.
+    int autoAimAt(float t) const;
+    // Completions whose time falls in (t0, t1].
+    int completesIn(float t0, float t1) const;
 
     // The start yaw (radians, runtime frame) from at/look.
     float startYaw() const;

@@ -136,6 +136,10 @@ void AutoTest::beginFrame(GameApp& game, XrApp& xr, XrFrameContext& frame, doubl
         else game.debugReapersAhead(e->n, e->dist);
     }
     for (const auto* s : script_.shotsIn(prevT_, t_)) pendingShots_.push_back(s->label);
+    if (script_.completesIn(prevT_, t_) > 0) { LOGI("autotest: mission marked complete at %.1f s", t_); game.debugCompleteMission(); }
+    const int aims = script_.autoAimAt(t_);
+    if (aims & 1) game.debugAutoAim(frame.input, kRight);
+    if (aims & 2) game.debugAutoAim(frame.input, kLeft);
 }
 
 void AutoTest::renderBegin() {

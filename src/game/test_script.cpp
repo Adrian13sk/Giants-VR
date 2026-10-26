@@ -78,6 +78,16 @@ bool TestScript::parse(const std::string& text, std::string& error) {
                 e.kill = true;
                 reaperEvents.push_back(e);
             }
+        } else if (cmd == "autoaim") {
+            Span s;
+            std::string hand;
+            ok = bool(ss >> hand >> s.t0 >> s.t1) && s.t1 > s.t0 && (hand == "r" || hand == "l");
+            s.what = hand == "l" ? "autoaim_l" : "autoaim_r";
+            if (ok) spans.push_back(s);
+        } else if (cmd == "complete") {
+            float t = 0;
+            ok = bool(ss >> t);
+            if (ok) completes.push_back(t);
         } else if (cmd == "shot") {
             Shot s;
             ok = bool(ss >> s.t >> s.label);
@@ -152,6 +162,22 @@ void TestScript::inputAt(float t, InputFrame& in) const {
         else if (s.what == "rclick") in.hand[kRight].thumbstickClick = true;
         else if (s.what == "menu") in.hand[kLeft].menu = true;
     }
+}
+
+int TestScript::autoAimAt(float t) const {
+    int m = 0;
+    for (const Span& s : spans)
+        if (t >= s.t0 && t < s.t1) {
+            if (s.what == "autoaim_r") m |= 1;
+            else if (s.what == "autoaim_l") m |= 2;
+        }
+    return m;
+}
+
+int TestScript::completesIn(float t0, float t1) const {
+    int n = 0;
+    for (float c : completes) n += c > t0 && c <= t1;
+    return n;
 }
 
 std::vector<const TestScript::Blast*> TestScript::blastsIn(float t0, float t1) const {

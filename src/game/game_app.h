@@ -157,6 +157,20 @@ public:
         }
         return found;
     }
+    // Test hook (scripts' autoaim, the harness's --auto-aim): that controller points at the nearest enemy.
+    // GVR_AUTOAIM_MISS=<deg> aims that far to the side (near-miss tests). False: nothing to aim at.
+    bool debugAutoAim(InputFrame& in, int hand) const {
+        Vec3 chest;
+        if (!nearestEnemy(chest)) return false;
+        const Pose& rigPose = rig_.worldFromTracking;
+        const Vec3 ctrlWorld = rig_.toWorld(in.hand[hand].aimPose).position;
+        const Vec3 d = rigPose.orientation.conjugate().rotate(normalize(chest - ctrlWorld));
+        static const float missDeg = std::getenv("GVR_AUTOAIM_MISS") ? float(std::atof(std::getenv("GVR_AUTOAIM_MISS"))) : 0.0f;
+        const float yaw = std::atan2(-d.x, -d.z) + missDeg * 3.14159265f / 180.0f, pitch = std::asin(std::max(-1.0f, std::min(1.0f, d.y)));
+        const Quat q = Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({1, 0, 0}, pitch);
+        in.hand[hand].gripPose.orientation = in.hand[hand].aimPose.orientation = q;
+        return true;
+    }
     float weaponLastHitDistance() const { return weapon_.lastHitDistance(); }
     // Test hook: feet of the dead body (or blood pool) nearest the player.
     bool nearestCorpse(Vec3& feet) const {
