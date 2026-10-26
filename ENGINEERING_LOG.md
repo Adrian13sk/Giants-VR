@@ -2225,3 +2225,11 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   and counted as head shots (hit height 0.8 is above the head line). A gun hit is now also a shot whose line passes
   within 0.22 m of the gun's middle within 0.9 m of where it stopped. Harness: "drops his gun", the clatter plays.
 - GVR_HIT_TRACE prints state, head/gun flags and the line distance. Tests pass; completion checks 12/12; sweep 56/56.
+
+### 2026-10-26 — Rework: editor markers no longer drawn
+- Look review (12 worlds, start views): red cones stood in the sea and floated over the ice (r4a, rstory2). A dump of
+  every placed object whose parts are EFX_* across 15 missions: army_spline (308 in r4a alone: the armies' routes),
+  marker_spline (race rivals' lines) - both from xx_markers.gzp, the editor's marker archive - mr_invisible (0.2 m, in
+  11 of 15 missions) and rstory5_fake (a 3.4 m red stand-in). All four are now invisible helpers (not drawn, not
+  solid); the game still reads army_spline/marker_spline from the mission data (base attacks, race rivals: "12 army
+  paths lead to the base"). buoy_spline stays drawn - it is the race's only gate marker. r4a: 419 -> 111 placed.

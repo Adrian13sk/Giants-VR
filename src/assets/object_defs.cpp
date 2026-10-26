@@ -283,6 +283,13 @@ bool isInvisibleHelper(const std::string& name) {
                                      "trigger", "spline", "camera", "dummy", "null"};
     for (const char* p : prefixes)
         if (l.rfind(p, 0) == 0) return true;
+    // The editor's path markers in xx_markers.gzp (red cones): army_spline (the armies' routes from the
+    // barracks) and marker_spline (the race rivals' lines) - read as data, never seen. buoy_spline stays:
+    // the race's gates are those markers and nothing else is placed there.
+    if (l == "army_spline" || l == "marker_spline") return true;
+    // Named as unseen, drawn only as a red editor patch: mr_invisible (0.2 m, in most worlds),
+    // rstory5_fake (a 3.4 m red stand-in).
+    if (l == "mr_invisible" || l == "rstory5_fake") return true;
     return l.find("_coll") != std::string::npos;
 }
 
