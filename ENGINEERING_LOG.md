@@ -2551,3 +2551,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   haze; the terrain's edge shows as a straight drop-off where it ends.
 - devtest delphi_dive (Rstory1 deep water): "Delphi dives (the bed 3.8 m below the surface)", "Under the water".
   ASan with audio 0 reports; sweep 56/56; swim_strokes / fish_catch / weather_rain unchanged.
+- Caustics: everything under the sea level (rework look) gets moving bright lines - two sine interference fields,
+  pow 8 - of sunlight, x exp(-depth/5 m) x shadow; visible in the clear shallows from above and on a diver's arms
+  and the bed below. Only for fragments under the surface (the shallows' cost; deep water is opaque from above).

@@ -533,6 +533,17 @@ void main() {
         float wrap = max(dot(n, normalize(lv)) * 0.6 + 0.4, 0.0);
         rgb += (base.rgb + 0.12) * uPointColor * (att * att * wrap);  // (+0.12: shows on dark surfaces too)
     }
+    if (vWorldPos.y < uSeaLevel && uLook > 0.5 && uLook < 1.5) {
+        // Rework: caustics - the sunlight focused by the waves dances over whatever is under the water
+        // (the bed in the shallows, a diver's arms), fainter with depth.
+        highp vec2 cp = vWorldPos.xz;
+        highp float ct = uTime;
+        float c1 = sin(cp.x * 2.1 + sin(cp.y * 1.7 + ct * 0.9) * 1.3 + ct * 1.2);
+        float c2 = sin(cp.y * 2.4 + sin(cp.x * 1.3 - ct * 0.7) * 1.5 - ct * 1.0);
+        float caus = pow(max(0.0, 1.0 - abs(c1 + c2) * 0.5), 8.0);
+        float cdep = uSeaLevel - vWorldPos.y;
+        rgb += uSunColor * (caus * 0.45 * exp(-cdep / 5.0) * sh * max(ndl, 0.3));
+    }
     if (vWorldPos.y < uSeaLevel && uUnder < 0.5) {
         // Under water (seen from above): the bed fades into the water colour with depth.
         float dep = uSeaLevel - vWorldPos.y;
