@@ -266,6 +266,18 @@ scaled so your eyes are at his height (about 13 m). The HUD and menu stay their 
   A for turbo.
 - **Shooting a Reaper's gun** out of his hand disarms him (he comes at you with his fists, or runs back for the gun);
   leg shots make him limp.
+- **Catch a fish** (Meccaryn wading, Delphi swimming): fish swim in the clear shallows. Hold a hand still in the
+  water and they come to it; squeeze the grip to catch one. Let go in the water and it swims off; throw it and it
+  flops about on land. A moving hand, a splash or you wading in scares them away.
+- **Birds** peck about on open ground: walk up, shoot or blast nearby and the flock takes off. Shoot one, or hit it
+  with a stone, and it falls in a puff of feathers.
+
+## World life (rework)
+- **Options → AMBIENCE**: OFF / SOUNDS / SOUNDS + WEATHER (default). SOUNDS: surf along the shore, gusts of wind,
+  leaves in the trees, running water, the volcanoes' rumble - placed where each level's own ambient markers are
+  (the sounds are ours, the original has none for them). WEATHER: light rain on Delphi's first island, snow in the
+  Reapers' cold world, a storm with lightning and thunder in Kabuto's last level.
+- **Cloud shadows** drift over the land (off at the reduced quality levels and in LIGHTING: CLASSIC).
 
 ## Main menu
 The game now starts at the main menu: night over the intro island with the GIANTS logo in the sky.
