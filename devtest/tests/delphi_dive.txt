@@ -10,6 +10,6 @@ env GVR_GOD 1
 view first
 duration 16
 at 3639 -397
-look 3639 -480
-pitch -55
-move 0 1 1.5 6.5
+look 3610 -460
+pitch -30
+move 0 0.6 1.5 4.5
