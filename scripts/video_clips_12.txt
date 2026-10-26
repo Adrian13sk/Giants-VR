@@ -1,0 +1,6 @@
+# Progress video 12 (rework): caption|world|mission|from frame|frames|env and harness args
+Reaperski handlebars: twist for gas, turn the bars to steer|Rstory3_race_1|rstory3_race_1|420|420|--script devtest/tests/ski_handlebars.txt
+Swimming by arm strokes|Rstory4|r4a_buildbase|300|500|--script devtest/tests/swim_strokes.txt
+A Smartie thrown at a Reaper|Story5|5a_killcharger|40|260|--script devtest/tests/smartie_throw_hit.txt
+Options - CONTROLS: every hero's controls on one card|Story1|1c_1_firstmecc|36|150|GVR_CUTSCENE=none --menu-at 20 --stick-y-window 24 26 -1 --trigger-window 30 32
+Water at the reduced quality level reflects the sky|Kstory3|kstory3_1|0|150|GVR_CUTSCENE=none GVR_QUALITY=2
