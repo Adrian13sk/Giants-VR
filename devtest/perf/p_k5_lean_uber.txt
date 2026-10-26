@@ -1,0 +1,21 @@
+# GPU cost experiment (2026-10-26): Kabuto's storm world, kstory5_1 (55 ms of GPU on 2026-10-26) - all of the above off: near the classic version (72 fps, 10 ms on 2026-10-25) - with the one-program shader (GVR_SHADER_VARIANTS=0), to compare with p_k5_lean.
+# Compare its "app gpu" with p_k5_base: the difference is what that feature costs on the Quest 2.
+name p_k5_lean_uber
+world Kstory5
+mission kstory5_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_FFR 2
+env GVR_SHADER_VARIANTS 0
+env GVR_QUALITY 0
+env GVR_LOOK 0
+env GVR_NO_GRASS 1
+env GVR_MSAA 0
+env GVR_UPSCALE 0
+env GVR_CLOUDS 0
+env GVR_WEATHER 0
+duration 22
+perf 4 20
+turn 0.3 0 6 18
+shot 12 view

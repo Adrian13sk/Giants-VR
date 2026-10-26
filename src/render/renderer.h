@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <string>
+#include <map>
 #include <vector>
 
 #include "core/math.h"
@@ -203,7 +204,11 @@ private:
         GLint uViewProj_ = -1, uEyePosV_ = -1;  // multiview: both eyes' view-projection and position
         GLint uLook_ = -1;
     };
-    GLuint linkMain(bool multiview, Uniforms& u);
+    GLuint linkMain(bool multiview, Uniforms& u, int variant);
+    struct Variant { GLuint prog = 0; Uniforms u; };
+    std::map<int, Variant> variants_[2];  // per look/under-water/clouds/detail key: [mono, multiview]
+    bool variantsOn_ = true;
+    const Variant* variant(bool multiview, int key);
     void beginViews(const ViewParams* views, int n, int w, int h, bool clear);
     Uniforms mono_, multi_;
     Uniforms* U_ = &mono_;

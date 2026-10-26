@@ -1,7 +1,9 @@
 #include "render/renderer.h"
 
 #include <cmath>
+#include <chrono>
 #include <cstring>
+#include <map>
 #include <cstddef>
 #include <cstdlib>
 #include <string>
@@ -138,10 +140,22 @@ uniform sampler2D uTerrSand;
 uniform sampler2D uTerrGrass2;
 uniform sampler2D uTerrRock2;
 uniform sampler2D uTerrNoise;
+#ifdef CLOUD_K
+#define uCloud CLOUD_K
+#else
 uniform float uCloud;  // rework: cloud shadows (strength; 0 off)
+#endif
+#ifdef UNDER_K
+#define uUnder UNDER_K
+#else
 uniform float uUnder;  // rework: the eye is under the water (diving): no surface-depth tint, no sky
+#endif
 uniform sampler2D uGrassTex;  // rework grass (material 4): the blades' shape and shading
+#ifdef TERRDETAIL_K
+#define uTerrDetail TERRDETAIL_K
+#else
 uniform float uTerrDetail;
+#endif
 uniform vec3 uSkyTint;
 uniform float uNight;
 uniform vec3 uBakedLight;
@@ -149,7 +163,11 @@ uniform vec4 uPointPos;    // xyz position, w = 1 / radius^2
 uniform vec3 uPointColor;  // 0: no point light
 uniform sampler2D uSkyTex;  // rework: the world's sky band, for haze that dissolves into the sky behind
 uniform float uSkyOn;
+#ifdef LOOK_K
+#define uLook LOOK_K
+#else
 uniform float uLook;       // 0: the classic look; 1: the rework's (detail relief, specular, filmic tone, sun haze)
+#endif
 out vec4 oColor;
 
 // Relief from the texture itself (bump mapping without tangents, Mikkelsen 2010): the colour's
@@ -596,9 +614,18 @@ GLuint compile(GLenum type, const char* src) {
 
 }  // namespace
 
-GLuint Renderer::linkMain(bool multiview, Uniforms& u) {
+GLuint Renderer::linkMain(bool multiview, Uniforms& u, int variant) {
     std::string vsrc = kVertexShader, fsrc = kFragmentShader;
     auto define = [](std::string& src, const char* line) { src.insert(src.find('\n') + 1, line); };
+    if (variant >= 0) {
+        // A variant: the look, under-water, cloud-shadow and terrain-detail switches become constants, so the
+        // compiler drops every branch this variant never takes (one program with all of them in paid for the
+        // largest path everywhere - registers and instructions - on the Quest's GPU).
+        char d[160];
+        std::snprintf(d, sizeof d, "#define LOOK_K %d.0\n#define UNDER_K %d.0\n%s#define TERRDETAIL_K %d.0\n", variant >> 3, (variant >> 2) & 1,
+                      (variant & 2) ? "" : "#define CLOUD_K 0.0\n", variant & 1);
+        define(fsrc, d);
+    }
     if (multiview) {  // (#extension has to come before any declaration)
         define(vsrc, "#define MULTIVIEW 1\n#extension GL_OVR_multiview2 : require\n");
         define(fsrc, "#define MULTIVIEW 1\n");
@@ -648,18 +675,32 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u) {
     return prog;
 }
 
+const Renderer::Variant* Renderer::variant(bool multiview, int key) {
+    auto& m = variants_[multiview ? 1 : 0];
+    auto it = m.find(key);
+    if (it != m.end()) return it->second.prog ? &it->second : nullptr;
+    Variant v;
+    v.prog = linkMain(multiview, v.u, key);
+    if (!v.prog) LOGE("Shader variant %d (%s) failed: the one-program shader instead", key, multiview ? "multiview" : "mono");
+    else LOGI("Shader variant: look %d, under water %d, cloud shadows %d, terrain detail %d (%s)", key >> 3, (key >> 2) & 1, (key >> 1) & 1, key & 1,
+              multiview ? "multiview" : "mono");
+    return (m[key] = v).prog ? &m[key] : nullptr;
+}
+
 bool Renderer::init() {
-    program_ = linkMain(false, mono_);
+    program_ = linkMain(false, mono_, -1);
     if (!program_) return false;
     U_ = &mono_;
     if (const char* lk = std::getenv("GVR_LOOK")) look_ = float(std::atoi(lk));  // 0: classic (comparisons)
+    // Per-feature shader variants (GVR_SHADER_VARIANTS=0: the one program with every path - device A/B tests).
+    if (const char* sv = std::getenv("GVR_SHADER_VARIANTS")) variantsOn_ = sv[0] != '0';
     {
         const char* ext = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
         const bool mv = ext && std::strstr(ext, "GL_OVR_multiview2");
         // Both eyes in one pass where the GPU has it (GVR_MULTIVIEW=0: per eye, for comparisons).
         const char* env = std::getenv("GVR_MULTIVIEW");
         if (mv && !(env && env[0] == '0')) {
-            programMV_ = linkMain(true, multi_);
+            programMV_ = linkMain(true, multi_, -1);
             if (programMV_ && (multi_.uViewProj_ < 0 || multi_.uEyePosV_ < 0)) {
                 LOGE("Multiview program lacks its view uniforms; per-eye rendering");
                 glDeleteProgram(programMV_);
@@ -667,6 +708,18 @@ bool Renderer::init() {
             }
         }
         LOGI("GL_OVR_multiview2: %s; both eyes in one pass: %s", mv ? "yes" : "no", programMV_ ? "yes" : "no");
+        // The variants play will use, compiled now rather than at a stall mid-game (the first dive, the
+        // fallback stepping down): the rework look with and without cloud shadows, above and under the water,
+        // and the fallback's (no detail, no clouds); the classic look compiles when chosen in Options.
+        if (variantsOn_) {
+            const auto t0 = std::chrono::steady_clock::now();
+            const int keys[6] = {8 + 3, 8 + 1, 8 + 4 + 3, 8 + 4 + 1, 16, 16 + 4};
+            for (int k : keys) {
+                variant(false, k);
+                if (programMV_) variant(true, k);
+            }
+            LOGI("Shader variants ready in %.0f ms", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
+        }
         // Anisotropic filtering where the GPU has it: ground and walls stay sharp at grazing angles.
         if (ext && std::strstr(ext, "GL_EXT_texture_filter_anisotropic")) {
             GLfloat mx = 0;
@@ -701,6 +754,10 @@ void Renderer::shutdown() {
     for (size_t i = 0; i < textures_.size(); ++i) destroyTexture(static_cast<TextureId>(i + 1));
     meshes_.clear();
     textures_.clear();
+    for (auto& m : variants_) {
+        for (auto& kv : m) if (kv.second.prog) glDeleteProgram(kv.second.prog);
+        m.clear();
+    }
     if (program_) glDeleteProgram(program_);
     if (programMV_) glDeleteProgram(programMV_);
     program_ = programMV_ = 0;
@@ -852,7 +909,17 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
         glClearDepthf(1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
-    glUseProgram(stereo_ ? programMV_ : program_);
+    {
+        GLuint prog = stereo_ ? programMV_ : program_;
+        if (variantsOn_) {
+            const bool noise = terrainTex_[4] != 0 && terrainTex_[4] <= textures_.size() && textures_[terrainTex_[4] - 1].live;
+            const int lk = std::max(0, std::min(2, int(look_ + 0.5f)));
+            const int key = lk * 8 + (underwater_ ? 4 : 0) + (noise && cloudShadow_ > 0.0f ? 2 : 0) + (terrainDetail_ ? 1 : 0);
+            const Variant* v = variant(stereo_, key);
+            if (v) { prog = v->prog; U_ = const_cast<Uniforms*>(&v->u); }
+        }
+        glUseProgram(prog);
+    }
     if (stereo_) {
         float m[32], e[6];
         for (int k = 0; k < 2; ++k) {

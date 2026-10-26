@@ -1,0 +1,25 @@
+# GPU cost experiment (2026-10-26): the meadow by the Smarties in 5a (Meccaryn, grass all round; 32 ms of GPU on 2026-10-26) - all of the above off: near the classic version (72 fps, 10 ms on 2026-10-25) - with the one-program shader (GVR_SHADER_VARIANTS=0), to compare with p_5a_lean.
+# Compare its "app gpu" with p_5a_base: the difference is what that feature costs on the Quest 2.
+name p_5a_lean_uber
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_FFR 2
+env GVR_SHADER_VARIANTS 0
+env GVR_QUALITY 0
+env GVR_LOOK 0
+env GVR_NO_GRASS 1
+env GVR_MSAA 0
+env GVR_UPSCALE 0
+env GVR_CLOUDS 0
+env GVR_WEATHER 0
+view first
+pitch -20
+at 143 -141
+look 143 -170
+duration 24
+perf 4 22
+turn 0.3 0 6 20
+shot 12 view
