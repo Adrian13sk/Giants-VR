@@ -896,3 +896,21 @@ everything off the storm still needs 30 ms with 171 draw calls where the classic
 mission of the same world (2026-10-25) - the one program with every path in it is the remaining suspect. Commit
 77d7d98 compiles per-feature variants (identical renders in the harness); APK 77d7d98 with four `*_uber` runs in
 devtest/perf measures the difference on the headset in one run.
+
+## Device run 20261026-223402 — shader variants A/B (APK 77d7d98, `-Set perf`)
+Same scenes as 220802, now with per-feature shader variants; the `*_uber` runs use the one program (same run, same
+conditions). GPU ms (VrApi App=), fps.
+
+| Scene | one program | variants |
+|---|---|---|
+| 5a meadow, everything off (lean) | 17.2, 40 fps | **7.5, 71.8 fps** |
+| storm, everything off (lean) | 29.9, 24 fps | **10.1, 71.7 fps** |
+| 5a, classic look (look0), rest on | (19.6) | **9.7, 71.7 fps** |
+| storm, classic look, rest on | (36.1) | **13.0, 68 fps** |
+| 5a, fallback level 3 | (17.9) | **8.7, 71.8 fps** |
+| storm, fallback level 3 | (32.4) | **12.7, 71.6 fps** |
+| 5a, rework look, all on (base) | 32.5 | 30.1 |
+| storm, rework look, all on | 56.2 | 48.5 |
+(brackets: run 220802.) No variant failed to compile on the Adreno 650 (all 6 logged). Verdict: the one program cost
+10-20 ms in the cheap looks; the rework look itself costs another ~20-35 ms - priced part by part next (devtest/look).
+Also: the sky-coloured haze is now skipped where the fog weight is 1 (exact; harness renders identical).

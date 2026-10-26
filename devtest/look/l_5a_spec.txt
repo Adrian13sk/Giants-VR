@@ -1,0 +1,19 @@
+# Look cost experiment (2026-10-26, APK with shader variants): the 5a meadow - without the sun highlights.
+# Compare its "app gpu" with l_5a_base: the difference is that part's cost on the Quest 2.
+name l_5a_spec
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_FFR 2
+env GVR_QUALITY 0
+env GVR_LOOK_OFF spec
+view first
+pitch -20
+at 143 -141
+look 143 -170
+duration 24
+perf 4 22
+turn 0.3 0 6 20
+shot 12 view

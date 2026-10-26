@@ -168,6 +168,39 @@ uniform float uSkyOn;
 #else
 uniform float uLook;       // 0: the classic look; 1: the rework's (detail relief, specular, filmic tone, sun haze)
 #endif
+// The rework look's parts, each one compiled out with NO_<PART> (GVR_LOOK_OFF=relief,spec,rock,octaves,haze,caustics:
+// the headset's GPU cost of each, measured by switching it off).
+#define LOOK1 (uLook > 0.5 && uLook < 1.5)
+#ifdef NO_RELIEF
+#define L1_RELIEF false
+#else
+#define L1_RELIEF LOOK1
+#endif
+#ifdef NO_SPEC
+#define L1_SPEC false
+#else
+#define L1_SPEC LOOK1
+#endif
+#ifdef NO_ROCK
+#define L1_ROCK false
+#else
+#define L1_ROCK LOOK1
+#endif
+#ifdef NO_OCTAVES
+#define L1_OCTAVES false
+#else
+#define L1_OCTAVES LOOK1
+#endif
+#ifdef NO_HAZE
+#define L1_HAZE false
+#else
+#define L1_HAZE LOOK1
+#endif
+#ifdef NO_CAUSTICS
+#define L1_CAUSTICS false
+#else
+#define L1_CAUSTICS LOOK1
+#endif
 out vec4 oColor;
 
 // Relief from the texture itself (bump mapping without tangents, Mikkelsen 2010): the colour's
@@ -232,7 +265,7 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
         highp vec2 ruv = an.x > an.z ? wp.zy : wp.xy;
         if (an.y > max(an.x, an.z)) ruv = xz;
         vec3 rock;
-        if (uLook > 0.5 && uLook < 1.5) {
+        if (L1_ROCK) {
             // Rework (user: "the rocks textures" look awful): true triplanar (three projections
             // blended by the normal, no seams or smears where a cliff turns), strata bands along the
             // height warped by noise, a finer octave up close, and the rock's own texture as the relief
@@ -283,7 +316,7 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
         float g = texture(uTerrNoise, xz * 1.7).g;  // grain up close (fades out by 30 m)
         col *= mix(1.0, 0.82 + 0.36 * g, 1.0 - smoothstep(10.0, 30.0, d));
     }
-    if (uLook > 0.5 && uLook < 1.5 && d < 60.0 && bias < 1.0) {
+    if (L1_OCTAVES && d < 60.0 && bias < 1.0) {
         // Rework: two more octaves of detail (clumps ~2.3 m, grit ~0.3 m) so the ground under your
         // feet isn't one blurred texel; fades with distance.
         float c1 = texture(uTerrNoise, xz * 0.43 + vec2(0.13, 0.57)).r;
@@ -356,7 +389,8 @@ vec3 skyHaze(highp vec3 vd) {
     return grade(b + uSunColor * (pow(sd, 48.0) * 0.45 + pow(sd, 6.0) * 0.12), 0.25);
 }
 vec3 fogOut(vec3 rgb, float fog, highp vec3 wp, float sat) {
-    if (uLook < 0.5 || uLook > 1.5 || uSkyOn < 0.5) return grade(fogMix(rgb, fog, wp), sat);  // (the adaptive fallback, look 2: the flat haze - cheaper)
+    if (!L1_HAZE || uSkyOn < 0.5) return grade(fogMix(rgb, fog, wp), sat);  // (the adaptive fallback, look 2: the flat haze - cheaper)
+    if (fog >= 1.0) return grade(rgb, sat);  // (no haze this near: the sky lookup's asin/atan/pow skipped)
     return mix(skyHaze(normalize(wp - uEyePos)), grade(rgb, sat), fog);
 }
 
@@ -515,7 +549,7 @@ void main() {
     float stoneK = uMaterial == 5 ? 1.0 : 0.0;  // stones: the facets lit by the sun as rock
     float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
     vec3 ng = n;  // the geometric normal (shadow lookups)
-    if (uLook > 0.5 && uLook < 1.5 && d < 45.0 && uMaterial < 4) {
+    if (L1_RELIEF && d < 45.0 && uMaterial < 4) {
         // Relief up close (fades out by 45 m: no shimmer far away). Terrain a little deeper.
         float k = (uMaterial == 3 ? 0.10 : 0.025) * (1.0 - smoothstep(25.0, 45.0, d));
         // Terrain: the relief of its detail noise (the ground textures are too soft to read from).
@@ -542,7 +576,7 @@ void main() {
         float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.25;
         rgb = base.rgb * (amb + uSunColor * ndl * sh) + uSkyHorizon * rim * base.rgb;
     }
-    if (uLook > 0.5 && uLook < 1.5 && uMaterial != 4) {
+    if (L1_SPEC && uMaterial != 4) {
         // Sun highlights (Blinn-Phong): brighter texels read as smoother and shinier.
         highp vec3 vv = normalize(uEyePos - vWorldPos);
         vec3 hv = normalize(vv - uSunDir);
@@ -563,7 +597,7 @@ void main() {
         float wrap = max(dot(n, normalize(lv)) * 0.6 + 0.4, 0.0);
         rgb += (base.rgb + 0.12) * uPointColor * (att * att * wrap);  // (+0.12: shows on dark surfaces too)
     }
-    if (vWorldPos.y < uSeaLevel && uLook > 0.5 && uLook < 1.5) {
+    if (vWorldPos.y < uSeaLevel && L1_CAUSTICS) {
         // Rework: caustics - the sunlight focused by the waves dances over whatever is under the water
         // (the bed in the shallows, a diver's arms), fainter with depth.
         highp vec2 cp = vWorldPos.xz;
@@ -631,6 +665,13 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u, int variant) {
         define(fsrc, "#define MULTIVIEW 1\n");
     }
     if (std::getenv("GVR_DEBUG_SHADOW")) define(fsrc, "#define DEBUG_SHADOW 1\n");
+    if (const char* off = std::getenv("GVR_LOOK_OFF")) {  // (tests: parts of the rework look compiled out)
+        const std::string o = std::string(",") + off + ",";
+        const char* parts[6][2] = {{"relief", "NO_RELIEF"}, {"spec", "NO_SPEC"}, {"rock", "NO_ROCK"},
+                                   {"octaves", "NO_OCTAVES"}, {"haze", "NO_HAZE"}, {"caustics", "NO_CAUSTICS"}};
+        for (auto& pt : parts)
+            if (o.find(std::string(",") + pt[0] + ",") != std::string::npos) define(fsrc, (std::string("#define ") + pt[1] + " 1\n").c_str());
+    }
     if (std::getenv("GVR_DEBUG_REFL")) define(fsrc, "#define DEBUG_REFL 1\n");
     if (const char* se = std::getenv("GVR_SPECEXPR")) define(fsrc, (std::string("#define SPECEXPR ") + se + "\n").c_str());
     else define(fsrc, "#define SPECEXPR (pw * (0.03 + 0.22 * lum * lum) * sh * facing)\n");

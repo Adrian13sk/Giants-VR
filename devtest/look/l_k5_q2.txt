@@ -1,0 +1,14 @@
+# Look cost experiment (2026-10-26, APK with shader variants): Kabuto's storm, kstory5_1 - the adaptive fallback at level 2 (its look 2, no reflections, shadows kept).
+# Compare its "app gpu" with l_k5_base: the difference is that part's cost on the Quest 2.
+name l_k5_q2
+world Kstory5
+mission kstory5_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_FFR 2
+env GVR_QUALITY 2
+duration 22
+perf 4 20
+turn 0.3 0 6 18
+shot 12 view
