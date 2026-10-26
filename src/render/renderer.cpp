@@ -163,6 +163,9 @@ uniform vec4 uPointPos;    // xyz position, w = 1 / radius^2
 uniform vec3 uPointColor;  // 0: no point light
 uniform sampler2D uSkyTex;  // rework: the world's sky band, for haze that dissolves into the sky behind
 uniform float uSkyOn;
+#ifdef HAZE_CUBE
+uniform samplerCube uHazeCube;  // the sky haze by direction, rendered once a frame (Renderer::updateHaze)
+#endif
 #ifdef LOOK_K
 #define uLook LOOK_K
 #else
@@ -274,11 +277,18 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
             w = w * w;
             w /= (w.x + w.y + w.z);
             highp vec3 q = wp * 0.11;
-            rock = texture(uTerrRock, q.zy).rgb * w.x + texture(uTerrRock, q.xz).rgb * w.y + texture(uTerrRock, q.xy).rgb * w.z;
+            // Only the projections that show (on the headset all three plus three more for the anti-tiling
+            // cost 9 ms a frame in Kabuto's rocky worlds): most of a cliff is one or two of them.
+            rock = vec3(0.0);
+            float wsum = 0.0;
+            if (w.x > 0.02) { rock += texture(uTerrRock, q.zy).rgb * w.x; wsum += w.x; }
+            if (w.y > 0.02) { rock += texture(uTerrRock, q.xz).rgb * w.y; wsum += w.y; }
+            if (w.z > 0.02) { rock += texture(uTerrRock, q.xy).rgb * w.z; wsum += w.z; }
+            rock /= max(wsum, 1e-4);
             // Anti-tiling: a second sample at about a quarter of the frequency, offset, blended in by
             // large-scale noise and more with distance - the 9 m repeat read as a grid on Kabuto's cliffs.
-            highp vec3 q2 = wp * 0.027 + vec3(0.37, 0.61, 0.13);
-            vec3 rockB = texture(uTerrRock, q2.zy).rgb * w.x + texture(uTerrRock, q2.xz).rgb * w.y + texture(uTerrRock, q2.xy).rgb * w.z;
+            // (low frequency and blurred by distance: the dominant projection alone is enough)
+            vec3 rockB = texture(uTerrRock, ruv * 0.027 + vec2(0.37, 0.61)).rgb;
             float mB = clamp(0.25 + 0.5 * smoothstep(0.3, 0.7, nz.x + 0.3 * (nzp - 0.5)) + 0.4 * smoothstep(25.0, 120.0, d), 0.0, 0.85);
             rock = mix(rock, rockB, mB);
             if (uTerrDetail > 0.5) rock = mix(rock, texture(uTerrRock2, ruv * 0.07).rgb * 1.1, smoothstep(0.42, 0.62, nz.x) * 0.6);
@@ -391,7 +401,13 @@ vec3 skyHaze(highp vec3 vd) {
 vec3 fogOut(vec3 rgb, float fog, highp vec3 wp, float sat) {
     if (!L1_HAZE || uSkyOn < 0.5) return grade(fogMix(rgb, fog, wp), sat);  // (the adaptive fallback, look 2: the flat haze - cheaper)
     if (fog >= 1.0) return grade(rgb, sat);  // (no haze this near: the sky lookup's asin/atan/pow skipped)
+#ifdef HAZE_CUBE
+    // One cube-map read instead of the sky lookup per pixel (asin, atan, pow, the grade: 17-18 ms of GPU
+    // a frame on the Quest 2, measured 2026-10-26).
+    return mix(texture(uHazeCube, normalize(wp - uEyePos)).rgb, grade(rgb, sat), fog);
+#else
     return mix(skyHaze(normalize(wp - uEyePos)), grade(rgb, sat), fog);
+#endif
 }
 
 void main() {
@@ -665,6 +681,7 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u, int variant) {
         define(fsrc, "#define MULTIVIEW 1\n");
     }
     if (std::getenv("GVR_DEBUG_SHADOW")) define(fsrc, "#define DEBUG_SHADOW 1\n");
+    if (hazeCube_) define(fsrc, "#define HAZE_CUBE 1\n");
     if (const char* off = std::getenv("GVR_LOOK_OFF")) {  // (tests: parts of the rework look compiled out)
         const std::string o = std::string(",") + off + ",";
         const char* parts[6][2] = {{"relief", "NO_RELIEF"}, {"spec", "NO_SPEC"}, {"rock", "NO_ROCK"},
@@ -711,9 +728,119 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u, int variant) {
     for (int k = 0; k < 5; ++k) u.uTerr_[k] = L(tn[k]);
     u.uTerrDetail_ = L("uTerrDetail"); u.uUnder_ = L("uUnder"); u.uCloud_ = L("uCloud"); u.uSway_ = L("uSway"); u.uSkyTint_ = L("uSkyTint"); u.uNight_ = L("uNight"); u.uBakedLight_ = L("uBakedLight");
     u.uPointPos_ = L("uPointPos"); u.uPointColor_ = L("uPointColor");
-    u.uSkyTex_ = L("uSkyTex"); u.uSkyOn_ = L("uSkyOn"); u.uGrassTex_ = L("uGrassTex");
+    u.uSkyTex_ = L("uSkyTex"); u.uHazeCube_ = L("uHazeCube"); u.uSkyOn_ = L("uSkyOn"); u.uGrassTex_ = L("uGrassTex");
     u.uViewProj_ = L("uViewProj"); u.uEyePosV_ = L("uEyePosV"); u.uLook_ = L("uLook");
     return prog;
+}
+
+bool Renderer::initHaze() {
+    // The haze program: the main shader's own grade() and skyHaze() (cut from its source, so they can't
+    // drift apart), drawn into each face of a small cube map as a full-screen triangle.
+    const std::string fs = kFragmentShader;
+    const size_t a = fs.find("// Colour grade"), b = fs.find("vec3 fogOut(");
+    if (a == std::string::npos || b == std::string::npos || b < a) { LOGE("Haze cube: shader functions not found"); return false; }
+    const std::string hfs = std::string("#version 300 es\nprecision mediump float;\n#define uLook 1.0\n") +
+                            "uniform vec4 uGrade;\nuniform sampler2D uSkyTex;\nuniform highp float uTime;\nuniform vec3 uSkyTint;\n"
+                            "uniform vec3 uSunDir;\nuniform vec3 uSunColor;\nuniform int uFace;\nuniform float uSize;\nout vec4 oColor;\n" +
+                            fs.substr(a, b - a) +
+                            "void main() {\n"
+                            "    vec2 st = gl_FragCoord.xy / uSize * 2.0 - 1.0;\n"
+                            "    vec3 d;\n"  // (the GL cube-face conventions)
+                            "    if (uFace == 0) d = vec3(1.0, -st.y, -st.x);\n"
+                            "    else if (uFace == 1) d = vec3(-1.0, -st.y, st.x);\n"
+                            "    else if (uFace == 2) d = vec3(st.x, 1.0, st.y);\n"
+                            "    else if (uFace == 3) d = vec3(st.x, -1.0, -st.y);\n"
+                            "    else if (uFace == 4) d = vec3(st.x, -st.y, 1.0);\n"
+                            "    else d = vec3(-st.x, -st.y, -1.0);\n"
+                            "    oColor = vec4(skyHaze(normalize(d)), 1.0);\n"
+                            "}\n";
+    const char* hvs = "#version 300 es\nvoid main() { vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));"
+                      " gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); }\n";
+    GLuint vs = compile(GL_VERTEX_SHADER, hvs), f = compile(GL_FRAGMENT_SHADER, hfs.c_str());
+    if (!vs || !f) { if (vs) glDeleteShader(vs); if (f) glDeleteShader(f); LOGE("Haze cube: shader failed"); return false; }
+    hazeProg_ = glCreateProgram();
+    glAttachShader(hazeProg_, vs);
+    glAttachShader(hazeProg_, f);
+    glLinkProgram(hazeProg_);
+    glDeleteShader(vs);
+    glDeleteShader(f);
+    GLint ok = 0;
+    glGetProgramiv(hazeProg_, GL_LINK_STATUS, &ok);
+    if (!ok) { glDeleteProgram(hazeProg_); hazeProg_ = 0; LOGE("Haze cube: link failed"); return false; }
+    // Half floats where the GPU renders to them (the sun's glow goes above 1), 8-bit sRGB otherwise.
+    const char* ext = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+    const bool half = ext && (std::strstr(ext, "GL_EXT_color_buffer_half_float") || std::strstr(ext, "GL_EXT_color_buffer_float"));
+    glGenTextures(1, &hazeCube_);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, hazeCube_);
+    for (int i = 0; i < 6; ++i)
+        glTexImage2D(GLenum(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i), 0, half ? GL_RGBA16F : GL_SRGB8_ALPHA8, kHazeSize, kHazeSize, 0, GL_RGBA,
+                     half ? GL_HALF_FLOAT : GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glGenFramebuffers(1, &hazeFbo_);
+    glBindFramebuffer(GL_FRAMEBUFFER, hazeFbo_);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, hazeCube_, 0);
+    const bool complete = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    if (!complete) {
+        LOGE("Haze cube: framebuffer incomplete");
+        glDeleteFramebuffers(1, &hazeFbo_);
+        glDeleteTextures(1, &hazeCube_);
+        glDeleteProgram(hazeProg_);
+        hazeFbo_ = hazeCube_ = hazeProg_ = 0;
+        return false;
+    }
+    hzFace_ = glGetUniformLocation(hazeProg_, "uFace");
+    hzSize_ = glGetUniformLocation(hazeProg_, "uSize");
+    hzGrade_ = glGetUniformLocation(hazeProg_, "uGrade");
+    hzSky_ = glGetUniformLocation(hazeProg_, "uSkyTex");
+    hzTime_ = glGetUniformLocation(hazeProg_, "uTime");
+    hzTint_ = glGetUniformLocation(hazeProg_, "uSkyTint");
+    hzSunDir_ = glGetUniformLocation(hazeProg_, "uSunDir");
+    hzSunColor_ = glGetUniformLocation(hazeProg_, "uSunColor");
+    LOGI("Sky haze cube: %dx%d x6 (%s)", kHazeSize, kHazeSize, half ? "half float" : "sRGB");
+    return checkGl("initHaze");
+}
+
+void Renderer::updateHaze() {
+    // Only where it is used: the rework look with the sky haze on and the world's sky band loaded.
+    if (!hazeCube_ || !(look_ > 0.5f && look_ < 1.5f) || !skyHaze_) return;
+    if (skyTex_ == 0 || skyTex_ > textures_.size() || !textures_[skyTex_ - 1].live) return;
+    GLint prevFbo = 0, vp[4];
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
+    glGetIntegerv(GL_VIEWPORT, vp);
+    glBindFramebuffer(GL_FRAMEBUFFER, hazeFbo_);
+    glViewport(0, 0, kHazeSize, kHazeSize);
+    glDisable(GL_SCISSOR_TEST);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+    glDepthMask(GL_FALSE);
+    glUseProgram(hazeProg_);
+    const Vec3 sd = normalize(env_.sunDirection);
+    glUniform3f(hzSunDir_, sd.x, sd.y, sd.z);
+    glUniform3f(hzSunColor_, env_.sunColor.x, env_.sunColor.y, env_.sunColor.z);
+    glUniform1f(hzTime_, env_.time);
+    glUniform4f(hzGrade_, env_.grade.x, env_.grade.y, env_.grade.z, env_.grade.w);
+    glUniform3f(hzTint_, env_.skyTint.x, env_.skyTint.y, env_.skyTint.z);
+    glUniform1f(hzSize_, float(kHazeSize));
+    glUniform1i(hzSky_, 10);
+    glActiveTexture(GL_TEXTURE10);
+    glBindTexture(GL_TEXTURE_2D, textures_[skyTex_ - 1].tex);
+    glBindVertexArray(0);
+    for (int i = 0; i < 6; ++i) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GLenum(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i), hazeCube_, 0);
+        glUniform1i(hzFace_, i);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, GLuint(prevFbo));
+    glViewport(vp[0], vp[1], vp[2], vp[3]);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
 }
 
 const Renderer::Variant* Renderer::variant(bool multiview, int key) {
@@ -729,6 +856,11 @@ const Renderer::Variant* Renderer::variant(bool multiview, int key) {
 }
 
 bool Renderer::init() {
+    // The sky haze cube (GVR_HAZE_CUBE=0: the per-pixel sky lookup instead - A/B tests).
+    {
+        const char* hc = std::getenv("GVR_HAZE_CUBE");
+        if (!(hc && hc[0] == '0')) initHaze();
+    }
     program_ = linkMain(false, mono_, -1);
     if (!program_) return false;
     U_ = &mono_;
@@ -795,6 +927,10 @@ void Renderer::shutdown() {
     for (size_t i = 0; i < textures_.size(); ++i) destroyTexture(static_cast<TextureId>(i + 1));
     meshes_.clear();
     textures_.clear();
+    if (hazeFbo_) glDeleteFramebuffers(1, &hazeFbo_);
+    if (hazeCube_) glDeleteTextures(1, &hazeCube_);
+    if (hazeProg_) glDeleteProgram(hazeProg_);
+    hazeFbo_ = hazeCube_ = hazeProg_ = 0;
     for (auto& m : variants_) {
         for (auto& kv : m) if (kv.second.prog) glDeleteProgram(kv.second.prog);
         m.clear();
@@ -1036,6 +1172,9 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
     {
         GLuint t = 0;
         if (skyTex_ != 0 && skyTex_ <= textures_.size() && textures_[skyTex_ - 1].live) t = textures_[skyTex_ - 1].tex;
+        glUniform1i(U_->uHazeCube_, 12);
+        glActiveTexture(GL_TEXTURE12);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, hazeCube_);
         glUniform1i(U_->uSkyTex_, 10);
         glActiveTexture(GL_TEXTURE10);
         glBindTexture(GL_TEXTURE_2D, t ? t : whiteTexture_);

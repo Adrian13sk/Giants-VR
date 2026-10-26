@@ -127,6 +127,9 @@ public:
     void setGrassTexture(TextureId t) { grassTex_ = t; }
     void setMsaa(bool on) { msaa_ = on; }
     void setSkyHaze(bool on) { skyHaze_ = on; }
+    // The sky haze by direction into a small cube map (once a frame, before the views): the rework look
+    // reads it instead of looking the sky up per pixel.
+    void updateHaze();
     void setTerrainLayers(TextureId rock, TextureId sand, TextureId grass2, TextureId rock2, TextureId noise) {
         terrainTex_[0] = rock; terrainTex_[1] = sand; terrainTex_[2] = grass2; terrainTex_[3] = rock2; terrainTex_[4] = noise;
     }
@@ -200,7 +203,7 @@ private:
         GLint uShadowMap_ = -1, uShadowMat_ = -1, uShadowOn_ = -1, uShadowTexel_ = -1;
         GLint uClipY_ = -1, uGrade_ = -1, uReflTex_ = -1, uReflDepth_ = -1, uReflMat_ = -1, uReflEye_ = -1, uReflNear_ = -1,
               uReflOn_ = -1, uWaterDepth_ = -1, uWaterDepthRect_ = -1, uWaterDepthOn_ = -1;
-        GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uCloud_ = -1, uUnder_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1, uSway_ = -1, uSkyTex_ = -1, uSkyOn_ = -1, uNearCut_ = -1, uGrassTex_ = -1;
+        GLint uTerr_[5] = {-1, -1, -1, -1, -1}, uTerrDetail_ = -1, uCloud_ = -1, uUnder_ = -1, uSkyTint_ = -1, uNight_ = -1, uBakedLight_ = -1, uPointPos_ = -1, uPointColor_ = -1, uSway_ = -1, uSkyTex_ = -1, uHazeCube_ = -1, uSkyOn_ = -1, uNearCut_ = -1, uGrassTex_ = -1;
         GLint uViewProj_ = -1, uEyePosV_ = -1;  // multiview: both eyes' view-projection and position
         GLint uLook_ = -1;
     };
@@ -220,6 +223,10 @@ private:
     TextureId grassTex_ = 0;
     bool msaa_ = false;
     bool skyHaze_ = true;
+    static constexpr int kHazeSize = 64;
+    GLuint hazeCube_ = 0, hazeFbo_ = 0, hazeProg_ = 0;
+    GLint hzFace_ = -1, hzSize_ = -1, hzGrade_ = -1, hzSky_ = -1, hzTime_ = -1, hzTint_ = -1, hzSunDir_ = -1, hzSunColor_ = -1;
+    bool initHaze();
     bool terrainDetail_ = true;
     float cloudShadow_ = 0.0f;
     bool underwater_ = false;

@@ -2329,6 +2329,7 @@ void GameApp::renderShadows() {
     if (!weaponsTicked_) dropHeldWeaponState();  // no weapon update ran since the last frame
     weaponsTicked_ = false;
     renderShadowMap();
+    renderer_.updateHaze();  // (the sky haze cube for this frame's views)
     renderReflection();
     renderScope();
     renderCinema();  // rework: a cutscene's picture for the cinema screen
@@ -2565,7 +2566,8 @@ void GameApp::updateQuality(float dt) {
     const float avg = perfTime_ / float(perfFrames_);
     // Down below 69 fps (was 65: a scene at 68 never stepped down and stuttered on).
     if (avg > 1.0f / 69.0f && quality_ < 3) {
-        ++quality_;
+        // Far below (under 50 fps): two steps at once - one a window left a heavy scene stuttering for 10 s+.
+        quality_ = std::min(3, quality_ + (avg > 1.0f / 50.0f ? 2 : 1));
         perfGood_ = 0;
         if (sinceUp_ < 10.0f) upHold_ = 60.0f;  // the last step up didn't hold
         LOGW("perf: %.1f fps average, effects quality down to level %d", 1.0f / avg, quality_);
