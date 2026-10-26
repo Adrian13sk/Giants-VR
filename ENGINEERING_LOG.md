@@ -2325,3 +2325,10 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   the swim velocity, stick plus strokes capped at 1.7 x swimSpeed. GVR_SWIM_TRACE.
 - devtest swim_strokes (r4a deep water at game (2525, 270), found with GVR_FIND_SEA): six breaststrokes - stroke
   speed 1.6 m/s after the first, 2.5-3.3 m/s at the peaks, the player's speed following it.
+
+### 2026-10-26 — Rework: one-time hints for the hand mechanics
+- game_app_hints.cpp: bodies (a dead Reaper within 4 m, 2 s after death), stones (after 45 s of play, a hand-sized
+  one within 2.5 m), a dropped gun (within 10 m, lying 1 s), swimming (2 s) - each shown once as the line under the
+  view (6 s), only after 3 s with no other line showing, Meccaryn/Delphi first person; settings key hints_shown
+  (bits) keeps them from showing again. Harness: swim_strokes shows the swim hint; a 25 s 1c_1 run with a quiet
+  kill shows the body hint after Timmy's line.

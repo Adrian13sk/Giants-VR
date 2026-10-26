@@ -1617,6 +1617,8 @@ private:  // the mission placed enemies: no test waves
     // Rework (game_app_stones.cpp): swimming by arm strokes - a hand with its grip squeezed pulled
     // through the water pushes you the other way. Returns the stroke velocity to add (world, m/s).
     Vec3 updateSwimStrokes(float dt, const InputFrame& in);
+    void updateHints(float dt);  // game_app_hints.cpp
+    float hintQuiet_ = 0, hintPlay_ = 0, swimFor_ = 0;
     Vec3 strokeVel_, strokePrev_[2];
     bool strokeHave_[2] = {false, false};
     bool grabGib(int h, const Vec3& hand, const Vec3& reach, const Quat& handRot);
