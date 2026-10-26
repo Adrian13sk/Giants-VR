@@ -2351,3 +2351,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   holding the bars (the move-hand grip is a bar). Hint once (hints_shown bit 16). New script command pitch_r/pitch_l
   <deg> t0 t1 (a cumulative wrist twist). devtest ski_handlebars (rstory3_race_1): "Handlebars taken", throttle
   1.00 after the twist, speed 4.4 -> 21 m/s after the start, steer 1.00 with the right grip pulled back. Sweep 56/56.
+- Found while checking the PC: its devtest folder had 21 of the 39 test scripts (the rework's hand tests were never
+  copied) and an older devtest.ps1 (sweep world mapping). All 39 scripts, devtest.ps1 and README copied to
+  Documents\GiantsQuestVR\devtest. (swim_strokes, smartie_throw_hit, ski_handlebars need an APK after 3889d03.)
