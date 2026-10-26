@@ -29,13 +29,22 @@ Vec3 fwdOf(float yaw) { return Vec3{-std::sin(yaw), 0, -std::cos(yaw)}; }
 
 void GameApp::initBirds(AssetWorld* w, ModelCache* mc) {
     birds_.clear();
-    birdModels_.clear();
     feathers_.clear();
     birdsReady_ = false;
+    for (int h = 0; h < 2; ++h) birdGripWas_[h] = false;
     flockTimer_ = 6.0f;
     nextFlock_ = 0;
     birdShots_ = weapon_.shotsFired();
     if (!w || !w->hasTerrain() || !mc || std::getenv("GVR_NO_BIRDS")) return;
+    // The skins are the same in every level: loaded once (they were re-made at every mission load).
+    if (birdModels_.size() == size_t(kMaxBirds) && birdCache_ == mc) {
+        birdsReady_ = true;
+        for (auto& m : birdModels_) m->pose(renderer_, 0.0f);
+        placeLobirds();
+        return;
+    }
+    birdModels_.clear();
+    birdCache_ = mc;
     // Probe the two skins once (bounds -> how far the origin is above the feet).
     static const char* flakClips[6] = {"Flak_peck_1.anm", "flak_peck_2.anm", "flak_hop.anm", "flak_fly.anm", "Flak_fly_glide.anm", "flak_land.anm"};
     for (int kind = 0; kind < 2; ++kind) {
@@ -67,6 +76,10 @@ void GameApp::initBirds(AssetWorld* w, ModelCache* mc) {
         birdModels_.push_back(std::move(m));
     }
     birdsReady_ = true;
+    placeLobirds();
+}
+
+void GameApp::placeLobirds() {
     // The Lobirds: high circles round a centre that drifts after the player.
     for (int i = 0; i < kLobirds; ++i) {
         Bird b;

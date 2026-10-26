@@ -27,7 +27,6 @@ constexpr int kModels = 4;  // swim phases shared by the fish
 
 void GameApp::initFish(AssetWorld* w, ModelCache* mc) {
     shinerSchools_.clear();
-    shinerModels_.clear();
     shinerSpawnT_ = 0;
     heldFish_[0] = heldFish_[1] = HeldFish{};
     looseFish_.clear();
@@ -42,7 +41,13 @@ void GameApp::initFish(AssetWorld* w, ModelCache* mc) {
         for (const auto& [k, v] : n) list += " " + k + " x" + std::to_string(v);
         LOGI("Ambient markers:%s", list.c_str());
     }
-    if (!w || !w->hasTerrain() || !mc || std::getenv("GVR_NO_FISH")) return;
+    if (!w || !w->hasTerrain() || !mc || std::getenv("GVR_NO_FISH")) { shinerModels_.clear(); return; }
+    if (shinerModels_.size() == size_t(kModels) && fishCache_ == mc) {  // (loaded once: the same in every level)
+        shinerSchools_.resize(kSchools);
+        return;
+    }
+    shinerModels_.clear();
+    fishCache_ = mc;
     for (int i = 0; i < kModels; ++i) {
         auto m = std::make_unique<SkinnedModel>();
         if (!m->load(w->fs(), *mc, renderer_, "Shiner", "Shiner_swim.anm")) {

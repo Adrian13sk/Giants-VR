@@ -2508,3 +2508,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   held hanging from the fist; within 0.22 H of the mouth: eaten (+15 health, feathers, ka_vimp); opened: flung at the
   hand's speed, it flies back up. Eaten / shot-down Lobirds are re-made after 40 s far off. devtest kabuto_lobird
   (deterministic: caught at 5.43 s, eaten at ~6.6 s).
+- Bird and fish skins are loaded once and kept across mission loads (they were re-parsed and re-uploaded at every
+  mission: 22 skins); soak 1a -> 2a: Flak loaded once, Shiner once. Vimp meat can also be taken by hand (a grip's edge
+  within 0.35 m of a piece, GROUND REACH applies) - BUILD only, no harness test for it yet.

@@ -193,6 +193,19 @@ void GameApp::updateVimps(float dt) {
     meatFlash_ = std::max(0.0f, meatFlash_ - dt * 1.5f);
     meatHintT_ = std::max(0.0f, meatHintT_ - dt);
     const float reach = 1.6f + (player_.radius - 0.35f);
+    // Rework: a piece can be taken by hand too (bend down, squeeze a grip on it).
+    bool takeEdge[2] = {false, false};
+    Vec3 handAt[2];
+    for (int h = 0; h < 2; ++h) {
+        const ControllerState& c = lastInput_.hand[h];
+        const bool g = c.squeeze > 0.7f;
+        const bool edge = g && !meatGripWas_[h];
+        meatGripWas_[h] = g;
+        if (!edge || !c.gripPoseValid || !playMode_ || dying_ || !firstPerson_ || hero_ == Hero::Kabuto || stoneInHand(h) || heldBody_.hand == h)
+            continue;
+        handAt[h] = reachPoint(rig_.toWorld(c.gripPose).position);
+        takeEdge[h] = true;
+    }
     for (auto& m : meat_) {
         m.t += dt;
         if (!m.rest) {
@@ -206,8 +219,14 @@ void GameApp::updateVimps(float dt) {
                 else m.rest = true;
             }
         }
-        if (playMode_ && !dying_ && m.t > 0.5f && length(Vec3{m.pos.x - player_.position.x, 0, m.pos.z - player_.position.z}) < reach &&
-            std::fabs(m.pos.y - player_.position.y) < 2.0f + player_.height) {
+        bool byHand = false;
+        for (int h = 0; h < 2; ++h)
+            if (takeEdge[h] && length(handAt[h] - m.pos) < 0.35f && m.t > 0.3f) {
+                byHand = true;
+                haptics_.push_back({h, 0.35f, 0.05f});
+            }
+        if (playMode_ && !dying_ && m.t > 0.5f && ((length(Vec3{m.pos.x - player_.position.x, 0, m.pos.z - player_.position.z}) < reach &&
+            std::fabs(m.pos.y - player_.position.y) < 2.0f + player_.height) || byHand)) {
             m.t = -1e9f;
             if (hero_ == Hero::Kabuto) {
                 playerHealth_ = std::min(100.0f, playerHealth_ + 5.0f);

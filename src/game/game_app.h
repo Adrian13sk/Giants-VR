@@ -1425,6 +1425,7 @@ private:  // the mission placed enemies: no test waves
     const RenderModel* meatModel_[3] = {};
     TextureId meatIcon_ = 0, dropoffTex_ = 0;
     int vimpMeat_ = 0;
+    bool meatGripWas_[2] = {};
     float meatFlash_ = 0, meatHintT_ = 0;
     void initVimps(AssetWorld* w, ModelCache* mc);
     void updateVimps(float dt);
@@ -1460,6 +1461,8 @@ private:  // the mission placed enemies: no test waves
     size_t birdShots_ = 0;
     bool birdsReady_ = false;
     void initBirds(AssetWorld* w, ModelCache* mc);
+    void placeLobirds();
+    ModelCache* birdCache_ = nullptr;
     void updateBirds(float dt);
     void renderBirds(const Vec3& eye);
     // A segment (a shot, a thrown stone) through a bird kills it. Returns true on a hit.
@@ -1481,6 +1484,7 @@ private:  // the mission placed enemies: no test waves
     std::vector<ShinerSchool> shinerSchools_;
     std::vector<std::unique_ptr<SkinnedModel>> shinerModels_;  // a few, posed at different phases
     float shinerLift_ = 0, shinerSpawnT_ = 0;
+    ModelCache* fishCache_ = nullptr;
     void initFish(AssetWorld* w, ModelCache* mc);
     void updateFish(float dt);
     void renderFish(const Vec3& eye);
