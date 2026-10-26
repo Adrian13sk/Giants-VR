@@ -1,6 +1,7 @@
 # Progress video 9 (rework): caption|world|mission|from frame|frames|env and harness args
 Cutscenes on a cinema screen: the original camera, framing and cuts|Story1|1a_1_timmy|0|1300|
 Delphi runs a Reaper through - he hangs on the blade - and pulls the sword out|Rstory2|rstory2_battle_1|0|430|--script devtest/tests/delphi_impale.txt
+Dismemberment: Delphi's killing slash takes his head off|Rstory2|rstory2_battle_1|60|330|--script devtest/tests/delphi_dismember.txt
 Ragdolls: Reapers blown up fly limp and come to rest|Rstory2|rstory2_battle_1|40|500|--script devtest/tests/reaper_ragdolls.txt
 Kabuto uproots a tree, swings it and throws it|Kstory1|k1a_smarties|0|500|--script devtest/tests/kabuto_tree.txt
 Kabuto picks up a Smartie and throws it|Kstory1|k1a_smarties|0|570|--script devtest/tests/kabuto_smartie_throw.txt

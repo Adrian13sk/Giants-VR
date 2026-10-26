@@ -50,6 +50,20 @@ the original game's network play (DirectPlay, native code, not decoded).
 The headless harness (`tools/headless`) drives the identical `GameApp` with scripted poses on
 Mesa llvmpipe, so rendering and asset code is verified on every build without a headset.
 
+### Rework subsystems (branch `rework`, 2026-10-25/26)
+- **Ragdolls** (`src/game/ragdoll.{h,cpp}`, `game_app_ragdoll.cpp`): a Verlet particle skeleton built from a
+  skinned model's node tree at the moment of death, applied back through `SkinnedModel::setPoseModifier`. One per
+  model slot (Reapers, character models, villager and vimp slots), keyed by the NPC's uid. `explode()` records
+  recent blasts for the push.
+- **Dismemberment** (`SkinnedModel::sever`, `GameApp::dismember`): a bone subtree's vertices collapse onto its
+  joint; the cut triangles become a mesh owned by a gib.
+- **Cutscene cinema** (`game_app_cinema.cpp`, `Renderer::initScreen/beginScreenPass`): the shot camera renders the
+  world (`GameApp::renderWorld`, shared with the eye pass) into a 1024x768 4x MSAA texture shown on a screen fixed
+  in tracking space; `renderViews` draws only the dark room then. `CutscenePlayer` matches untyped performance trees
+  to characters by mover name, size-aware.
+- **Grass material** (`DrawParams::Material::Grass`): cards carry blade coordinates in the normal and the ground's
+  texture coordinate in uv; the fragment shader evaluates `terrainColor()` there (one call site: llvmpipe).
+
 ## Threading / timing
 Single render thread; simulation `GameApp::update(dt)` runs once per XR frame with dt clamped to
 0.1 s. A fixed-step simulation loop will be introduced with gameplay systems (M8).
