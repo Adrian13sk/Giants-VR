@@ -458,6 +458,9 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
                     if (enemies_.damage(k.eatTarget, 1e5f) && obj >= 0) completeObjective(obj);
                     enemies_.enemies[size_t(k.eatTarget)].remove = true;
                     ate = true;
+                } else if (!e.gibbed && !e.remove && e.uid == k.eatUid) {
+                    e.remove = true;  // (rework: a body he picked up and brought to his mouth)
+                    ate = true;
                 }
             }
             if (ate) {

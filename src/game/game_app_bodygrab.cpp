@@ -80,7 +80,16 @@ void GameApp::updateThrownBody(float dt) {
 
 void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
     updateThrownBody(dt);
-    const bool can = playMode_ && firstPerson_ && !dying_ && hero_ != Hero::Kabuto && !cutsceneActive() && !riding_;
+    const bool can = playMode_ && firstPerson_ && !dying_ && !cutsceneActive() && !riding_;
+    // Kabuto too (user: he picks up everything but buildings): a dead Reaper or creature is a doll in his
+    // hand - bring it to his mouth and he eats it. His hand's point and reach go with his size.
+    const bool kab = hero_ == Hero::Kabuto;
+    const float H = player_.height;
+    auto handAt = [&](const ControllerState& c) {
+        const Pose gp = rig_.toWorld(c.gripPose);
+        return kab ? gp.position + gp.orientation.rotate(Vec3{0, 0.02f * H, -0.09f * H}) : gp.position;
+    };
+    const float reach = kab ? 0.24f * H : kReach;  // (as his own grab)
     static const bool trace = std::getenv("GVR_GRAB_TRACE") != nullptr;
     // Taking hold: a grip squeezed (its edge) with the hand on a body, the other hand not holding one.
     for (int h = 0; h < 2; ++h) {
@@ -89,13 +98,14 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
         const bool edge = g && !bodyGripWas_[h];
         bodyGripWas_[h] = g;
         if (!can || !edge || heldBody_.kind >= 0 || !c.gripPoseValid || (heldVillager_ != 0 && heldVillagerHand_ == h)) continue;
-        const Vec3 p = rig_.toWorld(c.gripPose).position;
-        float best = kReach, nearestAny = 1e30f;
+        if (kab && (kbHold_ != HoldNone || kbGrabHand_ == h || kb_.eatT >= 0 || climbHold_[h])) continue;  // (that hand has his own grab)
+        const Vec3 p = handAt(c);
+        float best = reach, nearestAny = 1e30f;
         HeldBody pick;
         int part = -1;
         for (auto& e : enemies_.enemies) {
             if (e.state != EnemyState::Dead || e.gibbed || e.posted || e.uid == impaledUid_) continue;
-            if (length(e.pos - p) > 3.0f) continue;
+            if (length(e.pos - p) > 3.0f + reach) continue;
             Ragdoll* r = ragdollOf(e);
             if (!r || !r->active) continue;
             float d = 0;
@@ -106,21 +116,22 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
         for (int kind = 0; kind < 3; ++kind)
             for (size_t s = 0; s < npcRag_[kind].size(); ++s) {
                 Ragdoll& r = npcRag_[kind][s];
-                if (!r.active) continue;
+                if (!r.active || (kab && kind != kNpcCreature)) continue;  // (his own grab takes Smarties and Vimps)
                 float d = 0;
                 const int k = r.nearest(p, d);
                 nearestAny = std::min(nearestAny, d);
                 if (k >= 0 && d < best) { best = d; part = k; pick = HeldBody{kind, int(s), r.uid, h}; }
             }
         if (part < 0) {
-            if (trace) LOGI("grab trace: hand %d at (%.2f %.2f %.2f) - no body within reach (nearest %.2f m)", h, p.x, p.y, p.z, nearestAny);
+            if (trace) LOGI("grab trace: hand %d at (%.2f %.2f %.2f) - no body within reach %.2f m (nearest %.2f m)", h, p.x, p.y, p.z, reach, nearestAny);
             continue;
         }
         heldBody_ = pick;
         heldBody_.prev = p;
         heldBody_.vel = Vec3{0, 0, 0};
         if (Ragdoll* r = bodyRagdoll(heldBody_)) {
-            r->pinParticle(part, p);
+            heldBody_.from = r->particle(size_t(part));
+            r->pinParticle(part, heldBody_.from);
             r->posedAsleep = false;
         }
         haptics_.push_back({h, pick.kind == kReaperBody ? 0.7f : 0.45f, 0.1f});
@@ -137,14 +148,16 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
         b = HeldBody{};
         return;
     }
-    const Vec3 p = rig_.toWorld(c.gripPose).position;
+    const Vec3 p = handAt(c);
     if (dt > 0) {
         b.vel = b.vel * 0.5f + (p - b.prev) * (0.5f / dt);
         b.recent[b.nRecent++ % 12] = (p - b.prev) * (1.0f / dt);
     }
     b.prev = p;
     b.t += dt;
-    r->movePin(p);
+    // (the part eases into the hand over 0.15 s rather than jumping the reach)
+    const float ease = std::min(1.0f, b.t / 0.15f);
+    r->movePin(b.from + (p - b.from) * ease);
     r->posedAsleep = false;
     // The body's owner follows it (where it lies now: Cleaners, culling, the corpse's own logic).
     const Vec3 ctr = r->centre();
@@ -164,6 +177,20 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
     // Its weight in the hand: a steady pull, more for a Reaper, more when it swings.
     if (frand() < dt * 6.0f) haptics_.push_back({b.hand, (b.kind == kReaperBody ? 0.25f : 0.12f) + std::min(0.4f, 0.05f * length(b.vel)), 0.03f});
     if (trace && int(b.t / dt) % 18 == 0) LOGI("grab trace: hand (%.2f %.2f %.2f) %.1f m/s, body centre (%.2f %.2f %.2f)", p.x, p.y, p.z, length(b.vel), ctr.x, ctr.y, ctr.z);
+    // Kabuto brings it to his mouth: he eats it.
+    if (kab && b.kind == kReaperBody && in.headValid && kb_.eatT < 0 &&
+        length(p - (rig_.toWorld(in.head).position - Vec3{0, 0.06f * H, 0})) < 0.22f * H) {
+        for (size_t i = 0; i < enemies_.enemies.size(); ++i)
+            if (enemies_.enemies[i].uid == b.uid) {
+                r->unpin();
+                LOGI("Kabuto: a body brought to his mouth (Reaper %u)", b.uid);
+                kabutoEat(int(i));
+                haptics_.push_back({b.hand, 0.8f, 0.2f});
+                break;
+            }
+        b = HeldBody{};
+        return;
+    }
     if (c.squeeze < 0.35f) {
         r->unpin();
         // Let go: the part leaves at the hand's speed; a throw takes the body with it (a Smartie flies
@@ -173,9 +200,11 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
         for (int k = 0; k < std::min(b.nRecent, 12); ++k)
             if (length(b.recent[k]) > length(thr)) thr = b.recent[k];
         const float sp = length(thr);
-        if (sp > 2.0f) {
-            const float heavy = b.kind == kReaperBody ? 0.55f : (b.kind == kNpcCreature ? 0.6f : 0.85f);
-            r->kick(thr * heavy);
+        if (sp > 2.0f * (kab ? std::max(1.0f, rig_.comfort.worldScale) : 1.0f)) {
+            const float heavy = kab ? 0.9f : (b.kind == kReaperBody ? 0.55f : (b.kind == kNpcCreature ? 0.6f : 0.85f));  // (a doll to him)
+            Vec3 kick = thr * heavy;
+            if (length(kick) > 40.0f) kick = kick * (40.0f / length(kick));
+            r->kick(kick);
             LOGI("Threw the body (%u) at %.1f m/s", b.uid, sp);
             thrownBody_ = b;
             thrownBody_.t = 0;

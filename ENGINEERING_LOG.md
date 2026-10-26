@@ -2263,3 +2263,13 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Unit test: dropped into water over a 5 m bed - splash over 4 m/s, under the surface but above -2 m after 2 s,
   sinking under 0.5 m in the next second. Harness r4a (shallow sea): three Reapers blasted - "a body splashes
   into the water at 6.1 m/s", se_splsh.
+
+### 2026-10-26 — Rework: Kabuto picks up bodies
+- updateBodyGrab now serves Kabuto too: his hand point and reach as his own grab (grip pose + (0, 0.02, -0.09) H,
+  0.24 H), dead Reapers and creatures only (his own grab takes Smarties and Vimps), not while that hand holds or
+  climbs or he is eating; his own grab skips while a body is held. A Reaper body brought within 0.22 H of the
+  mouth: kabutoEat(index) - the bite now also takes a dead Reaper (removed, +25 health, growth as for a live one).
+  His throw threshold scales with the world scale; the kick x0.9 capped at 40 m/s. The taken part eases into the
+  hand over 0.15 s (his reach is 1.5 m and more - it jumped). devtest kabuto_body_eat (k1a): "Took hold of a Reaper
+  body (8) by part 6, 1.52 m from the hand", "Kabuto: a body brought to his mouth", "Kabuto ate something".
+  kabuto_grab_eat / smartie_throw / tree and the Meccaryn grab tests unchanged. Sweep 56/56 clean.

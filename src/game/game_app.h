@@ -443,6 +443,7 @@ private:
         Vec3 prev, vel;
         Vec3 recent[12];  // the hand's velocity over the last frames (a throw: the fastest of them)
         int nRecent = 0;
+        Vec3 from;  // where the part was when taken (it eases into the hand)
         uint32_t hit[4] = {0, 0, 0, 0};  // thrown: whom it has knocked into
         int nHit = 0;
         float t = 0;
