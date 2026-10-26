@@ -18,7 +18,9 @@ namespace {
 constexpr size_t kMaxMarks = 48;
 }
 
-void GameApp::addGroundMark(int kind, const Vec3& at, float size, float angle, float life) {
+void GameApp::addGroundMark(int kind, const Vec3& at, float size, float angle, float life, float width) {
+    static const bool trace = std::getenv("GVR_MARK_TRACE") != nullptr;
+    if (trace) LOGI("mark %d at (%.1f %.1f %.1f) size %.1f%s", kind, at.x, at.y, at.z, size, enemies_.groundHeight ? "" : " - no ground");
     if (!enemies_.groundHeight) return;
     const float g = enemies_.groundHeight(at.x, at.z);
     if (g < player_.seaLevel - 0.1f) return;  // (under water: none)
@@ -30,6 +32,7 @@ void GameApp::addGroundMark(int kind, const Vec3& at, float size, float angle, f
     m.size = size;
     m.angle = angle;
     m.life = life;
+    m.width = width;
     marks_.push_back(m);
 }
 
@@ -85,7 +88,7 @@ void GameApp::buildGroundMarks(const Vec3& eye, ModelCache* mc) {
         const uint8_t shade = m.kind == 1 ? 120 : 255;
         const uint8_t col[4] = {shade, shade, shade, uint8_t(a * 255.0f)};
         const float ca = std::cos(m.angle), sa = std::sin(m.angle), h = 0.5f * m.size;
-        const Vec3 ux{ca * h, 0, sa * h}, vz{-sa * h, 0, ca * h};
+        const Vec3 ux = Vec3{ca * h, 0, sa * h} * m.width, vz{-sa * h, 0, ca * h};
         // A 3x3 grid of cells, each corner on the ground (+4 cm, more for a big one).
         const float lift = 0.04f + 0.01f * m.size;
         auto corner = [&](int i, int j) {

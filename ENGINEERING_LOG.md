@@ -2397,3 +2397,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   speckled disc made in code - the game's glow textures are coloured), fading over 4 s, flickering.
 - Measured (harness, 5a, two blasts 3 m ahead): the ground inside the mark at half its brightness (58/45/14 against
   118/90/32). Test hooks GVR_MARK_TRACE, GVR_MARK_DEBUG (draws the marks opaque).
+- Kabuto's footprints: each footstep (the existing stride-phase footstep in updateAudio - note it runs only with an
+  audio mixer, so harness checks need --audio-out) adds a kind-1 mark at the foot, 0.2 H long, half as wide (the
+  texture is 32x64), the left foot mirrored (negative width), 45 s, not on structures or in water. Harness k1a:
+  8 marks, 72 cells after 4 s of walking. On Kstory1's dark moss they are subtle (the print is a dark texture).

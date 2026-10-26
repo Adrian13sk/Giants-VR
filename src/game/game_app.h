@@ -560,14 +560,14 @@ private:
     TextureId holeTex_ = 0;
     QuadBatch holeBatch_;
     // Rework (game_app_marks.cpp): marks on the ground - kind 0 a scorch (explosions), 1 Kabuto's footprint.
-    struct GroundMark { int kind = 0; Vec3 pos; float size = 1, angle = 0, age = 0, life = 60; };
+    struct GroundMark { int kind = 0; Vec3 pos; float size = 1, angle = 0, age = 0, life = 60, width = 1; };  // (width: across, x size; negative mirrors)
     std::vector<GroundMark> marks_;
     const void* marksWorld_ = nullptr;
     bool marksReady_ = false;
     TextureId markTex_[2] = {0, 0};
     QuadBatch markBatch_[2], markGlow_;
     TextureId markGlowTex_ = 0;
-    void addGroundMark(int kind, const Vec3& at, float size, float angle, float life);
+    void addGroundMark(int kind, const Vec3& at, float size, float angle, float life, float width = 1.0f);
     void updateGroundMarks(float dt);
     void buildGroundMarks(const Vec3& eye, ModelCache* mc);
     void renderGroundMarks();
