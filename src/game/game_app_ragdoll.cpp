@@ -333,6 +333,7 @@ void GameApp::dropReaperGun(Enemy& e, const Vec3& vel) {
     gun.axis = normalize(Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} + Vec3{0.01f, 0, 0});
     gun.spin = 2.0f + 4.0f * frand();
     gun.scale = 1.0f;
+    gun.owner = e.uid;
     gibs_.push_back(gun);
     e.weaponOn = false;
     LOGI("Reaper %u drops his gun at (%.1f %.1f %.1f)", e.uid, gun.pos.x, gun.pos.y, gun.pos.z);

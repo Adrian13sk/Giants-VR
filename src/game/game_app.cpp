@@ -491,7 +491,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 const bool killed = enemies_.damage(target, (head ? 62.5f : (atGun ? 12.0f : 25.0f)) * hm);  // (the gun takes most of it)
                 if (!killed && gunHit && (atGun ? frand() < 0.7f : frand() < 0.4f)) {
                     Vec3 away = shotDir + Vec3{0, 0.6f, 0};
-                    dropReaperGun(he, away * 3.5f);
+                    dropReaperGun(he, away * 4.5f);
                     he.disarmed = true;
                     sfx("sr_swht1", gunAt, 0.9f, 1.6f + 0.2f * frand());  // (a metal ping, as the parry)
                     LOGI("Reaper %u: his gun shot out of his hand", he.uid);
@@ -1970,6 +1970,29 @@ void GameApp::updateCharacters(float dt) {
         }
     }
     gibs_.erase(std::remove_if(gibs_.begin(), gibs_.end(), [](const Gib& g) { return g.life > 20.0f; }), gibs_.end());
+    // Rework: a Reaper whose gun was shot out of his hand goes back for it when you're not right on him
+    // (within 10 m of it, while it lies there - 15 s); at it, he picks it up and fights on.
+    for (auto& e : enemies_.enemies) {
+        if (!e.disarmed || e.gunArmOff || e.state == EnemyState::Dead) { e.fetchGun = false; continue; }
+        Gib* gun = nullptr;
+        for (auto& g : gibs_)
+            if (g.owner == e.uid && g.life < 15.0f) gun = &g;
+        const float toGun = gun ? length(Vec3{gun->pos.x - e.pos.x, 0, gun->pos.z - e.pos.z}) : 1e9f;
+        const float toPlayer = length(Vec3{player_.position.x - e.pos.x, 0, player_.position.z - e.pos.z});
+        const bool was = e.fetchGun;
+        e.fetchGun = gun && gun->life > 1.5f && toGun < 10.0f && toPlayer > 2.5f;  // (a moment of surprise first)
+        if (!e.fetchGun) continue;
+        e.gunAt = gun->pos;
+        if (!was) LOGI("Reaper %u runs for his gun (%.1f m)", e.uid, toGun);
+        if (toGun < 0.9f) {
+            gun->life = 1e9f;  // (gone from the ground: in his hand)
+            e.disarmed = e.fetchGun = false;
+            e.weaponOn = true;
+            sfx("me_drpwp", e.pos + Vec3{0, 0.5f, 0}, 0.7f, 1.3f);
+            LOGI("Reaper %u picks his gun up", e.uid);
+        }
+    }
+    gibs_.erase(std::remove_if(gibs_.begin(), gibs_.end(), [](const Gib& g) { return g.life > 1e8f; }), gibs_.end());
     for (auto& ci : chars_) {
         if (ci.rescue < 0) continue;
         const RescueSmartie& r = rescue_.smarties[size_t(ci.rescue)];

@@ -395,6 +395,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 // Cover chosen: run to it (given up if the player has moved round it).
                 if (e.inCover && length(Vec3{player.x - e.coverFrom.x, 0, player.z - e.coverFrom.z}) > 10.0f) e.inCover = false;
                 if (e.inCover && !retreating) goal = Vec3{e.coverAt.x - e.pos.x, 0, e.coverAt.z - e.pos.z};
+                if (e.disarmed && e.fetchGun && !retreating) goal = Vec3{e.gunAt.x - e.pos.x, 0, e.gunAt.z - e.pos.z};  // (his gun, on the ground)
                 if (retreating) {
                     e.retreatT -= dt;
                     goal = Vec3{-dirTo.x * 12.0f + side.x * e.flank, 0, -dirTo.z * 12.0f + side.z * e.flank};

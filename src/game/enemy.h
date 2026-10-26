@@ -81,6 +81,8 @@ struct Enemy {
     bool treeCover = false; // rework: its cover is a tree trunk (stands behind it, peeks out)
     bool gunArmOff = false; // rework: the right arm was cut off (no gun in the hand)
     bool disarmed = false;  // rework: his gun was shot out of his hand (game layer): he comes in to punch
+    bool fetchGun = false;  // rework: disarmed, he runs to where his gun lies (gunAt) to pick it up (game layer)
+    Vec3 gunAt;
     float limpT = 0;        // rework: > 0: shot in the leg, he limps (slower) this long
     Vec3 coverAt, coverFrom; // the spot, and where the player was when it was chosen  // rework: coming down on a hover pack (an ambush from the air)
     // Rework: ragdolls (game_app_ragdoll.cpp). kick: the impulses of the last moments (m/s, decaying,

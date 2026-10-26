@@ -2299,3 +2299,11 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   doesn't pick up stones; sprint is off while the move hand holds a stone.
 - Harness stone_throw with the hand stopping higher: tracking y -1.05 / -0.7 / -0.5 pick the stone up, -0.3
   (0.9 m above the ground) doesn't. Unit tests pass.
+
+### 2026-10-26 — Rework: a disarmed Reaper goes back for his gun
+- Gib::owner marks a dropped gun with its Reaper's uid. Each frame a disarmed Reaper (arm on, alive) whose gun has
+  lain 1.5 s - 15 s within 10 m, with the player over 2.5 m away, runs for it (Enemy::fetchGun / gunAt: the Advance
+  goal); within 0.9 m he picks it up (the gib goes, weaponOn, disarmed off). The player close: he punches instead.
+  The gun now leaves the hand at 4.5 x (was 3.5 x) the shot's direction (+0.6 up). Harness 1c_1 (gun shot out,
+  firing stopped): "runs for his gun (7.8 m)" then "punches you" as the player stood in the way; with the gun
+  2.4 m away (first try, 0.8 s delay) he had it back at once - hence the delay and the longer throw. Sweep 56/56.

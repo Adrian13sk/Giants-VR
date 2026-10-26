@@ -516,6 +516,7 @@ private:
         float angle = 0, spin = 0, scale = 1, life = 0;
         Mat4 base = Mat4::identity();       // rework: a cut-off limb (or a dropped gun) starts as it was on the body (rotation only)
         std::shared_ptr<RenderModel> own;   // rework: the limb's own meshes (freed with the gib)
+        uint32_t owner = 0;                 // rework: a dropped gun - the Reaper it belongs to
     };
     // Rework, dismemberment (game_app_ragdoll.cpp): cuts off the limb of dead Reaper `e` nearest the
     // blow at `at` (head, an arm or a leg), throws it along `dir`; false if none could be cut.
