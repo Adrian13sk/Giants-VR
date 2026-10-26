@@ -1,0 +1,15 @@
+# Rework (2026-10-26): fish. Stand on the beach of island 1 looking down into the shallows: schools of Shiners
+# (the original's unused xx_fish art) swim under the surface, seen through the water. Then wade in: they dart away
+# from you and gather again behind. Log: "Fish: a school of N Shiners", "Fish: a school scatters".
+name fish_school
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_FISH_TEST 1
+view first
+duration 12
+at 345 4617
+look 300 4617
+pitch -25
+move 0 1 5.0 6.2

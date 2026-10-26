@@ -810,6 +810,7 @@ void AssetWorld::render(Renderer& r, bool reflection) {
     }
     for (const auto& s : skinned_)
         s.model->render(r, Mat4::translation(s.position) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, s.yaw)));
+    if (seaMesh_ && !reflection && underwater) underwater();
     if (seaMesh_ && !reflection) {
         DrawParams sp;
         sp.texture = seaTexture_;

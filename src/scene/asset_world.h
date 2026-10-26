@@ -4,6 +4,8 @@
 // Objects come from the world stream (op 42) and the first mission's setup stream (wm_*.bin).
 #pragma once
 
+#include <functional>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,6 +28,9 @@ public:
     bool init(const std::string& dataDir, Renderer& r, const std::string& worldName, const std::string& startMission = std::string());
     void update(float dt);
     void render(Renderer& r, bool reflection = false);  // reflection: the mirrored pass (no water, less detail)
+    // Drawn just before the (see-through, not depth-writing) sea, so what swims under it shows
+    // through the water instead of over it (rework: fish, piranhas).
+    std::function<void()> underwater;
     // World objects near `centre` into the current shadow pass.
     void renderShadowCasters(Renderer& r, const Vec3& centre, float radius) const;
     bool loaded() const { return !placed_.empty() || !skinned_.empty() || hasTerrain_; }

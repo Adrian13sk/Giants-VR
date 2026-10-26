@@ -2441,3 +2441,21 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   from load; not copyable). Renderer::shutdown clears its table first, so models destroyed after it do nothing.
   Soak 1a -> r1_turbo, 12000 frames, a mission every 500: 383 MB -> 341 MB at the end. ASan: soak 4000 frames,
   delphi_dismember, reaper_ragdolls, smartie_ragdolls, kabuto_grab_eat - 0 reports; sweep 56/56.
+
+## 2026-10-26 (afternoon): fish (Shiners), catching them by hand
+- xx_fish.gzp: Shiner.gbs/.skn + Shiner_swim.anm (0.46 m long), unused by the levels. game_app_fish.cpp: three
+  schools of 7-12 in water 0.8-3 m deep, 8-35 m from the player (re-placed when >70 m behind), 0.12-0.45 m under
+  the surface; 4 shared SkinnedModels posed at different phases (cheap). Scares: the player in the water (3.5 m),
+  a hand moving >0.7 m/s in the water (1.4 m), new splashes (6 m), blasts (15 m). A hand held still under water
+  draws its school (target = the hand).
+- The sea is alpha-blended without depth writes and was drawn inside AssetWorld::render before the characters, so
+  anything under it drawn later showed OVER the water. New AssetWorld::underwater hook, called just before the sea:
+  the fish and the swimming piranhas (moved there) now show through the water, tinted by it.
+- Catching: a grip's edge with the hand under water within 0.32 m of a fish (0.22 m if fleeing) - it leaves its
+  school, wriggles in the hand (haptic pulses), counts as a held thing (stoneInHand: no climbing/other grabs with
+  it). Let go: the fastest of the last 8 hand velocities; into the water = back to the nearest school (darting);
+  on land = flops (hops, twists, weaker) for 8 s, lies, gone after 40 s; >5 m/s into a Reaper = a slap
+  (thrownHitEnemy 1 + 0.3 v).
+- Harness: fish_school (GVR_FISH_TEST: a school straight ahead; walking in scatters it), fish_catch
+  (GVR_FISH_TEST=hand: a school round the right hand; "caught by hand 1", "let go at 3.2 m/s", "lands on the
+  ground - it flops"). Meccaryn can only wade (swimming = piranhas, original rule); Delphi swims freely.

@@ -1562,6 +1562,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initVillagers(w, mc);
     initVimps(w, mc);
     initBirds(w, mc);
+    initFish(w, mc);
     initDestruction(w, mc);
     initSpawners();
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
@@ -4016,6 +4017,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("villagers"); updateVillagers(dt); updateVillagerHands(dt, lastInput_); }
     { GVR_PROF("vimps"); updateVimps(dt); }
     { GVR_PROF("birds"); updateBirds(dt); }
+    { GVR_PROF("fish"); updateFish(dt); }
     { GVR_PROF("npc ragdolls"); updateNpcRagdolls(dt); }
     { GVR_PROF("bosses"); updateBosses(dt); }
     { GVR_PROF("sams"); updateSams(dt); }
@@ -4688,28 +4690,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
         if (length(f.pos - v.eyePosition) < 0.6f * f.scale) continue;  // (a ring seen from inside its own spray)
         m->render(renderer_, Mat4::translation(f.pos) * Mat4::scale(Vec3{1, 1, 1} * f.scale));
     }
-    if (pirSwim_) {
-        // Circling just under the surface; one now and then leaps (pir_swim_jump) at the prey.
-        pirSwim_->pose(renderer_, float(time_));
-        for (const auto& sc : schools_) {
-            if (sc.vis <= 0.01f || length(sc.centre - v.eyePosition) > 120.0f) continue;
-            for (int i = 0; i < kPiranhas; ++i) {
-                const Piranha& f = sc.fish[i];
-                const float r = (sc.target < 0 ? 1.2f : 0.8f) + 0.35f * float(i % 3);
-                const Vec3 at = sc.centre + Vec3{std::cos(f.angle) * r, 0, std::sin(f.angle) * r};
-                const float yaw = std::atan2(std::sin(f.angle), -std::cos(f.angle));  // swimming along the circle
-                const float depth = -0.25f - (1.0f - sc.vis) * 1.5f;
-                if (f.jump >= 0 && pirJump_) {
-                    pirJump_->pose(renderer_, f.jump);
-                    const Vec3 to = sc.centre - at;
-                    pirJump_->render(renderer_, Mat4::translation(Vec3{at.x, depth, at.z}) *
-                                                    Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, std::atan2(-to.x, -to.z))));
-                } else {
-                    pirSwim_->render(renderer_, Mat4::translation(Vec3{at.x, depth, at.z}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, yaw)));
-                }
-            }
-        }
-    }
+    // (the swimming piranhas: drawn under the sea, AssetWorld::underwater -> renderPiranhas)
     renderGore();
     for (const auto& c : collapses_)
         if (c.model) c.model->render(renderer_, c.xf);
@@ -4897,6 +4878,32 @@ void GameApp::shutdown() {
     playerModel_.reset();
     assetWorld_.reset();
     renderer_.shutdown();
+}
+
+void GameApp::renderPiranhas() {
+    const ViewParams& v = renderer_.currentView();
+    if (pirSwim_) {
+        // Circling just under the surface; one now and then leaps (pir_swim_jump) at the prey.
+        pirSwim_->pose(renderer_, float(time_));
+        for (const auto& sc : schools_) {
+            if (sc.vis <= 0.01f || length(sc.centre - v.eyePosition) > 120.0f) continue;
+            for (int i = 0; i < kPiranhas; ++i) {
+                const Piranha& f = sc.fish[i];
+                const float r = (sc.target < 0 ? 1.2f : 0.8f) + 0.35f * float(i % 3);
+                const Vec3 at = sc.centre + Vec3{std::cos(f.angle) * r, 0, std::sin(f.angle) * r};
+                const float yaw = std::atan2(std::sin(f.angle), -std::cos(f.angle));  // swimming along the circle
+                const float depth = -0.25f - (1.0f - sc.vis) * 1.5f;
+                if (f.jump >= 0 && pirJump_) {
+                    pirJump_->pose(renderer_, f.jump);
+                    const Vec3 to = sc.centre - at;
+                    pirJump_->render(renderer_, Mat4::translation(Vec3{at.x, depth, at.z}) *
+                                                    Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, std::atan2(-to.x, -to.z))));
+                } else {
+                    pirSwim_->render(renderer_, Mat4::translation(Vec3{at.x, depth, at.z}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, yaw)));
+                }
+            }
+        }
+    }
 }
 
 }  // namespace gvr

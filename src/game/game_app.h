@@ -1458,6 +1458,30 @@ private:  // the mission placed enemies: no test waves
     bool birdHitBy(const Vec3& a, const Vec3& b, float radius, const Vec3& dir);
     void killBird(Bird& bd, const Vec3& dir);
     bool spawnFlock(const Vec3& near, bool test);
+    // Rework, fish (game_app_fish.cpp): schools of Shiners (the original's unused xx_fish art) in
+    // the clear shallows near the player; they dart away from a wading / swimming player, a hand
+    // in the water, a splash or a shot, then gather again.
+    struct ShinerFish { Vec3 pos, vel, offset; float yaw = 0, flee = 0; };
+    struct ShinerSchool { Vec3 centre, target; float wanderT = 0; bool live = false; std::vector<ShinerFish> fish; };
+    std::vector<ShinerSchool> shinerSchools_;
+    std::vector<std::unique_ptr<SkinnedModel>> shinerModels_;  // a few, posed at different phases
+    float shinerLift_ = 0, shinerSpawnT_ = 0;
+    void initFish(AssetWorld* w, ModelCache* mc);
+    void updateFish(float dt);
+    void renderFish(const Vec3& eye);
+    void renderPiranhas();
+    bool placeSchool(ShinerSchool& sc, const Vec3& near, float minD, float maxD);
+    // Caught by hand: squeeze a grip with the hand in the water on a fish; it wriggles in the hand;
+    // let go in the water and it darts off, out of it and it falls (thrown: it can hit a Reaper),
+    // flops about on land.
+    struct HeldFish { bool active = false; float t = 0; Vec3 prev; Vec3 recent[8]; int nRecent = 0; };
+    struct LooseFish { Vec3 pos, vel; float yaw = 0, roll = 0, spin = 0, t = 0, hopT = 0; bool landed = false, hit = false; };
+    HeldFish heldFish_[2];
+    std::vector<LooseFish> looseFish_;
+    bool fishGripWas_[2] = {};
+    Vec3 fishHandPrev_[2];
+    bool fishHandHave_[2] = {};
+    void updateFishCatch(float dt);
     static constexpr int kBossTarget = 8000;  // weapon target ids for boss characters (index into chars_)
     bool bossRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
     void hitBoss(int i, float amount, const Vec3& at, const Vec3& dir);

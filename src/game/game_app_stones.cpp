@@ -296,6 +296,7 @@ Vec3 GameApp::reachPoint(const Vec3& hand) const {
 }
 
 bool GameApp::stoneInHand(int h) const {
+    if (h >= 0 && h < 2 && heldFish_[h].active) return true;  // (a fish caught by hand)
     for (const auto& st : stones_)
         if (st.hand == h) return true;
     for (const auto& g : gibs_)
