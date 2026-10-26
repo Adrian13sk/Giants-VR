@@ -245,7 +245,14 @@ bool CutscenePlayer::loadShot(const std::string& name) {
             done = !anim.empty() && place(a, kv.second, anim, true, t);
             break;
         }
-        if (!done && tables[size_t(t)].anim.nodes.size() >= 30) place(a, "mc_l0", "mc_stand.anm", true, t);
+        // A Meccaryn only for the crew or no name - never for a tree named after someone else (the
+        // lander's own tree in story4_T_square was drawn as a Meccaryn).
+        static const char* kNotMecc[] = {"lander", "kabuto", "delphi", "yan", "tim", "wife", "borj", "smartie", "weeman",
+                                         "toby", "offspring", "sappho", "reaper", "rp", "sonak", "vimp", "rip"};
+        bool notMecc = false;
+        for (const char* c : kNotMecc)
+            if (a.node.compare(0, std::strlen(c), c) == 0) notMecc = true;
+        if (!done && !notMecc && tables[size_t(t)].anim.nodes.size() >= 30) place(a, "mc_l0", "mc_stand.anm", true, t);
     }
     // Free actors placed in the world (op 0x20): e.g. the wax-Smartie rig (type 1259) at the
     // rock pillars in story1_save_sm_2a.

@@ -1,0 +1,12 @@
+# Rework (2026-10-26): a blast among the Smarties of 5a - they fly limp, tumble and come to rest.
+name smartie_ragdolls
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+duration 5
+at 150 -135
+look 145 -160
+aim 0 -4
+blast 152 -154 1 1 1.2

@@ -417,6 +417,17 @@ private:
     Ragdoll* ragdollOf(const Enemy& e);
     void updateRagdolls(float dt);
     Ragdoll* startRagdoll(Enemy& e, const Vec3& vel, const Vec3& spin);
+    // Rework: ragdolls for the other NPCs (game_app_ragdoll.cpp): Rippers and other creatures (per
+    // character model), Smarties (per villager slot), Vimps (per vimp slot).
+    enum NpcKind { kNpcCreature = 0, kNpcVillager = 1, kNpcVimp = 2 };
+    std::vector<Ragdoll> npcRag_[3];
+    const void* npcRagWorld_ = nullptr;
+    struct RecentBlast { Vec3 pos; float radius; double t; };
+    std::vector<RecentBlast> recentBlasts_;
+    void updateNpcRagdolls(float dt);
+    bool npcToWorld(int kind, int slot, Mat4& out, uint32_t& uid) const;
+    Vec3 npcKick(const Vec3& at, bool& blast) const;
+    bool npcRagdolled(int kind, int slot) const;
     std::vector<float> slotLift_;   // per model slot: lift so the posed body's lowest point is on the ground
     WeaponSystem enemyFire_;
     std::vector<int> shooters_;

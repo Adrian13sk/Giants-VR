@@ -1879,7 +1879,7 @@ void GameApp::updateCharacters(float dt) {
         const bool dig = c.clip == CreatureClip::Popup || c.clip == CreatureClip::BuriedIdle || c.clip == CreatureClip::Dive ||
                          c.clip == CreatureClip::Latch;
         if (dig) ci.lift = ci.restLift;
-        else ci.lift += (-mn.y * ci.scale - ci.lift) * std::min(1.0f, dt / 0.06f);
+        else if (!npcRagdolled(kNpcCreature, c.slot)) ci.lift += (-mn.y * ci.scale - ci.lift) * std::min(1.0f, dt / 0.06f);  // (a ragdoll keeps its frame)
         // Footsteps while running.
         if (c.clip == CreatureClip::Walk && c.speed > 0.5f && dist < 30.0f) {
             ci.stepTimer -= dt * c.rate;
@@ -3278,6 +3278,7 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
 }
 
 void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int hurtsPlayer) {
+    recentBlasts_.push_back({at, radius, time_});  // (rework: ragdolls take the push)
     addFlash(at + Vec3{0, 1.0f, 0}, fire ? Vec3{2.6f, 1.5f, 0.6f} : Vec3{1.8f, 1.5f, 1.2f}, std::min(30.0f, 4.0f + radius * 3.0f), 0.45f);
     // Fireballs for fire, grenades and rockets - not Kabuto's quakes and bursting boulders (one at his own feet filled the view).
     if (fire || hurtsPlayer == 1 || (damage > 0 && hero_ != Hero::Kabuto)) addFireball(at + Vec3{0, 0.4f, 0}, radius);
@@ -3891,6 +3892,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("burn"); updateBurn(); }
     { GVR_PROF("villagers"); updateVillagers(dt); updateVillagerHands(dt, lastInput_); }
     { GVR_PROF("vimps"); updateVimps(dt); }
+    { GVR_PROF("npc ragdolls"); updateNpcRagdolls(dt); }
     { GVR_PROF("bosses"); updateBosses(dt); }
     { GVR_PROF("sams"); updateSams(dt); }
     { GVR_PROF("fx"); updateFx(dt); }

@@ -2140,3 +2140,16 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   rims and palm fronds get soft edges (device only).
 - Harness: cinema contact sheets of the reviewed chains look as staged (Kstory1_Delphi_changes, Kstory5_End,
   Rstory1_vomit/fire, story1_start/jetpack...). Tests pass; sweep 56/56 clean. HARNESS only.
+
+### 2026-10-26 — Rework: ragdolls for the other NPCs; ragdoll demo video
+- User asked whether ragdolls cover all NPCs (they covered only Reapers) and for a ragdoll demo video.
+- game_app_ragdoll.cpp: one Ragdoll per character model (Rippers and other creatures), villager slot (Smarties) and
+  vimp slot, hooked into each model's pose modifier (start from the death pose, apply); keyed by the NPC's uid (pooled
+  models are lent on). npcToWorld gives each one's render transform (creature xf incl. scale; villager lift; vimp
+  lift x growth and scale), the creature lift is frozen while ragdolled. explode() records recent blasts (0.25 s):
+  an NPC dying within 1.6 radii goes limp at once with the push (2-8 m/s out, 2-6 up; Vimps x0.6), otherwise after
+  0.3 s of its death clip, pushed away from the player. Reborn Vimps stop theirs; eaten Vimps have no body; burst
+  Rippers (exploded) have none.
+- Harness: 5a blast - two Smarties thrown limp, one flies up, tumbles, lies; 2a_1 blast - a Vimp goes limp; 1d_1 -
+  a Ripper killed by a blast without bursting goes limp, lies still after 5.3 s. devtest smartie_ragdolls.
+- scripts/video_ragdoll_clips.txt: before/after (GVR_NO_RAGDOLL), shot crumple, impale, Kabuto throw, Smarties.
