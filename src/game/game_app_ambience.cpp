@@ -400,4 +400,19 @@ void GameApp::updateTreeShake(float dt) {
     treesShaking_ = shaking;
 }
 
+void GameApp::updateSpeedWind(float dt) {
+    if (!audio_) return;
+    float speed = length(player_.velocity);
+    if (riding_) speed = std::max(speed, std::fabs(ski_.speed));
+    speed /= std::max(1.0f, std::sqrt(heroScale_));  // (a giant's stride is not a gale)
+    const bool on = playMode_ && !title_ && !dying_ && !cutsceneActive() && !underwater_ && settings_.ambience >= 1;
+    const float want = on ? std::min(1.0f, std::max(0.0f, (speed - 6.0f) / 16.0f)) * 0.7f : 0.0f;
+    speedWindVol_ += (want - speedWindVol_) * std::min(1.0f, dt * 3.0f);
+    if (speedWindVol_ > 0.01f && !speedWind_) speedWind_ = audio_->play2D(ambienceName(AmbienceKind::Wind), 0.0f, 1.35f, true);
+    if (speedWind_) {
+        audio_->setVolume(speedWind_, speedWindVol_);
+        if (speedWindVol_ <= 0.01f && want <= 0) { audio_->stop(speedWind_); speedWind_ = 0; }
+    }
+}
+
 }  // namespace gvr

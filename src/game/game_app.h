@@ -1567,7 +1567,11 @@ private:  // the mission placed enemies: no test waves
     void undoUnderwater();
     void makeAmbienceSounds();
     void applyWeatherLight(float dt);
-    void updateTreeShake(float dt);  // rework: palms shaken by a giant stomping by and by blasts
+    void updateTreeShake(float dt);
+    // Rework: the rush of air at speed (jetpack, falls, the Reaperski) - the wind loop, louder the faster.
+    void updateSpeedWind(float dt);
+    uint32_t speedWind_ = 0;
+    float speedWindVol_ = 0;  // rework: palms shaken by a giant stomping by and by blasts
     int treesShaking_ = 0;
     void undoWeatherLight();
     struct WeatherLit { Vec3 sun, ambient, fog, clear, horizon, skyTint; };

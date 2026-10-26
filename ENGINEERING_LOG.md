@@ -2560,3 +2560,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Shaken palms: WorldObject::shake (decays 0.6/s) widens a tree's wind swing (x1 + 2.5 shake) and jitters its clock
   (DrawParams::swayPhase: a fast shiver); set by blasts (6 + 4 x size m) and by Kabuto walking (1.3 x his height,
   with his speed). scorch_marks: "Trees: 3 shaking"; GVR_SHAKE_TRACE logs the nearest tree to Kabuto.
+- Speed wind: the procedural wind loop played 2D at pitch 1.35, volume with speed (6 -> 22 m/s, at most 0.7; a
+  giant's speed divided by sqrt of his scale; the Reaperski's speed counts) - the rush of air in a jetpack dive or
+  a fall. Harness Story1 jetpack flight: audio rms 0.029 -> 0.045 in the fast part.

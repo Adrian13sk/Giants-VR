@@ -1093,6 +1093,7 @@ void GameApp::setAudio(AudioMixer* mixer) {
     audio_ = mixer;
     ambVoices_.clear();  // (voices of another mixer)
     ambRain_ = 0;
+    speedWind_ = 0;
     makeAmbienceSounds();
     applySettings();  // volumes
     if (!audio_ || !assetWorld_) return;
@@ -4056,7 +4057,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("vimps"); updateVimps(dt); }
     { GVR_PROF("birds"); updateBirds(dt); updateHitchers(dt); }
     { GVR_PROF("fish"); updateFish(dt); updateSeaMonster(dt); }
-    { GVR_PROF("ambience"); updateAmbience(dt); updateTreeShake(dt); }
+    { GVR_PROF("ambience"); updateAmbience(dt); updateTreeShake(dt); updateSpeedWind(dt); }
     { GVR_PROF("npc ragdolls"); updateNpcRagdolls(dt); }
     { GVR_PROF("bosses"); updateBosses(dt); }
     { GVR_PROF("sams"); updateSams(dt); }
