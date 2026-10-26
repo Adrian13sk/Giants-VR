@@ -1,0 +1,5 @@
+# Progress video 10 (rework): caption|world|mission|from frame|frames|env and harness args
+Grab a dead Reaper by the arm, lift him, throw him|Story1|1c_1_firstmecc|250|420|--script devtest/tests/body_grab.txt
+A body thrown into a living Reaper knocks him back|Story1|1c_1_firstmecc|420|260|--script devtest/tests/body_throw_hit.txt
+Shoot the gun out of his hand - he comes at you with fists|Story1|1c_1_firstmecc|40|420|GVR_AUTOAIM_PART=gun GVR_CUTSCENE=none GVR_GOD=1 GVR_NO_AMBUSH=1 GVR_REAPER_HP=300 --spawn-reaper 8 --auto-aim --trigger-window 60 200 --trigger-pulse 10 --first-person
+Editor marker cones gone from the sea (r4a)|Rstory4|r4a_buildbase|0|200|GVR_CUTSCENE=none
