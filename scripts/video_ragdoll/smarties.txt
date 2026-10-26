@@ -6,7 +6,7 @@ env GVR_CUTSCENE none
 env GVR_GOD 1
 env GVR_NO_AMBUSH 1
 duration 5
-at 150 -135
-look 145 -160
-aim 0 -4
+at 151 -141
+look 153 -160
+aim 0 -8
 blast 152 -154 1 1 1.2

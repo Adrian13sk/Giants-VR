@@ -353,9 +353,13 @@ int main(int argc, char** argv) {
                 LOGI("video frame %d (sim frame %d): eye (%.1f %.1f %.1f) forward (%.2f %.2f %.2f) scale %.2f", videoN, f, hw.position.x,
                      hw.position.y, hw.position.z, fw.x, fw.y, fw.z, app.rig().comfort.worldScale);
             }
+            // Multisampled like the headset's eye buffers: alpha-to-coverage as there (GVR_VIDEO_A2C=0: off).
+            static const bool a2c = !std::getenv("GVR_VIDEO_A2C") || std::getenv("GVR_VIDEO_A2C")[0] != '0';
+            app.renderer().setMsaa(a2c && vMsFbo != 0);
             app.renderShadows(ve, ve);
             glBindFramebuffer(GL_FRAMEBUFFER, vMsFbo ? vMsFbo : vFbo);
             app.renderEye(ve);
+            app.renderer().setMsaa(false);
             if (vMsFbo) {
                 glBindFramebuffer(GL_READ_FRAMEBUFFER, vMsFbo);
                 glBindFramebuffer(GL_DRAW_FRAMEBUFFER, vFbo);
