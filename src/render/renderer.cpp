@@ -217,6 +217,12 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
             w /= (w.x + w.y + w.z);
             highp vec3 q = wp * 0.11;
             rock = texture(uTerrRock, q.zy).rgb * w.x + texture(uTerrRock, q.xz).rgb * w.y + texture(uTerrRock, q.xy).rgb * w.z;
+            // Anti-tiling: a second sample at about a quarter of the frequency, offset, blended in by
+            // large-scale noise and more with distance - the 9 m repeat read as a grid on Kabuto's cliffs.
+            highp vec3 q2 = wp * 0.027 + vec3(0.37, 0.61, 0.13);
+            vec3 rockB = texture(uTerrRock, q2.zy).rgb * w.x + texture(uTerrRock, q2.xz).rgb * w.y + texture(uTerrRock, q2.xy).rgb * w.z;
+            float mB = clamp(0.25 + 0.5 * smoothstep(0.3, 0.7, nz.x + 0.3 * (nzp - 0.5)) + 0.4 * smoothstep(25.0, 120.0, d), 0.0, 0.85);
+            rock = mix(rock, rockB, mB);
             if (uTerrDetail > 0.5) rock = mix(rock, texture(uTerrRock2, ruv * 0.07).rgb * 1.1, smoothstep(0.42, 0.62, nz.x) * 0.6);
             // Strata: gently tilted layers (~9 m), warmer and cooler, lighter and darker.
             float band = sin(wp.y * 0.7 + nz.y * 5.0 + wp.x * 0.03) * 0.5 + 0.5;
@@ -238,6 +244,12 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
             gRockW = rockW;
         } else {
             rock = texture(uTerrRock, ruv * 0.11).rgb;
+            if (uLook > 0.5) {
+                // (the rework's fallback quality - Kabuto's worlds start there: one larger-scale sample
+                // against the 9 m tiling grid)
+                vec3 rockB = texture(uTerrRock, ruv * 0.027 + vec2(0.37, 0.61)).rgb;
+                rock = mix(rock, rockB, clamp(0.3 + 0.45 * smoothstep(0.3, 0.7, nz.x) + 0.35 * smoothstep(25.0, 120.0, d), 0.0, 0.85));
+            }
             if (uTerrDetail > 0.5) rock = mix(rock, texture(uTerrRock2, ruv * 0.07).rgb * 1.1, smoothstep(0.42, 0.62, nz.x) * 0.7);
         }
         col = mix(col, rock, rockW);

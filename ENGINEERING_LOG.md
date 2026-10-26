@@ -2179,3 +2179,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   grained by the rock texture's luminance against its mean, lit like rock (0.55 + 0.9 ndl) - the terrain rock layer
   itself is near-black on several worlds (their cliffs only read through baked light).
 - Building health bars no longer show within 4 m (x hero scale) of the eye and stay under ~10 degrees across (video 9 found a bar filling Kabuto's view when his swung tree hit a hut).
+- Graphics: Kabuto's cliffs (Kstory3/4/5) showed the rock texture's 9 m repeat as an orange grid. Kstory3 and
+  Rstory2 start at effects quality 2 (Quest measurements), where the rock was one dominant-axis sample, so the
+  triplanar/strata work never reached them. Both paths now blend a second sample at ~1/4 the frequency (offset),
+  by large-scale noise and more with distance (look 1: triplanar pair; look 2: one extra fetch). The grid is gone.
