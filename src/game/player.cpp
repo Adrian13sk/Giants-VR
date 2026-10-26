@@ -152,6 +152,12 @@ void PlayerController::update(float dt, const PlayerInput& in) {
             // On foot: instant response (VR comfort).
             velocity.x = tx;
             velocity.z = tz;
+            if (swimming_) {  // (arm strokes on top of the stick, together at most 1.7 x the swim speed)
+                velocity.x += in.stroke.x;
+                velocity.z += in.stroke.z;
+                const float hv = std::sqrt(velocity.x * velocity.x + velocity.z * velocity.z), cap = 1.7f * swimSpeed;
+                if (hv > cap) { velocity.x *= cap / hv; velocity.z *= cap / hv; }
+            }
         }
     } else if (thrusting_) {
         // Flying: the stick steers, speed builds up to the jetpack's limit (more on turbo).

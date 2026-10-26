@@ -1614,6 +1614,11 @@ private:  // the mission placed enemies: no test waves
     size_t stoneUsed_ = 0;
     const void* stonesWorld_ = nullptr;
     bool stoneInHand(int h) const;  // (or a gun, a limb)
+    // Rework (game_app_stones.cpp): swimming by arm strokes - a hand with its grip squeezed pulled
+    // through the water pushes you the other way. Returns the stroke velocity to add (world, m/s).
+    Vec3 updateSwimStrokes(float dt, const InputFrame& in);
+    Vec3 strokeVel_, strokePrev_[2];
+    bool strokeHave_[2] = {false, false};
     bool grabGib(int h, const Vec3& hand, const Vec3& reach, const Quat& handRot);
     // GROUND REACH: EASY - a hand reaching low in front of you takes things from the ground below it
     // (the point it reaches lowered by up to 0.55 m: a stoop, not a crouch). The hand itself otherwise.

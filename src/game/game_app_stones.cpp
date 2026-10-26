@@ -244,6 +244,32 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
     stoneUsed_ = used;
 }
 
+Vec3 GameApp::updateSwimStrokes(float dt, const InputFrame& in) {
+    const bool can = playMode_ && firstPerson_ && !dying_ && hero_ != Hero::Kabuto && player_.swimming() && !cutsceneActive() && dt > 0;
+    // Water drag: the push dies away in about a second.
+    strokeVel_ = strokeVel_ * std::exp(-1.1f * dt);
+    for (int h = 0; h < 2; ++h) {
+        const ControllerState& c = in.hand[h];
+        if (!can || !c.gripPoseValid || c.squeeze < 0.6f || stoneInHand(h) || heldBody_.hand == h) { strokeHave_[h] = false; continue; }
+        // The hand's own movement (in tracking space, turned into the world: walking or a snap turn doesn't count).
+        const Vec3 p = c.gripPose.position;
+        if (strokeHave_[h]) {
+            Vec3 d = rig_.worldFromTracking.orientation.rotate(p - strokePrev_[h]);
+            d.y = 0;
+            if (length(d) < 0.5f) strokeVel_ = strokeVel_ - d * 2.5f;  // (a 0.6 m pull: about 1.5 m/s)
+        }
+        strokePrev_[h] = p;
+        strokeHave_[h] = true;
+    }
+    if (!can) strokeVel_ = Vec3{0, 0, 0};
+    const float L = length(strokeVel_), cap = 1.6f * player_.swimSpeed;
+    if (L > cap) strokeVel_ = strokeVel_ * (cap / L);
+    static const bool trace = std::getenv("GVR_SWIM_TRACE") != nullptr;
+    static float tt = 0;
+    if (trace && can && (tt += dt) > 0.25f) { tt = 0; LOGI("swim trace: stroke %.2f m/s, speed %.2f m/s", length(strokeVel_), length(Vec3{player_.velocity.x, 0, player_.velocity.z})); }
+    return strokeVel_;
+}
+
 Vec3 GameApp::reachPoint(const Vec3& hand) const {
     if (!settings_.reachAssist || hero_ == Hero::Kabuto || !player_.groundHeight || !lastInput_.headValid) return hand;
     // Only a hand reaching out in front (arms hanging at your sides, or a grip squeezed to sprint, take nothing).

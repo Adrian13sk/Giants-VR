@@ -2316,3 +2316,12 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   sink). A gun in your hand never lies long enough for its Reaper to fetch it. Test hook GVR_TEST_KILL=disarm (the
   script's kill drops the gun at his feet instead). devtest gun_grab: "Picked up a dropped gun", "Let go of a gun
   (8.3 m/s)"; a harness frame shows the spear gun upright in the Meccaryn's fist.
+
+### 2026-10-26 — Rework: swimming by arm strokes
+- GameApp::updateSwimStrokes: while swimming (first person, not Kabuto), a hand with its grip over 0.6 (not holding
+  a stone, gun, limb or body) moving through the water - its tracking-space movement turned into the world, so
+  walking and snap turns don't count - pushes the player the other way (2.5 x the horizontal pull: a 0.6 m stroke
+  is about 1.5 m/s); the push decays (e^-1.1 t) and is capped at 1.6 x swimSpeed. PlayerInput::stroke is added to
+  the swim velocity, stick plus strokes capped at 1.7 x swimSpeed. GVR_SWIM_TRACE.
+- devtest swim_strokes (r4a deep water at game (2525, 270), found with GVR_FIND_SEA): six breaststrokes - stroke
+  speed 1.6 m/s after the first, 2.5-3.3 m/s at the peaks, the player's speed following it.

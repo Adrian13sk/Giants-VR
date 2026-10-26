@@ -1,0 +1,49 @@
+# Rework (2026-10-26): swimming by arm strokes - in deep water off r4a, six breaststrokes: both grips squeezed, both
+# hands pulled back 0.6 m, let go, brought forward. GVR_SWIM_TRACE logs the stroke speed (about 2-3 m/s).
+name swim_strokes
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_SWIM_TRACE 1
+view first
+duration 12
+at 2525 270
+look 2525 400
+hold grip_l 5.00 5.45
+hold grip_r 5.00 5.45
+hand_l 0 0 0.6 5.00 5.40
+hand_r 0 0 0.6 5.00 5.40
+hand_l 0 0 -0.6 5.50 5.90
+hand_r 0 0 -0.6 5.50 5.90
+hold grip_l 6.00 6.45
+hold grip_r 6.00 6.45
+hand_l 0 0 0.6 6.00 6.40
+hand_r 0 0 0.6 6.00 6.40
+hand_l 0 0 -0.6 6.50 6.90
+hand_r 0 0 -0.6 6.50 6.90
+hold grip_l 7.00 7.45
+hold grip_r 7.00 7.45
+hand_l 0 0 0.6 7.00 7.40
+hand_r 0 0 0.6 7.00 7.40
+hand_l 0 0 -0.6 7.50 7.90
+hand_r 0 0 -0.6 7.50 7.90
+hold grip_l 8.00 8.45
+hold grip_r 8.00 8.45
+hand_l 0 0 0.6 8.00 8.40
+hand_r 0 0 0.6 8.00 8.40
+hand_l 0 0 -0.6 8.50 8.90
+hand_r 0 0 -0.6 8.50 8.90
+hold grip_l 9.00 9.45
+hold grip_r 9.00 9.45
+hand_l 0 0 0.6 9.00 9.40
+hand_r 0 0 0.6 9.00 9.40
+hand_l 0 0 -0.6 9.50 9.90
+hand_r 0 0 -0.6 9.50 9.90
+hold grip_l 10.00 10.45
+hold grip_r 10.00 10.45
+hand_l 0 0 0.6 10.00 10.40
+hand_r 0 0 0.6 10.00 10.40
+hand_l 0 0 -0.6 10.50 10.90
+hand_r 0 0 -0.6 10.50 10.90

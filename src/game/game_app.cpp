@@ -847,6 +847,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     }
     updateClimb(dt, in);
     if (player_.climbing) { pi.move = Vec2{0, 0}; pi.sprint = false; pi.jet = false; }
+    pi.stroke = updateSwimStrokes(dt, in);
     updateBush(dt, pi);
     { GVR_PROF("player"); player_.update(dt, pi); }
     if (const char* t = std::getenv("GVR_PLAYER_TURN")) player_.yaw = camYaw_ + std::atof(t) * kPi / 180.0f;  // test hook: side views
