@@ -244,14 +244,18 @@ void GameApp::updateSmartieTouch(float dt, const InputFrame& in) {
             touchCool_.push_back({v.uid, 3.0f});
             haptics_.push_back({h, highFive ? 0.45f : 0.2f, highFive ? 0.06f : 0.1f});
             if (highFive) sfx("bi_hit1", hp, 0.35f, 2.0f);  // (the slap of hands)
-            static const int voices[] = {1, 2, 3, 4, 13, 14};
-            char nm[16];
-            std::snprintf(nm, sizeof nm, "gsm%02d_%d", voices[int(frand() * 5.99f)], frand() < 0.5f ? 1 : 2);
-            sfx(nm, v.pos + Vec3{0, 0.6f, 0}, 0.8f, highFive ? 1.25f : 1.15f);
+            smartieLaugh(v.pos + Vec3{0, 0.6f, 0}, highFive ? 1.25f : 1.15f);
             LOGI("Smartie %u: %s", v.uid, highFive ? "a high five!" : "a pat on the head - it laughs");
             break;
         }
     }
+}
+
+void GameApp::smartieLaugh(const Vec3& at, float pitch) {
+    static const int voices[] = {1, 2, 3, 4, 13, 14};
+    char nm[16];
+    std::snprintf(nm, sizeof nm, "gsm%02d_%d", voices[int(frand() * 5.99f)], frand() < 0.5f ? 1 : 2);
+    sfx(nm, at, 0.8f, pitch);
 }
 
 void GameApp::updateVillagerHands(float dt, const InputFrame& in) {

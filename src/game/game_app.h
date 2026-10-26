@@ -1407,6 +1407,7 @@ private:  // the mission placed enemies: no test waves
     // Rework: an open hand touching a calm Smartie - a pat on the head (it laughs) or a high five
     // (a waving one, or a quick slap: it celebrates). game_app_village.cpp.
     void updateSmartieTouch(float dt, const InputFrame& in);
+    void smartieLaugh(const Vec3& at, float pitch);  // one of their happy voices
     Vec3 touchPrev_[2];
     bool touchHave_[2] = {};
     std::vector<std::pair<uint32_t, float>> touchCool_;  // Smartie uid, seconds until it reacts again
@@ -1530,6 +1531,7 @@ private:  // the mission placed enemies: no test waves
     struct HeldFish { bool active = false, tracked = true; float t = 0; Vec3 prev, lastPos; Vec3 recent[8]; int nRecent = 0; };
     struct LooseFish { Vec3 pos, vel; float yaw = 0, roll = 0, spin = 0, t = 0, hopT = 0; bool landed = false, hit = false; };
     HeldFish heldFish_[2];
+    int fishGiven_ = 0;
     std::vector<LooseFish> looseFish_;
     bool fishGripWas_[2] = {};
     Vec3 fishHandPrev_[2];

@@ -1,0 +1,19 @@
+# Rework (2026-10-26): give a Smartie a fish. In 5a by the Smarties (GVR_STILL_SMARTIES keeps them in place),
+# with a caught fish in the right hand (GVR_FISH_TEST=gift puts one there; on the headset catch one in the
+# shallows first - fish_catch): hold it out to a Smartie's chest - it takes the fish with a laugh and a little
+# dance. Log: "Smartie N: takes the fish - a little dance".
+name smartie_fish
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_STILL_SMARTIES 1
+env GVR_FISH_TEST gift
+view first
+pitch -20
+duration 7
+at 143 -141
+look 143 -170
+hold grip_r 0.1 7
+hand_r -0.05 -0.68 -0.25 1.5 2.6

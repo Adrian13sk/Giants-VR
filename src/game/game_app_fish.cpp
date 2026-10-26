@@ -112,7 +112,8 @@ void GameApp::updateFish(float dt) {
         return terr.heightAt(x, z, g) ? sea - g : 0.0f;
     };
     // Schools: (re)placed in shallows near the player; one far behind moves on.
-    static bool testPending = std::getenv("GVR_FISH_TEST") && std::string(std::getenv("GVR_FISH_TEST")) != "hand";
+    static bool testPending = std::getenv("GVR_FISH_TEST") && std::string(std::getenv("GVR_FISH_TEST")) != "hand" &&
+                              std::string(std::getenv("GVR_FISH_TEST")) != "gift";
     if (testPending && lastInput_.headValid) {
         testPending = false;
         // (tests: the first school in the first water 1-3 m deep straight ahead of the eyes)
@@ -282,6 +283,17 @@ void GameApp::renderFish(const Vec3& eye) {
 void GameApp::updateFishCatch(float dt) {
     const bool can = playMode_ && firstPerson_ && !dying_ && !cutsceneActive() && !riding_;
     const float sea = player_.seaLevel;
+    // (tests: GVR_FISH_TEST=gift puts a caught fish in the right hand at the start, the grip held)
+    static bool giftTest = std::getenv("GVR_FISH_TEST") && std::string(std::getenv("GVR_FISH_TEST")) == "gift";
+    if (giftTest && can && lastInput_.hand[1].gripPoseValid && lastInput_.hand[1].squeeze > 0.7f) {
+        giftTest = false;
+        heldFish_[1] = HeldFish{};
+        heldFish_[1].active = true;
+        heldFish_[1].prev = lastInput_.hand[1].gripPose.position;
+        heldFish_[1].lastPos = rig_.toWorld(lastInput_.hand[1].gripPose).position;
+        fishGripWas_[1] = true;
+        LOGI("Fish test: a fish in the right hand");
+    }
     for (int h = 0; h < 2; ++h) {
         const ControllerState& c = lastInput_.hand[h];
         const bool g = c.squeeze > 0.7f;
@@ -298,6 +310,22 @@ void GameApp::updateFishCatch(float dt) {
             }
             hf.tracked = c.gripPoseValid;
             if (hf.nRecent % 9 == 4) haptics_.push_back({h, 0.15f, 0.03f});  // (it wriggles)
+            // Held out to a Smartie (chest high, within reach of its hands): it takes the fish - a laugh and a
+            // little dance. Not while they're afraid of you; Kabuto's fish are his own.
+            if (c.gripPoseValid && can && hero_ != Hero::Kabuto && villagerFearT_ <= 0) {
+                for (size_t i = 0; i < villagers_.villagers.size() && hf.active; ++i) {
+                    const Villager& v = villagers_.villagers[i];
+                    if (!VillagerDirector::alive(v) || length(hf.lastPos - (v.pos + Vec3{0, 0.5f, 0})) > 0.45f) continue;
+                    if (!villagers_.touched(int(i), player_.position, true)) continue;
+                    hf.active = false;
+                    haptics_.push_back({h, 0.3f, 0.05f});
+                    smartieLaugh(v.pos + Vec3{0, 0.6f, 0}, 1.3f);
+                    sfx("bi_watr1", hf.lastPos, 0.25f, 1.8f);  // (a wet slap into its hands)
+                    ++fishGiven_;
+                    LOGI("Smartie %u: takes the fish - a little dance (%d given)", v.uid, fishGiven_);
+                }
+                if (!hf.active) continue;
+            }
             if (g && c.gripPoseValid && can) continue;
             // Let go: thrown at the hand's fastest recent speed.
             hf.active = false;
