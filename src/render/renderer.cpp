@@ -373,6 +373,15 @@ void main() {
         float fres = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
         vec3 r = reflect(-v, n);
         vec3 refl = mix(uSkyHorizon, uSkyZenith, clamp(r.y * 1.5, 0.0, 1.0));
+        if (uReflOn < 0.5 && uSkyOn > 0.5 && uLook > 0.5) {
+            // Rework, no reflection pass (the adaptive fallback): the sky band itself in the reflected
+            // direction - its clouds and colours ripple in the water instead of one flat colour.
+            // (the waves bend it only a little: the full wave normal sparkled into noise far off)
+            highp vec3 rs = normalize(mix(reflect(-v, vec3(0.0, 1.0, 0.0)), r, 0.3));
+            highp float el = clamp(asin(clamp(rs.y, 0.0, 1.0)), 0.0, 0.75);
+            highp vec2 suv = vec2(atan(rs.x, -rs.z) * 0.15915494 + uTime * 0.0015, mix(0.99, 0.01, (el + 0.08) / 0.83));
+            refl = textureLod(uSkyTex, suv, 2.5).rgb * uSkyTint;
+        }
         if (uReflOn > 0.5) {
             highp vec4 cw = uReflMat * vec4(vWorldPos, 1.0);
             highp vec2 uv0 = cw.xy / cw.w * 0.5 + 0.5;

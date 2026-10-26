@@ -2373,3 +2373,10 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   6. The loose stones' vertex buffer was uploaded every frame: now only while one is held or flying, when the set
      changes, and once after the last one stops.
 - All grab/throw/climb/impale devtests re-run (expected lines), unit tests pass, sweep 56/56 clean.
+
+### 2026-10-26 — Rework: sky reflected in the water at the fallback quality
+- At quality level 2 (Kstory3 and Rstory2 start there; any heavy scene can fall to it) there is no reflection
+  pass and the water's reflection was the sky gradient: Kstory3's sea a flat purple slab. The water shader now
+  samples the sky band (unit 10, already bound for the haze) in the reflected direction - the flat mirror
+  direction bent 30 % by the waves (the full wave normal sparkled into noise far off), LOD 2.5, one fetch. Level 0
+  unchanged (AE 0 against the earlier render). Sweep 56/56 clean.
