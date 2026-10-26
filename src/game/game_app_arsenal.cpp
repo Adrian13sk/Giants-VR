@@ -270,6 +270,7 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
             gun.cool = gun.interval;
             haptics_.push_back({gh, 0.8f, 0.1f});
             gunKick(0.40f);
+            ejectCasing(muzzle, fwd, 2.2f);  // (rework: the spent shell)
             addFlash(muzzle, {2.4f, 1.5f, 0.6f}, 9.0f, 0.12f);
             sfx("me_rsgsh", muzzle, 1.0f, 0.95f + 0.1f * frand());
             LOGI("Shotgun shell fired (%d left)", gun.ammo);
@@ -293,6 +294,7 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
         weapon_.shotStyle = 0;
         gun.cool = gun.interval;
         --gun.ammo;
+        ejectCasing(muzzle, fwd, g == kGunSniper ? 1.8f : 1.0f);  // (rework: the spent casing)
         if (g == kGunSniper) {
             haptics_.push_back({gh, 0.9f, 0.1f});
             gunKick(0.30f);

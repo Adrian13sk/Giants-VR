@@ -571,6 +571,14 @@ private:
     void updateGroundMarks(float dt);
     void buildGroundMarks(const Vec3& eye, ModelCache* mc);
     void renderGroundMarks();
+    // Rework (game_app_casings.cpp): spent casings thrown out of the Meccaryn's guns.
+    struct Casing { Vec3 pos, vel, axis{0, 1, 0}; float angle = 0, spin = 0, life = 0, scale = 1; int bounces = 0; bool resting = false; };
+    std::vector<Casing> casings_;
+    const RenderModel* casingModel_ = nullptr;
+    const void* casingsWorld_ = nullptr;
+    void ejectCasing(const Vec3& muzzle, const Vec3& fwd, float scale);
+    void updateCasings(float dt);
+    void renderCasings();
     struct SpitDrop { Vec3 pos; int big; float age; };
     std::vector<SpitDrop> spitDrops_;
     float burrowTick_ = 0;

@@ -2401,3 +2401,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   audio mixer, so harness checks need --audio-out) adds a kind-1 mark at the foot, 0.2 H long, half as wide (the
   texture is 32x64), the left foot mirrored (negative width), 45 s, not on structures or in water. Harness k1a:
   8 marks, 72 cells after 4 s of walking. On Kstory1's dark moss they are subtle (the print is a dark texture).
+- Spent casings (game_app_casings.cpp): mc_machinegun_shell.gbs (xx_mecc_flick.gzp, a cutscene prop: 7 cm) thrown
+  out to the right and up from behind the muzzle with the player's velocity added, tumbling (14-24 rad/s); bounces
+  x0.45 across / x0.35 up, a quiet high ex_metls "tink" within 12 m, rests after 3 bounces, gone after 9 s or in
+  water; at most 40. Machine gun x1, sniper x1.8, shotgun x2.2. Weapon test indices (GVR_WEAPON): 3 handgun,
+  4 shotgun, 5 machine gun, 6 sniper, 7 mortar. Harness 1c machine gun: casings fly out right of the gun.

@@ -3908,6 +3908,7 @@ void GameApp::updateCombat(float dt) {
     bushEvents();
     { GVR_PROF("skirmish"); updateSkirmish(dt); }
     updateGroundMarks(dt);
+    updateCasings(dt);
     { GVR_PROF("ragdolls"); updateBodyGrab(dt, lastInput_); updateStones(dt, lastInput_); updateRagdolls(dt); updateHints(dt); }
     // Model slots follow the enemies (the director removes sunk corpses).
     std::fill(slotUsed_.begin(), slotUsed_.end(), 0);
@@ -4718,6 +4719,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     renderVillagers(false, renderer_.currentView().eyePosition, 90.0f);
     renderVimps(false, renderer_.currentView().eyePosition, 150.0f);
     renderJetski(false, renderer_.currentView().eyePosition);
+    renderCasings();
     for (const auto& g : gibs_)
         drawModel(g.model, Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) * g.base *
                                Mat4::scale({g.scale, g.scale, g.scale}),
