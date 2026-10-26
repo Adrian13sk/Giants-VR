@@ -231,7 +231,7 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
             // Strata: gently tilted layers (~9 m), warmer and cooler, lighter and darker.
             float band = sin(wp.y * 0.7 + nz.y * 5.0 + wp.x * 0.03) * 0.5 + 0.5;
             band = band * band * (3.0 - 2.0 * band);
-            rock *= mix(vec3(0.72, 0.8, 0.88), vec3(1.28, 1.12, 0.9), band);
+            rock *= mix(vec3(0.78, 0.81, 0.86), vec3(1.2, 1.13, 1.03), band);  // (mostly light and dark: a strong warm cast yellowed Rstory2's ice)
             // Moss and earth caught on ledges and slopes that face up, in patches.
             float moss = smoothstep(0.3, 0.62, n.y) * smoothstep(0.35, 0.65, nzp + (nz.x - 0.5) * 0.4);
             rock = mix(rock, grass * vec3(0.9, 1.05, 0.75), moss * 0.75);  // strata: cooler and warmer layers
