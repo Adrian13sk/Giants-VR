@@ -61,6 +61,17 @@ Mesa llvmpipe, so rendering and asset code is verified on every build without a 
   Dropped guns and severed limbs are `Gib`s with `hand`/`thrown`. Throws use the fastest hand speed of the last 12
   frames. `reachPoint` (GROUND REACH option) lowers a low, forward hand's reach. Also arm-stroke swimming
   (`PlayerInput::stroke`) and one-time hints (`game_app_hints.cpp`, settings `hints_shown`).
+- **World life** (rework, 2026-10-26): `game_app_marks.cpp` (scorch marks, footprints: terrain-following grids),
+  `game_app_casings.cpp` (shell casings, stuck arrows), `game_app_birds.cpp` (a pool of 20 skinned birds: Flak
+  flocks, Lobirds; `birdHitBy` for shots and stones), `game_app_fish.cpp` (Shiner schools; caught by hand: a held
+  fish counts in `stoneInHand`). `AssetWorld::underwater` is a hook called just before the alpha-blended,
+  non-depth-writing sea, so fish and swimming piranhas show through the water. `SkinnedModel` owns its GPU meshes
+  and frees them in its destructor (keeps the renderer from `load`).
+- **Ambience and weather** (`audio/ambience.cpp`: procedural seamless loops; `game_app_ambience.cpp`): the level's
+  `a_...` markers (`AssetWorld::ambientMarkers`) choose voices per kind (nearest few, placed 1-6 m off in the
+  marker's direction, the mixer's roll-off undone) and the weather (rain / storm / snow streaks in a cylinder
+  round the head, one QuadBatch). Cloud shadows: `cloudShade()` in the shader's `sunShadow` (terrain noise,
+  `uCloud`).
 - **Dismemberment** (`SkinnedModel::sever`, `GameApp::dismember`): a bone subtree's vertices collapse onto its
   joint; the cut triangles become a mesh owned by a gib.
 - **Cutscene cinema** (`game_app_cinema.cpp`, `Renderer::initScreen/beginScreenPass`): the shot camera renders the
