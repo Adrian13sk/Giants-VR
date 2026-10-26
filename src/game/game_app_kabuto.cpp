@@ -62,7 +62,11 @@ bool GameApp::loadKabuto() {
     // First person (as the Meccaryn and Delphi): his head hidden, his arms reaching for the
     // controllers. Chain L_shoulder > L-arm > L_wrist (the forearm) > L_hand; two fingers and a
     // thumb on the right, two on the left (index side first).
-    m->setHiddenBones(SkinnedModel::headBones());
+    {
+        std::vector<std::string> hb = SkinnedModel::headBones();
+        if (const char* extra = std::getenv("GVR_KB_HIDE")) hb.push_back(extra);  // test hook: which bone is that piece?
+        m->setHiddenBones(hb);
+    }
     m->setKeepFull(true);
     m->pose(renderer_, 0.0f);
     kabutoEyeFromHead_ = kabutoEyeModel_ - m->hiddenCentroid();

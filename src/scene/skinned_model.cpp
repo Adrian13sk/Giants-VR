@@ -78,6 +78,9 @@ bool SkinnedModel::load(const AssetFS& fs, ModelCache& textures, Renderer& r, co
         p.indices = bp.mesh.indices;
         p.posIndex = bp.posIndex;
         p.mesh = r.uploadMesh(bp.mesh);
+        // Test hook: GVR_SKIP_TEX=<texture> leaves that texture's parts out (what is this piece?).
+        if (const char* sk = std::getenv("GVR_SKIP_TEX"))
+            if (bp.texture == sk) continue;
         parts_.push_back(std::move(p));
     }
     // Glass last, so what it covers (the face behind the visor) is drawn first.
