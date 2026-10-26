@@ -24,7 +24,7 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 }
 
 namespace {
-enum MenuRow { kRowResume, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowControls, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -46,6 +46,7 @@ void GameApp::saveSettings() {
 
 void GameApp::openMenu(const InputFrame& in) {
     menuOpen_ = true;
+    menuControls_ = false;
     menuRow_ = kRowResume;
     menuNewGame_ = 0;
     menuCampaign_ = hero_ == Hero::Delphi ? 1 : (hero_ == Hero::Kabuto ? 2 : 0);
@@ -69,6 +70,13 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
         menuRepeat_ -= dt;
         if (menuRepeat_ > 0) dx = dy = 0;
         else { menuRepeat_ = menuFirst_ ? 0.4f : 0.16f; menuFirst_ = false; }
+    }
+    // The controls card: shown over the options; any press (or B, or the stick) closes it.
+    if (menuControls_) {
+        const bool act = in.hand[1].primary || in.hand[0].trigger > 0.6f || in.hand[1].trigger > 0.6f;
+        if ((act && !menuActHeld_) || in.hand[1].secondary || dx != 0 || dy != 0) menuControls_ = false;
+        menuActHeld_ = act;
+        return;
     }
     if (dy != 0) {
         menuRow_ = (menuRow_ + dy + kRowCount) % kRowCount;
@@ -108,6 +116,10 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
     }
     // A / either trigger: activate (Resume; New game must be held 2 s).
     const bool act = in.hand[1].primary || in.hand[0].trigger > 0.6f || in.hand[1].trigger > 0.6f;
+    if (menuRow_ == kRowControls && act && !menuActHeld_) {
+        menuControls_ = true;
+        sfx2D("ph_selct", 0.6f, 1.2f);
+    }
     if (menuRow_ == kRowResume && act && !menuActHeld_) menuOpen_ = false;
     if (menuRow_ == kRowNewGame && act) {
         menuNewGame_ += dt;
@@ -141,6 +153,7 @@ void GameApp::renderMenu() {
     if (!text_.ready()) return;
     const Quat r = Quat::fromAxisAngle({0, 1, 0}, menuYaw_);
     const Mat4 base = Mat4::translation(menuPos_) * Mat4::rotation(r);
+    if (menuControls_) { renderControlsCard(base); return; }
     const UserSettings& s = settings_;
     static const char* turns[] = {"SNAP 30", "SNAP 45", "SMOOTH, SLOW", "SMOOTH, FAST"};
     static const char* huds[] = {"SMALL", "NORMAL", "LARGE"};
@@ -152,6 +165,7 @@ void GameApp::renderMenu() {
     const std::string newGame = menuNewGame_ > 0.05f ? "HOLD... " + std::to_string(int(std::ceil(2.0f - menuNewGame_))) : story;
     const std::string rows[kRowCount][2] = {
         {"RESUME", ""},
+        {"CONTROLS", hero_ == Hero::Delphi ? "DELPHI" : (hero_ == Hero::Kabuto ? "KABUTO" : "MECCARYN")},
         {"TURNING", turns[s.turn]},
         {"COMFORT VIGNETTE", s.vignette == 0 ? "OFF" : (s.vignette == 1 ? "LOW" : "HIGH")},
         {"AMBUSHES", s.ambushes ? "ON" : "OFF"},
@@ -191,6 +205,78 @@ void GameApp::renderMenu() {
         }
     }
     if (const MeshId m = text_.mesh("STICK: CHOOSE / CHANGE    NEW GAME: HOLD TRIGGER 2 S    MENU: CLOSE", 0.032f, 1.1f, &tw, &th))
+        text_.draw(m, base * Mat4::translation({0, -0.5f * h + 0.045f, 0.004f}), {0.7f, 0.7f, 0.7f, 1});
+}
+
+// The controls of the hero you play, on one card (Options -> CONTROLS). The rework's hand mechanics are
+// easy to miss; this is where they are written down.
+void GameApp::renderControlsCard(const Mat4& base) {
+    static const char* mecc[][2] = {
+        {"LEFT STICK", "RUN (LEFT GRIP HELD: SPRINT)"},
+        {"RIGHT STICK", "TURN - PUSH FORWARD: NEXT WEAPON"},
+        {"RIGHT TRIGGER", "FIRE"},
+        {"A (HOLD)", "JETPACK"},
+        {"GUNS", "GRIP AT YOUR RIGHT HIP (HANDGUN) OR OVER YOUR SHOULDER"},
+        {"STEADY AIM", "OTHER HAND'S GRIP ON THE BARREL"},
+        {"GRENADES", "GRIP AT YOUR LEFT HIP, THROW, LET GO"},
+        {"PUNCH", "SWING YOUR FREE HAND INTO HIM"},
+        {"PICK UP", "BEND DOWN, GRIP A STONE, BODY, SMARTIE OR GUN"},
+        {"THROW", "SWING AND LET GO OF THE GRIP"},
+        {"SWIM", "HOLD THE GRIPS, PULL YOUR HANDS BACK"},
+        {"X / Y", "HEALTH INJECTION / MAP"},
+        {"LEFT TRIGGER", "FLARE"},
+        {"LEFT STICK DOWN", "MISSION BRIEFING (HOLD)"},
+        {"RIGHT STICK CLICK", "FIRST / THIRD PERSON"},
+    };
+    static const char* delphi[][2] = {
+        {"LEFT STICK", "RUN (LEFT GRIP HELD: TURBO)"},
+        {"A", "JUMP"},
+        {"SWORD", "SWING THE RIGHT HAND - THRUST TO RUN ONE THROUGH"},
+        {"PARRY", "MEET A BOLT WITH THE BLADE"},
+        {"LEFT TRIGGER TAP", "FIRE BOLT (LET GO IN A THROW TO THROW IT)"},
+        {"LEFT TRIGGER HOLD", "FIRE WALL - LONGER: TORNADO"},
+        {"SPELL GESTURES", "TRIGGER HELD: SWEEP LOW = WALL, CIRCLE OVERHEAD = TORNADO"},
+        {"RIGHT STICK FWD", "SWORD / BOWS"},
+        {"BOW", "LEFT HAND HOLDS IT, RIGHT GRIP DRAWS, LET GO"},
+        {"CLIMB", "GRIP A STEEP FACE, PULL DOWN"},
+        {"PICK UP / THROW", "BEND DOWN, GRIP; SWING AND LET GO"},
+        {"SWIM", "HOLD THE GRIPS, PULL YOUR HANDS BACK"},
+        {"REAPERSKI", "BOTH GRIPS: HANDLEBARS, TWIST RIGHT HAND: GAS"},
+        {"WAVE", "HAND OVER YOUR HEAD, SIDE TO SIDE: SMARTIES WAVE"},
+    };
+    static const char* kabuto[][2] = {
+        {"LEFT STICK", "WALK (LEFT GRIP HELD: RUN)"},
+        {"A", "JUMP - OR JUMP FOR REAL"},
+        {"PUNCH", "SWING YOUR FISTS - SLAM DOWN: GROUND POUND"},
+        {"GRAB", "REACH DOWN AND GRIP: SMARTIES, REAPERS, TREES, BODIES"},
+        {"EAT", "BRING IT TO YOUR MOUTH"},
+        {"THROW", "SWING AND LET GO OF THE GRIP"},
+        {"X", "GRAB AND EAT THE NEAREST"},
+        {"LEFT TRIGGER", "STOMP"},
+        {"Y / CHEST BEAT", "ROAR (Y HELD: LAY AN EGG)"},
+        {"BOTH GRIPS", "ADRENALINE (WHEN THE GAUGE IS FULL)"},
+        {"CLIMB", "GRIP A CLIFF, PULL DOWN"},
+        {"RIGHT TRIGGER", "MAGNIFYING GLASS (WHEN YOU HAVE IT)"},
+    };
+    const char* (*rows)[2] = mecc;
+    int n = int(sizeof(mecc) / sizeof(mecc[0]));
+    const char* title = "CONTROLS - MECCARYN";
+    if (hero_ == Hero::Delphi) { rows = delphi; n = int(sizeof(delphi) / sizeof(delphi[0])); title = "CONTROLS - DELPHI"; }
+    if (hero_ == Hero::Kabuto) { rows = kabuto; n = int(sizeof(kabuto) / sizeof(kabuto[0])); title = "CONTROLS - KABUTO"; }
+    const float rowH = 0.058f, w = 1.45f, h = rowH * float(n + 2) + 0.12f;
+    text_.drawPanel(base, w, h, {0.015f, 0.03f, 0.055f, 0.94f});
+    drawPanelEdge(base, w, h);
+    float tw, th;
+    if (const MeshId t = text_.mesh(title, 0.055f, 1.3f, &tw, &th))
+        text_.draw(t, base * Mat4::translation({0, 0.5f * h - 0.07f, 0.004f}), {1.0f, 0.85f, 0.4f, 1.0f});
+    for (int i = 0; i < n; ++i) {
+        const float y = 0.5f * h - 0.16f - float(i) * rowH;
+        if (const MeshId m = text_.mesh(rows[i][0], 0.036f, 0.42f, &tw, &th))
+            text_.draw(m, base * Mat4::translation({-0.5f * w + 0.05f + 0.5f * tw, y, 0.004f}), {1.0f, 0.9f, 0.6f, 1});
+        if (const MeshId m = text_.mesh(rows[i][1], 0.036f, 0.9f, &tw, &th))
+            text_.draw(m, base * Mat4::translation({-0.5f * w + 0.5f + 0.5f * tw, y, 0.004f}), {0.88f, 0.88f, 0.88f, 1});
+    }
+    if (const MeshId m = text_.mesh("ANY BUTTON: BACK", 0.03f, 1.0f, &tw, &th))
         text_.draw(m, base * Mat4::translation({0, -0.5f * h + 0.045f, 0.004f}), {0.7f, 0.7f, 0.7f, 1});
 }
 

@@ -2380,3 +2380,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   samples the sky band (unit 10, already bound for the haze) in the reflected direction - the flat mirror
   direction bent 30 % by the waves (the full wave normal sparkled into noise far off), LOD 2.5, one fetch. Level 0
   unchanged (AE 0 against the earlier render). Sweep 56/56 clean.
+
+### 2026-10-26 — Rework: a controls card in the options
+- Options -> CONTROLS (second row, its value the hero) opens a card listing that hero's controls, written from
+  docs/INSTALL.md and the rework's hand mechanics; any button, B or the stick closes it (row navigation and
+  settings changes are suspended while it shows); reset whenever the menu opens. Harness: opened as the
+  Meccaryn (1c), Delphi (r1_saveyan) and Kabuto (k1a) - the card renders legibly over the world.

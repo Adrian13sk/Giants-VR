@@ -1331,6 +1331,8 @@ private:  // the mission placed enemies: no test waves
     UserSettings settings_;
     std::string settingsPath_;
     bool menuOpen_ = false, menuActHeld_ = false, menuFirst_ = true;
+    bool menuControls_ = false;  // rework: the controls card over the options (game_app_menu.cpp)
+    void renderControlsCard(const Mat4& base);
     int menuRow_ = 0, menuCampaign_ = 0;
     float menuRepeat_ = 0, menuNewGame_ = 0, menuYaw_ = 0;
     Vec3 menuPos_;
