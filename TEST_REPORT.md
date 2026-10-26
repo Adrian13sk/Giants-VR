@@ -880,3 +880,19 @@ devtest.ps1 now: flags OTHER APP DRAWING per test, checks the events each script
 `events n/m (MISSING: ...)`, and ignores garbage App= values (1e5+ ms). 25 more scripts got event lists.
 New experiment set `devtest/perf` (16 runs): the 5a meadow and Kabuto's storm, each with one feature off at a time
 (look0, nograss, msaa0, up0, noclouds, noweather, quality 1/3, all off) - the next device run, to price each feature.
+
+## Device run 20261026-220802 — GPU cost experiments (APK fccc02d, `-NoInstall -Set perf`)
+16 runs, each 18-22 s, quality pinned, FFR 2. "app gpu" = VrApi App= average (game's own; p_5a_base had another app
+drawing for 3 s, 12 ms - flagged by the new devtest.ps1). Saving = base minus variant.
+
+| Scene | base | look0 (classic look) | no grass | MSAA off | textures not doubled | no cloud shadows | no weather | quality 1 | quality 3 | all off |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 5a meadow (Meccaryn) | 32.4 ms, 23 fps | 19.6 (-12.8) | 26.7 (-5.7) | 30.2 (-2.2) | 32.4 (0) | 32.2 (0) | - | 31.2 (-1.2) | 17.9 (-14.5) | 17.2 ms, 41 fps |
+| kstory5_1 storm (Kabuto) | 56.8 ms, 15 fps | 36.1 (-20.7) | - | 48.3 (-8.5) | 56.2 (0) | - | 55.9 (-0.9) | - | 32.4 (-24.4) | 29.9 ms, 24 fps |
+
+Reading: the rework look (relief, specular, filmic tone, haze, triplanar, caustics, detail octaves) is the largest
+single cost; grass and MSAA come next; texture doubling, cloud shadows and weather cost nothing measurable. But with
+everything off the storm still needs 30 ms with 171 draw calls where the classic build drew 260-350 at 12 ms in a
+mission of the same world (2026-10-25) - the one program with every path in it is the remaining suspect. Commit
+77d7d98 compiles per-feature variants (identical renders in the harness); APK 77d7d98 with four `*_uber` runs in
+devtest/perf measures the difference on the headset in one run.
