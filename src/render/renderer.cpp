@@ -891,7 +891,10 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
         glBindTexture(GL_TEXTURE_2D, t);
     }
     glUniform1f(U_->uTerrDetail_, terrainDetail_ ? 1.0f : 0.0f);
-    glUniform1f(U_->uCloud_, terrainTex_[4] != 0 ? cloudShadow_ : 0.0f);  // (needs the noise texture: unit 9)
+    {  // (needs the noise texture on unit 9 - bound above only while it is live; white would shade everything)
+        const bool noise = terrainTex_[4] != 0 && terrainTex_[4] <= textures_.size() && textures_[terrainTex_[4] - 1].live;
+        glUniform1f(U_->uCloud_, noise ? cloudShadow_ : 0.0f);
+    }
     // The sky band for the haze: unit 10 (not while drawing the reflection - it has its own sky).
     {
         GLuint t = 0;

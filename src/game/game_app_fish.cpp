@@ -90,7 +90,11 @@ bool GameApp::placeSchool(ShinerSchool& sc, const Vec3& near, float minD, float 
 }
 
 void GameApp::updateFish(float dt) {
-    if (shinerModels_.empty() || !assetWorld_ || player_.seaLevel < -1e8f || hero_ == Hero::Kabuto) return;
+    if (shinerModels_.empty() || !assetWorld_ || player_.seaLevel < -1e8f || hero_ == Hero::Kabuto) {
+        heldFish_[0].active = heldFish_[1].active = false;  // (a held fish doesn't outlive the hero or the water)
+        looseFish_.clear();
+        return;
+    }
     const Terrain& terr = assetWorld_->terrain();
     const float sea = player_.seaLevel;
     const Vec3 me = player_.position;
@@ -277,14 +281,19 @@ void GameApp::updateFishCatch(float dt) {
         HeldFish& hf = heldFish_[h];
         if (hf.active) {
             hf.t += dt;
-            if (dt > 0 && c.gripPoseValid) hf.recent[hf.nRecent++ % 8] = handVelocity(c.gripPose.position, hf.prev, dt);
+            if (c.gripPoseValid) {
+                hf.lastPos = rig_.toWorld(c.gripPose).position;
+                // (back from a tracking gap: no sample - the gap's movement in one frame would be a huge throw)
+                if (!hf.tracked) hf.prev = c.gripPose.position;
+                else if (dt > 0) hf.recent[hf.nRecent++ % 8] = handVelocity(c.gripPose.position, hf.prev, dt);
+            }
+            hf.tracked = c.gripPoseValid;
             if (hf.nRecent % 9 == 4) haptics_.push_back({h, 0.15f, 0.03f});  // (it wriggles)
             if (g && c.gripPoseValid && can) continue;
             // Let go: thrown at the hand's fastest recent speed.
             hf.active = false;
             LooseFish lf;
-            const Pose gp = c.gripPoseValid ? rig_.toWorld(c.gripPose) : Pose{};
-            lf.pos = gp.position;
+            lf.pos = c.gripPoseValid ? rig_.toWorld(c.gripPose).position : hf.lastPos;  // (lost tracking: where it was last seen)
             for (int k = 0; k < std::min(hf.nRecent, 8); ++k)
                 if (length(hf.recent[k]) > length(lf.vel)) lf.vel = hf.recent[k];
             lf.yaw = frand() * 6.2832f;
@@ -313,6 +322,7 @@ void GameApp::updateFishCatch(float dt) {
         hf = HeldFish{};
         hf.active = true;
         hf.prev = c.gripPose.position;
+        hf.lastPos = hp;
         haptics_.push_back({h, 0.5f, 0.08f});
         sfx("bi_watr1", hp, 0.4f, 1.5f);
         LOGI("Fish: caught by hand %d", h);

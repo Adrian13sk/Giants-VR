@@ -63,6 +63,10 @@ void GameApp::initAmbience(AssetWorld* w) {
     ambRain_ = 0;
     ambRainVol_ = 0;
     weather_ = 0;
+    weatherK_ = 0;
+    lightningT_ = -1.0f;
+    lightningNext_ = 5.0f;
+    thunderDelay_ = 0;
     drops_.clear();
     dropSplashes_.clear();
     for (int k = 0; k < kKinds; ++k) { ambPts_[k].clear(); ambGain_[k].clear(); }
@@ -132,7 +136,9 @@ void GameApp::updateAmbience(float dt) {
         dir = d > 0.1f ? dir * (1.0f / d) : Vec3{0, 0, -1};
         const float off = std::min(kVirtual, std::max(1.0f, d * 0.5f));
         audio_->setPosition(v.id, ear + dir * off);
-        audio_->setVolume(v.id, v.vol * (off / audio_->refDistance) * 0.55f);  // (undoes the mixer's roll-off at `off`)
+        // (undoes the mixer's roll-off at `off`: none within refDistance, 1/d beyond, faded to 0 at maxDistance)
+        const float rolloff = (audio_->refDistance / std::max(off, audio_->refDistance)) * (1.0f - off / audio_->maxDistance);
+        audio_->setVolume(v.id, v.vol * 0.55f / std::max(0.05f, rolloff));
     }
     ambVoices_.erase(std::remove_if(ambVoices_.begin(), ambVoices_.end(),
                                     [this](const AmbVoice& v) {
@@ -151,7 +157,8 @@ void GameApp::updateAmbience(float dt) {
         if (rainWant <= 0 && ambRainVol_ < 0.005f) { audio_->stop(ambRain_); ambRain_ = 0; }
     }
     static float trace = 0;
-    if (std::getenv("GVR_AMB_TRACE") && (trace += dt) > 1.0f) {
+    static const bool ambTrace = std::getenv("GVR_AMB_TRACE") != nullptr;
+    if (ambTrace && (trace += dt) > 1.0f) {
         trace = 0;
         std::string s;
         for (const auto& v : ambVoices_)
@@ -219,6 +226,14 @@ void GameApp::renderWeather() {
     // Lit by the sky: brighter by day, dim at night.
     const Vec3 sky = env.ambientColor + env.sunColor * 0.35f;
     const float lum = std::min(1.0f, 0.35f + 0.65f * std::max(sky.x, std::max(sky.y, sky.z)));
+    DrawParams dp;
+    dp.texture = weatherTex_;
+    dp.unlit = true;
+    dp.blend = BlendMode::AlphaBlend;
+    dp.depthWrite = false;
+    dp.doubleSided = true;
+    if (weatherBuilt_ == time_) { weatherBatch_.draw(renderer_, dp); return; }  // (built once a frame, drawn in every pass)
+    weatherBuilt_ = time_;
     weatherBatch_.clear();
     const float s = std::sqrt(std::max(1.0f, heroScale_));
     for (const auto& d : drops_) {
@@ -246,12 +261,6 @@ void GameApp::renderWeather() {
         weatherBatch_.addBillboard(sp.pos, (0.05f + sp.age * 0.6f) * s, right, up, 0.0f, c);
     }
     weatherBatch_.upload(renderer_);
-    DrawParams dp;
-    dp.texture = weatherTex_;
-    dp.unlit = true;
-    dp.blend = BlendMode::AlphaBlend;
-    dp.depthWrite = false;
-    dp.doubleSided = true;
     weatherBatch_.draw(renderer_, dp);
 }
 
@@ -261,6 +270,7 @@ void GameApp::applyWeatherLight(float dt) {
     const bool on = settings_.ambience >= 2 && weather_ != 0 && playMode_ && !title_ && !cutsceneActive();
     weatherK_ += ((on ? 1.0f : 0.0f) - weatherK_) * std::min(1.0f, dt * 0.5f);
     EnvironmentParams& env = renderer_.environment();
+    const WeatherLit before{env.sunColor, env.ambientColor, env.fogColor, env.clearColor, env.skyHorizon, env.skyTint};
     if (weatherK_ > 0.001f) {
         const float sun = weather_ == 2 ? 0.6f : (weather_ == 1 ? 0.68f : 0.8f);
         const float k = weatherK_;
@@ -292,6 +302,9 @@ void GameApp::applyWeatherLight(float dt) {
         env.clearColor = env.fogColor;
         env.skyHorizon = env.fogColor;
     }
+    weatherIn_ = before;
+    weatherOut_ = WeatherLit{env.sunColor, env.ambientColor, env.fogColor, env.clearColor, env.skyHorizon, env.skyTint};
+    weatherLit_ = true;
     if (thunderDelay_ > 0) {
         thunderDelay_ -= dt;
         if (thunderDelay_ <= 0 && audio_) {
@@ -299,6 +312,21 @@ void GameApp::applyWeatherLight(float dt) {
             audio_->play2D(name, 0.55f + 0.35f * frand(), 0.85f + 0.25f * frand());
         }
     }
+}
+
+void GameApp::undoWeatherLight() {
+    // Puts back what applyWeatherLight changed last frame - each value only if nothing (a level
+    // load) has written it since - so the world's base light is never captured rain-dimmed.
+    if (!weatherLit_) return;
+    weatherLit_ = false;
+    EnvironmentParams& env = renderer_.environment();
+    auto same = [](const Vec3& a, const Vec3& b) { return a.x == b.x && a.y == b.y && a.z == b.z; };
+    if (same(env.sunColor, weatherOut_.sun)) env.sunColor = weatherIn_.sun;
+    if (same(env.ambientColor, weatherOut_.ambient)) env.ambientColor = weatherIn_.ambient;
+    if (same(env.fogColor, weatherOut_.fog)) env.fogColor = weatherIn_.fog;
+    if (same(env.clearColor, weatherOut_.clear)) env.clearColor = weatherIn_.clear;
+    if (same(env.skyHorizon, weatherOut_.horizon)) env.skyHorizon = weatherIn_.horizon;
+    if (same(env.skyTint, weatherOut_.skyTint)) env.skyTint = weatherIn_.skyTint;
 }
 
 }  // namespace gvr

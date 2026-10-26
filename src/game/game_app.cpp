@@ -2229,6 +2229,7 @@ void GameApp::initMission() {
 void GameApp::updateSun(float dt) {
     EnvironmentParams& env = renderer_.environment();
     env.time = float(time_);
+    undoWeatherLight();  // (last frame's rain light and lightning: never into a newly captured base)
     // The world's own (daylight) colours, captured once per loaded world.
     if (envBaseWorld_ != worldName_ + "#" + std::to_string(reinterpret_cast<uintptr_t>(assetWorld_.get())) ||
         envBaseSea_ != env.seaLevel) {
@@ -4895,7 +4896,7 @@ void GameApp::renderPiranhas() {
     const ViewParams& v = renderer_.currentView();
     if (pirSwim_) {
         // Circling just under the surface; one now and then leaps (pir_swim_jump) at the prey.
-        pirSwim_->pose(renderer_, float(time_));
+        if (pirPosed_ != time_) { pirPosed_ = time_; pirSwim_->pose(renderer_, float(time_)); }  // (once a frame: this runs in every world pass)
         for (const auto& sc : schools_) {
             if (sc.vis <= 0.01f || length(sc.centre - v.eyePosition) > 120.0f) continue;
             for (int i = 0; i < kPiranhas; ++i) {

@@ -1476,11 +1476,12 @@ private:  // the mission placed enemies: no test waves
     void updateFish(float dt);
     void renderFish(const Vec3& eye);
     void renderPiranhas();
+    double pirPosed_ = -1.0;
     bool placeSchool(ShinerSchool& sc, const Vec3& near, float minD, float maxD);
     // Caught by hand: squeeze a grip with the hand in the water on a fish; it wriggles in the hand;
     // let go in the water and it darts off, out of it and it falls (thrown: it can hit a Reaper),
     // flops about on land.
-    struct HeldFish { bool active = false; float t = 0; Vec3 prev; Vec3 recent[8]; int nRecent = 0; };
+    struct HeldFish { bool active = false, tracked = true; float t = 0; Vec3 prev, lastPos; Vec3 recent[8]; int nRecent = 0; };
     struct LooseFish { Vec3 pos, vel; float yaw = 0, roll = 0, spin = 0, t = 0, hopT = 0; bool landed = false, hit = false; };
     HeldFish heldFish_[2];
     std::vector<LooseFish> looseFish_;
@@ -1505,9 +1506,14 @@ private:  // the mission placed enemies: no test waves
     std::vector<DropSplash> dropSplashes_;
     QuadBatch weatherBatch_;
     TextureId weatherTex_ = 0;
+    double weatherBuilt_ = -1.0;
     void initAmbience(AssetWorld* w);
     void makeAmbienceSounds();
     void applyWeatherLight(float dt);
+    void undoWeatherLight();
+    struct WeatherLit { Vec3 sun, ambient, fog, clear, horizon, skyTint; };
+    WeatherLit weatherIn_{}, weatherOut_{};
+    bool weatherLit_ = false;
     float weatherK_ = 0, lightningT_ = -1.0f, lightningNext_ = 5.0f, thunderDelay_ = 0;
     void updateAmbience(float dt);
     void updateWeather(float dt);

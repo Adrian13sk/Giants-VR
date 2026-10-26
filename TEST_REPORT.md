@@ -824,3 +824,5 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
 - 2026-10-26, ambience/weather: unit test testAmbience (6 loops) passes; weather_rain / weather_snow / weather_storm
   run clean ("weather light rain|snow|storm"); ASan with audio output on Rstory1, Rstory2, Kstory5, Story1: 0
   reports; sweep 56/56. Sound levels and the loops' character are **not heard by a person yet** (spectra only).
+- 2026-10-26, review fixes + Smartie touch: fish_catch, birds_shoot, weather_storm, smartie_pat pass (harness and
+  ASan, 0 reports); ASan soak Rstory1 -> 6 world loads with audio: 0 reports; sweep 56/56; unit tests pass.

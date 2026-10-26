@@ -2488,3 +2488,17 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   has lightning every 7-21 s (two or three flickers in 0.4 s: ambient, sky and haze brightened) and thunder 0.4-3 s
   later (three procedural claps: a crack and a roll of deep noise bursts, a one-shot). Harness Kstory5, 1500 frames:
   2 strikes; frame brightness 32.8 -> 50.5 at the flash; audio rms 0.057 -> 0.14 in the thunder.
+- Independent review (an agent that had not seen the work) of birds / fish / ambience / ~SkinnedModel / cloud shadows:
+  no crashes or double frees; fixed: (1) the weather's light changes were captured as the next level's base light on a
+  switch (compounding; and the storm's timers weren't reset - thunder over a loading screen) - applyWeatherLight now
+  records what it changed and updateSun undoes it first (a value only if nothing rewrote it since); timers reset per
+  level; (2) ambient voices placed under 2 m were cut instead of compensated (the mixer has no roll-off within its
+  2 m) - exact inverse of the mixer's curve now; (3) a fish let go while the hand was untracked appeared at the world
+  origin, and the first sample after a tracking gap made a huge throw - last seen position / no sample after a gap;
+  held fish dropped when the hero becomes Kabuto; (4) the cloud uniform now checks the noise texture is live (white
+  would halve the sun everywhere); (5) the piranhas' swim pose once a frame (the underwater hook runs in every world
+  pass); weather quads built once a frame; cached getenvs; dead birds not re-skinned; GVR_SKIP_TEX no longer leaks.
+  Not changed: bird skins are re-made per mission (load-time cost only), rain falls inside caves (terrain-only ground).
+- Smartie touch: an open hand (grip < 0.35) within 0.3 m of a calm Smartie's head: a pat (sm_laugh1, turns to you) or
+  a high five (it was waving, or the hand moved > 1.3 m/s: sm_celebrate, a slap); 3 s per Smartie; not while they fear
+  you. devtest smartie_pat.

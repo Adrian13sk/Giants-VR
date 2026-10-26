@@ -184,8 +184,9 @@ void GameApp::updateBirds(float dt) {
     };
     const float big = std::max(1.0f, player_.height / 1.8f);  // (Kabuto scares them from much further)
     const Vec3 me = player_.position;
+    static const char* birdsTest = std::getenv("GVR_BIRDS_TEST");
     if (nextFlock_ == 0)
-        if (const char* e = std::getenv("GVR_BIRDS_TEST")) {  // (tests: a flock this far ahead of the player, at once)
+        if (const char* e = birdsTest) {  // (tests: a flock this far ahead of the player, at once)
             const float d = std::max(4.0f, float(std::atof(e)));
             if (!spawnFlock(me + fwdOf(player_.yaw) * d, true)) nextFlock_ = 1;
             for (Bird& b : birds_)
@@ -212,7 +213,7 @@ void GameApp::updateBirds(float dt) {
         flockTimer_ = 20.0f + 15.0f * frand();
         int live = 0;
         for (const Bird& b : birds_) live += !b.gone && b.kind == 0 && b.state <= kHopping;
-        if (live < 6 && !std::getenv("GVR_BIRDS_TEST"))
+        if (live < 6 && !birdsTest)
             for (int tries = 0; tries < 10; ++tries) {
                 const float yaw = player_.yaw + 1.6f + frand() * 3.08f;  // (the half behind the body)
                 const Vec3 at = me + fwdOf(yaw) * ((16.0f + 12.0f * frand()) * big);
@@ -358,6 +359,7 @@ void GameApp::updateBirds(float dt) {
     // Pose the visible ones.
     for (Bird& b : birds_) {
         if (b.gone || length(b.pos - me) > 130.0f * big) continue;
+        if (b.state == kDead && b.stateT > 0.5f) continue;  // (lying still: the pose it had stays)
         const int clip = b.kind == 1 ? 0 : birdClip_[b.clip];
         float t = b.t;
         if (b.state == kFalling || b.state == kDead) t = 0.1f;
