@@ -1,0 +1,4 @@
+# Progress video 16 (rework): caption|world|mission|from frame|frames|env and harness args
+Pat a Smartie on the head (it laughs), then a high five (it dances)|Story5|5a_killcharger|0|500|--script devtest/tests/smartie_pat.txt
+Kabuto grabs a swooping Lobird out of the air - and eats it|Kstory1|k1a_smarties|180|420|--script devtest/tests/kabuto_lobird.txt
+Lightning and thunder in the storm over Kabuto's last level|Kstory5|kstory5_1|280|560|--script devtest/tests/weather_storm.txt
