@@ -1,4 +1,6 @@
 # Progress video 15 (rework): caption|world|mission|from frame|frames|env and harness args
 Fish (the game's unused Shiners) swim in the shallows, seen through the water|Story1|1c_1_firstmecc|0|420|--script devtest/tests/fish_school.txt
 Hold a hand still in the water, squeeze - a fish caught, wriggling|Story1|1c_1_firstmecc|150|330|--script devtest/tests/fish_catch.txt
-Cloud shadows drift over the island|Story1|1a_1_timmy|60|900|GVR_CUTSCENE=none GVR_GOD=1 --first-person --pitch -10
+Weather from the level's own marker: light rain on Delphi's island|Rstory1|r1_saveyan|60|420|--script devtest/tests/weather_rain.txt
+Snow in the Reapers' cold world|Rstory2|rstory2_battle_1|60|420|--script devtest/tests/weather_snow.txt
+A storm over Kabuto's last level|Kstory5|kstory5_1|60|420|--script devtest/tests/weather_storm.txt
