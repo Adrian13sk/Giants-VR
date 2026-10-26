@@ -2183,3 +2183,4 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   Rstory2 start at effects quality 2 (Quest measurements), where the rock was one dominant-axis sample, so the
   triplanar/strata work never reached them. Both paths now blend a second sample at ~1/4 the frequency (offset),
   by large-scale noise and more with distance (look 1: triplanar pair; look 2: one extra fetch). The grid is gone.
+- Rock projection follows the true facet normal (cross of screen-space derivatives) instead of the smoothed vertex normal: sheer terrain walls (Rstory2's ice canyons) had a band of smeared streaks where the smoothed normal still leaned up. Both quality levels.

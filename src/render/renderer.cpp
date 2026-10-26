@@ -203,7 +203,11 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
     }
     gRockW = 0.0;
     if (rockW > 0.01) {
-        vec3 an = abs(n);
+        // The projection follows the true facet (screen-space derivatives), not the smoothed vertex
+        // normal: on sheer terrain walls the smoothed normal still leans up, and the rock was smeared
+        // into streaks (Rstory2's ice canyons).
+        highp vec3 fn = cross(dFdx(wp), dFdy(wp));
+        vec3 an = dot(fn, fn) > 1e-12 ? abs(normalize(vec3(fn))) : abs(n);
         highp vec2 ruv = an.x > an.z ? wp.zy : wp.xy;
         if (an.y > max(an.x, an.z)) ruv = xz;
         vec3 rock;
