@@ -1,0 +1,14 @@
+# Rework (2026-10-26): the sea monster - the original's unused 30 m sea serpent (xx_seamonster). Out at sea in front of
+# you it surfaces, swims across, rears up out of the water with a roar, crashes back and dives (GVR_SEAMONSTER=2: 2 s
+# after the start; normally every few minutes). Log: "Sea monster: surfaces", "rears up", "dives".
+name sea_monster
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_SEAMONSTER 2
+view first
+duration 28
+at 380 4625
+look 300 4610
+pitch 2

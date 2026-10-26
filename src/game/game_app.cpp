@@ -1587,6 +1587,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initBirds(w, mc);
     initHitchers(w, mc);
     initFish(w, mc);
+    initSeaMonster(w, mc);
     initAmbience(w);
     initDestruction(w, mc);
     initSpawners();
@@ -4048,7 +4049,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("villagers"); updateVillagers(dt); updateVillagerHands(dt, lastInput_); updateSmartieTouch(dt, lastInput_); }
     { GVR_PROF("vimps"); updateVimps(dt); }
     { GVR_PROF("birds"); updateBirds(dt); updateHitchers(dt); }
-    { GVR_PROF("fish"); updateFish(dt); }
+    { GVR_PROF("fish"); updateFish(dt); updateSeaMonster(dt); }
     { GVR_PROF("ambience"); updateAmbience(dt); }
     { GVR_PROF("npc ragdolls"); updateNpcRagdolls(dt); }
     { GVR_PROF("bosses"); updateBosses(dt); }

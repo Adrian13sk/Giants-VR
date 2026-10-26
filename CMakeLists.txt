@@ -60,6 +60,7 @@ add_library(gvr_core STATIC
   src/game/game_app_birds.cpp
   src/game/game_app_hitchers.cpp
   src/game/game_app_fish.cpp
+  src/game/game_app_seamonster.cpp
   src/game/game_app_ambience.cpp
   src/game/game_app_cinema.cpp
   src/game/vimp.cpp

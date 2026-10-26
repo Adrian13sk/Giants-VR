@@ -2523,3 +2523,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   of_hatch (Kabuto's powers), sr_fswd1 (climbing). Fix: GameApp::ensureSound loads any sound from the archives the
   first time it is played (a negative cache for names that don't exist; logged once). Trace after: cr_caw2 and
   cr_deat2 "loaded on first use", played.
+- Sea monster: xx_seamonster's RM_seamonster (LODs L1-L6; L1 used: 13 x 7 x 30 m) with RM_swim / RM_swimB /
+  Rm_fire_turn (6.8 s, rearing up out of the water) and SE_FIRST / SE_ROAR1 / SE_SPLSH / SE_FIRND - no level places
+  it. game_app_seamonster.cpp: every 80-160 s first, then 3-5.5 min, it picks deep water (> 7 m along a 60 m line)
+  35-65 m ahead of the eyes, surfaces (2.5 s), swims across at 7 m/s (7 s), rears (the clip, splashes at 15/62/85 %,
+  a roar), swims 4 s, dives (3 s). Drawn in the underwater hook so the submerged body shows through the water.
+  Sounds are loud enough to carry (the mixer's 1/d undone: volume x d/6, capped). devtest sea_monster.

@@ -1499,6 +1499,15 @@ private:  // the mission placed enemies: no test waves
     float shinerLift_ = 0, shinerSpawnT_ = 0;
     ModelCache* fishCache_ = nullptr;
     void initFish(AssetWorld* w, ModelCache* mc);
+    // The sea monster (game_app_seamonster.cpp): the unused RM_seamonster surfacing out at sea.
+    struct SeaMonster { int phase = 0, splashes = 0; float timer = 0, t = 0, phaseT = 0, yaw = 0; Vec3 pos, dir; };
+    SeaMonster seaMon_;
+    std::unique_ptr<SkinnedModel> seaMonModel_;
+    ModelCache* seaMonCache_ = nullptr;
+    int seaMonRear_ = 0;
+    void initSeaMonster(AssetWorld* w, ModelCache* mc);
+    void updateSeaMonster(float dt);
+    void renderSeaMonster();
     void updateFish(float dt);
     void renderFish(const Vec3& eye);
     void renderPiranhas();

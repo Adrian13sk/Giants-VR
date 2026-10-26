@@ -33,6 +33,7 @@ void GameApp::initFish(AssetWorld* w, ModelCache* mc) {
     if (w) w->underwater = [this]() {
         renderFish(renderer_.currentView().eyePosition);
         renderPiranhas();
+        renderSeaMonster();
     };
     if (w && !w->ambientMarkers().empty()) {  // (the original's ambient zones in this level, by name)
         std::map<std::string, int> n;

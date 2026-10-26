@@ -829,3 +829,6 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
 - 2026-10-26, Kabuto catches Lobirds: kabuto_lobird - caught and eaten (harness and ASan, 0 reports); sweep 56/56.
 - 2026-10-26, hitchers: devtest hitchers - "6 riding on Vimps", two take off and land again (harness and ASan, 0
   reports); sweep 56/56.
+- 2026-10-26, sound loading fix + sea monster: birds_shoot trace - cr_caw2 / cr_deat2 now play (were MISSING);
+  sea_monster - surfaces, rears, dives (harness; ASan with audio: 0 reports, se_first/roar1/firnd loaded on first
+  use); sweep 56/56; unit tests pass.
