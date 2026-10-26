@@ -2554,3 +2554,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Caustics: everything under the sea level (rework look) gets moving bright lines - two sine interference fields,
   pow 8 - of sunlight, x exp(-depth/5 m) x shadow; visible in the clear shallows from above and on a diver's arms
   and the bed below. Only for fragments under the surface (the shallows' cost; deep water is opaque from above).
+- Underwater look, second pass: the surface seen from below is a bright rippling ceiling (the sky through Snell's
+  window straight up, the haze colour at a slant), and the haze (and the empty deep sea, drawn by the sky dome's
+  pass) is lighter looking up, darker looking down.

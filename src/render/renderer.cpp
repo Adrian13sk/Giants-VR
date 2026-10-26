@@ -171,6 +171,7 @@ vec3 fogMix(vec3 rgb, float fog, highp vec3 wp) {
     highp vec3 vd = normalize(wp - uEyePos);
     float sunward = pow(max(dot(vd, -normalize(uSunDir)), 0.0), 6.0);
     vec3 haze = uFogColor + uSunColor * sunward * 0.22;
+    if (uUnder > 0.5) haze = uFogColor * (0.5 + 0.75 * clamp(vd.y * 0.5 + 0.5, 0.0, 1.0));  // (under water: lighter up, darker down)
     return mix(haze, rgb, fog);
 }
 
@@ -346,8 +347,9 @@ void main() {
     if (uNearCut.w > 0.0 && distance(vWorldPos, uNearCut.xyz) < uNearCut.w) discard;
     highp float d = length(vWorldPos - uEyePos);
     float fog = clamp(1.0 - (d - uFogRange.x) * uFogRange.y, 0.0, 1.0);
-    if (uMaterial == 2 && uUnder > 0.5) {  // (under the water: no sky - the haze all round)
-        oColor = vec4(uFogColor, 1.0);
+    if (uMaterial == 2 && uUnder > 0.5) {  // (under the water: no sky - the haze all round, lighter up, darker down)
+        highp vec3 uvd = normalize(vWorldPos - uEyePos);
+        oColor = vec4(uFogColor * (0.5 + 0.75 * clamp(uvd.y * 0.5 + 0.5, 0.0, 1.0)), 1.0);
         return;
     }
     if (uMaterial == 2) {
@@ -431,6 +433,16 @@ void main() {
         float foamNoise = 0.5 + 0.5 * sin(p.x * 3.1 + t * 1.3 + 40.0 * g.x) * sin(p.y * 2.7 - t * 1.1);
         float foam = foamBand * smoothstep(0.45, 0.9, foamNoise + foamBand * 0.3) * (1.0 - smoothstep(30.0, 80.0, d));
         rgb = mix(rgb, vec3(0.85, 0.9, 0.9) * (uAmbient + uSunColor * sh), foam * 0.5);
+        if (uUnder > 0.5) {
+            // Rework, seen from below (diving): a bright rippling ceiling - the sky through the window
+            // straight overhead (Snell's window), mirror-like and dark at a slant beyond it.
+            float up = clamp(-dot(v, vec3(0.0, 1.0, 0.0)), 0.0, 1.0);  // (v points to the eye: under it, down)
+            float window = smoothstep(0.62, 0.8, up);
+            float rip = 0.5 + 0.5 * sin(dot(g, vec2(40.0, 33.0)) + t * 2.0);
+            vec3 ceil = mix(uFogColor * 1.25, uSkyZenith * 1.3 + uSunColor * 0.25, window) * (0.85 + 0.3 * rip);
+            oColor = vec4(fogMix(ceil, max(fog, 0.35), vWorldPos), 0.92);
+            return;
+        }
         // Clarity: shallows let the bed show through; deep water is nearly opaque.
         float a = mix(mix(0.35, 0.93, smoothstep(0.0, 3.0, depth)), 1.0, max(fres, foam)) * uTint.a;
         oColor = vec4(fogOut(rgb, fog, vWorldPos, 0.6), a);
