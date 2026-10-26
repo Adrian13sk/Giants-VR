@@ -201,8 +201,12 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
         }
         // Rework: a marksman keeps his distance and fires single aimed shots.
         const bool marks = e.role == 1;
-        const float shootR = marks ? std::max(params.shootRange, 45.0f) : params.shootRange;
-        const float fireR = marks ? 26.0f : params.fireRange;
+        // (disarmed: no shooting - he runs right up to punch)
+        const float shootR = e.disarmed ? 0.0f : (marks ? std::max(params.shootRange, 45.0f) : params.shootRange);
+        const float fireR = e.disarmed ? 1.1f : (marks ? 26.0f : params.fireRange);
+        // Shot in the leg: he limps along at under half speed for a while.
+        e.limpT = std::max(0.0f, e.limpT - dt);
+        const float legs = e.limpT > 0 ? 0.42f : 1.0f;
         const int burstN = marks ? 1 : params.burstSize;
         const float burstP = marks ? 2.6f : params.burstPause;
         (void)shootR; (void)fireR; (void)burstN; (void)burstP;
@@ -379,8 +383,9 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 e.flankTimer -= dt;
                 const Vec3 dirTo = to * (1.0f / std::max(dist, 1e-3f));
                 const Vec3 side{-dirTo.z, 0, dirTo.x};
-                Vec3 goal{player.x + side.x * e.flank - dirTo.x * fireR - e.pos.x, 0,
-                          player.z + side.z * e.flank - dirTo.z * fireR - e.pos.z};
+                const float fl = e.disarmed ? 0.0f : e.flank;  // (fists: straight at you)
+                Vec3 goal{player.x + side.x * fl - dirTo.x * fireR - e.pos.x, 0,
+                          player.z + side.z * fl - dirTo.z * fireR - e.pos.z};
                 // Rework: badly hurt, he falls back - away from the player and to one side - before he
                 // turns to fight again.
                 const bool retreating = e.retreatT > 0;
@@ -402,13 +407,13 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     e.fireCooldown = marks ? 0.7f : 0.35f;  // (a marksman charges his shot: see game_app)
                     break;
                 }
-                setClip(e, EnemyClip::Run, true);
+                setClip(e, e.limpT > 0 ? EnemyClip::Walk : EnemyClip::Run, true);  // (limping: a walk)
                 // Steer around cliffs: while detouring, the heading is offset from the goal.
                 e.detourTime -= dt;
                 if (e.detourTime <= 0) e.detour = 0;
                 turn(std::atan2(-goal.x, -goal.z) + e.detour);
                 const Vec3 fwd{-std::sin(e.yaw), 0, -std::cos(e.yaw)};
-                if (tryMove(e, fwd * (params.runSpeed * dt))) {
+                if (tryMove(e, fwd * (params.runSpeed * legs * dt))) {
                     e.blockedTime = 0;
                 } else {
                     // Can't climb this: try going around; if the player is in range, shoot instead.
@@ -432,6 +437,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             }
             case EnemyState::Fire:
                 turn(faceYaw);
+                if (e.disarmed) { e.state = EnemyState::Advance; e.stateTime = 0; e.inCover = false; break; }  // (nothing to fire)
                 if (!sees) { e.state = EnemyState::Idle; break; }
                 e.fireCooldown -= dt;
                 if (e.burstLeft > 0) {
@@ -442,7 +448,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     if (press) {
                         setClip(e, EnemyClip::Walk, true);
                         const Vec3 f{-std::sin(e.yaw), 0, -std::cos(e.yaw)};
-                        tryMove(e, f * (params.walkSpeed * dt));
+                        tryMove(e, f * (params.walkSpeed * legs * dt));
                     } else {
                         setClip(e, e.weapon == 1 ? EnemyClip::BzkaFire : marks ? EnemyClip::KneelFire : (e.role == 2 || e.inCover ? EnemyClip::CrouchFire : EnemyClip::Fire), true);  // (a marksman kneels to aim; a croucher crouches)
                     }

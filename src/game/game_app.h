@@ -137,7 +137,12 @@ public:
         for (const auto& e : enemies_.enemies) {
             if (e.state == EnemyState::Dead) continue;
             const float d = length(e.pos - player_.position);
-            if (d < best) { best = d; chest = e.pos + Vec3{0, 1.2f, 0}; found = true; }
+            // (test hook GVR_AUTOAIM_PART: gun / legs)
+            static const char* part = std::getenv("GVR_AUTOAIM_PART");
+            Vec3 at = e.pos + Vec3{0, 1.2f, 0};
+            if (part && std::string(part) == "gun") reaperGunCentre(e, at);
+            if (part && std::string(part) == "legs") at = e.pos + Vec3{0, 0.55f, 0};
+            if (d < best) { best = d; chest = at; found = true; }
         }
         for (const auto& c : creatures_.creatures) {
             if (c.state == CreatureState::Dead) continue;
@@ -494,6 +499,12 @@ private:
     // Rework, dismemberment (game_app_ragdoll.cpp): cuts off the limb of dead Reaper `e` nearest the
     // blow at `at` (head, an arm or a leg), throws it along `dir`; false if none could be cut.
     bool dismember(Enemy& e, const Vec3& at, const Vec3& dir);
+    // The limb of Reaper e nearest `at` (head, l/r arm, l/r thigh by the skin's names), its distance.
+    std::string nearestLimb(const Enemy& e, const Vec3& at, float& dist);
+    // His gun leaves his hand as a gib with velocity `vel` (rework: shot out of his hand, the arm cut off).
+    void dropReaperGun(Enemy& e, const Vec3& vel);
+    // The middle of the gun in his hand (world); false if he has none.
+    bool reaperGunCentre(const Enemy& e, Vec3& out) const;
     std::vector<Gib> gibs_;
     void spawnGore(const Vec3& pos, const Vec3& dir, float scale);
     // Burrowing Rippers (game_app_ripper.cpp): mounds over the buried ones, the dirt thrown up ahead

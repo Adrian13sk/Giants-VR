@@ -250,8 +250,9 @@ void GameApp::updateNpcRagdolls(float dt) {
 }
 
 // --- Dismemberment (rework: "Make Delphi's sword stick in enemies, perhaps dismemberment?") ----
-bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
-    if (e.slot < 0 || size_t(e.slot) >= enemyPool_.size()) return false;
+std::string GameApp::nearestLimb(const Enemy& e, const Vec3& at, float& bd) {
+    bd = 1e30f;
+    if (e.slot < 0 || size_t(e.slot) >= enemyPool_.size()) return {};
     SkinnedModel& m = *enemyPool_[size_t(e.slot)];
     const float lift = size_t(e.slot) < slotLift_.size() ? slotLift_[size_t(e.slot)] : 0.0f;
     const Quat yq = Quat::fromAxisAngle({0, 1, 0}, e.yaw);
@@ -264,7 +265,6 @@ bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
         {"head"}, {"l_arm", "arm l", "l-arm"}, {"r_arm", "arm r"}, {"l_thigh", "leg l", "l_thigh01"}, {"r_thigh", "leg r"}};
     static const bool tr = std::getenv("GVR_DISMEMBER_TRACE") != nullptr;
     std::string best;
-    float bd = 1e30f;
     Vec3 headC;
     const bool haveHead = m.boneCentre("head", headC);
     for (const auto& names : kLimbs) {
@@ -279,6 +279,41 @@ bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
         if (tr) LOGI("dismember trace: %s %.2f m from the blow", b, d);
         if (d < bd) { bd = d; best = b; }
     }
+    return best;
+}
+
+bool GameApp::reaperGunCentre(const Enemy& e, Vec3& out) const {
+    if (!e.weaponOn || e.weapon < 0 || e.weapon > 1 || !rpWeapon_[e.weapon].model) return false;
+    const RenderModel& m = *rpWeapon_[e.weapon].model;
+    const Vec3 c = (m.boundsMin + m.boundsMax) * 0.5f;
+    const Vec4 w = e.weaponXf * Vec4{c.x, c.y, c.z, 1.0f};
+    out = Vec3{w.x, w.y, w.z};
+    return true;
+}
+
+void GameApp::dropReaperGun(Enemy& e, const Vec3& vel) {
+    if (!e.weaponOn || e.weapon < 0 || e.weapon > 1 || !rpWeapon_[e.weapon].model) return;
+    Gib gun;
+    gun.model = rpWeapon_[e.weapon].model;
+    gun.pos = Vec3{e.weaponXf.m[12], e.weaponXf.m[13], e.weaponXf.m[14]};
+    gun.base = e.weaponXf;
+    gun.base.m[12] = gun.base.m[13] = gun.base.m[14] = 0;
+    gun.vel = vel;
+    gun.axis = normalize(Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} + Vec3{0.01f, 0, 0});
+    gun.spin = 2.0f + 4.0f * frand();
+    gun.scale = 1.0f;
+    gibs_.push_back(gun);
+    e.weaponOn = false;
+}
+
+bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
+    float bd = 0;
+    std::string best = nearestLimb(e, at, bd);
+    if (e.slot < 0 || size_t(e.slot) >= enemyPool_.size()) return false;
+    SkinnedModel& m = *enemyPool_[size_t(e.slot)];
+    const float lift = size_t(e.slot) < slotLift_.size() ? slotLift_[size_t(e.slot)] : 0.0f;
+    const Quat yq = Quat::fromAxisAngle({0, 1, 0}, e.yaw);
+    const Vec3 origin = e.pos + Vec3{0, lift + e.sink, 0};
     if (best.empty() || bd > 1.2f) return false;
     if (const char* force = std::getenv("GVR_DISMEMBER_LIMB")) best = force;  // (test hook: that limb)
     std::vector<SkinnedModel::Piece> pieces;
@@ -311,18 +346,7 @@ bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
     g.scale = 1.0f;
     gibs_.push_back(g);
     // The gun hand off: the gun goes with it (thrown along, from where it was in the hand).
-    if ((best == "r_arm" || best == "arm r") && e.weaponOn && e.weapon >= 0 && e.weapon < 2 && rpWeapon_[e.weapon].model) {
-        Gib gun;
-        gun.model = rpWeapon_[e.weapon].model;
-        gun.pos = Vec3{e.weaponXf.m[12], e.weaponXf.m[13], e.weaponXf.m[14]};
-        gun.base = e.weaponXf;
-        gun.base.m[12] = gun.base.m[13] = gun.base.m[14] = 0;
-        gun.vel = g.vel * 0.8f + Vec3{0, 1.0f, 0};
-        gun.axis = normalize(Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} + Vec3{0.01f, 0, 0});
-        gun.spin = 2.0f + 4.0f * frand();
-        gun.scale = 1.0f;
-        gibs_.push_back(gun);
-    }
+    if (best == "r_arm" || best == "arm r") dropReaperGun(e, g.vel * 0.8f + Vec3{0, 1.0f, 0});
     if (best == "r_arm" || best == "arm r") e.gunArmOff = true;
     // The stump and the piece bleed.
     blood_.burst(g.pos, h + Vec3{0, 1.2f, 0}, 30, 4.5f, 0.08f);

@@ -1,0 +1,14 @@
+# Rework (2026-10-26): shoot the gun out of a Reaper's hand - it flies to the ground and he runs in to punch you.
+# On the headset: aim at the gun he holds (the harness aims there with GVR_AUTOAIM_PART=gun).
+name reaper_disarm
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MARKSMEN 0
+env GVR_CROUCHERS 0
+env GVR_COVER 0
+view first
+duration 10
+reapers 1 12 0.3 99

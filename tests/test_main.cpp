@@ -564,6 +564,42 @@ static void testEnemies() {
             hid = te.treeCover && te.state == EnemyState::Fire && te.clip == EnemyClip::TreeBreathe && t.bodyHeight(te) < 0.3f * t.params.height;
         }
         CHECK(hid);
+        // His gun shot out of his hand: he never shoots, he comes in and punches.
+        EnemyDirector u;
+        u.groundHeight = r.groundHeight;
+        for (auto& cd : u.clipDuration) cd = 0.6f;
+        u.params.marksmen = 0;
+        u.params.crouchers = 0;
+        u.params.coverShare = 0;
+        u.spawn({0, 0, -15}, kPi);
+        u.enemies[0].aware = true;
+        u.enemies[0].disarmed = true;
+        bool shot = false, hitMe = false;
+        for (int i = 0; i < 72 * 15 && !hitMe; ++i) {
+            u.update(1.0f / 72.0f, Vec3{0, 0, 0}, true, sh);
+            shot = shot || !sh.empty();
+            hitMe = !u.punches.empty();
+        }
+        CHECK(!shot && hitMe);
+        // Shot in the leg: a limping Reaper covers far less ground in the same time.
+        float ran[2];
+        for (int k = 0; k < 2; ++k) {
+            EnemyDirector v;
+            v.groundHeight = r.groundHeight;
+            for (auto& cd : v.clipDuration) cd = 0.6f;
+            v.params.marksmen = 0;
+            v.params.crouchers = 0;
+            v.params.coverShare = 0;
+            v.params.pressIn = false;
+            v.params.shootRange = 5.0f;
+            v.params.fireRange = 4.0f;
+            v.spawn({0, 0, -40}, kPi);
+            v.enemies[0].aware = true;
+            v.enemies[0].limpT = k ? 99.0f : 0.0f;
+            for (int i = 0; i < 72 * 3; ++i) v.update(1.0f / 72.0f, Vec3{0, 0, 0}, true, sh);
+            ran[k] = 40.0f - length(v.enemies[0].pos);
+        }
+        CHECK(ran[1] < 0.6f * ran[0] && ran[1] > 0.5f);
         // A heavy blow knocks him down (a low hit box), he gets up, then fights on.
         EnemyDirector k;
         k.groundHeight = r.groundHeight;

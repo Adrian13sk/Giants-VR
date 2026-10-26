@@ -461,14 +461,39 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     return;
                 }
                 // Headshots (hit above the shoulders) hurt a Reaper two and a half times as much.
-                const bool head = p.y - enemies_.enemies[size_t(target)].pos.y > 1.6f * enemies_.bodyHeight(enemies_.enemies[size_t(target)]) / std::max(0.5f, enemies_.params.height);
+                // (a shot at the gun he holds up to his face is a gun hit, not a head shot)
+                Vec3 gunAt{1e9f, 1e9f, 1e9f};
+                reaperGunCentre(enemies_.enemies[size_t(target)], gunAt);
+                const bool atGun = length(p - gunAt) < 0.45f && !enemies_.enemies[size_t(target)].disarmed;
+                const bool head = !atGun && p.y - enemies_.enemies[size_t(target)].pos.y > 1.6f * enemies_.bodyHeight(enemies_.enemies[size_t(target)]) / std::max(0.5f, enemies_.params.height);
                 if (head) sfx("bi_hit2", p, 0.8f, 1.4f);
                 // Rework: the hit shoves him (a killing shot sends the body back - it slides on), more for
                 // heavier guns and head hits.
                 if (const float hl = std::sqrt(shotDir.x * shotDir.x + shotDir.z * shotDir.z); hl > 1e-3f)
                     enemies_.push(target, Vec3{shotDir.x / hl, 0, shotDir.z / hl} * ((head ? 3.0f : 1.8f) * std::min(3.0f, std::max(0.6f, hm))));
                 enemies_.enemies[size_t(target)].hitHeight = (p.y - enemies_.enemies[size_t(target)].pos.y) / std::max(0.5f, enemies_.bodyHeight(enemies_.enemies[size_t(target)]));
-                const bool killed = enemies_.damage(target, (head ? 62.5f : 25.0f) * hm);
+                // Rework: where he's hit counts. The gun (or the hand on it) shot: it flies out of his hand
+                // (often) and he comes in with his fists; a leg: he limps for a while.
+                Enemy& he = enemies_.enemies[size_t(target)];
+                float limbD = 0;
+                const std::string limb = he.state != EnemyState::Dead && !head ? nearestLimb(he, p, limbD) : std::string();
+                // (shots stop at his capsule, a little in front of the gun: 0.45 m)
+                const bool gunHit = he.weaponOn && !he.disarmed && (atGun || ((limb == "r_arm" || limb == "arm r") && limbD < 0.3f));
+                const bool legHit = !gunHit && (limb == "l_thigh" || limb == "r_thigh" || limb == "leg l" || limb == "leg r") && he.hitHeight < 0.45f;
+                if (std::getenv("GVR_HIT_TRACE")) LOGI("hit trace: Reaper %u at height %.2f, %.2f m from his gun, nearest limb %s %.2f m", he.uid, he.hitHeight, length(p - gunAt), limb.c_str(), limbD);
+                const bool killed = enemies_.damage(target, (head ? 62.5f : (atGun ? 12.0f : 25.0f)) * hm);  // (the gun takes most of it)
+                if (!killed && gunHit && (atGun ? frand() < 0.7f : frand() < 0.4f)) {
+                    Vec3 away = shotDir + Vec3{0, 0.6f, 0};
+                    dropReaperGun(he, away * 3.5f);
+                    he.disarmed = true;
+                    sfx("sr_swht1", gunAt, 0.9f, 1.6f + 0.2f * frand());  // (a metal ping, as the parry)
+                    LOGI("Reaper %u: his gun shot out of his hand", he.uid);
+                }
+                if (!killed && legHit) {
+                    he.limpT = 5.0f;
+                    static const bool trace = std::getenv("GVR_HIT_TRACE") != nullptr;
+                    if (trace) LOGI("Reaper %u: shot in the leg, limping", he.uid);
+                }
                 if (killed && enemies_.enemies[size_t(target)].objective >= 0)
                     completeObjective(enemies_.enemies[size_t(target)].objective);
                 bleed(p, shotDir, killed, 1.0f);

@@ -2203,3 +2203,11 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   now a rotation matrix, so it keeps the gun's in-hand orientation) and stops placing it (Enemy::gunArmOff).
 - Test hooks: GVR_DISMEMBER_TRACE, GVR_DISMEMBER_ALWAYS, GVR_DISMEMBER_LIMB=<bone>. Tests pass; sweep 56/56.
 - CPU check (GVR_PROF_SPIKES=<ms> logs each section over that, with its frame; GVR_PROF_BEGIN/END for non-scope sections; Reaper posing, guns and water now timed): across all 56 missions only two sections exceeded 3 ms after the loading frames (Kabuto's posing in kstory3_3 and the villagers in mission1, ~4.4 ms once each). The 21 ms first-frame Reaper gun load happens under the briefing.
+- Reapers: locational hits while alive. A shot within 0.45 m of the middle of his gun (reaperGunCentre: the gun
+  model's bounds centre in weaponXf - its origin is near the ground) is a gun hit, not a head shot (he holds it up
+  to his face), does 12 instead of 25, and knocks the gun out 70 % of the time (a near-arm hit 40 %): it flies off
+  as a gib (dropReaperGun), Enemy::disarmed - the director gives him no shoot range, a 1.1 m stand-off and no flank,
+  so he runs straight in and punches. A leg hit (nearest limb a thigh, under 0.45 of his height) sets limpT 5 s:
+  0.42 x speed and a walk clip. Unit tests (disarmed: never shoots, punches; limping: under 0.6 x the distance).
+  Harness 1c_1 with GVR_AUTOAIM_PART=gun (new hook; =legs too): "his gun shot out of his hand", "punches you".
+  Completion kill scripts and sweep 56/56 still pass. devtest reaper_disarm.
