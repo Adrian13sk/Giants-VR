@@ -2418,3 +2418,21 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   "Smartie 5 killed", "The Smarties are afraid of you now"; the others run off.
 - Kabuto's footprints moved out of updateAudio (which returns without a mixer) into updateGroundMarks, on their
   own stride phase.
+
+## 2026-10-26 (day): ambient birds (8c464bb)
+- xx_birds.gzp holds Flak_l0/l1 (+ peck x2, hop, fly, glide, land clips), Lobird_l0 (+ fly), hitcher (idle, fly),
+  Feather1 (+ float) and CR_CAW1/2, CR_DEAT1/2; no level we load places any of it. Measured: Flak 1.0 m long,
+  Lobird 17.2 m across the wings, the feather 0.58 m (a Lobird's; drawn at 0.45 for the Flak).
+- game_app_birds.cpp: a pool of 20 SkinnedModels (3 Lobirds + 17 Flak; each bird posed on its own; 71/111 vertices,
+  negligible CPU). Flocks of 4-7 land every 20-35 s 16-28 m away in the half behind the body (x Kabuto's scale), on
+  land that is above the sea and not steep. Scares: the player within 7 m (x scale), a shot within 35 m, a blast within
+  40 m, a living Reaper within 8 m - the whole flock goes, staggered, away from it, climbs to ~20 m, flaps / glides,
+  despawns past 95 m. Lobirds circle (r 55-90 m, 60-90 m up) round a centre that drifts after the player at 3 m/s and
+  is re-placed if the player is suddenly >200 m away (first version: they started at the world origin, 950 m off).
+- Kills: player projectile segments, shot impacts within ~0.55 m of a bird, and thrown stones (birdHitBy). The bird
+  falls with gravity and a spin, lies face down 45 s; into the sea: a splash. Feathers drift down with a sway.
+- Harness: birds_takeoff ("flock 0 takes off"), birds_shoot (2 Flak shot down; the first aim tried hit the ground
+  short - aim tuned to 10/-6), birds_lobirds (turning, three Lobirds seen; GVR_BIRD_TRACE logs their bearing).
+  ASan 0 reports on the three + stone_throw; sweep 56/56 clean; unit tests pass.
+- The scratch disk filled up (25 GB of video frames) and ninja failed silently on the archive step; old frame PNGs
+  in the scratchpad deleted. Note: check `ninja` output for "No space left" when a change seems to have no effect.

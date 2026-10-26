@@ -1,0 +1,6 @@
+# Progress video 14 (rework): caption|world|mission|from frame|frames|env and harness args
+A flock of Flak pecks ahead - walk at them and they take off|Story1|1c_1_firstmecc|0|560|--script devtest/tests/birds_takeoff.txt
+Shoot into the flock: a bird tumbles down in a puff of feathers|Story1|1c_1_firstmecc|100|360|--script devtest/tests/birds_shoot.txt
+Look up: Lobirds circle high over the island|Story1|1c_1_firstmecc|40|700|--script devtest/tests/birds_lobirds.txt
+Kabuto leaves footprints|Kstory1|k1a_smarties|0|420|--script devtest/tests/kabuto_footprints.txt
+Arrows stay where they strike|Rstory2|rstory2_battle_1|40|560|--script devtest/tests/arrows_stick.txt

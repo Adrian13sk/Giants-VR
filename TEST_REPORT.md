@@ -814,3 +814,6 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
   (GVR_GOD, firing, a mission completed every 2000 frames): 1a -> end, 54 missions, 0 errors; resident memory
   227 -> 572 MB (B15: the model cache is not emptied between worlds; +20-30 MB per new world, flat within one).
   Completion checks 12/12, sweep 56/56. **Not device-tested.**
+- 2026-10-26, 8c464bb (ambient birds): unit tests pass; sweep 56/56 exit 0 E=0; ASan 0 reports on birds_takeoff,
+  birds_shoot (2 birds shot down), birds_lobirds, stone_throw. APK built, sha256 b104c725... verified on the PC.
+  **Not device-tested.**
