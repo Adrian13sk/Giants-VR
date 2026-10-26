@@ -817,3 +817,5 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
 - 2026-10-26, 8c464bb (ambient birds): unit tests pass; sweep 56/56 exit 0 E=0; ASan 0 reports on birds_takeoff,
   birds_shoot (2 birds shot down), birds_lobirds, stone_throw. APK built, sha256 b104c725... verified on the PC.
   **Not device-tested.**
+- 2026-10-26, skinned meshes freed (B15): soak 1a -> r1_turbo (22 missions, 12000 frames) 0 errors, 229 -> 341 MB
+  (was 229 -> 383 MB with 8c464bb); ASan 0 reports (soak 4000 frames + 4 ragdoll/dismember devtests); sweep 56/56.

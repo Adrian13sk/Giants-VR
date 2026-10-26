@@ -2436,3 +2436,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   ASan 0 reports on the three + stone_throw; sweep 56/56 clean; unit tests pass.
 - The scratch disk filled up (25 GB of video frames) and ninja failed silently on the archive step; old frame PNGs
   in the scratchpad deleted. Note: check `ninja` output for "No space left" when a change seems to have no effect.
+- B15, part of it a leak: SkinnedModel never freed its GPU meshes (one set per instance), and every world switch
+  makes new Vimps, villagers, birds, character pools. ~SkinnedModel now destroys them (the renderer pointer is kept
+  from load; not copyable). Renderer::shutdown clears its table first, so models destroyed after it do nothing.
+  Soak 1a -> r1_turbo, 12000 frames, a mission every 500: 383 MB -> 341 MB at the end. ASan: soak 4000 frames,
+  delphi_dismember, reaper_ragdolls, smartie_ragdolls, kabuto_grab_eat - 0 reports; sweep 56/56.

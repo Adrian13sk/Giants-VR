@@ -16,6 +16,12 @@ namespace gvr {
 
 class SkinnedModel {
 public:
+    SkinnedModel() = default;
+    // Frees its GPU meshes (each instance owns its own; leaked before - memory grew at every world
+    // switch, B15). Not copyable: the meshes have one owner.
+    ~SkinnedModel();
+    SkinnedModel(const SkinnedModel&) = delete;
+    SkinnedModel& operator=(const SkinnedModel&) = delete;
     // Loads <base>.gbs + <base>.skn from the FS and the given animation (.anm) as animation 0.
     bool load(const AssetFS& fs, ModelCache& textures, Renderer& r, const std::string& base,
               const std::string& anim);
@@ -124,6 +130,7 @@ private:
         std::vector<uint32_t> indices;
         std::vector<uint32_t> posIndex;
     };
+    Renderer* renderer_ = nullptr;  // (set by load: frees the meshes)
     std::string base_;
     GbsModel gbs_;
     std::vector<std::string> bones_;  // lower-case bone names used by the skin

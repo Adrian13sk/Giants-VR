@@ -8,8 +8,17 @@
 
 namespace gvr {
 
+SkinnedModel::~SkinnedModel() {
+    if (!renderer_) return;
+    for (const Part& p : parts_) {
+        renderer_->destroyMesh(p.mesh);
+        renderer_->destroyMesh(p.fullMesh);
+    }
+}
+
 bool SkinnedModel::load(const AssetFS& fs, ModelCache& textures, Renderer& r, const std::string& base,
                         const std::string& anim) {
+    renderer_ = &r;
     base_ = base;
     std::vector<uint8_t> bytes;
     std::string err;
