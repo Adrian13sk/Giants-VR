@@ -1,0 +1,4 @@
+# Progress video 17 (rework): caption|world|mission|from frame|frames|env and harness args
+The sea monster (the game's unused 30 m serpent) surfaces, rears up and dives|Story1|1c_1_firstmecc|240|1700|--script devtest/tests/sea_monster.txt
+Hitchers - the game's unused perching birds - ride on the Vimps|Story2|2a_1_getmeat|0|700|--script devtest/tests/hitchers.txt
+Kabuto spits out the bones|Kstory1|k1a_smarties|260|300|--script devtest/tests/kabuto_body_eat.txt
