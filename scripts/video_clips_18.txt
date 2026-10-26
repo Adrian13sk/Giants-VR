@@ -1,0 +1,4 @@
+# Progress video 18 (rework): caption|world|mission|from frame|frames|env and harness args
+Delphi dives: look down and swim - under the water a blue haze, bubbles, caustics|Rstory1|r1_saveyan|0|1100|--script devtest/tests/delphi_dive.txt
+Caustics dance over the bed of the clear shallows|Story1|1c_1_firstmecc|0|300|--script devtest/tests/fish_school.txt
+The storm's lightning - the game's own unused bolt art|Kstory5|kstory5_1|0|1000|GVR_CUTSCENE=none GVR_GOD=1 --first-person --pitch 8
