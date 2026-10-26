@@ -1,0 +1,21 @@
+# Rework (2026-10-26): reach down to a dead Reaper, squeeze the grip on him and he hangs from your hand by
+# the part you took; lift him, swing, and throw him (a fast push forward, the grip let go). The log says
+# "Took hold of a Reaper body", then "Threw the body". On the headset: crouch or bend down to reach him.
+name body_grab
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_TEST_KILL quiet
+env GVR_GRAB_TRACE 1
+view first
+pitch -30
+duration 9
+reapers 1 1.4 0.3 0.32
+move 0 0.5 3.0 3.25
+hand_l 0.15 -0.8 -0.3 3.6 4.2
+hold grip_l 4.4 6.9
+hand_l 0 1.1 0.35 4.8 5.6
+hand_l 0.15 0 0.35 5.9 6.3
+hand_l -0.15 0.3 -1.2 6.6 6.85

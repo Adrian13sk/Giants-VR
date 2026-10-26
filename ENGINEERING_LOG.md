@@ -2233,3 +2233,18 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   11 of 15 missions) and rstory5_fake (a 3.4 m red stand-in). All four are now invisible helpers (not drawn, not
   solid); the game still reads army_spline/marker_spline from the mission data (base attacks, race rivals: "12 army
   paths lead to the base"). buoy_spline stays drawn - it is the race's only gate marker. r4a: 419 -> 111 placed.
+
+### 2026-10-26 — Rework: taking hold of bodies (Meccaryn, Delphi)
+- game_app_bodygrab.cpp: a grip edge with the hand within 0.42 m of any particle of an active ragdoll (dead Reapers;
+  creatures, Smarties, Vimps) takes that particle: Ragdoll::nearest / pinParticle / movePin (the pinned particle
+  follows the hand; the rest hangs and drags). Let go: if the hand went over 2 m/s in its last 8 frames (the fastest
+  of them - a hand opens as the arm slows), the whole body gets that velocity x 0.55 (Reaper) .. 0.85 (Smartie,
+  Vimp). The owner's position follows the body's centre. First person, not Kabuto, not on the Reaperski; the
+  impaled body excluded; the move hand's sprint is off while it holds a body or a Smartie. Haptics: a pull that
+  grows with the swing. GVR_GRAB_TRACE logs reach misses and the hold.
+- Held by one point, the 8 constraint passes let a long chain stretch while lifted: 24 passes while pinned. A body
+  picked up long after it fell had age > 10 s and fell asleep mid-air on release; pinning caps its age at 0.5 s.
+- Test hook GVR_TEST_KILL=quiet: the script's Reaper kill is a plain kill instead of a blast (the body stays put).
+  devtest body_grab (1c_1, left hand): "Took hold of a Reaper body (1) by part 43, 0.29 m from the hand", lifted,
+  swung, "Threw the body (1) at 5.0 m/s". Unit test (stick figure taken by the hand, lifted 2 m: the hand point at
+  the hand, the body hanging over 0.9 m below, the forearm 0.4 m; thrown at 6 m/s: lands over 1 m away). Sweep 56/56.

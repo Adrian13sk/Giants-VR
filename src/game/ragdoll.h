@@ -32,6 +32,12 @@ public:
     // (the motion it had carries on).
     void pin(const Vec3& at);
     void unpin() { pinned_ = -1; }
+    // A hand on the body (rework): the particle nearest `at` (its distance in d; -1 if none), holding
+    // particle k at `at`, moving the held point (the body hangs from it and swings).
+    int nearest(const Vec3& at, float& d) const;
+    void pinParticle(int k, const Vec3& at);
+    void movePin(const Vec3& at) { pinAt_ = at; asleep = false; still_ = 0; }
+    bool pinned() const { return pinned_ >= 0; }
     // Pushes the whole body (a blast, a blow).
     void kick(const Vec3& dv);
     Vec3 centre() const;
@@ -44,7 +50,7 @@ public:
     int clip = -1;     // the clip the pose was captured from (keep posing with it)
     float age = 0;
     float impact = 0;
-    double lastThud = -1e9;  // (game layer: when its last landing sound played)  // the hardest landing (m/s, downward) since the game layer last read it (sounds)
+    double lastThud = -1e9;  // (game layer: when its last landing sound played; impact: the hardest landing, m/s downward, since the game layer last read it)
     // Game layer: start at the next pose with this velocity and spin; posed once since asleep.
     bool pending = false, posedAsleep = false;
     Vec3 startVel, startSpin;

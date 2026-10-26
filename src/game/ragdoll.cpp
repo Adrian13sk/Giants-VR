@@ -161,6 +161,24 @@ void Ragdoll::pin(const Vec3& at) {
     still_ = 0;
 }
 
+int Ragdoll::nearest(const Vec3& at, float& d) const {
+    d = 1e30f;
+    int best = -1;
+    if (!active) return -1;
+    for (size_t k = 0; k < x_.size(); ++k)
+        if (const float L = length(x_[k] - at); L < d) { d = L; best = int(k); }
+    return best;
+}
+
+void Ragdoll::pinParticle(int k, const Vec3& at) {
+    if (!active || k < 0 || size_t(k) >= x_.size()) return;
+    pinned_ = k;
+    pinAt_ = at;
+    asleep = false;
+    still_ = 0;
+    age = std::min(age, 0.5f);  // (a body picked up long after it fell: let go, it falls again before it may sleep)
+}
+
 void Ragdoll::kick(const Vec3& dv) {
     if (!active) return;
     for (size_t k = 0; k < x_.size(); ++k) xp_[k] = xp_[k] - dv * (1.0f / 60.0f);
@@ -182,7 +200,10 @@ void Ragdoll::step(float dt, const std::function<float(float, float)>& ground) {
             xp_[k] = x_[k];
             x_[k] = x_[k] + v + Vec3{0, -9.8f * h * h, 0};
         }
-        for (int it = 0; it < 8; ++it) {
+        // (held by one point the whole body hangs from it through a long chain: more passes, or the
+        // limbs stretch while it is lifted)
+        const int iters = pinned_ >= 0 ? 24 : 8;
+        for (int it = 0; it < iters; ++it) {
             for (const Stick& s : sticks_) {
                 Vec3& a = x_[size_t(s.a)];
                 Vec3& b = x_[size_t(s.b)];

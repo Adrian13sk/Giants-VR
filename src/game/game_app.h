@@ -433,6 +433,21 @@ private:
     bool npcToWorld(int kind, int slot, Mat4& out, uint32_t& uid) const;
     Vec3 npcKick(const Vec3& at, bool& blast) const;
     bool npcRagdolled(int kind, int slot) const;
+    // Rework (game_app_bodygrab.cpp): the Meccaryn and Delphi take hold of a body with a grip - it
+    // hangs from the hand by the part taken, drags, swings, flies when let go fast.
+    struct HeldBody {
+        int kind = -1, slot = -1;  // NpcKind, or 3 = a Reaper (slot: his model slot)
+        uint32_t uid = 0;
+        int hand = -1;
+        Vec3 prev, vel;
+        Vec3 recent[8];  // the hand's velocity over the last frames (a throw: the fastest of them)
+        int nRecent = 0;
+        float t = 0;
+    };
+    HeldBody heldBody_;
+    bool bodyGripWas_[2] = {false, false};
+    Ragdoll* heldRagdoll();
+    void updateBodyGrab(float dt, const InputFrame& in);
     std::vector<float> slotLift_;   // per model slot: lift so the posed body's lowest point is on the ground
     WeaponSystem enemyFire_;
     std::vector<int> shooters_;

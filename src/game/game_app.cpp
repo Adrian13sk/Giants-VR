@@ -801,6 +801,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.jet = in.hand[th].primary;              // A
     pi.sprint = in.hand[mh].squeeze > 0.5f && !twoHand_;    // move-hand grip (not while it steadies a gun)
     if (hero_ == Hero::Kabuto && kbGrabHand_ == mh) pi.sprint = false;  // that grip holds something
+    if (heldBody_.hand == mh || (heldVillager_ != 0 && heldVillagerHand_ == mh)) pi.sprint = false;  // (a body, a Smartie)
     if (!reachPath_.empty()) reachWalkInput(pi.move, pi.viewYaw, pi.jet, dt);  // test hook GVR_REACH_WALK
     // Rework: Kabuto leaps when you jump - a quick rise of your real head from standing (first person)
     // springs him up half as high again as the button's jump.
@@ -3856,7 +3857,7 @@ void GameApp::updateCombat(float dt) {
     }
     bushEvents();
     { GVR_PROF("skirmish"); updateSkirmish(dt); }
-    { GVR_PROF("ragdolls"); updateRagdolls(dt); }
+    { GVR_PROF("ragdolls"); updateBodyGrab(dt, lastInput_); updateRagdolls(dt); }
     // Model slots follow the enemies (the director removes sunk corpses).
     std::fill(slotUsed_.begin(), slotUsed_.end(), 0);
     for (auto& e : enemies_.enemies)

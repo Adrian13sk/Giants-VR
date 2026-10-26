@@ -52,6 +52,7 @@ add_library(gvr_core STATIC
   src/game/villager.cpp
   src/game/ragdoll.cpp
   src/game/game_app_ragdoll.cpp
+  src/game/game_app_bodygrab.cpp
   src/game/game_app_cinema.cpp
   src/game/vimp.cpp
   src/game/jetski.cpp

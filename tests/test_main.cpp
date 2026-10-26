@@ -2061,6 +2061,41 @@ static void testRagdoll() {
     q.unpin();
     for (int i = 0; i < 600 && !q.asleep; ++i) q.step(1.0f / 60.0f, ground);
     CHECK(q.lowest() < 0.2f);
+    // Taken by the hand where it lies: lifted 2 m, it hangs from that hand with its bones whole; thrown, it flies.
+    float d = 0;
+    int part = -1;
+    {
+        // the particle of the arm's end (node 4: the hand) - nearest to where the hand node lies now
+        std::vector<Mat4> lying = w;
+        r.apply(lying, Mat4::identity());
+        part = r.nearest(Vec3{lying[4].m[12], lying[4].m[13], lying[4].m[14]}, d);
+        CHECK(part >= 0 && d < 0.01f);
+    }
+    Vec3 hold = r.particle(size_t(part));
+    r.pinParticle(part, hold);
+    for (int i = 0; i < 120; ++i) {
+        hold.y += 2.0f / 120.0f;
+        r.movePin(hold);
+        r.step(1.0f / 60.0f, ground);
+    }
+    for (int i = 0; i < 60; ++i) r.step(1.0f / 60.0f, ground);
+    CHECK(!r.asleep && r.pinned());
+    CHECK(std::fabs(r.particle(size_t(part)).y - hold.y) < 0.01f);
+    CHECK(r.lowest() < hold.y - 0.9f);  // the body hangs below the hand
+    std::vector<Mat4> held = w;
+    r.apply(held, Mat4::identity());
+    const Vec3 e2{held[3].m[12], held[3].m[13], held[3].m[14]}, h2{held[4].m[12], held[4].m[13], held[4].m[14]};
+    CHECK(std::fabs(length(h2 - e2) - 0.4f) < 0.05f);  // the arm it hangs by keeps its length
+    const Vec3 before = r.centre();
+    for (int i = 0; i < 6; ++i) {
+        hold.x += 0.1f;  // 6 m/s
+        r.movePin(hold);
+        r.step(1.0f / 60.0f, ground);
+    }
+    r.unpin();
+    r.kick(Vec3{6.0f, 0, 0} * 0.55f);
+    for (int i = 0; i < 600 && !r.asleep; ++i) r.step(1.0f / 60.0f, ground);
+    CHECK(r.centre().x > before.x + 1.0f);  // thrown
     std::printf("ragdoll ok\n");
 }
 
