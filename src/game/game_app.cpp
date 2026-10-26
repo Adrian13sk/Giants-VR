@@ -3136,7 +3136,7 @@ void GameApp::renderCutscene(bool actors) {
         }
     }
     const float b = cutscene_->blackout();
-    if (b > 0.01f && text_.ready()) {
+    if (b > 0.01f && text_.ready() && actors) {  // (cinema: the picture fades, not the room - renderCinemaRoom)
         const Vec3 fwd = headWorldRot_.rotate(Vec3{0, 0, -1});
         text_.drawPanel(Mat4::translation(eye + fwd * 0.1f) * Mat4::rotation(headWorldRot_), 1.0f, 1.0f, {0, 0, 0, b});
     }

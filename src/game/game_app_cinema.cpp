@@ -134,6 +134,8 @@ void GameApp::renderCinemaRoom(const ViewParams& v) {
     dp.texture = renderer_.screenTexture();
     dp.unlit = true;
     dp.noFog = true;  // (emissive: the picture as rendered)
+    const float k = 1.0f - std::max(0.0f, std::min(1.0f, cutscene_->blackout()));  // the shot's fades: on the picture
+    dp.tint = {k, k, k, 1.0f};
     cinemaBatch_.draw(renderer_, dp);
 }
 
