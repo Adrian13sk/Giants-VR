@@ -662,11 +662,11 @@ void GameApp::renderHealthBars() {
         if (!d.alive() || d.kind == DestructKind::Tree || d.kind == DestructKind::Rock || d.hp >= d.maxHp - 0.5f) continue;
         const Vec3 at = d.base + Vec3{0, d.height + 1.2f, 0};
         const float dist = length(at - eye);
-        if (dist > 90.0f) continue;
+        if (dist > 90.0f * heroScale_ || dist < 4.0f * heroScale_) continue;  // (not in your face: Kabuto's swung tree in a hut)
         const float since = k < lastHitT_.size() ? now - lastHitT_[k] : 99.0f;
         const float a = since < 4.0f ? 1.0f : 0.55f;
         const float f = std::max(0.0f, std::min(1.0f, d.hp / std::max(1.0f, d.maxHp)));
-        const float w = std::max(1.6f, std::min(d.radius * 1.2f, 6.0f)) * std::max(1.0f, dist / 40.0f), h = w * 0.09f;
+        const float w = std::min(std::max(1.6f, std::min(d.radius * 1.2f, 6.0f)) * std::max(1.0f, dist / 40.0f), dist * 0.18f), h = w * 0.09f;  // (at most ~10 degrees across)
         const Mat4 xf = Mat4::translation(at) * Mat4::rotation(headWorldRot_);
         text_.drawPanel(xf, w + h * 0.5f, h * 1.5f, {0.0f, 0.0f, 0.0f, 0.6f * a});
         const Vec4 col = f > 0.6f ? Vec4{0.3f, 0.9f, 0.3f, a} : (f > 0.3f ? Vec4{0.95f, 0.85f, 0.2f, a} : Vec4{0.95f, 0.25f, 0.15f, a});

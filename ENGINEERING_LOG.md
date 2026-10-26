@@ -2178,3 +2178,4 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   quality). New Material::Stone: the ground's colour at the stone (terrainColor with an up normal, bias 3), paled,
   grained by the rock texture's luminance against its mean, lit like rock (0.55 + 0.9 ndl) - the terrain rock layer
   itself is near-black on several worlds (their cliffs only read through baked light).
+- Building health bars no longer show within 4 m (x hero scale) of the eye and stay under ~10 degrees across (video 9 found a bar filling Kabuto's view when his swung tree hit a hut).
