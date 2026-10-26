@@ -809,3 +809,8 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
   body_throw_hit, kabuto_body_eat, stone_throw, gun_grab, swim_strokes, smartie_throw_hit, ski_handlebars,
   reaper_ragdolls_water - each logs its expected lines (see ENGINEERING_LOG). Pebble refactor: the stones render
   pixel-identical (ImageMagick AE 0). **Not device-tested.**
+- 2026-10-26, 3187f93 (after the review fixes and the water fallback): ASan/UBSan build - unit tests pass; all 39
+  devtest scripts exit 0 with 0 sanitizer reports (every new hand mechanic exercised). Campaign soak in one process
+  (GVR_GOD, firing, a mission completed every 2000 frames): 1a -> end, 54 missions, 0 errors; resident memory
+  227 -> 572 MB (B15: the model cache is not emptied between worlds; +20-30 MB per new world, flat within one).
+  Completion checks 12/12, sweep 56/56. **Not device-tested.**
