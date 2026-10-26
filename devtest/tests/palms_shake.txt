@@ -1,0 +1,15 @@
+# Rework (2026-10-26): shaken palms. Two blasts 15 m ahead in 5a, palms beside them: the trees shiver and swing
+# harder, settling over a second or two. Log: "Trees: N shaking" (GVR_SHAKE_TRACE=1 for the nearest tree).
+name palms_shake
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+view first
+pitch 0
+duration 6
+at 150 -135
+look 150 -160
+blast 150 -150 0.5 1 1.0
+blast 156 -147 0.5 1 2.0

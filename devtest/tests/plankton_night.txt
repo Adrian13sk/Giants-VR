@@ -1,0 +1,17 @@
+# Rework (2026-10-26): night plankton. Island 1's shallows at night (GVR_DAY_PHASE 0.75): look down and wade in -
+# cyan sparks flare in the wake and round the fleeing fish, fading in a second or two.
+# Log (GVR_PLANKTON_TRACE=1): "plankton trace: night 1.00, N sparks".
+name plankton_night
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_FISH_TEST 1
+env GVR_DAY_PHASE 0.75
+env GVR_PLANKTON_TRACE 1
+view first
+duration 12
+at 345 4617
+look 300 4617
+pitch -75
+move 0 1 5.0 6.2
