@@ -2532,3 +2532,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Leftover bones: xx_bones' Bone_femur / Bone_rib / Bone_spine are 4 m / 9 m / 2.6 m (scenery-sized) and unused;
   spawnBones() makes them Gibs scaled to 0.45 / 0.35 / 0.3 m: 2-3 out of Kabuto's mouth after eating a Smartie or a
   Reaper (not a Vimp: there's meat), 3 where the Cleaners finish a body. kabuto_body_eat: "Bones: 3 left".
+- Storm lightning now shows the original's own bolt: xx_efx EFX_lightning_1.gbs (a 226 m tall additive card,
+  texture EFX_lightning_1; its rain-box part skipped), unused by the levels; drawn 150-400 m off in front during
+  the flicker, turned to face you, the thunder's delay matching. Harness Kstory5: the bolt at the brightest frame.

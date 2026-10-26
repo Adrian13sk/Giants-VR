@@ -1555,6 +1555,11 @@ private:  // the mission placed enemies: no test waves
     WeatherLit weatherIn_{}, weatherOut_{};
     bool weatherLit_ = false;
     float weatherK_ = 0, lightningT_ = -1.0f, lightningNext_ = 5.0f, thunderDelay_ = 0;
+    // The original's own lightning bolt (xx_efx EFX_lightning_1: a 226 m tall bolt card) where it strikes.
+    const RenderModel* strikeModel_ = nullptr;
+    bool boltLoaded_ = false;
+    Vec3 boltPos_;
+    float boltYaw_ = 0;
     void updateAmbience(float dt);
     void updateWeather(float dt);
     void renderWeather();

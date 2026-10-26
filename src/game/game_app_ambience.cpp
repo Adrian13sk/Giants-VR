@@ -64,6 +64,8 @@ void GameApp::initAmbience(AssetWorld* w) {
     ambRainVol_ = 0;
     weather_ = 0;
     weatherK_ = 0;
+    strikeModel_ = nullptr;
+    boltLoaded_ = false;
     lightningT_ = -1.0f;
     lightningNext_ = 5.0f;
     thunderDelay_ = 0;
@@ -213,7 +215,32 @@ void GameApp::updateWeather(float dt) {
 }
 
 void GameApp::renderWeather() {
-    if (drops_.empty() || renderer_.inReflectionPass()) return;
+    if (renderer_.inReflectionPass()) return;
+    // The bolt itself while the sky flickers.
+    if (lightningT_ >= 0 && lightningT_ < 0.35f && weather_ == 2) {
+        if (!boltLoaded_ && assetWorld_ && assetWorld_->models()) {
+            boltLoaded_ = true;
+            strikeModel_ = assetWorld_->models()->get("EFX_lightning_1.gbs");
+            if (!strikeModel_) LOGW("Weather: lightning bolt model unavailable");
+        }
+        if (strikeModel_) {
+            const float t = lightningT_;
+            const float f = t < 0.06f ? 1.0f : (t < 0.1f ? 0.2f : (t < 0.16f ? 0.9f : std::max(0.0f, 0.7f - (t - 0.16f) * 4.0f)));
+            for (const auto& part : strikeModel_->parts) {
+                if (part.textureName.find("lightning") == std::string::npos) continue;  // (the card, not its rain box)
+                DrawParams dp;
+                dp.texture = part.texture;
+                dp.blend = BlendMode::Additive;
+                dp.unlit = true;
+                dp.noFog = true;
+                dp.depthWrite = false;
+                dp.doubleSided = true;
+                dp.tint = {f, f, f * 1.1f, 1.0f};
+                renderer_.draw(part.mesh, Mat4::translation(boltPos_) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, boltYaw_)), dp);
+            }
+        }
+    }
+    if (drops_.empty()) return;
     if (!weatherTex_) {
         weatherTex_ = glowTexture();
         weatherBatch_.init(renderer_, 1400);
@@ -287,7 +314,19 @@ void GameApp::applyWeatherLight(float dt) {
             lightningNext_ = 7.0f + 14.0f * frand();
             lightningT_ = 0.0f;
             thunderDelay_ = 0.4f + 2.6f * frand();
-            LOGI("Weather: lightning (thunder in %.1f s)", thunderDelay_);
+            // Where it strikes: far off, somewhere in front; the thunder's delay goes with the distance.
+            const Pose head = rig_.toWorld(lastInput_.head);
+            Vec3 f = head.orientation.rotate(Vec3{0, 0, -1});
+            f.y = 0;
+            f = length(f) > 1e-3f ? normalize(f) : Vec3{0, 0, -1};
+            const float a = (frand() - 0.5f) * 2.0f, d = 150.0f + 900.0f * thunderDelay_ / 3.0f * 0.2f + 100.0f * frand();
+            const Vec3 dir{f.x * std::cos(a) - f.z * std::sin(a), 0, f.x * std::sin(a) + f.z * std::cos(a)};
+            boltPos_ = head.position + dir * d;
+            float g = player_.seaLevel;
+            if (assetWorld_) { float t; if (assetWorld_->terrain().heightAt(boltPos_.x, boltPos_.z, t)) g = std::max(g, t); }
+            boltPos_.y = g;
+            boltYaw_ = std::atan2(dir.x, dir.z);  // (the card faces back toward you)
+            LOGI("Weather: lightning %.0f m away (thunder in %.1f s)", d, thunderDelay_);
         }
     }
     if (lightningT_ >= 0) {
