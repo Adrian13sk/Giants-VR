@@ -4057,7 +4057,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("vimps"); updateVimps(dt); }
     { GVR_PROF("birds"); updateBirds(dt); updateHitchers(dt); }
     { GVR_PROF("fish"); updateFish(dt); updateSeaMonster(dt); }
-    { GVR_PROF("ambience"); updateAmbience(dt); updateTreeShake(dt); updateSpeedWind(dt); }
+    { GVR_PROF("ambience"); updateAmbience(dt); updateTreeShake(dt); updateSpeedWind(dt); updatePlankton(dt); }
     { GVR_PROF("npc ragdolls"); updateNpcRagdolls(dt); }
     { GVR_PROF("bosses"); updateBosses(dt); }
     { GVR_PROF("sams"); updateSams(dt); }
@@ -4839,6 +4839,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     if (playMode_ && !cut) renderMotes();
     if (!cut) renderWeather();
     if (!cut) renderAirBubbles();
+    if (!cut) renderPlankton();
     renderFireballs();
     renderSwordTrail();
 }

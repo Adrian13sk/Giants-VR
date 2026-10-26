@@ -2565,3 +2565,4 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   a fall. Harness Story1 jetpack flight: audio rms 0.029 -> 0.045 in the fast part.
 - Fish for divers: with Delphi, schools also go in water up to 14 m deep, swimming 1-5 m down where it is over
   4 m deep; a still hand draws its school to the hand's own depth. delphi_dive: a school 4.2 m deep at 3 m down.
+- Night plankton: sparks (up to 400, glow texture, additive, unlit, no fog) at night >= 0.35 with AMBIENCE on: 14 + 30 x size per new splash, dt x (25 + 30 v) per frame while wading/swimming faster than 0.3 m/s, and behind fleeing fish; 0-12 cm under the surface, 0.8-2.2 s life. First tries were invisible: placed up to 25 cm down they sat under the bed of the 10-20 cm shallows and the terrain's depth test hid them (fixed: 12 cm at most, cyan 30/170/200 x tint 2.5). GVR_PLANKTON_TRACE logs the count (night 1.0: 13-58 sparks wading).

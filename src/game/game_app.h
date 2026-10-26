@@ -1570,6 +1570,15 @@ private:  // the mission placed enemies: no test waves
     void updateTreeShake(float dt);
     // Rework: the rush of air at speed (jetpack, falls, the Reaperski) - the wind loop, louder the faster.
     void updateSpeedWind(float dt);
+    // Rework: at night the sea glows where it is stirred (plankton): splashes, a wading or swimming
+    // body, fish darting - blue-green sparks that fade in a second or two.
+    struct Spark { Vec3 pos, vel; float age = 0, life = 1.5f, size = 0.05f; };
+    std::vector<Spark> sparks_;
+    QuadBatch sparkBatch_;
+    bool sparkBatchReady_ = false;
+    size_t sparkFx_ = 0;
+    void updatePlankton(float dt);
+    void renderPlankton();
     uint32_t speedWind_ = 0;
     float speedWindVol_ = 0;  // rework: palms shaken by a giant stomping by and by blasts
     int treesShaking_ = 0;

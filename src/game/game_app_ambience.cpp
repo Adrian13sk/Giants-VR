@@ -415,4 +415,63 @@ void GameApp::updateSpeedWind(float dt) {
     }
 }
 
+void GameApp::updatePlankton(float dt) {
+    const float night = renderer_.environment().night;
+    for (auto& sp : sparks_) {
+        sp.age += dt;
+        sp.vel = sp.vel * (1.0f - std::min(1.0f, 2.0f * dt));
+        sp.pos = sp.pos + sp.vel * dt;
+    }
+    sparks_.erase(std::remove_if(sparks_.begin(), sparks_.end(), [](const Spark& s) { return s.age > s.life; }), sparks_.end());
+    static const bool trace = std::getenv("GVR_PLANKTON_TRACE") != nullptr;
+    static float tt = 0;
+    if (trace && (tt += dt) > 1.0f) { tt = 0; LOGI("plankton trace: night %.2f, %zu sparks, swim %d", night, sparks_.size(), int(player_.swimming())); }
+    if (night < 0.35f || !playMode_ || player_.seaLevel < -1e8f || settings_.ambience < 1) { sparkFx_ = waterFx_.size(); return; }
+    const float sea = player_.seaLevel;
+    auto burst = [&](const Vec3& at, int n, float spread) {
+        for (int k = 0; k < n && sparks_.size() < 400; ++k) {
+            Spark sp;
+            sp.pos = Vec3{at.x + (frand() - 0.5f) * spread, sea - 0.12f * frand(), at.z + (frand() - 0.5f) * spread};
+            sp.vel = Vec3{(frand() - 0.5f) * 0.6f, 0.0f, (frand() - 0.5f) * 0.6f};
+            sp.life = 0.8f + 1.4f * frand();
+            sp.size = 0.07f + 0.09f * frand();
+            sparks_.push_back(sp);
+        }
+    };
+    // New splashes (shots, stones, bodies, the sea monster).
+    for (const auto& w : waterFx_)
+        if (w.kind == 0 && w.age <= dt * 1.01f) burst(w.pos, 14 + int(w.scale * 30.0f), 0.5f + w.scale);
+    // A body moving through the water: a glowing wake round it.
+    const float v = player_.horizontalSpeed();
+    const bool inWater = player_.swimming() || (player_.onGround && player_.position.y < sea - 0.1f);
+    if (inWater && v > 0.3f) burst(player_.position, int(dt * (25.0f + 30.0f * v) + frand()), 0.9f * std::max(1.0f, std::sqrt(heroScale_)));
+    // Fish darting away.
+    for (const auto& sc : shinerSchools_)
+        for (const auto& f : sc.fish)
+            if (f.flee > 1.0f && frand() < dt * 6.0f) burst(f.pos, 1, 0.1f);
+}
+
+void GameApp::renderPlankton() {
+    if (sparks_.empty() || renderer_.inReflectionPass()) return;
+    if (!sparkBatchReady_) { sparkBatch_.init(renderer_, 400); sparkBatchReady_ = true; }
+    const Quat q = headWorldRot_;
+    const Vec3 right = q.rotate({1, 0, 0}), up = q.rotate({0, 1, 0});
+    sparkBatch_.clear();
+    for (const auto& sp : sparks_) {
+        const float a = std::min(1.0f, sp.age * 6.0f) * (1.0f - sp.age / sp.life);
+        const uint8_t c[4] = {uint8_t(30 * a), uint8_t(170 * a), uint8_t(200 * a), 255};
+        sparkBatch_.addBillboard(sp.pos, sp.size, right, up, 0.0f, c);
+    }
+    sparkBatch_.upload(renderer_);
+    DrawParams dp;
+    dp.texture = glowTexture();
+    dp.unlit = true;
+    dp.noFog = true;
+    dp.blend = BlendMode::Additive;
+    dp.depthWrite = false;
+    dp.doubleSided = true;
+    dp.tint = {2.5f, 2.5f, 2.5f, 1.0f};  // (they glow: brighter than the night's dim light on them)
+    sparkBatch_.draw(renderer_, dp);
+}
+
 }  // namespace gvr
