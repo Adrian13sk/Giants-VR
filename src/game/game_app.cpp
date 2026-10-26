@@ -1948,6 +1948,7 @@ void GameApp::updateCharacters(float dt) {
     for (auto& b : blasts_) b.age += dt;
     blasts_.erase(std::remove_if(blasts_.begin(), blasts_.end(), [](const Blast& b) { return b.age > 0.6f; }), blasts_.end());
     for (auto& g : gibs_) {
+        if (g.hand >= 0) { g.life = 0; continue; }  // (in a hand: game_app_stones.cpp moves it)
         g.life += dt;
         g.vel.y -= 14.0f * dt;
         g.pos += g.vel * dt;

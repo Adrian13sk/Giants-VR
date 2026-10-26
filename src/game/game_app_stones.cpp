@@ -39,6 +39,8 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
         if (!can || !edge || !c.gripPoseValid || stoneInHand(h) || heldBody_.hand == h || (heldVillager_ != 0 && heldVillagerHand_ == h)) continue;
         const Vec3 hp = rig_.toWorld(c.gripPose).position;
         const Vec3 p = reachPoint(hp);  // (where it reaches: the hand, or lower - GROUND REACH)
+        // A dropped gun or a cut-off limb lying there: taken first.
+        if (grabGib(h, hp, p, rig_.toWorld(c.gripPose).orientation)) continue;
         float best = 1e9f;
         int loose = -1;
         for (size_t i = 0; i < stones_.size(); ++i) {
@@ -105,6 +107,34 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
         haptics_.push_back({h, 0.35f, 0.05f});
         sfx("ex_stons", st.pos, 0.25f, 1.6f);
         LOGI("Picked up a stone (%.2f m) with hand %d", 2.0f * stoneSize(st.d.scale), h);
+    }
+    // Gibs in a hand: they follow it; let go, they fly with its speed (the gib physics takes over).
+    for (auto& g : gibs_) {
+        if (g.hand < 0) continue;
+        const ControllerState& c = in.hand[g.hand];
+        if (!can || !c.gripPoseValid) { g.hand = -1; continue; }
+        const Pose gp = rig_.toWorld(c.gripPose);
+        const Quat rot = gp.orientation * g.heldRot;
+        const Vec3 p = gp.position + gp.orientation.rotate(g.heldOff);
+        if (dt > 0) g.recent[g.nRecent++ % 12] = (p - g.prev) * (1.0f / dt);
+        g.prev = p;
+        g.pos = p;
+        // (axis-angle for the draw)
+        const float w = std::clamp(rot.w, -1.0f, 1.0f), sn = std::sqrt(std::max(0.0f, 1.0f - w * w));
+        g.angle = 2.0f * std::acos(w);
+        g.axis = sn > 1e-4f ? Vec3{rot.x / sn, rot.y / sn, rot.z / sn} : Vec3{0, 1, 0};
+        g.spin = 0;
+        g.vel = Vec3{0, 0, 0};
+        if (c.squeeze < 0.35f) {
+            Vec3 thr{0, 0, 0};
+            for (int k = 0; k < std::min(g.nRecent, 12); ++k)
+                if (length(g.recent[k]) > length(thr)) thr = g.recent[k];
+            g.vel = length(thr) > 1.5f ? thr : Vec3{0, 0, 0};
+            g.spin = length(thr) > 1.5f ? 3.0f + 6.0f * frand() : 0.0f;
+            g.hand = -1;
+            g.life = 0;
+            LOGI("Let go of a %s (%.1f m/s)", g.owner ? "gun" : "piece", length(g.vel));
+        }
     }
     // Held, flying, lying.
     for (size_t i = 0; i < stones_.size(); ++i) {
@@ -233,7 +263,37 @@ Vec3 GameApp::reachPoint(const Vec3& hand) const {
 bool GameApp::stoneInHand(int h) const {
     for (const auto& st : stones_)
         if (st.hand == h) return true;
+    for (const auto& g : gibs_)
+        if (g.hand == h) return true;
     return false;
+}
+
+bool GameApp::grabGib(int h, const Vec3& hand, const Vec3& reach, const Quat& handRot) {
+    Gib* best = nullptr;
+    float bd = 0.35f;
+    for (auto& g : gibs_) {
+        if (g.hand >= 0 || !g.model || (g.owner == 0 && !g.own) || g.life > 17.0f) continue;  // (guns and limbs; not sinking away)
+        // Its middle in the world (a limb's position is its cut).
+        const Vec3 c = (g.model->boundsMin + g.model->boundsMax) * 0.5f;
+        const Mat4 xf = Mat4::translation(g.pos) * Mat4::rotation(Quat::fromAxisAngle(g.axis, g.angle)) * g.base * Mat4::scale({g.scale, g.scale, g.scale});
+        const Vec4 wc = xf * Vec4{c.x, c.y, c.z, 1.0f};
+        const Vec3 m{wc.x, wc.y, wc.z};
+        const float d = std::min(length(m - hand), length(m - reach));
+        if (d < bd) { bd = d; best = &g; }
+    }
+    if (!best) return false;
+    Gib& g = *best;
+    // Held where it is relative to the hand, brought to the hand (the grip is on it).
+    const Quat inv{-handRot.x, -handRot.y, -handRot.z, handRot.w};
+    g.heldRot = inv * Quat::fromAxisAngle(g.axis, g.angle);
+    g.heldOff = Vec3{0, -0.04f, -0.06f};
+    g.hand = h;
+    g.nRecent = 0;
+    g.prev = hand;
+    haptics_.push_back({h, 0.4f, 0.06f});
+    if (g.owner) sfx("me_drpwp", g.pos, 0.4f, 1.4f);
+    LOGI("Picked up a %s with hand %d", g.owner ? "dropped gun" : "severed piece", h);
+    return true;
 }
 
 void GameApp::renderStones() {

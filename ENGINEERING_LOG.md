@@ -2307,3 +2307,12 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   The gun now leaves the hand at 4.5 x (was 3.5 x) the shot's direction (+0.6 up). Harness 1c_1 (gun shot out,
   firing stopped): "runs for his gun (7.8 m)" then "punches you" as the player stood in the way; with the gun
   2.4 m away (first try, 0.8 s delay) he had it back at once - hence the delay and the longer throw. Sweep 56/56.
+
+### 2026-10-26 — Rework: guns and limbs in the hand
+- Gib::hand/heldRot/heldOff: a grip edge within 0.35 m (hand or GROUND REACH point) of a dropped gun's or a cut
+  limb's middle (model bounds centre through its transform) takes it (before stones); it follows the hand with the
+  rotation it had relative to the hand, its middle (a gun) or cut (a limb) in the palm; let go, it flies with the
+  fastest hand speed of the last 12 frames and tumbles, and the gib physics takes over (life restarts: 18 s to
+  sink). A gun in your hand never lies long enough for its Reaper to fetch it. Test hook GVR_TEST_KILL=disarm (the
+  script's kill drops the gun at his feet instead). devtest gun_grab: "Picked up a dropped gun", "Let go of a gun
+  (8.3 m/s)"; a harness frame shows the spear gun upright in the Meccaryn's fist.

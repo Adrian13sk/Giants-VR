@@ -381,7 +381,13 @@ void GameApp::debugBlastReapers() {
         if (i >= 0 && size_t(i) < enemies_.enemies.size() && enemies_.enemies[size_t(i)].state != EnemyState::Dead) {
             // (GVR_TEST_KILL=quiet: a plain kill, no blast - the body crumples where he stood)
             static const bool quiet = std::getenv("GVR_TEST_KILL") && std::string(std::getenv("GVR_TEST_KILL")) == "quiet";
-            if (quiet) enemies_.damage(i, 1e4f);
+            static const bool disarm = std::getenv("GVR_TEST_KILL") && std::string(std::getenv("GVR_TEST_KILL")) == "disarm";
+            if (disarm) {  // (GVR_TEST_KILL=disarm: his gun drops at his feet instead)
+                Enemy& e = enemies_.enemies[size_t(i)];
+                if (!e.weaponOn) e.weaponOn = e.weapon >= 0;
+                dropReaperGun(e, Vec3{0, 0, 0});
+                e.disarmed = true;
+            } else if (quiet) enemies_.damage(i, 1e4f);
             else explode(enemies_.enemies[size_t(i)].pos + Vec3{0, 0.5f, 0}, 4.0f, 120.0f);
             ++n;
         }

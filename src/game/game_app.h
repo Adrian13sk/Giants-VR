@@ -517,6 +517,11 @@ private:
         Mat4 base = Mat4::identity();       // rework: a cut-off limb (or a dropped gun) starts as it was on the body (rotation only)
         std::shared_ptr<RenderModel> own;   // rework: the limb's own meshes (freed with the gib)
         uint32_t owner = 0;                 // rework: a dropped gun - the Reaper it belongs to
+        // Rework (game_app_stones.cpp): in a hand - its rotation and offset relative to the hand.
+        int hand = -1;
+        Quat heldRot{0, 0, 0, 1};
+        Vec3 heldOff, prev, recent[12];
+        int nRecent = 0;
     };
     // Rework, dismemberment (game_app_ragdoll.cpp): cuts off the limb of dead Reaper `e` nearest the
     // blow at `at` (head, an arm or a leg), throws it along `dir`; false if none could be cut.
@@ -1608,7 +1613,8 @@ private:  // the mission placed enemies: no test waves
     std::vector<Vertex> stoneBuf_;
     size_t stoneUsed_ = 0;
     const void* stonesWorld_ = nullptr;
-    bool stoneInHand(int h) const;
+    bool stoneInHand(int h) const;  // (or a gun, a limb)
+    bool grabGib(int h, const Vec3& hand, const Vec3& reach, const Quat& handRot);
     // GROUND REACH: EASY - a hand reaching low in front of you takes things from the ground below it
     // (the point it reaches lowered by up to 0.55 m: a stoop, not a crouch). The hand itself otherwise.
     Vec3 reachPoint(const Vec3& hand) const;
