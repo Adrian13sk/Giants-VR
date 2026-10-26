@@ -914,3 +914,17 @@ conditions). GPU ms (VrApi App=), fps.
 (brackets: run 220802.) No variant failed to compile on the Adreno 650 (all 6 logged). Verdict: the one program cost
 10-20 ms in the cheap looks; the rework look itself costs another ~20-35 ms - priced part by part next (devtest/look).
 Also: the sky-coloured haze is now skipped where the fog weight is 1 (exact; harness renders identical).
+
+## Device run 20261026-225245 — the rework look's parts (APK f24bf1f, `-Set look`)
+Rework look, quality pinned at 0, shader variants on; one part compiled out per run (GVR_LOOK_OFF). GPU ms.
+
+| Scene | full look | no sky haze | no rock triplanar | no relief | no highlights | no detail octaves | all six off | fallback level 2 |
+|---|---|---|---|---|---|---|---|---|
+| 5a meadow | 32.6 (24 fps) | 16.0 (-16.6) | 31.5 (-1.1) | 29.3 (-3.3) | 30.8 (-1.8) | 30.7 (-1.9) | 12.1 (72 fps) | 9.3 (72 fps) |
+| storm | 43.9 (18 fps) | 25.6 (-18.3) | 34.9 (-9.0) | 41.0 (-2.9) | 39.4 (-4.5) | 43.5 (-0.4) | 17.1 (45 fps) | 13.4 (65 fps) |
+
+The sky haze (sky band looked up per pixel: asin, atan, two pow, the grade) is most of the look's cost; then the
+triplanar rock where there is much rock. Commit df9af08: the haze from a 64x64x6 cube map rendered once a frame by
+the same shader code (harness: 0.5-1.4 % of pixels differ by more than 4/255, in the distant haze only); rock reads
+only the projections that show; the fallback steps two levels under 50 fps. To be measured (devtest/look,
+`l_*_hazepix` = the per-pixel haze for comparison).
