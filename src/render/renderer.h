@@ -141,6 +141,7 @@ public:
     bool underwater() const { return underwater_; }
     // 0: the classic look; 1: the rework's lighting (detail relief, specular, filmic tone, sun haze).
     void setLook(int look) { look_ = float(look); }
+    void setLookLite(bool on) { lookLite_ = on; }  // the rework look without relief, highlights, detail octaves
     int look() const { return int(look_); }
     bool shadowsReady() const { return shadowFbo_ != 0; }
     // Orthographic sun view around `centre` (half-size in metres), snapped to shadow texels.
@@ -231,6 +232,7 @@ private:
     float cloudShadow_ = 0.0f;
     bool underwater_ = false;
     float look_ = 1.0f;
+    bool lookLite_ = false;
     GLuint reflFbo_ = 0, reflColor_ = 0, reflDepth_ = 0, waterDepthTex_ = 0;
     int reflW_ = 0, reflH_ = 0;
     GLuint scopeFbo_ = 0, scopeDepth_ = 0;

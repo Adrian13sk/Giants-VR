@@ -1,0 +1,15 @@
+# Quality levels (2026-10-26, APK with the haze cube and the lite level): Kabuto in k1a, walking, punching, stomping - the adaptive fallback pinned at level 0.
+# Compare the "app gpu" of the levels: which fit the 13.9 ms of 72 Hz.
+name q_kabuto_0
+world Kstory1
+mission k1a_smarties
+env GVR_FFR 2
+env GVR_QUALITY 0
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 25
+perf 4 25
+move 0 1 4 12
+hand_r 0 0.2 -0.5 13 13.15
+hold trigger_l 16 16.2

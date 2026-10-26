@@ -672,9 +672,12 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u, int variant) {
         // compiler drops every branch this variant never takes (one program with all of them in paid for the
         // largest path everywhere - registers and instructions - on the Quest's GPU).
         char d[160];
-        std::snprintf(d, sizeof d, "#define LOOK_K %d.0\n#define UNDER_K %d.0\n%s#define TERRDETAIL_K %d.0\n", variant >> 3, (variant >> 2) & 1,
+        std::snprintf(d, sizeof d, "#define LOOK_K %d.0\n#define UNDER_K %d.0\n%s#define TERRDETAIL_K %d.0\n", (variant >> 3) & 3, (variant >> 2) & 1,
                       (variant & 2) ? "" : "#define CLOUD_K 0.0\n", variant & 1);
         define(fsrc, d);
+        // The rework look's lighter step (the fallback's level 1): no relief, highlights or detail octaves
+        // (on the headset 3 ms of the meadow's 15.5; the sky haze, rock and tone kept).
+        if (variant & 32) define(fsrc, "#define NO_RELIEF 1\n#define NO_SPEC 1\n#define NO_OCTAVES 1\n");
     }
     if (multiview) {  // (#extension has to come before any declaration)
         define(vsrc, "#define MULTIVIEW 1\n#extension GL_OVR_multiview2 : require\n");
@@ -850,7 +853,7 @@ const Renderer::Variant* Renderer::variant(bool multiview, int key) {
     Variant v;
     v.prog = linkMain(multiview, v.u, key);
     if (!v.prog) LOGE("Shader variant %d (%s) failed: the one-program shader instead", key, multiview ? "multiview" : "mono");
-    else LOGI("Shader variant: look %d, under water %d, cloud shadows %d, terrain detail %d (%s)", key >> 3, (key >> 2) & 1, (key >> 1) & 1, key & 1,
+    else LOGI("Shader variant: look %d%s, under water %d, cloud shadows %d, terrain detail %d (%s)", (key >> 3) & 3, (key & 32) ? " lite" : "", (key >> 2) & 1, (key >> 1) & 1, key & 1,
               multiview ? "multiview" : "mono");
     return (m[key] = v).prog ? &m[key] : nullptr;
 }
@@ -886,7 +889,7 @@ bool Renderer::init() {
         // and the fallback's (no detail, no clouds); the classic look compiles when chosen in Options.
         if (variantsOn_) {
             const auto t0 = std::chrono::steady_clock::now();
-            const int keys[6] = {8 + 3, 8 + 1, 8 + 4 + 3, 8 + 4 + 1, 16, 16 + 4};
+            const int keys[8] = {8 + 3, 8 + 1, 8 + 4 + 3, 8 + 4 + 1, 16, 16 + 4, 32 + 8 + 3, 32 + 8 + 1};
             for (int k : keys) {
                 variant(false, k);
                 if (programMV_) variant(true, k);
@@ -1091,7 +1094,7 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
         if (variantsOn_) {
             const bool noise = terrainTex_[4] != 0 && terrainTex_[4] <= textures_.size() && textures_[terrainTex_[4] - 1].live;
             const int lk = std::max(0, std::min(2, int(look_ + 0.5f)));
-            const int key = lk * 8 + (underwater_ ? 4 : 0) + (noise && cloudShadow_ > 0.0f ? 2 : 0) + (terrainDetail_ ? 1 : 0);
+            const int key = (lk == 1 && lookLite_ ? 32 : 0) + lk * 8 + (underwater_ ? 4 : 0) + (noise && cloudShadow_ > 0.0f ? 2 : 0) + (terrainDetail_ ? 1 : 0);
             const Variant* v = variant(stereo_, key);
             if (v) { prog = v->prog; U_ = const_cast<Uniforms*>(&v->u); }
         }

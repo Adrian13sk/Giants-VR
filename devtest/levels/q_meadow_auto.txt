@@ -1,0 +1,16 @@
+# Quality levels (2026-10-26, APK with the haze cube and the lite level): the 5a meadow (Meccaryn, grass all round) - the adaptive fallback left to choose (it starts at the level saved for this world).
+# Compare the "app gpu" of the levels: which fit the 13.9 ms of 72 Hz.
+name q_meadow_auto
+world Story5
+mission 5a_killcharger
+env GVR_FFR 2
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+view first
+pitch -20
+at 143 -141
+look 143 -170
+duration 24
+perf 4 22
+turn 0.3 0 6 20

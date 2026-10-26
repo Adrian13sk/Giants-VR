@@ -1,0 +1,15 @@
+# Quality levels (2026-10-26, APK with the haze cube and the lite level): 1a's village and palm groves (Meccaryn) - the adaptive fallback pinned at level 1.
+# Compare the "app gpu" of the levels: which fit the 13.9 ms of 72 Hz.
+name q_village_1
+world Story1
+mission 1a_1_timmy
+env GVR_FFR 2
+env GVR_QUALITY 1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+at -4096 -1250
+look -4096 -1473
+duration 24
+perf 4 22
+turn 0.6 0 6 20

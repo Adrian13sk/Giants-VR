@@ -2322,6 +2322,8 @@ void GameApp::renderShadows() {
     }
     // ...and the rework's per-pixel relief and highlights (keeping its tone and haze).
     if (renderer_.look() != 0 && !settings_.classicLook) renderer_.setLook(quality_ >= 2 ? 2 : 1);
+    // Level 1: the rework look's lighter step (relief, highlights and detail octaves off: 3 ms on the headset).
+    renderer_.setLookLite(quality_ == 1);
     buildBatches();
     pushUnscaledRig(lastInput_.head, lastInput_.headValid);  // HUD at human scale (Kabuto)
     buildHud();

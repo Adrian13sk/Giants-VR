@@ -1,0 +1,14 @@
+# Quality levels (2026-10-26, APK with the haze cube and the lite level): Delphi in r1, walking and casting - the adaptive fallback pinned at level 1.
+# Compare the "app gpu" of the levels: which fit the 13.9 ms of 72 Hz.
+name q_delphi_1
+world Rstory1
+env GVR_FFR 2
+env GVR_QUALITY 1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 25
+perf 4 25
+move 0 1 4 8
+hold trigger_r 13 13.2
+hold trigger_r 15 15.2

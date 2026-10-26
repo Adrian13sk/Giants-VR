@@ -928,3 +928,13 @@ triplanar rock where there is much rock. Commit df9af08: the haze from a 64x64x6
 the same shader code (harness: 0.5-1.4 % of pixels differ by more than 4/255, in the distant haze only); rock reads
 only the projections that show; the fallback steps two levels under 50 fps. To be measured (devtest/look,
 `l_*_hazepix` = the per-pixel haze for comparison).
+
+## Device run 20261026-231650 — the haze cube and lighter rock (APK df9af08, `-Set look`)
+| Scene | full look | per-pixel haze (old) | no haze | no rock | no relief | no highlights | no octaves | six off | level 2 |
+|---|---|---|---|---|---|---|---|---|---|
+| 5a meadow | ~15.5 (base run had the shell drawing 19 s: 16.6) | 35.0 | 15.0 | 15.4 | 13.8 | 14.7 | 14.4 | 12.7 (72 fps) | 9.3 |
+| storm | 20.9 (36 fps) | 42.1 | 20.2 | 18.9 | 19.5 | 19.6 | 19.9 | 17.2 (44 fps) | 13.1 (65 fps) |
+The haze cube saves 19-21 ms (full look 32.6 -> ~15.5 meadow, 43.9 -> 20.9 storm); rock now 0.1 / 2.0 ms (was
+1.1 / 9.0). Variants compile in 1986 ms at start on the Quest (12 programs). Commit (lite level): the fallback's level 1
+is now the rework look without relief, highlights and detail octaves (~12.7 ms in the meadow); devtest/levels measures
+levels 0-3 and the adaptive choice in five scenes.
