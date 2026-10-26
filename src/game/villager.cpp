@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 #include "game/player.h"  // angleDelta
 
@@ -120,6 +121,8 @@ void VillagerDirector::update(float dt, const Vec3& player, const std::vector<Ve
             continue;
         }
         if (v.state == VillagerState::Held) continue;
+        static const bool still = std::getenv("GVR_STILL_SMARTIES") != nullptr;  // (test hook: they stand where they are)
+        if (still && v.state != VillagerState::Hurt) continue;
         if (v.state == VillagerState::Hurt) {
             if (cd > 0) v.clipTime = std::min(v.clipTime, cd * 0.999f);
             if (v.stateTime < std::max(0.5f, cd)) continue;

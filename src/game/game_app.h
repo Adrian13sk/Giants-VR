@@ -1354,6 +1354,8 @@ private:  // the mission placed enemies: no test waves
     int heldVillagerHand_ = -1;
     bool villagerGripWas_[2] = {false, false};
     Vec3 heldVillagerPrev_, heldVillagerVel_;
+    Vec3 heldVillagerRecent_[12];  // (the throw: the fastest of the last frames, as for bodies and stones)
+    int heldVillagerN_ = 0;
     struct FlyingVillager { uint32_t uid; Vec3 pos, vel; };
     std::vector<FlyingVillager> flyingVillagers_;
     uint32_t aimedVillager_ = 0;

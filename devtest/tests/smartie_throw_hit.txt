@@ -1,0 +1,21 @@
+# Rework (2026-10-26): pick up a Smartie (5a) and throw it at a Reaper standing beside you (GVR_PASSIVE_REAPERS,
+# GVR_STILL_SMARTIES: neither moves). The log says "A thrown Smartie hits Reaper ...".
+name smartie_throw_hit
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_GRAB_TRACE 1
+env GVR_PASSIVE_REAPERS 1
+env GVR_STILL_SMARTIES 1
+view first
+pitch -20
+duration 6
+at 143 -141
+look 143 -170
+reapers 1 4.5 0.2 99
+hand_l 0.2 -0.75 -0.25 0.3 0.8
+hold grip_l 1.0 3.06
+hand_l -0.15 1.0 0.5 1.4 2.4
+hand_l -0.5 0.1 -1.3 2.9 3.05

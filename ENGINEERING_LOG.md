@@ -2332,3 +2332,11 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   view (6 s), only after 3 s with no other line showing, Meccaryn/Delphi first person; settings key hints_shown
   (bits) keeps them from showing again. Harness: swim_strokes shows the swim hint; a 25 s 1c_1 run with a quiet
   kill shows the body hint after Timmy's line.
+
+### 2026-10-26 — Rework: Smarties thrown at Reapers
+- A flying Smartie over 5 m/s within 0.6 m across of a living Reaper (at body height) shoves him (0.8 x its speed,
+  up to 6 m/s), does 5 + 2.5 x speed and bounces off. The Smartie throw now takes the fastest hand speed of the
+  last 12 frames x1.2 (was the smoothed speed x1.4: a release just after the arm stopped threw at 4.9 m/s).
+  GVR_GRAB_TRACE logs the nearest Smartie on a grip and the flight; test hook GVR_STILL_SMARTIES (they stand
+  where they are). devtest smartie_throw_hit (5a): "Threw Smartie 5 (11.2 m/s)", "A thrown Smartie hits Reaper 1 at
+  11.5 m/s".
