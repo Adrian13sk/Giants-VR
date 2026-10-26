@@ -1,0 +1,21 @@
+# Rework (2026-10-26): bend down, take a stone off the ground with the left hand and throw it at a Reaper
+# standing 6 m ahead (GVR_PASSIVE_REAPERS: he doesn't move). The log says "Picked up a stone", "Threw a
+# stone at ... m/s" and "A stone hits Reaper ...".
+name stone_throw
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_GRAB_TRACE 1
+env GVR_PASSIVE_REAPERS 1
+view first
+pitch -20
+duration 6
+at 406.5 4570.3
+look 450 4570.3
+reapers 1 6 0.3 99
+hand_l 0.2 -1.05 -0.3 0.5 1.0
+hold grip_l 1.2 3.06
+hand_l -0.15 1.0 0.5 1.6 2.4
+hand_l 0.05 0.1 -1.3 2.9 3.05

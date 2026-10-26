@@ -94,6 +94,7 @@ public:
     void destroyTexture(TextureId id);
 
     EnvironmentParams& environment() { return env_; }
+    const EnvironmentParams& environment() const { return env_; }
 
     // Begin rendering a view into the currently bound framebuffer.
     void beginView(const ViewParams& view, int viewportWidth, int viewportHeight, bool clear = true);

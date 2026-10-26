@@ -2273,3 +2273,19 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   hand over 0.15 s (his reach is 1.5 m and more - it jumped). devtest kabuto_body_eat (k1a): "Took hold of a Reaper
   body (8) by part 6, 1.52 m from the hand", "Kabuto: a body brought to his mouth", "Kabuto ate something".
   kabuto_grab_eat / smartie_throw / tree and the Meccaryn grab tests unchanged. Sweep 56/56 clean.
+
+### 2026-10-26 — Rework: stones to pick up and throw
+- The ground's stones were draw-only (a hash grid round the player). buildPebbles is split into pebbleAt (one cell's
+  stone as laid out round a centre - its size fades toward the patch edge) and emitPebble (its faces, now with a
+  rotation and position); the layout renders pixel-identical (compare: AE 0 on Rstory2's start view).
+- game_app_stones.cpp: a grip edge (Meccaryn, Delphi; first person; hand free of a body, a Smartie, a stone) with
+  the hand within 0.22 m of a hand-sized stone (under 0.34 m) - a loose one, or a ground one whose cell is then
+  marked taken and the ground's stones rebuilt - puts it in the palm. Let go: the fastest hand speed of the last 12
+  frames x1.15 if over 1.5 m/s, a random tumble; gravity, ground bounces (x0.55 across, x0.3 up; ex_stons by speed),
+  a plop into the sea and slow sinking. Over 4 m/s it hits the first Reaper (capsule 0.42 m + its size; above
+  0.82 of his height = head, x2), creature or Smartie it meets: 4 + 1.1 x speed (Smarties 2 + 0.6 x speed), a shove,
+  bi_hit, and bounces off. 16 loose stones at most (the oldest lying one makes room); one lying a minute 40 m behind
+  is forgotten. One dynamic mesh, rebuilt once a frame, drawn with the Stone material at any look.
+- devtest stone_throw (1c_1, player placed by a stone, a passive Reaper 6 m ahead): "Picked up a stone (0.30 m)",
+  "Threw a stone at 10.0 m/s", "A stone hits Reaper 1 at 10.5 m/s". Harness frames show the stone in the gauntlet.
+  GVR_GRAB_TRACE lists the nearest hand-sized stone on a miss. Sweep 56/56 clean.

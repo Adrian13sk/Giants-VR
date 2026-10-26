@@ -1569,6 +1569,47 @@ private:  // the mission placed enemies: no test waves
     std::vector<Vertex> pebbleBuf_;
     void buildPebbles(const Vec3& c, float radius);
     void renderPebbles();
+    static constexpr float kPebbleCell = 1.3f;
+    static constexpr int kPebbleTris = 20;  // a squashed, jittered icosahedron
+    struct PebbleDesc {
+        Vec3 base, scale;
+        float angle = 0;
+        uint32_t hash = 0;
+        Vec2 uv;
+        uint8_t light[4] = {255, 255, 255, 255};
+    };
+    bool pebbleAt(int gx, int gz, const Vec3& c, float radius, PebbleDesc& d) const;
+    void emitPebble(Vertex* out, const PebbleDesc& d, const Quat& rot, const Vec3& at) const;
+    const void* pebbleWorld_ = nullptr;
+    Vec3 pebbleCentre_;
+    float pebbleRadius_ = 0;
+    std::vector<std::pair<int, int>> takenPebbles_;  // grid cells whose stone was picked up
+    bool pebbleTaken(int gx, int gz) const {
+        for (const auto& t : takenPebbles_)
+            if (t.first == gx && t.second == gz) return true;
+        return false;
+    }
+    // Rework (game_app_stones.cpp): the Meccaryn and Delphi pick stones up off the ground and throw them.
+    struct LooseStone {
+        PebbleDesc d;
+        Vec3 pos, vel, spinAxis{0, 1, 0};
+        Quat rot{0, 0, 0, 1};
+        float spin = 0, life = 0;
+        int hand = -1;      // held in this hand; -1 not
+        bool flying = false;
+        uint32_t hit = 0;   // whom it has hit (once)
+        Vec3 prev, recent[12];
+        int nRecent = 0;
+    };
+    std::vector<LooseStone> stones_;
+    bool stoneGripWas_[2] = {false, false};
+    MeshId stoneMesh_ = 0;
+    std::vector<Vertex> stoneBuf_;
+    size_t stoneUsed_ = 0;
+    const void* stonesWorld_ = nullptr;
+    bool stoneInHand(int h) const;
+    void updateStones(float dt, const InputFrame& in);
+    void renderStones();
     void renderObjectiveMarker();
     float playerHitTop() const;
     bool handReach(const Vec3& p, float r) const;

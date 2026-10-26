@@ -195,6 +195,7 @@ void GameApp::updateGrass() {
 }
 
 void GameApp::renderGrass() {
+    renderStones();
     renderPebbles();
     // Only with the rework look at full quality (classic look and the adaptive fallback: none).
     if (!grassOn_ || hero_ == Hero::Kabuto || grassBatch_.count() == 0 || renderer_.inReflectionPass() || renderer_.look() != 1) return;
@@ -213,7 +214,6 @@ void GameApp::renderGrass() {
 // --- Stones (rework graphics pass) -----------------------------------------------------------------
 namespace {
 constexpr size_t kMaxPebbles = 260;
-constexpr int kPebbleTris = 20;  // a squashed, jittered icosahedron
 // The unit icosahedron.
 void icosa(std::vector<Vec3>& v, std::vector<int>& f) {
     const float t = 1.618034f;
@@ -223,6 +223,69 @@ void icosa(std::vector<Vec3>& v, std::vector<int>& f) {
          3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1};
 }
 }  // namespace
+
+// One stone of the grid cell (gx, gz), as buildPebbles lays it out around `c` (its size fades toward the
+// patch's edge); false: none there.
+bool GameApp::pebbleAt(int gx, int gz, const Vec3& c, float radius, PebbleDesc& d) const {
+    if (!assetWorld_) return false;
+    const float cell = kPebbleCell;
+    const float dd = std::sqrt(std::pow(float(gx) - std::floor(c.x / cell), 2.0f) + std::pow(float(gz) - std::floor(c.z / cell), 2.0f)) * cell;
+    if (dd > radius) return false;
+    const uint32_t h = hash2(gx * 7 + 3, gz * 13 - 5);
+    // Stony patches (~9 m) - more on bare ground, a few anywhere.
+    const float x = (float(gx) + h01(h, 1)) * cell, z = (float(gz) + h01(h, 2)) * cell;
+    const float patch = vnoise(x, z, 9.0f, 21);
+    if (h01(h, 0) > 0.06f + 0.5f * patch * patch) return false;
+    const Terrain& terr = assetWorld_->terrain();
+    float y, yx, yz;
+    if (!terr.heightAt(x, z, y) || !terr.heightAt(x + 0.4f, z, yx) || !terr.heightAt(x, z + 0.4f, yz)) return false;
+    if (y < renderer_.environment().seaLevel - 0.3f) return false;
+    const float slope = std::sqrt((yx - y) * (yx - y) + (yz - y) * (yz - y)) / 0.4f;
+    if (slope > 0.9f) return false;
+    const float edge = 1.0f - std::max(0.0f, (dd - radius * 0.75f) / (radius * 0.25f));
+    const float size = (0.12f + 0.3f * h01(h, 3) * h01(h, 3)) * (h01(h, 4) > 0.93f ? 2.4f : 1.0f) * (0.3f + 0.7f * edge);
+    d.hash = h;
+    d.angle = h01(h, 5) * 6.2832f;
+    d.scale = Vec3{size * (0.8f + 0.5f * h01(h, 6)), size * (0.6f + 0.4f * h01(h, 7)), size * (0.8f + 0.5f * h01(h, 4))};
+    d.base = Vec3{x, y + 0.2f * d.scale.y, z};  // (a fifth sunk into the ground)
+    d.uv = terr.uvAt(x, z);
+    const Vec3 li = terr.lightAt(x, z);
+    d.light[0] = uint8_t(std::min(255.0f, li.x * 235.0f));
+    d.light[1] = uint8_t(std::min(255.0f, li.y * 235.0f));
+    d.light[2] = uint8_t(std::min(255.0f, li.z * 235.0f));
+    d.light[3] = 255;
+    return true;
+}
+
+// Its kPebbleTris flat-shaded faces: jittered corners round its middle, turned by `rot` (the ground's
+// stones: none) and placed at `at`.
+void GameApp::emitPebble(Vertex* out, const PebbleDesc& d, const Quat& rot, const Vec3& at) const {
+    static std::vector<Vec3> iv;
+    static std::vector<int> ifc;
+    if (iv.empty()) icosa(iv, ifc);
+    const float ca = std::cos(d.angle), sa = std::sin(d.angle);
+    Vec3 cv[12];
+    for (int k = 0; k < 12; ++k) {
+        const float j = 0.75f + 0.5f * h01(hash2(int(d.hash & 0xFFFF) + k, int(d.hash >> 16)), 0);
+        const Vec3 p = iv[size_t(k)] * j;
+        const Vec3 q{p.x * d.scale.x, p.y * d.scale.y, p.z * d.scale.z};
+        cv[k] = at + rot.rotate(Vec3{q.x * ca - q.z * sa, q.y, q.x * sa + q.z * ca});
+    }
+    for (int t = 0; t < kPebbleTris; ++t) {
+        Vec3 A = cv[ifc[size_t(t * 3)]], B = cv[ifc[size_t(t * 3 + 1)]], C = cv[ifc[size_t(t * 3 + 2)]];
+        Vec3 nrm = normalize(cross(B - A, C - A));
+        if (dot(nrm, (A + B + C) * (1.0f / 3.0f) - at) < 0) { std::swap(B, C); nrm = nrm * -1.0f; }  // every face outward
+        const Vec3 P[3] = {A, B, C};
+        for (int k = 0; k < 3; ++k) {
+            Vertex& v = out[t * 3 + k];
+            v = Vertex{};
+            v.pos[0] = P[k].x; v.pos[1] = P[k].y; v.pos[2] = P[k].z;
+            v.normal[0] = nrm.x; v.normal[1] = nrm.y; v.normal[2] = nrm.z;
+            v.uv[0] = d.uv.x; v.uv[1] = d.uv.y;
+            for (int i = 0; i < 4; ++i) v.color[i] = d.light[i];
+        }
+    }
+}
 
 void GameApp::buildPebbles(const Vec3& c, float radius) {
     if (!assetWorld_) return;
@@ -234,60 +297,18 @@ void GameApp::buildPebbles(const Vec3& c, float radius) {
         pebbleMesh_ = renderer_.uploadMesh(md);
         pebbleBuf_.assign(pebbleVerts_, Vertex{});
     }
-    static std::vector<Vec3> iv;
-    static std::vector<int> ifc;
-    if (iv.empty()) icosa(iv, ifc);
-    const Terrain& terr = assetWorld_->terrain();
+    if (pebbleWorld_ != assetWorld_.get()) { pebbleWorld_ = assetWorld_.get(); takenPebbles_.clear(); }
+    pebbleCentre_ = c;
+    pebbleRadius_ = radius;
     size_t n = 0;
-    const float cell = 1.3f;
-    const int r = int(radius / cell);
-    const int cx = int(std::floor(c.x / cell)), cz = int(std::floor(c.z / cell));
+    const int r = int(radius / kPebbleCell);
+    const int cx = int(std::floor(c.x / kPebbleCell)), cz = int(std::floor(c.z / kPebbleCell));
     for (int dz = -r; dz <= r && n < kMaxPebbles; ++dz)
         for (int dx = -r; dx <= r && n < kMaxPebbles; ++dx) {
-            const float dd = std::sqrt(float(dx * dx + dz * dz)) * cell;
-            if (dd > radius) continue;
-            const uint32_t h = hash2((cx + dx) * 7 + 3, (cz + dz) * 13 - 5);
-            // Stony patches (~9 m) - more on bare ground, a few anywhere.
-            const float x = (float(cx + dx) + h01(h, 1)) * cell, z = (float(cz + dz) + h01(h, 2)) * cell;
-            const float patch = vnoise(x, z, 9.0f, 21);
-            if (h01(h, 0) > 0.06f + 0.5f * patch * patch) continue;
-            float y, yx, yz;
-            if (!terr.heightAt(x, z, y) || !terr.heightAt(x + 0.4f, z, yx) || !terr.heightAt(x, z + 0.4f, yz)) continue;
-            if (y < renderer_.environment().seaLevel - 0.3f) continue;
-            const float slope = std::sqrt((yx - y) * (yx - y) + (yz - y) * (yz - y)) / 0.4f;
-            if (slope > 0.9f) continue;
-            const float edge = 1.0f - std::max(0.0f, (dd - radius * 0.75f) / (radius * 0.25f));
-            float size = (0.12f + 0.3f * h01(h, 3) * h01(h, 3)) * (h01(h, 4) > 0.93f ? 2.4f : 1.0f) * (0.3f + 0.7f * edge);
-            const float a = h01(h, 5) * 6.2832f;
-            const float ca = std::cos(a), sa = std::sin(a);
-            const Vec3 sc{size * (0.8f + 0.5f * h01(h, 6)), size * (0.6f + 0.4f * h01(h, 7)), size * (0.8f + 0.5f * h01(h, 4))};
-            const Vec3 base{x, y + 0.2f * sc.y, z};  // (a fifth sunk into the ground)
-            const Vec2 guv = terr.uvAt(x, z);
-            const Vec3 li = terr.lightAt(x, z);
-            const uint8_t lc[4] = {uint8_t(std::min(255.0f, li.x * 235.0f)), uint8_t(std::min(255.0f, li.y * 235.0f)),
-                                   uint8_t(std::min(255.0f, li.z * 235.0f)), 255};
-            // Jittered corners (per stone), then flat-shaded faces.
-            Vec3 cv[12];
-            for (int k = 0; k < 12; ++k) {
-                const float j = 0.75f + 0.5f * h01(hash2(int(h & 0xFFFF) + k, int(h >> 16)), 0);
-                const Vec3 p = iv[size_t(k)] * j;
-                const Vec3 q{p.x * sc.x, p.y * sc.y, p.z * sc.z};
-                cv[k] = base + Vec3{q.x * ca - q.z * sa, q.y, q.x * sa + q.z * ca};
-            }
-            Vertex* out = &pebbleBuf_[n * kPebbleTris * 3];
-            for (int t = 0; t < kPebbleTris; ++t) {
-                Vec3 A = cv[ifc[size_t(t * 3)]], B = cv[ifc[size_t(t * 3 + 1)]], C = cv[ifc[size_t(t * 3 + 2)]];
-                Vec3 nrm = normalize(cross(B - A, C - A));
-                if (dot(nrm, (A + B + C) * (1.0f / 3.0f) - base) < 0) { std::swap(B, C); nrm = nrm * -1.0f; }  // every face outward
-                const Vec3 P[3] = {A, B, C};
-                for (int k = 0; k < 3; ++k) {
-                    Vertex& v = out[t * 3 + k];
-                    v.pos[0] = P[k].x; v.pos[1] = P[k].y; v.pos[2] = P[k].z;
-                    v.normal[0] = nrm.x; v.normal[1] = nrm.y; v.normal[2] = nrm.z;
-                    v.uv[0] = guv.x; v.uv[1] = guv.y;
-                    for (int i = 0; i < 4; ++i) v.color[i] = lc[i];
-                }
-            }
+            PebbleDesc d;
+            if (!pebbleAt(cx + dx, cz + dz, c, radius, d)) continue;
+            if (pebbleTaken(cx + dx, cz + dz)) continue;  // (picked up: in a hand, or thrown)
+            emitPebble(&pebbleBuf_[n * kPebbleTris * 3], d, Quat{0, 0, 0, 1}, d.base);
             ++n;
         }
     // Unused stones collapse to nothing.

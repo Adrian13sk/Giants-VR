@@ -216,7 +216,7 @@ void GameApp::updateVillagerHands(float dt, const InputFrame& in) {
         const bool g = c.squeeze > 0.7f;
         const bool edge = g && !villagerGripWas_[h];
         villagerGripWas_[h] = g;
-        if (!can || !edge || heldVillager_ != 0 || !c.gripPoseValid || heldBody_.hand == h) continue;
+        if (!can || !edge || heldVillager_ != 0 || !c.gripPoseValid || heldBody_.hand == h || stoneInHand(h)) continue;
         const Vec3 p = rig_.toWorld(c.gripPose).position;
         for (const auto& v : villagers_.villagers) {
             if (!VillagerDirector::alive(v) || length(p - (v.pos + Vec3{0, 0.45f, 0})) > 0.45f) continue;

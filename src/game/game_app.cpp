@@ -3857,7 +3857,7 @@ void GameApp::updateCombat(float dt) {
     }
     bushEvents();
     { GVR_PROF("skirmish"); updateSkirmish(dt); }
-    { GVR_PROF("ragdolls"); updateBodyGrab(dt, lastInput_); updateRagdolls(dt); }
+    { GVR_PROF("ragdolls"); updateBodyGrab(dt, lastInput_); updateStones(dt, lastInput_); updateRagdolls(dt); }
     // Model slots follow the enemies (the director removes sunk corpses).
     std::fill(slotUsed_.begin(), slotUsed_.end(), 0);
     for (auto& e : enemies_.enemies)
