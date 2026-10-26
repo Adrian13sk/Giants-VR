@@ -217,7 +217,7 @@ void GameApp::updateVillagerHands(float dt, const InputFrame& in) {
         const bool g = c.squeeze > 0.7f;
         const bool edge = g && !villagerGripWas_[h];
         villagerGripWas_[h] = g;
-        if (!can || !edge || heldVillager_ != 0 || !c.gripPoseValid || heldBody_.hand == h || stoneInHand(h)) continue;
+        if (!can || !edge || heldVillager_ != 0 || !c.gripPoseValid || heldBody_.hand == h || stoneInHand(h) || climbHold_[h]) continue;
         const Vec3 hp = rig_.toWorld(c.gripPose).position, p = reachPoint(hp);  // (GROUND REACH)
         static const bool gtrace = std::getenv("GVR_GRAB_TRACE") != nullptr;
         if (gtrace) {
@@ -231,7 +231,7 @@ void GameApp::updateVillagerHands(float dt, const InputFrame& in) {
             if (!VillagerDirector::alive(v) || std::min(length(hp - (v.pos + Vec3{0, 0.45f, 0})), length(p - (v.pos + Vec3{0, 0.45f, 0}))) > 0.45f) continue;
             heldVillager_ = v.uid;
             heldVillagerHand_ = h;
-            heldVillagerPrev_ = hp;
+            heldVillagerPrev_ = c.gripPose.position;  // (tracking space: handVelocity)
             heldVillagerVel_ = Vec3{0, 0, 0};
             heldVillagerN_ = 0;
             villagers_.hold(indexOf(v.uid), true);
@@ -249,10 +249,10 @@ void GameApp::updateVillagerHands(float dt, const InputFrame& in) {
             const Pose gp = rig_.toWorld(c.gripPose);
             const Vec3 p = gp.position;
             if (dt > 0) {
-                heldVillagerVel_ = heldVillagerVel_ * 0.5f + (p - heldVillagerPrev_) * (0.5f / dt);
-                heldVillagerRecent_[heldVillagerN_++ % 12] = (p - heldVillagerPrev_) * (1.0f / dt);
+                const Vec3 hv = handVelocity(c.gripPose.position, heldVillagerPrev_, dt);
+                heldVillagerVel_ = heldVillagerVel_ * 0.5f + hv * 0.5f;
+                heldVillagerRecent_[heldVillagerN_++ % 12] = hv;
             }
-            heldVillagerPrev_ = p;
             Villager& v = villagers_.villagers[size_t(i)];
             v.pos = p - Vec3{0, 0.45f, 0};
             v.yaw = yawOf(gp.orientation);
@@ -293,7 +293,7 @@ void GameApp::updateVillagerHands(float dt, const InputFrame& in) {
             LOGI("grab trace: Smartie in flight at (%.2f %.2f %.2f) %.1f m/s, nearest Reaper %.2f m at (%.2f %.2f %.2f)", f.pos.x, f.pos.y, f.pos.z, length(f.vel), nd, at.x, at.y, at.z);
         }
         // Thrown into a Reaper: it bowls him back and hurts him (and the Smartie drops, stunned - or dead).
-        if (length(f.vel) > 5.0f)
+        if (length(f.vel) > 5.0f && !f.hit)
             for (size_t k = 0; k < enemies_.enemies.size(); ++k) {
                 const Enemy& e = enemies_.enemies[k];
                 if (e.state == EnemyState::Dead || std::hypot(e.pos.x - f.pos.x, e.pos.z - f.pos.z) > 0.6f || f.pos.y < e.pos.y - 0.2f ||
@@ -302,10 +302,11 @@ void GameApp::updateVillagerHands(float dt, const InputFrame& in) {
                 const float sp = length(f.vel);
                 const Vec3 dir = normalize(Vec3{f.vel.x, 0, f.vel.z} + Vec3{0.001f, 0, 0});
                 enemies_.push(int(k), dir * std::min(6.0f, 0.8f * sp));
-                const bool killed = enemies_.damage(int(k), 5.0f + 2.5f * sp);
+                const bool killed = thrownHitEnemy(int(k), 5.0f + 2.5f * sp, f.pos, dir);
                 sfx(frand() < 0.5f ? "ex_bdys1" : "ex_bdys2", f.pos, 0.9f, 1.1f);
                 LOGI("A thrown Smartie hits Reaper %u at %.1f m/s%s", e.uid, sp, killed ? " - he's down" : "");
                 f.vel = Vec3{-f.vel.x * 0.2f, std::max(1.0f, f.vel.y), -f.vel.z * 0.2f};  // (it bounces off him)
+                f.hit = true;
                 break;
             }
         if (f.pos.y <= g) {

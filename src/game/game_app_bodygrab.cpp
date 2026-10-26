@@ -35,6 +35,37 @@ Ragdoll* GameApp::bodyRagdoll(const HeldBody& b) {
     return r.active && r.uid == b.uid ? &r : nullptr;
 }
 
+bool GameApp::thrownHitEnemy(int i, float damage, const Vec3& at, const Vec3& dir) {
+    if (i < 0 || size_t(i) >= enemies_.enemies.size()) return false;
+    const bool killed = enemies_.damage(i, damage);
+    const Enemy& e = enemies_.enemies[size_t(i)];
+    bleed(at, dir, killed, 0.6f);
+    if (killed) {
+        if (e.objective >= 0) completeObjective(e.objective);
+        blood_.pool(e.pos, 1.0f);
+        enemies_.alertNear(e.pos, 25.0f);  // a comrade falls
+    }
+    return killed;
+}
+
+bool GameApp::thrownHitCreature(int i, float damage, const Vec3& at, const Vec3& dir) {
+    if (i < 0 || size_t(i) >= creatures_.creatures.size()) return false;
+    std::vector<CreatureEvent> ev;
+    const float scale = creatures_.creatures[size_t(i)].scale;
+    const int slot = creatures_.creatures[size_t(i)].slot;
+    const bool died = creatures_.damage(i, damage, dir, &ev);
+    if (died && slot >= 0 && size_t(slot) < chars_.size() && chars_[size_t(slot)].objective >= 0) completeObjective(chars_[size_t(slot)].objective);
+    bleed(at, dir, died, scale);
+    if (died && !creatures_.creatures[size_t(i)].exploded) blood_.pool(creatures_.creatures[size_t(i)].pos, 0.9f * scale);
+    for (const auto& e : ev)
+        if (e.kind == CreatureEvent::Die && e.burst) {
+            spawnGore(e.pos, e.dir, scale);
+            blasts_.push_back({e.pos + Vec3{0, 0.5f * scale, 0}, 3, 0.0f});
+        }
+    for (const auto& e : ev) creatureSound(e);
+    return died;
+}
+
 // A thrown body knocks into the living: a Reaper (or creature) it meets at speed is shoved and hurt.
 void GameApp::updateThrownBody(float dt) {
     HeldBody& b = thrownBody_;
@@ -71,7 +102,7 @@ void GameApp::updateThrownBody(float dt) {
         b.hit[b.nHit++] = e.uid;
         const Vec3 dir = normalize(Vec3{v.x, 0, v.z} + Vec3{0.001f, 0, 0});
         enemies_.push(int(i), dir * std::min(8.0f, 1.2f * sp));
-        const bool killed = enemies_.damage(int(i), 6.0f + 4.0f * sp);
+        const bool killed = thrownHitEnemy(int(i), 6.0f + 4.0f * sp, c, dir);
         r->kick(v * -0.4f);  // (the body stops against him)
         sfx(frand() < 0.5f ? "ex_bdyl1" : "ex_bdyl2", c, std::min(1.0f, 0.4f + sp * 0.08f), 1.0f);
         LOGI("The thrown body hits Reaper %u at %.1f m/s%s", e.uid, sp, killed ? " - he's dead" : "");
@@ -97,7 +128,7 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
         const bool g = c.squeeze > 0.7f;
         const bool edge = g && !bodyGripWas_[h];
         bodyGripWas_[h] = g;
-        if (!can || !edge || heldBody_.kind >= 0 || !c.gripPoseValid || (heldVillager_ != 0 && heldVillagerHand_ == h) || stoneInHand(h)) continue;
+        if (!can || !edge || heldBody_.kind >= 0 || !c.gripPoseValid || (heldVillager_ != 0 && heldVillagerHand_ == h) || stoneInHand(h) || climbHold_[h]) continue;
         if (kab && (kbHold_ != HoldNone || kbGrabHand_ == h || kb_.eatT >= 0 || climbHold_[h])) continue;  // (that hand has his own grab)
         const Vec3 p = kab ? handAt(c) : reachPoint(handAt(c));  // (GROUND REACH)
         float best = reach, nearestAny = 1e30f;
@@ -127,7 +158,7 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
             continue;
         }
         heldBody_ = pick;
-        heldBody_.prev = p;
+        heldBody_.prev = c.gripPose.position;  // (tracking space: handVelocity)
         heldBody_.vel = Vec3{0, 0, 0};
         if (Ragdoll* r = bodyRagdoll(heldBody_)) {
             heldBody_.from = r->particle(size_t(part));
@@ -150,10 +181,10 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
     }
     const Vec3 p = handAt(c);
     if (dt > 0) {
-        b.vel = b.vel * 0.5f + (p - b.prev) * (0.5f / dt);
-        b.recent[b.nRecent++ % 12] = (p - b.prev) * (1.0f / dt);
+        const Vec3 hv = handVelocity(c.gripPose.position, b.prev, dt);
+        b.vel = b.vel * 0.5f + hv * 0.5f;
+        b.recent[b.nRecent++ % 12] = hv;
     }
-    b.prev = p;
     b.t += dt;
     // (the part eases into the hand over 0.15 s rather than jumping the reach)
     const float ease = std::min(1.0f, b.t / 0.15f);

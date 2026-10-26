@@ -454,6 +454,18 @@ private:
     Ragdoll* bodyRagdoll(const HeldBody& b);
     void updateBodyGrab(float dt, const InputFrame& in);
     void updateThrownBody(float dt);
+    // A thrown thing (body, stone, gun, limb, Smartie) hurts enemy i: the damage, and on a kill what every
+    // other kill does (his objective, blood, his comrades alerted). Returns killed.
+    bool thrownHitEnemy(int i, float damage, const Vec3& at, const Vec3& dir);
+    // A held thing's hand velocity in the world, from the hand's tracking-space movement (prev: its last
+    // tracking position, updated) plus the player's own: a snap turn or a teleport is not a throw.
+    Vec3 handVelocity(const Vec3& trackNow, Vec3& trackPrev, float dt) const {
+        const Vec3 d = trackNow - trackPrev;
+        trackPrev = trackNow;
+        if (dt <= 0) return Vec3{0, 0, 0};
+        return rig_.worldFromTracking.orientation.rotate(d * rig_.comfort.worldScale) * (1.0f / dt) + player_.velocity;
+    }
+    bool thrownHitCreature(int i, float damage, const Vec3& at, const Vec3& dir);
     std::vector<float> slotLift_;   // per model slot: lift so the posed body's lowest point is on the ground
     WeaponSystem enemyFire_;
     std::vector<int> shooters_;
@@ -1357,7 +1369,7 @@ private:  // the mission placed enemies: no test waves
     Vec3 heldVillagerPrev_, heldVillagerVel_;
     Vec3 heldVillagerRecent_[12];  // (the throw: the fastest of the last frames, as for bodies and stones)
     int heldVillagerN_ = 0;
-    struct FlyingVillager { uint32_t uid; Vec3 pos, vel; };
+    struct FlyingVillager { uint32_t uid; Vec3 pos, vel; bool hit = false; };  // (hit: it has bowled a Reaper over - once)
     std::vector<FlyingVillager> flyingVillagers_;
     uint32_t aimedVillager_ = 0;
     float aimedVillagerT_ = 0;
@@ -1615,6 +1627,7 @@ private:  // the mission placed enemies: no test waves
     MeshId stoneMesh_ = 0;
     std::vector<Vertex> stoneBuf_;
     size_t stoneUsed_ = 0;
+    bool stoneDirty_ = false;
     const void* stonesWorld_ = nullptr;
     bool stoneInHand(int h) const;  // (or a gun, a limb)
     // Rework (game_app_stones.cpp): swimming by arm strokes - a hand with its grip squeezed pulled

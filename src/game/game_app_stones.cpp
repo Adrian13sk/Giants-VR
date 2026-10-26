@@ -36,7 +36,7 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
         const bool g = c.squeeze > 0.7f;
         const bool edge = g && !stoneGripWas_[h];
         stoneGripWas_[h] = g;
-        if (!can || !edge || !c.gripPoseValid || stoneInHand(h) || heldBody_.hand == h || (heldVillager_ != 0 && heldVillagerHand_ == h)) continue;
+        if (!can || !edge || !c.gripPoseValid || stoneInHand(h) || heldBody_.hand == h || (heldVillager_ != 0 && heldVillagerHand_ == h) || climbHold_[h]) continue;
         const Vec3 hp = rig_.toWorld(c.gripPose).position;
         const Vec3 p = reachPoint(hp);  // (where it reaches: the hand, or lower - GROUND REACH)
         // A dropped gun or a cut-off limb lying there: taken first.
@@ -102,7 +102,7 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
         st.hand = h;
         st.flying = false;
         st.nRecent = 0;
-        st.prev = p;
+        st.prev = c.gripPose.position;  // (tracking space: handVelocity)
         st.hit = 0;
         haptics_.push_back({h, 0.35f, 0.05f});
         sfx("ex_stons", st.pos, 0.25f, 1.6f);
@@ -116,8 +116,7 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
         const Pose gp = rig_.toWorld(c.gripPose);
         const Quat rot = gp.orientation * g.heldRot;
         const Vec3 p = gp.position + gp.orientation.rotate(g.heldOff);
-        if (dt > 0) g.recent[g.nRecent++ % 12] = (p - g.prev) * (1.0f / dt);
-        g.prev = p;
+        if (dt > 0) g.recent[g.nRecent++ % 12] = handVelocity(c.gripPose.position, g.prev, dt);
         g.pos = p;
         // (axis-angle for the draw)
         const float w = std::clamp(rot.w, -1.0f, 1.0f), sn = std::sqrt(std::max(0.0f, 1.0f - w * w));
@@ -146,8 +145,7 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
             if (!can || !c.gripPoseValid) { st.hand = -1; st.flying = true; st.vel = Vec3{0, 0, 0}; continue; }
             const Pose gp = rig_.toWorld(c.gripPose);
             const Vec3 p = gp.position + gp.orientation.rotate(Vec3{0, -0.03f - 0.35f * sz, -0.06f});  // (in the palm, under the fingers)
-            if (dt > 0) st.recent[st.nRecent++ % 12] = (p - st.prev) * (1.0f / dt);
-            st.prev = p;
+            if (dt > 0) st.recent[st.nRecent++ % 12] = handVelocity(c.gripPose.position, st.prev, dt);
             st.pos = p;
             st.rot = gp.orientation;
             if (trace && st.nRecent % 36 == 1) LOGI("grab trace: stone in hand %d at (%.2f %.2f %.2f), head (%.2f %.2f %.2f)", st.hand, p.x, p.y, p.z,
@@ -189,7 +187,7 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
                 if (std::hypot(st.pos.x - e.pos.x, st.pos.z - e.pos.z) > 0.42f + sz || st.pos.y < e.pos.y || st.pos.y > e.pos.y + top) continue;
                 const bool head = st.pos.y > e.pos.y + 0.82f * top;
                 st.hit = e.uid;
-                const bool killed = enemies_.damage(int(k), (4.0f + 1.1f * speed) * (head ? 2.0f : 1.0f));
+                const bool killed = thrownHitEnemy(int(k), (4.0f + 1.1f * speed) * (head ? 2.0f : 1.0f), st.pos, dir);
                 enemies_.push(int(k), Vec3{dir.x, 0, dir.z} * std::min(3.0f, 0.25f * speed));
                 sfx(head ? "bi_hit2" : "bi_hit1", st.pos, 0.8f, 1.2f);
                 LOGI("A stone hits Reaper %u%s at %.1f m/s%s", e.uid, head ? " on the head" : "", speed, killed ? " - down" : "");
@@ -199,7 +197,7 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
                 if (cr.state == CreatureState::Dead || CreatureDirector::underground(cr)) continue;
                 if (length(st.pos - (cr.pos + Vec3{0, 0.5f * cr.scale, 0})) > 0.7f * cr.scale + sz) continue;
                 st.hit = 0x80000000u | cr.uid;
-                creatures_.damage(int(k), 4.0f + 1.1f * speed, dir);
+                thrownHitCreature(int(k), 4.0f + 1.1f * speed, st.pos, dir);
                 sfx("bi_hit1", st.pos, 0.8f, 1.0f);
                 LOGI("A stone hits creature %u at %.1f m/s", cr.uid, speed);
             }
@@ -238,6 +236,12 @@ void GameApp::updateStones(float dt, const InputFrame& in) {
     }
     if (!stoneMesh_) return;
     const size_t used = stones_.size() * size_t(kPebbleTris) * 3;
+    // Only when something moved (held or flying) or the set changed: no upload while they all lie still
+    // (a buffer update the GPU may still be drawing from can stall a tiler).
+    bool moving = used != stoneUsed_;
+    for (const auto& st : stones_) moving = moving || st.hand >= 0 || st.flying;
+    if (!moving && !stoneDirty_) return;
+    stoneDirty_ = moving;  // (one more upload after the last one stops: its resting pose)
     for (size_t k = 0; k < stones_.size(); ++k) emitPebble(&stoneBuf_[k * size_t(kPebbleTris) * 3], stones_[k].d, stones_[k].rot, stones_[k].pos);
     for (size_t k = used; k < std::max(used, stoneUsed_); ++k) stoneBuf_[k] = Vertex{};
     const size_t upto = std::max(used, stoneUsed_);
@@ -316,7 +320,7 @@ bool GameApp::grabGib(int h, const Vec3& hand, const Vec3& reach, const Quat& ha
     g.heldOff = Vec3{0, -0.04f, -0.06f};
     g.hand = h;
     g.nRecent = 0;
-    g.prev = hand;
+    g.prev = lastInput_.hand[h].gripPose.position;  // (tracking space: handVelocity)
     haptics_.push_back({h, 0.4f, 0.06f});
     if (g.owner) sfx("me_drpwp", g.pos, 0.4f, 1.4f);
     LOGI("Picked up a %s with hand %d", g.owner ? "dropped gun" : "severed piece", h);

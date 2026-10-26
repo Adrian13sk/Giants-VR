@@ -1962,7 +1962,7 @@ void GameApp::updateCharacters(float dt) {
                     continue;
                 const float sp = length(g.vel);
                 enemies_.push(int(k), normalize(Vec3{g.vel.x, 0, g.vel.z} + Vec3{0.001f, 0, 0}) * std::min(4.0f, 0.4f * sp));
-                const bool killed = enemies_.damage(int(k), (g.owner ? 6.0f + 1.6f * sp : 3.0f + 0.8f * sp));
+                const bool killed = thrownHitEnemy(int(k), (g.owner ? 6.0f + 1.6f * sp : 3.0f + 0.8f * sp), g.pos, normalize(g.vel));
                 sfx(g.owner ? "ex_metls" : "ex_bdys1", g.pos, 0.9f, 1.0f);
                 LOGI("A thrown %s hits Reaper %u at %.1f m/s%s", g.owner ? "gun" : "piece", e.uid, sp, killed ? " - he's down" : "");
                 g.vel = g.vel * -0.2f;
@@ -3912,7 +3912,9 @@ void GameApp::updateCombat(float dt) {
                 // Rework: every model in use - the living take the farthest corpse's (it goes).
                 Enemy* far = nullptr;
                 for (auto& c : enemies_.enemies)
-                    if (c.state == EnemyState::Dead && c.slot >= 0 && !c.remove && (!far || length(c.pos - player_.position) > length(far->pos - player_.position))) far = &c;
+                    if (c.state == EnemyState::Dead && c.slot >= 0 && !c.remove && c.uid != heldBody_.uid && c.uid != thrownBody_.uid && c.uid != impaledUid_ &&
+                        (!far || length(c.pos - player_.position) > length(far->pos - player_.position)))
+                        far = &c;  // (not one in your hand, in flight, or on Delphi's blade)
                 if (far) { e.slot = far->slot; far->slot = -1; far->remove = true; slotLift_[size_t(e.slot)] = enemyFootOffset_; enemyPool_[size_t(e.slot)]->clearSever(); }
             }
         }

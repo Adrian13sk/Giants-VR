@@ -42,6 +42,7 @@ void GameApp::updateClimb(float dt, const InputFrame& in) {
             ++holding;
             continue;
         }
+        if (heldBody_.hand == h || stoneInHand(h) || (heldVillager_ != 0 && heldVillagerHand_ == h)) continue;  // (that hand holds something)
         if (!edge || (hero_ == Hero::Kabuto && (kbHold_ != HoldNone || kb_.eatT >= 0))) continue;
         // A steep face under the hand?
         const Vec3 p = rig_.toWorld(c.gripPose).position;

@@ -2354,3 +2354,22 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Found while checking the PC: its devtest folder had 21 of the 39 test scripts (the rework's hand tests were never
   copied) and an older devtest.ps1 (sweep world mapping). All 39 scripts, devtest.ps1 and README copied to
   Documents\GiantsQuestVR\devtest. (swim_strokes, smartie_throw_hit, ski_handlebars need an APK after 3889d03.)
+
+### 2026-10-26 — Rework: fixes from a review of the day's hand code
+- A fresh-eyes review (a separate agent reading the diff 5a7e7ce..HEAD) found six issues; all fixed:
+  1. Kills by thrown things (bodies, stones, guns, limbs, Smarties) skipped what every other kill does - the
+     victim's mission objective (a "kill this Reaper" target killed with a stone stayed open for good), blood,
+     comrades alerted. Now thrownHitEnemy / thrownHitCreature (as the shot path, incl. creature gore and sounds).
+  2. Throw speeds came from world-space hand positions, so a snap turn (0.25 m jump in a frame, ~20 m/s) held in
+     the 12-frame "fastest" window turned a gentle release into a lethal throw. handVelocity: the hand's
+     tracking-space movement turned into the world, plus the player's velocity - for bodies, stones, guns/limbs
+     and Smarties. Harness: stone held, snap turn, released 0.13 s later - no throw.
+  3. A thrown Smartie could hit the same Reaper on consecutive frames (a fast upward lob kept its speed after the
+     bounce): FlyingVillager::hit, once.
+  4. Climbing and the hand pickups could take the same grip press: a hand holding something doesn't climb, a
+     climbing hand doesn't pick up.
+  5. A held/thrown/impaled body could be the "farthest corpse" whose model slot a new living Reaper takes (it
+     vanished from the hand): those are excluded.
+  6. The loose stones' vertex buffer was uploaded every frame: now only while one is held or flying, when the set
+     changes, and once after the last one stops.
+- All grab/throw/climb/impale devtests re-run (expected lines), unit tests pass, sweep 56/56 clean.
