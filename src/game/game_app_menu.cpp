@@ -24,7 +24,7 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 }
 
 namespace {
-enum MenuRow { kRowResume, kRowControls, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowControls, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -98,6 +98,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowHud: s.hudSize = std::max(0, std::min(2, s.hudSize + dx)); changed = true; break;
             case kRowVolume: s.volume = std::max(0, std::min(10, s.volume + dx)); changed = true; break;
             case kRowMusic: s.music = std::max(0, std::min(10, s.music + dx)); changed = true; break;
+            case kRowAmbience: s.ambience = (s.ambience + dx + 3) % 3; changed = true; break;
             case kRowSubs: s.subtitles = !s.subtitles; changed = true; break;
             case kRowCuts: s.cutsceneScreen = !s.cutsceneScreen; changed = true; break;
             case kRowFps: s.showFps = !s.showFps; changed = true; break;
@@ -177,6 +178,7 @@ void GameApp::renderMenu() {
         {"HUD SIZE", huds[s.hudSize]},
         {"VOLUME", vol},
         {"MUSIC", mus},
+        {"AMBIENCE", s.ambience == 0 ? "OFF" : (s.ambience == 1 ? "SOUNDS" : "SOUNDS + WEATHER")},
         {"SUBTITLES", s.subtitles ? "ON" : "OFF"},
         {"CUTSCENES", s.cutsceneScreen ? "CINEMA SCREEN" : "AROUND YOU"},
         {"FRAME RATE", s.showFps ? "SHOWN" : "HIDDEN"},

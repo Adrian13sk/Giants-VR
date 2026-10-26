@@ -1482,6 +1482,28 @@ private:  // the mission placed enemies: no test waves
     Vec3 fishHandPrev_[2];
     bool fishHandHave_[2] = {};
     void updateFishCatch(float dt);
+    // Rework, ambience (game_app_ambience.cpp): the level's ambient markers (the original's "a_..."
+    // zones: shoreline, trees, wind, river, volcano; one per level naming its weather) drive our
+    // procedural loops (audio/ambience.h) - surf from the nearest shore, wind, leaves, water, a
+    // volcano's rumble - and rain or snow round the player where the level says so.
+    struct AmbVoice { uint32_t id = 0; int kind = 0; size_t marker = 0; float vol = 0, target = 0; };
+    std::vector<Vec3> ambPts_[5];     // per AmbienceKind (Surf, Wind, Leaves, River, Rumble)
+    std::vector<float> ambGain_[5];   // per marker: its loudness (light winds are softer)
+    std::vector<AmbVoice> ambVoices_;
+    uint32_t ambRain_ = 0;
+    float ambRainVol_ = 0;
+    int weather_ = 0;                 // 0 none, 1 light rain, 2 storm, 3 snow
+    struct Drop { Vec3 pos; float speed = 0, len = 0, phase = 0; };
+    std::vector<Drop> drops_;
+    struct DropSplash { Vec3 pos; float age = 0; };
+    std::vector<DropSplash> dropSplashes_;
+    QuadBatch weatherBatch_;
+    TextureId weatherTex_ = 0;
+    void initAmbience(AssetWorld* w);
+    void makeAmbienceSounds();
+    void updateAmbience(float dt);
+    void updateWeather(float dt);
+    void renderWeather();
     static constexpr int kBossTarget = 8000;  // weapon target ids for boss characters (index into chars_)
     bool bossRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& index) const;
     void hitBoss(int i, float amount, const Vec3& at, const Vec3& dir);

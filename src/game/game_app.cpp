@@ -1070,6 +1070,9 @@ void GameApp::sfx2D(const char* name, float vol, float pitch) {
 
 void GameApp::setAudio(AudioMixer* mixer) {
     audio_ = mixer;
+    ambVoices_.clear();  // (voices of another mixer)
+    ambRain_ = 0;
+    makeAmbienceSounds();
     applySettings();  // volumes
     if (!audio_ || !assetWorld_) return;
     static const char* names[] = {
@@ -1563,6 +1566,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initVimps(w, mc);
     initBirds(w, mc);
     initFish(w, mc);
+    initAmbience(w);
     initDestruction(w, mc);
     initSpawners();
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
@@ -4023,6 +4027,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("vimps"); updateVimps(dt); }
     { GVR_PROF("birds"); updateBirds(dt); }
     { GVR_PROF("fish"); updateFish(dt); }
+    { GVR_PROF("ambience"); updateAmbience(dt); }
     { GVR_PROF("npc ragdolls"); updateNpcRagdolls(dt); }
     { GVR_PROF("bosses"); updateBosses(dt); }
     { GVR_PROF("sams"); updateSams(dt); }
@@ -4801,6 +4806,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     renderDataFx();
     if (playMode_) renderGrass();
     if (playMode_ && !cut) renderMotes();
+    if (!cut) renderWeather();
     renderFireballs();
     renderSwordTrail();
 }

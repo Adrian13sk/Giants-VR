@@ -1,0 +1,12 @@
+# Rework (2026-10-26): Kabuto's last level (marker a_k5_storm): a storm - heavy slanting rain round the giant,
+# louder; the volcanoes rumble. Log: "weather storm", "Ambience voices: ... amb_rumble".
+name weather_storm
+world Kstory5
+mission kstory5_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_AMB_TRACE 1
+view first
+duration 12
+pitch 5
+move 0 1 3.0 8.0

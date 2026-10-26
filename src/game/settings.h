@@ -22,6 +22,7 @@ struct UserSettings {
     bool ambushes = true;    // rework: Reaper squads come at you after a long quiet stretch
     int vignette = 1;        // comfort tunnel while moving / turning: 0 off, 1 low, 2 high
     int hintsShown = 0;      // rework: one-time hand-mechanics hints already shown (bits, game_app_hints.cpp)
+    int ambience = 2;        // rework: 0 off, 1 the ambient sounds (shore, wind, leaves, river, volcano), 2 and the weather (rain, snow)
     bool reachAssist = true; // rework: ground pickups (stones, bodies, Smarties) reachable from a stoop, not only a crouch
     int foveation = 2;       // fixed foveated rendering 0 off .. 3 high (2: measured on the Quest 2 to hold 72 fps)
     float hudScale() const { return hudSize == 0 ? 0.8f : (hudSize == 2 ? 1.3f : 1.0f); }

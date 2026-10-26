@@ -1,0 +1,12 @@
+# Rework (2026-10-26): snow in the Reaper's cold world (marker a_r2_snow), cold gusts of wind; and a storm with
+# heavy rain in Kabuto's last level (a_k5_storm) - run weather_storm for that. Log: "weather snow".
+name weather_snow
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_AMB_TRACE 1
+view first
+duration 12
+pitch 5
+turn 0.6 0 3.0 9.0

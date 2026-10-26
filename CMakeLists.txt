@@ -59,6 +59,7 @@ add_library(gvr_core STATIC
   src/game/game_app_casings.cpp
   src/game/game_app_birds.cpp
   src/game/game_app_fish.cpp
+  src/game/game_app_ambience.cpp
   src/game/game_app_cinema.cpp
   src/game/vimp.cpp
   src/game/jetski.cpp
@@ -109,6 +110,7 @@ add_library(gvr_core STATIC
   src/game/destruction.cpp
   src/game/particles.cpp
   src/audio/mixer.cpp
+  src/audio/ambience.cpp
   src/audio/music.cpp
   src/game/game_app.cpp
 )

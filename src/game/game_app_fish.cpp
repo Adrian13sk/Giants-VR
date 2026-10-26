@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,13 @@ void GameApp::initFish(AssetWorld* w, ModelCache* mc) {
         renderFish(renderer_.currentView().eyePosition);
         renderPiranhas();
     };
+    if (w && !w->ambientMarkers().empty()) {  // (the original's ambient zones in this level, by name)
+        std::map<std::string, int> n;
+        for (const auto& m : w->ambientMarkers()) ++n[m.name];
+        std::string list;
+        for (const auto& [k, v] : n) list += " " + k + " x" + std::to_string(v);
+        LOGI("Ambient markers:%s", list.c_str());
+    }
     if (!w || !w->hasTerrain() || !mc || std::getenv("GVR_NO_FISH")) return;
     for (int i = 0; i < kModels; ++i) {
         auto m = std::make_unique<SkinnedModel>();
@@ -102,8 +110,8 @@ void GameApp::updateFish(float dt) {
             for (float d = 2.0f; d < 40.0f; d += 0.5f) {
                 const Vec3 p = me + f * d;
                 shinerSchools_[0].live = false;
-                if (depthAt(p.x, p.z) >= 1.0f && placeSchool(shinerSchools_[0], p + f * 1.5f, 0.0f, 0.0f)) {
-                    LOGI("Fish: test school of %zu Shiners %.1f m ahead", shinerSchools_[0].fish.size(), d + 1.5f);
+                if (depthAt(p.x, p.z) >= 0.85f && placeSchool(shinerSchools_[0], p + f * 0.4f, 0.0f, 0.0f)) {
+                    LOGI("Fish: test school of %zu Shiners %.1f m ahead", shinerSchools_[0].fish.size(), d + 0.4f);
                     break;
                 }
             }

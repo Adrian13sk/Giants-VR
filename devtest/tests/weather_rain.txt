@@ -1,0 +1,13 @@
+# Rework (2026-10-26): weather from the level's own ambient marker - Delphi's first island (a_r1_light_rain):
+# light rain falls round you (streaks, tiny splashes at your feet) with its hiss; look up and around.
+# Listen too: surf from the nearest shore, leaves in the trees. Log: "Ambience: ... weather light rain".
+name weather_rain
+world Rstory1
+mission r1_saveyan
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_AMB_TRACE 1
+view first
+duration 12
+pitch 10
+move 0 1 4.0 8.0

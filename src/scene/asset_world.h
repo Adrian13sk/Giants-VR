@@ -31,6 +31,10 @@ public:
     // Drawn just before the (see-through, not depth-writing) sea, so what swims under it shows
     // through the water instead of over it (rework: fish, piranhas).
     std::function<void()> underwater;
+    // The level's ambient markers (xx_ambient: a_r1_light_rain, a_r2_snow, a_k5_storm, a_wind_gusts,
+    // a_m5_beach_waves...): the original's sound/weather zones - read as data (rework: weather).
+    struct AmbientMarker { std::string name; Vec3 pos; };
+    const std::vector<AmbientMarker>& ambientMarkers() const { return ambientMarkers_; }
     // World objects near `centre` into the current shadow pass.
     void renderShadowCasters(Renderer& r, const Vec3& centre, float radius) const;
     bool loaded() const { return !placed_.empty() || !skinned_.empty() || hasTerrain_; }
@@ -162,6 +166,7 @@ private:
     bool windOn_ = true;  // rework look: trees sway (GVR_NO_WIND=1: still)
     AssetFS fs_;
     std::unique_ptr<ModelCache> cache_;
+    std::vector<AmbientMarker> ambientMarkers_;
     std::vector<Placed> placed_;
     std::vector<int> hiddenTypes_;
     std::vector<WorldObject> worldObjects_;

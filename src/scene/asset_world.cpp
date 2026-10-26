@@ -432,6 +432,7 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
     // own objects; switching missions rebuilds the level state from scratch (as the original
     // does when it loads a mission).
     worldObjects_.clear();
+    ambientMarkers_.clear();
     nests_.clear();
     characters_.clear();
     triggers_.clear();
@@ -597,6 +598,9 @@ void AssetWorld::placeWorldObjects(const std::string& missionName) {
                 t.boundsMax = mx;
             }
             triggers_.push_back(t);
+        }
+        if (!name.empty() && toLower(name).rfind("a_", 0) == 0) {
+            ambientMarkers_.push_back({toLower(name), giantsToRuntime(p.x, p.y, p.z)});
         }
         if (name.empty() || isInvisibleHelper(name)) { ++hidden; continue; }
         // Group spawners (class 97: "1tsonak_4guards" and the like) are markers - the game layer spawns

@@ -821,3 +821,6 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
   (was 229 -> 383 MB with 8c464bb); ASan 0 reports (soak 4000 frames + 4 ragdoll/dismember devtests); sweep 56/56.
 - 2026-10-26, fish: fish_school and fish_catch pass in the harness (caught, thrown, flops on land); ASan 0 reports on
   fish_school, fish_catch, swim_strokes, reaper_ragdolls_water; sweep 56/56; unit tests pass. **Not device-tested.**
+- 2026-10-26, ambience/weather: unit test testAmbience (6 loops) passes; weather_rain / weather_snow / weather_storm
+  run clean ("weather light rain|snow|storm"); ASan with audio output on Rstory1, Rstory2, Kstory5, Story1: 0
+  reports; sweep 56/56. Sound levels and the loops' character are **not heard by a person yet** (spectra only).

@@ -2464,3 +2464,23 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   uCloud = 0.5 (GVR_CLOUDS=<s> to test; 0 off). Off at quality >= 2 and in the classic look. Found while tuning:
   the noise texture is uploaded SRGB8_ALPHA8, so the shader reads it gamma-decoded (median 0.56 stored -> ~0.27
   read); the first threshold (0.5-0.66) never triggered - now 0.24-0.40. Baked-light terrain mutes the effect.
+
+## 2026-10-26 (afternoon): ambient markers -> ambience and weather
+- Every level holds "a_..." objects from xx_ambient (hidden helpers): per level dozens of a_shoreline*, a_single_tree,
+  a_high_winds(_light), a_wind_gusts, a_river, a_pools, a_volcano, a_smartie_village..., plus ONE level marker:
+  a_m1_near_beach .. a_m5_beach_waves, a_r1_light_rain, a_r2_snow, a_r3_race, a_r4_darker, a_r5_mountain, a_k1..a_k4,
+  a_k5_storm (full list per world in the harness log "Ambient markers:"). No archive has sounds for them (searched
+  every .gzp: no ambient loops; Stream/Story1's F_AM_* are cutscene tracks). How the original used them (EAX zones?
+  streamed ambience?) is unknown.
+- audio/ambience.cpp: our procedural loops, 22 kHz mono, seamless (generated 0.75 s long and the tail cross-faded
+  into the head): surf (two breakers per 16 s: swell, crash thump, foam wash, sea roar), wind (gusting brown noise +
+  a sweeping whistle), leaves (bright noise in breaths + flutter), river (bed + rising-chirp bubbles), rumble,
+  rain (hiss + 500 drop ticks/s). Unit test: finite, under full scale, rms > 0.02, seam step <= 6x the mean step.
+  Spectrograms checked (the surf's foam first switched on abruptly - smoothed). ~70 ms to make on x86, done when the
+  mixer is attached (startup), never in a frame of play.
+- game_app_ambience.cpp: per kind the nearest 1-3 markers in reach (shore 70 m, wind 90, trees 28, river 40,
+  volcano 160; x sqrt(hero scale)), each a looping voice placed 1-6 m off in the marker's direction with the mixer's
+  roll-off undone (its 1/d from 2 m made 30 m inaudible), faded in/out, random pitch 0.92-1.08 so copies don't
+  phase. Weather from the level marker (GVR_WEATHER to force): light rain 600 streaks, storm 1100 (faster, slanted),
+  snow 900 flakes swaying, in a cylinder round the head (13 m, wrapped as you move), splashes near you, lit by the
+  sky; the rain's hiss in 2D. Off at AMBIENCE OFF; weather only at SOUNDS + WEATHER (the default).

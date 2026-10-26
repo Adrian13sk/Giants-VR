@@ -25,6 +25,7 @@
 #include "game/arm_ik.h"
 #include "scene/collision.h"
 #include "game/player.h"
+#include "audio/ambience.h"
 #include "game/weapon.h"
 #include "game/enemy.h"
 #include "game/creature.h"
@@ -2117,7 +2118,33 @@ static void testRagdoll() {
     std::printf("ragdoll ok\n");
 }
 
+static void testAmbience() {
+    // Every procedural loop: finite, loud enough, under full scale, and seamless (its last sample
+    // runs into its first: the step there is no bigger than a typical step inside it).
+    const AmbienceKind kinds[] = {AmbienceKind::Surf, AmbienceKind::Wind, AmbienceKind::Leaves, AmbienceKind::River, AmbienceKind::Rumble, AmbienceKind::Rain};
+    for (AmbienceKind k : kinds) {
+        const WavData w = makeAmbience(k, 22050, 3);
+        CHECK(w.rate == 22050 && w.mono.size() > 22050 * 7);
+        double ss = 0, steps = 0;
+        float peak = 0;
+        for (size_t i = 0; i < w.mono.size(); ++i) {
+            CHECK(std::isfinite(w.mono[i]));
+            ss += double(w.mono[i]) * w.mono[i];
+            peak = std::max(peak, std::fabs(w.mono[i]));
+            if (i) steps += std::fabs(w.mono[i] - w.mono[i - 1]);
+        }
+        const double rms = std::sqrt(ss / double(w.mono.size()));
+        const double meanStep = steps / double(w.mono.size() - 1);
+        const float seam = std::fabs(w.mono.front() - w.mono.back());
+        CHECK(peak <= 0.95f && rms > 0.02);
+        CHECK(seam < 6.0 * meanStep + 1e-3);
+        std::printf("ambience %s: %.1f s, rms %.3f, peak %.2f, seam %.4f (mean step %.4f)\n", ambienceName(k),
+                    double(w.mono.size()) / 22050.0, rms, double(peak), double(seam), meanStep);
+    }
+}
+
 int main() {
+    testAmbience();
     testUpscale();
     testBinaural();
     testReverb();
