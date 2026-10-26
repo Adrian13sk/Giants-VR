@@ -832,3 +832,4 @@ Rstory2 now starts at 2). 0 errors. Kabuto 3 started at 2 and stepped back up to
 - 2026-10-26, sound loading fix + sea monster: birds_shoot trace - cr_caw2 / cr_deat2 now play (were MISSING);
   sea_monster - surfaces, rears, dives (harness; ASan with audio: 0 reports, se_first/roar1/firnd loaded on first
   use); sweep 56/56; unit tests pass.
+- 2026-10-26, Delphi diving + lightning bolt: delphi_dive and weather_storm pass (harness; ASan 0 reports); sweep 56/56.

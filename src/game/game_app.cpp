@@ -850,6 +850,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateClimb(dt, in);
     if (player_.climbing) { pi.move = Vec2{0, 0}; pi.sprint = false; pi.jet = false; }
     pi.stroke = updateSwimStrokes(dt, in);
+    updateDive(dt, in, pi);
     updateBush(dt, pi);
     { GVR_PROF("player"); player_.update(dt, pi); }
     if (const char* t = std::getenv("GVR_PLAYER_TURN")) player_.yaw = camYaw_ + std::atof(t) * kPi / 180.0f;  // test hook: side views
@@ -2255,6 +2256,7 @@ void GameApp::initMission() {
 void GameApp::updateSun(float dt) {
     EnvironmentParams& env = renderer_.environment();
     env.time = float(time_);
+    undoUnderwater();
     undoWeatherLight();  // (last frame's rain light and lightning: never into a newly captured base)
     // The world's own (daylight) colours, captured once per loaded world.
     if (envBaseWorld_ != worldName_ + "#" + std::to_string(reinterpret_cast<uintptr_t>(assetWorld_.get())) ||
@@ -4424,7 +4426,7 @@ void GameApp::update(float dt, const InputFrame& in) {
     time_ += dt;
     if (dt > 1e-4f) fpsSmooth_ += (1.0f / dt - fpsSmooth_) * std::min(1.0f, dt * 2.0f);
     updateQuality(dt);
-    { GVR_PROF("sun"); updateSun(dt); applyWeatherLight(dt); }
+    { GVR_PROF("sun"); updateSun(dt); applyWeatherLight(dt); applyUnderwater(dt); }
     updateHeroScale();  // Kabuto's giant scale only in play (not loading, cutscenes, free camera)
     // Story progression: once a mission is complete and its outro has played, the screen fades to
     // the loading / briefing screen (as the original goes through its mission briefing), the next
@@ -4835,6 +4837,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     if (playMode_) renderGrass();
     if (playMode_ && !cut) renderMotes();
     if (!cut) renderWeather();
+    if (!cut) renderAirBubbles();
     renderFireballs();
     renderSwordTrail();
 }

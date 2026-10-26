@@ -321,6 +321,18 @@ void AudioMixer::mix(float* out, uint32_t frames) {
             }
         }
     }
+    // Rework: muffled (the listener's head under water) - a low-pass on everything, glided.
+    if (muffle_ > 0.001f || muffleNow_ > 0.001f) {
+        for (uint32_t i = 0; i < frames; ++i) {
+            muffleNow_ += (muffle_ - muffleNow_) * 0.0005f;
+            const float a = 1.0f - 0.94f * muffleNow_;  // (fully muffled: ~460 Hz at 48 kHz - only the dull low end)
+            for (int ch = 0; ch < 2; ++ch) {
+                float& y = muffleY_[ch];
+                y += a * (out[2 * i + size_t(ch)] - y);
+                out[2 * i + size_t(ch)] = y * (1.0f + 0.6f * muffleNow_);
+            }
+        }
+    }
     // Soft clip so many simultaneous sounds do not hard-clip.
     for (uint32_t i = 0; i < frames * 2; ++i) out[i] = std::tanh(out[i]);
 }

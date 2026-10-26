@@ -1,0 +1,15 @@
+# Rework (2026-10-26): Delphi dives. In deep water off her first island: look down and push the stick forward - she
+# swims down under the surface (no air needed: a Sea Reaper). Under water the world is a close blue haze, the sounds
+# are muffled, bubbles rise from her. Stop and she drifts back up. Log: "Delphi dives", "Under the water",
+# "Out of the water" / "Delphi surfaces".
+name delphi_dive
+world Rstory1
+mission r1_saveyan
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 16
+at 3639 -397
+look 3639 -480
+pitch -55
+move 0 1 1.5 6.5

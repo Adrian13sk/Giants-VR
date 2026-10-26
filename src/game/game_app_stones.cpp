@@ -257,6 +257,7 @@ Vec3 GameApp::updateSwimStrokes(float dt, const InputFrame& in) {
     const bool can = playMode_ && firstPerson_ && !dying_ && hero_ != Hero::Kabuto && player_.swimming() && !cutsceneActive() && dt > 0;
     // Water drag: the push dies away in about a second.
     strokeVel_ = strokeVel_ * std::exp(-1.1f * dt);
+    strokeDive_ *= std::exp(-1.1f * dt);
     for (int h = 0; h < 2; ++h) {
         const ControllerState& c = in.hand[h];
         if (!can || !c.gripPoseValid || c.squeeze < 0.6f || stoneInHand(h) || heldBody_.hand == h) { strokeHave_[h] = false; continue; }
@@ -264,13 +265,16 @@ Vec3 GameApp::updateSwimStrokes(float dt, const InputFrame& in) {
         const Vec3 p = c.gripPose.position;
         if (strokeHave_[h]) {
             Vec3 d = rig_.worldFromTracking.orientation.rotate(p - strokePrev_[h]);
+            // Delphi (a Sea Reaper) dives: a pull up through the water takes her down, a push down brings her up.
+            if (hero_ == Hero::Delphi && std::fabs(d.y) < 0.5f) strokeDive_ += d.y * 2.5f;
             d.y = 0;
             if (length(d) < 0.5f) strokeVel_ = strokeVel_ - d * 2.5f;  // (a 0.6 m pull: about 1.5 m/s)
         }
         strokePrev_[h] = p;
         strokeHave_[h] = true;
     }
-    if (!can) strokeVel_ = Vec3{0, 0, 0};
+    if (!can) { strokeVel_ = Vec3{0, 0, 0}; strokeDive_ = 0; }
+    strokeDive_ = std::max(-2.5f, std::min(2.5f, strokeDive_));
     const float L = length(strokeVel_), cap = 1.6f * player_.swimSpeed;
     if (L > cap) strokeVel_ = strokeVel_ * (cap / L);
     static const bool trace = std::getenv("GVR_SWIM_TRACE") != nullptr;

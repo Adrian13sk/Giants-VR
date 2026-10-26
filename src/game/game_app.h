@@ -1548,6 +1548,23 @@ private:  // the mission placed enemies: no test waves
     TextureId weatherTex_ = 0;
     double weatherBuilt_ = -1.0;
     void initAmbience(AssetWorld* w);
+    // Rework, diving (game_app_dive.cpp): Delphi swims under the water - look down and swim forward,
+    // or pull up through the water with the grips; under, the world turns to deep blue haze, the
+    // sounds are muffled and bubbles rise from her.
+    float strokeDive_ = 0;          // m/s down from arm strokes
+    bool underwater_ = false;
+    float uwSavedNear_ = 0, uwSavedFar_ = 0;
+    Vec3 uwSaved_[4];  // sun, fog, clear, horizon before the haze
+    bool uwApplied_ = false;
+    struct AirBubble { Vec3 pos; float age = 0, size = 0.02f; };
+    std::vector<AirBubble> airBubbles_;
+    QuadBatch bubbleBatch_;
+    bool bubbleBatchReady_ = false;
+    void renderAirBubbles();
+    float bubbleT_ = 0;
+    void updateDive(float dt, const InputFrame& in, PlayerInput& pi);
+    void applyUnderwater(float dt);
+    void undoUnderwater();
     void makeAmbienceSounds();
     void applyWeatherLight(float dt);
     void undoWeatherLight();

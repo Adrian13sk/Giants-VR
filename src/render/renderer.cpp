@@ -139,6 +139,7 @@ uniform sampler2D uTerrGrass2;
 uniform sampler2D uTerrRock2;
 uniform sampler2D uTerrNoise;
 uniform float uCloud;  // rework: cloud shadows (strength; 0 off)
+uniform float uUnder;  // rework: the eye is under the water (diving): no surface-depth tint, no sky
 uniform sampler2D uGrassTex;  // rework grass (material 4): the blades' shape and shading
 uniform float uTerrDetail;
 uniform vec3 uSkyTint;
@@ -345,6 +346,10 @@ void main() {
     if (uNearCut.w > 0.0 && distance(vWorldPos, uNearCut.xyz) < uNearCut.w) discard;
     highp float d = length(vWorldPos - uEyePos);
     float fog = clamp(1.0 - (d - uFogRange.x) * uFogRange.y, 0.0, 1.0);
+    if (uMaterial == 2 && uUnder > 0.5) {  // (under the water: no sky - the haze all round)
+        oColor = vec4(uFogColor, 1.0);
+        return;
+    }
     if (uMaterial == 2) {
         // Sky band: clouds drift slowly; the sun's disc and glow sit where the light comes from.
         // Above the painted band the dome fades to the zenith colour (vertex alpha = band weight).
@@ -528,8 +533,8 @@ void main() {
         float wrap = max(dot(n, normalize(lv)) * 0.6 + 0.4, 0.0);
         rgb += (base.rgb + 0.12) * uPointColor * (att * att * wrap);  // (+0.12: shows on dark surfaces too)
     }
-    if (vWorldPos.y < uSeaLevel) {
-        // Under water: the bed fades into the water colour with depth.
+    if (vWorldPos.y < uSeaLevel && uUnder < 0.5) {
+        // Under water (seen from above): the bed fades into the water colour with depth.
         float dep = uSeaLevel - vWorldPos.y;
         rgb = mix(rgb, uWaterColor * 0.8, clamp(0.12 + dep * 0.2, 0.0, 0.9));
     }
@@ -613,7 +618,7 @@ GLuint Renderer::linkMain(bool multiview, Uniforms& u) {
     u.uWaterDepth_ = L("uWaterDepth"); u.uWaterDepthRect_ = L("uWaterDepthRect"); u.uWaterDepthOn_ = L("uWaterDepthOn");
     const char* tn[5] = {"uTerrRock", "uTerrSand", "uTerrGrass2", "uTerrRock2", "uTerrNoise"};
     for (int k = 0; k < 5; ++k) u.uTerr_[k] = L(tn[k]);
-    u.uTerrDetail_ = L("uTerrDetail"); u.uCloud_ = L("uCloud"); u.uSway_ = L("uSway"); u.uSkyTint_ = L("uSkyTint"); u.uNight_ = L("uNight"); u.uBakedLight_ = L("uBakedLight");
+    u.uTerrDetail_ = L("uTerrDetail"); u.uUnder_ = L("uUnder"); u.uCloud_ = L("uCloud"); u.uSway_ = L("uSway"); u.uSkyTint_ = L("uSkyTint"); u.uNight_ = L("uNight"); u.uBakedLight_ = L("uBakedLight");
     u.uPointPos_ = L("uPointPos"); u.uPointColor_ = L("uPointColor");
     u.uSkyTex_ = L("uSkyTex"); u.uSkyOn_ = L("uSkyOn"); u.uGrassTex_ = L("uGrassTex");
     u.uViewProj_ = L("uViewProj"); u.uEyePosV_ = L("uEyePosV"); u.uLook_ = L("uLook");
@@ -891,6 +896,7 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
         glBindTexture(GL_TEXTURE_2D, t);
     }
     glUniform1f(U_->uTerrDetail_, terrainDetail_ ? 1.0f : 0.0f);
+    glUniform1f(U_->uUnder_, underwater_ ? 1.0f : 0.0f);
     {  // (needs the noise texture on unit 9 - bound above only while it is live; white would shade everything)
         const bool noise = terrainTex_[4] != 0 && terrainTex_[4] <= textures_.size() && textures_[terrainTex_[4] - 1].live;
         glUniform1f(U_->uCloud_, noise ? cloudShadow_ : 0.0f);

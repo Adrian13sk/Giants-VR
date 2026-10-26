@@ -91,6 +91,7 @@ public:
     // Water: deeper than floatDepth the Meccaryn floats with his shoulders at the surface (he
     // can't dive) and swims at swimSpeed. seaLevel -1e9 = no water.
     float seaLevel = -1e9f, floatDepth = 1.35f, swimSpeed = 2.4f;
+    float diveDepth = 0;  // rework (Delphi diving): the water holds her this far below her floating depth
     bool swimming() const { return swimming_; }
     bool onObject() const { return onObject_; }  // standing on a structure (bridge, walkway, roof)
     const CollisionWorld* collision = nullptr;  // level objects (optional)

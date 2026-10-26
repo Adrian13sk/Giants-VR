@@ -2535,3 +2535,19 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Storm lightning now shows the original's own bolt: xx_efx EFX_lightning_1.gbs (a 226 m tall additive card,
   texture EFX_lightning_1; its rain-box part skipped), unused by the levels; drawn 150-400 m off in front during
   the flicker, turned to face you, the thunder's delay matching. Harness Kstory5: the bolt at the brightest frame.
+
+## 2026-10-26 (evening): Delphi dives
+- Player: `diveDepth` lowers the water's floor below the floating depth (the swimming code is otherwise unchanged).
+  game_app_dive.cpp sets it for Delphi: stick forward x the view's pitch (beyond 14 degrees) x 1.2 swim speed, plus
+  the arm strokes' vertical part (strokeDive_, a pull up = down); idle drift up 0.25 m/s; kept 0.3 m above the bed,
+  at most 40 m.
+- Under (eye below the surface): fog 0.5..18-28 m in the deep water's colour (darker deeper), sun dimmed, the sky
+  haze off (fogMix uses the fog colour), and a new uUnder shader flag: no sky dome (the haze instead) and no
+  "depth below the surface" tint (that tint fakes water seen from above; from inside, everything below the surface
+  was painted flat water colour - Delphi's own arms included). Mixer: setMuffle (a glided one-pole low-pass on
+  the master, ~460 Hz fully under). Bubbles from her mouth every 0.6-2 s. The env changes are undone at the next
+  updateSun before anything else (as the weather light) so a level's base light is never captured hazed.
+- Found: the original's terrain mesh ends a little off the coast - under the open sea there is no bed, only the
+  haze; the terrain's edge shows as a straight drop-off where it ends.
+- devtest delphi_dive (Rstory1 deep water): "Delphi dives (the bed 3.8 m below the surface)", "Under the water".
+  ASan with audio 0 reports; sweep 56/56; swim_strokes / fish_catch / weather_rain unchanged.

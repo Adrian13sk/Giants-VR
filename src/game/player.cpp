@@ -253,8 +253,8 @@ void PlayerController::update(float dt, const PlayerInput& in) {
             objectGround = true;
         }
         // Deep water holds him up: floating, shoulders at the surface.
-        if (seaLevel - floatDepth > gg) {
-            gg = seaLevel - floatDepth;
+        if (seaLevel - floatDepth - diveDepth > gg) {
+            gg = seaLevel - floatDepth - diveDepth;
             waterGround = true;
             objectGround = false;
         }
