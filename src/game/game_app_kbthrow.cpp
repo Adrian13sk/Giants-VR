@@ -175,7 +175,7 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
         if (!r.hasTop && (r.regrow -= dt) <= 0) {
             r.hasTop = true;
             r.grow = 0;
-            sfx("ka_grnd1", r.top, 0.6f, 0.6f);
+            sfx("ka_grow", r.top, 0.6f, 0.6f);  // (was ka_grnd1: no such sound in the data)
         }
     for (auto& r : kbRocks_) r.grow = std::min(1.0f, r.grow + dt * 1.5f);
 

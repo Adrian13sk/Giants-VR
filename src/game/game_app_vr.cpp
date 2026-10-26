@@ -199,7 +199,7 @@ void GameApp::updateAmbush(float dt) {
             const Vec3 at = e.pos + Vec3{0, 0.9f, 0} + Quat::fromAxisAngle({0, 1, 0}, e.yaw).rotate(Vec3{0, 0, 0.3f});
             smokePuff(FxTex::Fire, at, Vec3{0, -6.0f, 0}, 0.25f, 0.6f, 0.25f, 0.9f, 0.0f);
             if (frand() < 0.3f) smokePuff(FxTex::SmokeGrey, at + Vec3{0, -0.8f, 0}, Vec3{0, -2.0f, 0}, 0.4f, 1.3f, 0.8f, 0.22f, 0.3f);
-            if (int(time_ * 4) != int((time_ - dt) * 4)) sfx("me_jtlp1", e.pos, 0.5f, 0.8f);
+            if (int(time_ * 4) != int((time_ - dt) * 4)) sfx("me_jpkth", e.pos, 0.5f, 0.8f);  // (was me_jtlp1: not in the data; the jetpack thrust)
         }
     if (!playMode_ || dying_ || cutsceneActive() || hero_ == Hero::Kabuto || skirmish_ || base_.on || riding_ || enemyPool_.empty() ||
         !assetWorld_ || load_.phase != LoadPhase::Idle || std::getenv("GVR_NO_AMBUSH") || !settings_.ambushes)
