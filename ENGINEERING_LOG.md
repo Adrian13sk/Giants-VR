@@ -2202,3 +2202,4 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   lands); blast deaths aim at the limb nearest the burst. Cutting the right arm drops the gun as a gib (Gib::base is
   now a rotation matrix, so it keeps the gun's in-hand orientation) and stops placing it (Enemy::gunArmOff).
 - Test hooks: GVR_DISMEMBER_TRACE, GVR_DISMEMBER_ALWAYS, GVR_DISMEMBER_LIMB=<bone>. Tests pass; sweep 56/56.
+- CPU check (GVR_PROF_SPIKES=<ms> logs each section over that, with its frame; GVR_PROF_BEGIN/END for non-scope sections; Reaper posing, guns and water now timed): across all 56 missions only two sections exceeded 3 ms after the loading frames (Kabuto's posing in kstory3_3 and the villagers in mission1, ~4.4 ms once each). The 21 ms first-frame Reaper gun load happens under the briefing.

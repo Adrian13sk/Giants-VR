@@ -21,6 +21,11 @@ bool profEnabled() {
 }
 
 void profAdd(const char* name, double ms) {
+    // GVR_PROF_SPIKES=<ms>: log each section that takes longer than that, when it does.
+    static const double spike = std::getenv("GVR_PROF_SPIKES") ? std::atof(std::getenv("GVR_PROF_SPIKES")) : 0.0;
+    static long frame = 0;
+    if (std::strcmp(name, "update (all)") == 0) ++frame;
+    if (spike > 0 && ms > spike) LOGI("prof spike: %s %.2f ms (frame %ld)", name, ms, frame);
     Stat& s = table()[name];
     s.sum += ms;
     s.worst = std::max(s.worst, ms);

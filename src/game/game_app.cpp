@@ -3728,6 +3728,7 @@ void GameApp::updateCombat(float dt) {
     wasSwimming_ = swim;
     for (auto& f : waterFx_) f.age += dt;
     waterFx_.erase(std::remove_if(waterFx_.begin(), waterFx_.end(), [](const WaterFx& f) { return f.age > 2.0f; }), waterFx_.end());
+    GVR_PROF_BEGIN(waterMisc, "water misc");
     if (swim && hero_ == Hero::Kabuto) {
         // Rework (user): no piranha takes on a giant - but Kabuto can't swim: out of his depth he
         // goes under and drowns unless he gets back to where he can stand.
@@ -3790,6 +3791,7 @@ void GameApp::updateCombat(float dt) {
         for (const auto& c : creatures_.creatures) ripple(c.pos, c.speed > 0.3f && c.state != CreatureState::Dead, 1.2f * c.scale);
         for (const auto& e : enemies_.enemies) ripple(e.pos, e.state == EnemyState::Advance, 1.6f);
     }
+    GVR_PROF_END(waterMisc);
     { GVR_PROF("schools"); updateSchools(dt); }
     // Health regenerates after 4 s without damage.
     sinceDamage_ += dt;
@@ -3832,6 +3834,7 @@ void GameApp::updateCombat(float dt) {
     // last pose; mid-distance ones are re-posed every other frame.
     const float poseFar = hero_ == Hero::Kabuto ? 400.0f : 130.0f;
     ++enemyPoseTick_;
+    GVR_PROF_BEGIN(poseEnemies, "pose enemies");
     for (auto& e : enemies_.enemies) {
         if (e.slot < 0) continue;
         const float pd = length(e.pos - player_.position);
@@ -3855,7 +3858,8 @@ void GameApp::updateCombat(float dt) {
         float& lift = slotLift_[size_t(e.slot)];
         lift += (-mn.y - lift) * std::min(1.0f, dt / 0.06f);
     }
-    placeReaperWeapons();  // the guns in their hands, from this frame's poses
+    GVR_PROF_END(poseEnemies);
+    { GVR_PROF("reaper guns"); placeReaperWeapons(); }  // the guns in their hands, from this frame's poses
     // Enemy shots from each Reaper's gun nozzle toward the player's chest, with spread.
     for (auto& e : enemies_.enemies) e.rocketCool = std::max(0.0f, e.rocketCool - dt);
     // Rework: a marksman's gun glows red for the moment before each shot - see it, and move.

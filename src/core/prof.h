@@ -27,3 +27,6 @@ struct ProfScope {
 #define GVR_PROF_CAT2(a, b) a##b
 #define GVR_PROF_CAT(a, b) GVR_PROF_CAT2(a, b)
 #define GVR_PROF(name) ::gvr::ProfScope GVR_PROF_CAT(prof_, __LINE__)(name)
+// A section that isn't a scope: GVR_PROF_BEGIN(id, "name") ... GVR_PROF_END(id).
+#define GVR_PROF_BEGIN(id, name) auto* id##_scope = new ::gvr::ProfScope(name)
+#define GVR_PROF_END(id) delete id##_scope
