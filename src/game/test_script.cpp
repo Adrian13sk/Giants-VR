@@ -58,6 +58,12 @@ bool TestScript::parse(const std::string& text, std::string& error) {
             s.what = cmd;
             ok = bool(ss >> s.x >> s.y >> s.z >> s.t0 >> s.t1) && s.t1 > s.t0;
             if (ok) spans.push_back(s);
+        } else if (cmd == "pitch_r" || cmd == "pitch_l") {
+            // (rework) the controller pitches by x degrees over [t0, t1] and stays there (a wrist twist)
+            Span s;
+            s.what = cmd;
+            ok = bool(ss >> s.x >> s.t0 >> s.t1) && s.t1 > s.t0;
+            if (ok) spans.push_back(s);
         } else if (cmd == "blast") {
             Blast b;
             ok = bool(ss >> b.x >> b.y >> b.h >> b.n >> b.t);
@@ -116,6 +122,13 @@ void TestScript::inputAt(float t, InputFrame& in) const {
         c.aimPose = c.gripPose;
     }
     for (const Span& s : spans) {
+        if (s.what == "pitch_r" || s.what == "pitch_l") {
+            const float k = std::max(0.0f, std::min(1.0f, (t - s.t0) / (s.t1 - s.t0)));
+            ControllerState& c = in.hand[s.what == "pitch_r" ? kRight : kLeft];
+            c.gripPose.orientation = c.gripPose.orientation * Quat::fromAxisAngle({1, 0, 0}, s.x * k * kDeg);
+            c.aimPose.orientation = c.gripPose.orientation;
+            continue;
+        }
         if (s.what == "hand_r" || s.what == "hand_l") {
             // Cumulative: the controller moves by (x, y, z) over [t0, t1] and stays there.
             const float k = std::max(0.0f, std::min(1.0f, (t - s.t0) / (s.t1 - s.t0)));

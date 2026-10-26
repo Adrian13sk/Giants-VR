@@ -268,6 +268,35 @@ void GameApp::updateRiding(float dt, const InputFrame& in) {
     const bool canGo = !raceMode_ || (race_.started() && raceEndT_ < 0);
     float throttle = canGo ? in.hand[mh].thumbstick.y : 0.0f;
     float steer = canGo ? in.hand[mh].thumbstick.x : 0.0f;
+    // Rework: handlebars (first person) - both grips squeezed take hold of the bars: turn them as a
+    // handlebar (the right grip pulled back steers right) and twist the throttle hand back (its
+    // knuckles toward you) to go; the sticks still work. Turbo is then A.
+    const bool bars = firstPerson_ && in.hand[0].gripPoseValid && in.hand[1].gripPoseValid && in.hand[0].squeeze > 0.6f && in.hand[1].squeeze > 0.6f;
+    if (bars) {
+        const Vec3 L = in.hand[kLeft].gripPose.position, R = in.hand[kRight].gripPose.position;  // (tracking space)
+        const float a = std::atan2(R.z - L.z, R.x - L.x);
+        const Vec3 tf = in.hand[th].gripPose.orientation.rotate(Vec3{0, 0, -1});
+        const float pitch = std::asin(std::max(-1.0f, std::min(1.0f, tf.y)));
+        if (!skiBars_) {
+            skiBars_ = true;
+            skiBarYaw0_ = a;
+            skiBarPitch0_ = pitch;
+            haptics_.push_back({kLeft, 0.4f, 0.05f});
+            haptics_.push_back({kRight, 0.4f, 0.05f});
+            LOGI("Handlebars taken");
+        }
+        if (canGo) {
+            const float bs = std::max(-1.0f, std::min(1.0f, angleDelta(skiBarYaw0_, a) / 0.45f));
+            const float tw = std::max(-0.5f, std::min(1.0f, (pitch - skiBarPitch0_) / 0.55f));
+            if (std::fabs(bs) > std::fabs(steer)) steer = bs;
+            if (std::fabs(tw) > std::fabs(throttle)) throttle = tw;
+        }
+        static const bool trace = std::getenv("GVR_SKI_TRACE") != nullptr;
+        static int tk = 0;
+        if (trace && ++tk % 36 == 0) LOGI("ski trace: bars steer %.2f throttle %.2f speed %.1f", steer, throttle, ski_.speed);
+    } else {
+        skiBars_ = false;
+    }
     if (std::getenv("GVR_SKI_AUTOPILOT") && canGo && raceMode_ && race_.nextGate <= int(race_.gates.size())) {
         // Test hook: full throttle along the first rival's racing line (25 m ahead of the nearest
         // point), else straight for the next gate.
@@ -310,7 +339,7 @@ void GameApp::updateRiding(float dt, const InputFrame& in) {
     }
     if (std::fabs(throttle) < 0.15f) throttle = 0;
     if (std::fabs(steer) < 0.15f) steer = 0;
-    const bool turbo = canGo && in.hand[mh].squeeze > 0.5f && skiTurbo_ > 0;
+    const bool turbo = canGo && (bars ? in.hand[th].primary : in.hand[mh].squeeze > 0.5f) && skiTurbo_ > 0;
     if (turbo) {
         if (skiTurbo_ > 0 && skiTurbo_ - dt <= 0) sfx2D("js_rrvd1", 0.7f);
         skiTurbo_ = std::max(0.0f, skiTurbo_ - dt);

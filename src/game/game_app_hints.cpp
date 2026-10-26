@@ -9,10 +9,23 @@
 namespace gvr {
 
 namespace {
-enum : int { kHintBody = 1, kHintStone = 2, kHintGun = 4, kHintSwim = 8 };
+enum : int { kHintBody = 1, kHintStone = 2, kHintGun = 4, kHintSwim = 8, kHintBars = 16 };
 }
 
 void GameApp::updateHints(float dt) {
+    // On the Reaperski: the handlebars, once.
+    if (riding_ && playMode_ && firstPerson_ && !cutsceneActive() && !menuOpen_ && !(settings_.hintsShown & kHintBars) && !skiBars_) {
+        rideHintT_ += dt;
+        if (rideHintT_ > 1.5f && timmyLineT_ <= 0) {
+            settings_.hintsShown |= kHintBars;
+            timmyLine_ = "HANDLEBARS: HOLD BOTH GRIPS, TURN THEM TO STEER, TWIST YOUR RIGHT HAND BACK FOR GAS - A FOR TURBO";
+            timmyLineT_ = 7.0f;
+            saveSettings();
+            LOGI("Hint: %s", timmyLine_.c_str());
+        }
+    } else {
+        rideHintT_ = 0;
+    }
     const bool can = playMode_ && firstPerson_ && !dying_ && !cutsceneActive() && !menuOpen_ && hero_ != Hero::Kabuto && !riding_;
     if (!can) { hintQuiet_ = 0; return; }
     hintPlay_ += dt;

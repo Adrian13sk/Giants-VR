@@ -2343,3 +2343,11 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Thrown guns and limbs (Gib::thrown, let go over 4 m/s) hit the first living Reaper they meet: a gun 6 + 1.6 x speed,
   a limb 3 + 0.8 x speed, a shove, a clang or a thud, and bounce off. Harness (gun_grab with a second Reaper 4.5 m
   ahead): "A thrown gun hits Reaper 2 at 8.3 m/s". Sweep 56/56.
+
+### 2026-10-26 — Rework: Reaperski handlebars
+- updateRiding: both grips over 0.6 (first person) take the bars (haptic tick). Steer = the bar's yaw change since
+  taken (tracking space, left hand to right hand) / 0.45 rad, clamped; throttle = the turn hand's pitch change since
+  taken / 0.55 rad (-0.5..1: a wrist twisted back is gas); whichever of stick or bars is larger wins. Turbo is A while
+  holding the bars (the move-hand grip is a bar). Hint once (hints_shown bit 16). New script command pitch_r/pitch_l
+  <deg> t0 t1 (a cumulative wrist twist). devtest ski_handlebars (rstory3_race_1): "Handlebars taken", throttle
+  1.00 after the twist, speed 4.4 -> 21 m/s after the start, steer 1.00 with the right grip pulled back. Sweep 56/56.
