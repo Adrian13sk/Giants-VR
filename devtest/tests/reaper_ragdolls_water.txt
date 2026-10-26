@@ -1,0 +1,10 @@
+# Rework (2026-10-26): three Reapers 6 m ahead in Delphi's shallow sea (r4a) are blown up - they splash in and sink.
+name reaper_ragdolls_water
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_RAGDOLL_TRACE 1
+duration 6
+reapers 3 6 0.3 1.0

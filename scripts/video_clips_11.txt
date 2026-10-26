@@ -1,0 +1,5 @@
+# Progress video 11 (rework): caption|world|mission|from frame|frames|env and harness args
+Pick up a stone and throw it at a Reaper|Story1|1c_1_firstmecc|20|330|--script devtest/tests/stone_throw.txt
+Take a Reaper's dropped gun away and throw it|Story1|1c_1_firstmecc|160|260|--script devtest/tests/gun_grab.txt
+Kabuto picks up a dead Reaper and eats it|Kstory1|k1a_smarties|120|300|--script devtest/tests/kabuto_body_eat.txt
+Reapers blown into the shallows splash in|Rstory4|r4a_buildbase|40|300|GVR_CUTSCENE=none GVR_GOD=1 GVR_NO_AMBUSH=1 --script devtest/tests/reaper_ragdolls_water.txt
