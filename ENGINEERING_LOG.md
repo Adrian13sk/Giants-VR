@@ -2153,3 +2153,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Harness: 5a blast - two Smarties thrown limp, one flies up, tumbles, lies; 2a_1 blast - a Vimp goes limp; 1d_1 -
   a Ripper killed by a blast without bursting goes limp, lies still after 5.3 s. devtest smartie_ragdolls.
 - scripts/video_ragdoll_clips.txt: before/after (GVR_NO_RAGDOLL), shot crumple, impale, Kabuto throw, Smarties.
+- Follow-ups from the cinema review (66 chains, cutrev2/3): "not staged" flags came from the first, too strict
+  named-tree rule (fixed by the two-pass preference); story3_mrhorn_2's 9-bone drawbridge took a Sonak's 74-node tree
+  (step 3 ties went to the first tree) - ties now go to the tree nearest the skeleton's size, all three Sonaks stage;
+  efx_* actors (efx_portal: a "black" void quad and a glow bar) are drawn unlit (SkinnedModel::renderGlow, their own
+  blending). scripts/make_video.sh captions now come from a text file (drawtext escaping cut "Delphi's sword: run
+  through, ..." at the comma and the clip was dropped from the join).

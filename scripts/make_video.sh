@@ -35,9 +35,10 @@ while IFS='|' read -r cap world mission from frames args; do
   env $envs GVR_MISSION="$mission" timeout 3000 "$HR" --data "$B" --world "$world" --play --frames $total \
       --video "$d" 3 --video-from "$from" --out "$d/final.png" $harg > "$d/log" 2>&1 < /dev/null
   echo "clip $n: $cap ($(ls "$d"/f*.png 2>/dev/null | wc -l) frames, exit $?)"
-  esc=$(printf '%s' "$cap" | sed "s/:/\\\\:/g; s/'/\\\\'/g")
+  # The caption from a file (drawtext's own escaping lost apostrophes and cut at colons and commas).
+  printf '%s' "$cap" > "$WORK/cap$n.txt"
   ffmpeg -nostdin -loglevel error -y -framerate 24 -i "$d/f%05d.png" \
-      -vf "drawtext=fontfile=$FONT:text='$esc':x=24:y=h-56:fontsize=28:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=10" \
+      -vf "drawtext=fontfile=$FONT:textfile=$WORK/cap$n.txt:x=24:y=h-56:fontsize=28:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=10" \
       -c:v libx264 -pix_fmt yuv420p -crf 20 "$WORK/c$n.mp4"
   echo "file '$WORK/c$n.mp4'" >> "$WORK/concat.txt"
   n=$((n + 1))

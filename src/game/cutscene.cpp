@@ -1,6 +1,7 @@
 #include "game/cutscene.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -9,6 +10,15 @@
 #include "core/log.h"
 
 namespace gvr {
+
+namespace {
+bool isEffectModel(std::string n) {
+    for (auto& c : n) c = char(std::tolower(static_cast<unsigned char>(c)));
+    const size_t slash = n.find_last_of('/');
+    if (slash != std::string::npos) n = n.substr(slash + 1);
+    return n.rfind("efx_", 0) == 0;
+}
+}  // namespace
 
 Mat4 gameMatrixToRuntime(const Mat4& m) {
     const float s = gGameUnitsToMeters, is = 1.0f / s;
@@ -183,7 +193,7 @@ bool CutscenePlayer::loadShot(const std::string& name) {
         //    Trees whose mover names another character come last: only if no other tree fits
         //    (kstory5_kabuto_fight_2's second Kabuto performs on a "Delphi_mover").
         for (int pass = 0; pass < 2 && table < 0 && sm; ++pass) {
-            size_t best = needBones;
+            size_t bestM = 0, bestExtra = ~size_t(0);
             for (int t = 0; t < int(tables.size()); ++t) {
                 if (claimed[size_t(t)] || tables[size_t(t)].camera) continue;
                 bool other = named[size_t(t)] && !similar(tables[size_t(t)].owner, me);
@@ -191,7 +201,16 @@ bool CutscenePlayer::loadShot(const std::string& name) {
                     if (tables[size_t(t)].owner.compare(0, std::strlen(c), c) == 0 && me.compare(0, std::strlen(c), c) == 0) other = false;
                 if (other != (pass == 1)) continue;
                 const size_t m = sm->boneMatches(tables[size_t(t)].anim);
-                if (m >= best) { best = m + 1; table = t; }
+                // Most bones matched; on a tie, the tree nearest the skeleton's size (story3_mrhorn_2's
+                // 9-bone drawbridge took a Sonak's 74-node tree, leaving that Sonak out).
+                const size_t extra = tables[size_t(t)].anim.nodes.size() > sm->boneCount() ? tables[size_t(t)].anim.nodes.size() - sm->boneCount()
+                                                                                           : sm->boneCount() - tables[size_t(t)].anim.nodes.size();
+                if (m > bestM || (m == bestM && m >= needBones && extra < bestExtra)) {
+                    if (m < needBones) continue;
+                    bestM = m;
+                    bestExtra = extra;
+                    table = t;
+                }
             }
         }
         // 4. Static: an unclaimed, mover-less table without a camera.
@@ -538,7 +557,10 @@ void CutscenePlayer::render(bool nearCull) {
                 if (!a.nearLogged) { a.nearLogged = true; LOGI("Cutscene %s: %s at the camera, not drawn", shotName_.c_str(), a.info.node.c_str()); }
                 continue;
             }
-            a.skinned->render(r_, a.xf);
+            // Effect models glow in their own light (efx_portal's glow bar over its black void, in
+            // rstory5_kabuto_stone_11).
+            if (isEffectModel(a.skinned->name())) a.skinned->renderGlow(r_, a.xf, 1.0f);
+            else a.skinned->render(r_, a.xf);
         } else if (a.model) {
             for (const auto& part : a.model->parts) {
                 DrawParams dp;
@@ -546,6 +568,7 @@ void CutscenePlayer::render(bool nearCull) {
                 dp.blend = part.blend;
                 if (part.glass) { dp.blend = BlendMode::AlphaBlend; dp.tint.w *= 0.3f; }
                 dp.unlit = !part.lit;
+                if (isEffectModel(a.model->name)) dp.unlit = true;  // (an effect's own light; its parts keep their blending)
                 r_.draw(part.mesh, a.xf, dp);
             }
         }
