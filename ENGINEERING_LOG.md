@@ -2529,3 +2529,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   35-65 m ahead of the eyes, surfaces (2.5 s), swims across at 7 m/s (7 s), rears (the clip, splashes at 15/62/85 %,
   a roar), swims 4 s, dives (3 s). Drawn in the underwater hook so the submerged body shows through the water.
   Sounds are loud enough to carry (the mixer's 1/d undone: volume x d/6, capped). devtest sea_monster.
+- Leftover bones: xx_bones' Bone_femur / Bone_rib / Bone_spine are 4 m / 9 m / 2.6 m (scenery-sized) and unused;
+  spawnBones() makes them Gibs scaled to 0.45 / 0.35 / 0.3 m: 2-3 out of Kabuto's mouth after eating a Smartie or a
+  Reaper (not a Vimp: there's meat), 3 where the Cleaners finish a body. kabuto_body_eat: "Bones: 3 left".

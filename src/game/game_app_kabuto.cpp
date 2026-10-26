@@ -474,6 +474,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
                 else if (k.eatTarget >= kVillagerTargetK) sfx2D(frand() < 0.5f ? "ka_smrt1" : "ka_smrt2", 1.0f);  // (names read as "Smartie")
                 else sfx2D(frand() < 0.5f ? "ka_eat1" : "ka_eat2", 1.0f);
                 haptics_.push_back({mh, 0.7f, 0.2f});
+                if (k.eatTarget < kVimpTargetK) spawnBones(mouth, 2 + int(frand() * 2.0f), fwd, 3.0f);  // (he spits out the bones)
                 LOGI("Kabuto ate something: health %.0f", playerHealth_);
             }
         }

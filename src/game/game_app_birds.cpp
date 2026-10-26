@@ -29,6 +29,7 @@ Vec3 fwdOf(float yaw) { return Vec3{-std::sin(yaw), 0, -std::cos(yaw)}; }
 
 void GameApp::initBirds(AssetWorld* w, ModelCache* mc) {
     birds_.clear();
+    boneModels_[0] = boneModels_[1] = boneModels_[2] = nullptr;  // (cached models: fetched again per level)
     feathers_.clear();
     birdsReady_ = false;
     for (int h = 0; h < 2; ++h) birdGripWas_[h] = false;

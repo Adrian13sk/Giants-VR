@@ -1889,7 +1889,11 @@ void GameApp::updateGore(float dt) {
         if (audio_) audio_->stop(it->second);
         LOGI("Body %u eaten", it->first);
         for (const auto& c : cleaners_.cleaners)
-            if (c.target == it->first) { sfx("cl_eaten", c.pos, 0.9f); break; }
+            if (c.target == it->first) {
+                sfx("cl_eaten", c.pos, 0.9f);
+                spawnBones(c.pos + Vec3{0, 0.3f, 0}, 3, Vec3{0, 0, 0}, 1.5f);  // (what's left)
+                break;
+            }
         it = eatLoops_.erase(it);
     }
     // Cleaner models: walk / eat / (jump while burrowing away).

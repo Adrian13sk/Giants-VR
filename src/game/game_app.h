@@ -540,6 +540,11 @@ private:
     // Rework, dismemberment (game_app_ragdoll.cpp): cuts off the limb of dead Reaper `e` nearest the
     // blow at `at` (head, an arm or a leg), throws it along `dir`; false if none could be cut.
     bool dismember(Enemy& e, const Vec3& at, const Vec3& dir);
+    // Rework: leftover bones (xx_bones: femur, rib, spine - unused by the levels) tumbling out of
+    // Kabuto's mouth after a meal, or left where the Cleaners finished a body. Gibs: they can be
+    // picked up and thrown like any.
+    void spawnBones(const Vec3& at, int n, const Vec3& push, float speed);
+    const RenderModel* boneModels_[3] = {};
     // The limb of Reaper e nearest `at` (head, l/r arm, l/r thigh by the skin's names), its distance.
     std::string nearestLimb(const Enemy& e, const Vec3& at, float& dist);
     // His gun leaves his hand as a gib with velocity `vel` (rework: shot out of his hand, the arm cut off).

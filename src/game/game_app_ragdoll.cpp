@@ -12,6 +12,7 @@
 #include "game/game_app.h"
 #include "game/villager.h"
 #include "game/vimp.h"
+#include "scene/asset_world.h"
 #include "scene/model_cache.h"
 
 namespace gvr {
@@ -387,6 +388,37 @@ bool GameApp::dismember(Enemy& e, const Vec3& at, const Vec3& dir) {
     blood_.pool(e.pos, 1.0f);
     LOGI("dismember: Reaper %u loses his %s", e.uid, best.c_str());
     return true;
+}
+
+void GameApp::spawnBones(const Vec3& at, int n, const Vec3& push, float speed) {
+    if (!assetWorld_) return;
+    if (!boneModels_[0] && assetWorld_->models()) {
+        ModelCache& mc = *assetWorld_->models();
+        boneModels_[0] = mc.get("Bone_femur.gbs", "", true);
+        boneModels_[1] = mc.get("Bone_rib.gbs", "", true);
+        boneModels_[2] = mc.get("Bone_spine.gbs", "", true);
+        if (!boneModels_[0]) LOGW("Bones: models unavailable");
+    }
+    int made = 0;
+    for (int k = 0; k < n; ++k) {
+        const RenderModel* m = boneModels_[k % 3];
+        if (!m) continue;
+        Gib g;
+        g.model = m;
+        g.pos = at;
+        g.vel = push * speed + Vec3{(frand() - 0.5f) * speed, 0.5f * speed + frand() * speed, (frand() - 0.5f) * speed};
+        g.axis = normalize(Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} + Vec3{0.01f, 0, 0});
+        g.angle = frand() * 6.28f;
+        g.spin = 3.0f + 5.0f * frand();
+        // (the art is giant-sized - a 4 m femur, a 9 m rib, for skeleton scenery: shrunk to a body's bones)
+        const Vec3 ext = m->boundsMax - m->boundsMin;
+        const float big = std::max(ext.x, std::max(ext.y, ext.z));
+        const float want = k % 3 == 0 ? 0.45f : (k % 3 == 1 ? 0.35f : 0.3f);
+        g.scale = big > 1e-3f ? want / big : 1.0f;
+        gibs_.push_back(g);
+        ++made;
+    }
+    if (made) LOGI("Bones: %d left at (%.1f %.1f %.1f)", made, at.x, at.y, at.z);
 }
 
 }  // namespace gvr
