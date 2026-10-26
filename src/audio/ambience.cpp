@@ -66,6 +66,7 @@ const char* ambienceName(AmbienceKind kind) {
         case AmbienceKind::River: return "amb_river";
         case AmbienceKind::Rumble: return "amb_rumble";
         case AmbienceKind::Rain: return "amb_rain";
+        case AmbienceKind::Thunder: return "amb_thunder";
     }
     return "amb_wind";
 }
@@ -81,8 +82,9 @@ WavData makeAmbience(AmbienceKind kind, uint32_t rate, uint32_t seed) {
         case AmbienceKind::River: loopS = 10.0f; break;
         case AmbienceKind::Rumble: loopS = 12.0f; break;
         case AmbienceKind::Rain: loopS = 8.0f; break;
+        case AmbienceKind::Thunder: loopS = 7.0f; break;
     }
-    const size_t loop = size_t(loopS * fr), fade = size_t(0.75f * fr), n = loop + fade;
+    const size_t loop = size_t(loopS * fr), fade = kind == AmbienceKind::Thunder ? 0 : size_t(0.75f * fr), n = loop + fade;
     std::vector<float> g(n, 0.0f);
     float brown = 0;
     auto nextBrown = [&]() { brown = 0.996f * brown + 0.06f * rng.white(); return brown; };
@@ -172,6 +174,22 @@ WavData makeAmbience(AmbienceKind kind, uint32_t rate, uint32_t seed) {
             }
             break;
         }
+        case AmbienceKind::Thunder: {
+            // A crack, then the roll: deep noise swelling and dying away in a few bursts.
+            OnePole crackLo(900.0f, fr), crackHi(5000.0f, fr), roll(140.0f, fr), roll2(60.0f, fr);
+            float bursts[5][2];  // time, size
+            for (int k = 0; k < 5; ++k) { bursts[k][0] = 0.25f + 3.5f * rng.uni() * rng.uni(); bursts[k][1] = 0.4f + 0.6f * rng.uni(); }
+            for (size_t i = 0; i < n; ++i) {
+                const float t = float(i) / fr;
+                const float w = rng.white(), b = nextBrown();
+                const float crack = (crackHi(w) - crackLo(w)) * std::exp(-t / 0.09f) * std::min(1.0f, t / 0.004f) * 1.4f;
+                float env = std::exp(-t / 2.2f) * std::min(1.0f, t / 0.12f);
+                for (int k = 0; k < 5; ++k) env += bursts[k][1] * std::exp(-std::fabs(t - bursts[k][0]) / (0.35f + 0.2f * float(k)));
+                env *= std::max(0.0f, 1.0f - t / loopS);  // (to silence at the end)
+                g[i] = crack + (roll(b) * 1.0f + roll2(b) * 1.4f) * env;
+            }
+            break;
+        }
         case AmbienceKind::Rain: {
             // A steady hiss of falling rain and drops ticking on leaves and ground.
             OnePole lo(500.0f, fr), hi(6000.0f, fr), body(1500.0f, fr);
@@ -195,7 +213,7 @@ WavData makeAmbience(AmbienceKind kind, uint32_t rate, uint32_t seed) {
     WavData out;
     out.rate = rate;
     out.channels = 1;
-    out.mono = fold(std::move(g), loop, fade);
+    out.mono = fade ? fold(std::move(g), loop, fade) : std::move(g);
     normalize(out.mono, kind == AmbienceKind::Rumble ? 0.9f : 0.75f);
     return out;
 }

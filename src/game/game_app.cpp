@@ -4397,7 +4397,7 @@ void GameApp::update(float dt, const InputFrame& in) {
     time_ += dt;
     if (dt > 1e-4f) fpsSmooth_ += (1.0f / dt - fpsSmooth_) * std::min(1.0f, dt * 2.0f);
     updateQuality(dt);
-    { GVR_PROF("sun"); updateSun(dt); }
+    { GVR_PROF("sun"); updateSun(dt); applyWeatherLight(dt); }
     updateHeroScale();  // Kabuto's giant scale only in play (not loading, cutscenes, free camera)
     // Story progression: once a mission is complete and its outro has played, the screen fades to
     // the loading / briefing screen (as the original goes through its mission briefing), the next

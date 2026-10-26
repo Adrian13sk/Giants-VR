@@ -9,7 +9,7 @@
 
 namespace gvr {
 
-enum class AmbienceKind { Surf, Wind, Leaves, River, Rumble, Rain };
+enum class AmbienceKind { Surf, Wind, Leaves, River, Rumble, Rain, Thunder };  // (Thunder: a one-shot, not a loop)
 
 // Generates `kind` at `rate` Hz (deterministic for a seed).
 WavData makeAmbience(AmbienceKind kind, uint32_t rate, uint32_t seed = 1);

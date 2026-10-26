@@ -49,6 +49,8 @@ void GameApp::makeAmbienceSounds() {
     if (!audio_ || audio_->hasSound(ambienceName(AmbienceKind::Surf))) return;
     const AmbienceKind kinds[] = {AmbienceKind::Surf, AmbienceKind::Wind, AmbienceKind::Leaves, AmbienceKind::River, AmbienceKind::Rumble, AmbienceKind::Rain};
     for (AmbienceKind k : kinds) audio_->addSound(ambienceName(k), makeAmbience(k, 22050, 7));
+    for (uint32_t v = 0; v < 3; ++v)  // three different claps of thunder
+        audio_->addSound(std::string(ambienceName(AmbienceKind::Thunder)) + char('1' + v), makeAmbience(AmbienceKind::Thunder, 22050, 11 + v));
     LOGI("Ambience: loops made");
 }
 
@@ -251,6 +253,52 @@ void GameApp::renderWeather() {
     dp.depthWrite = false;
     dp.doubleSided = true;
     weatherBatch_.draw(renderer_, dp);
+}
+
+void GameApp::applyWeatherLight(float dt) {
+    // Rain and snow: an overcast sky - the sun weaker, the haze greyer. A storm: lightning now and
+    // then (a flicker of white light over everything), its thunder a moment later.
+    const bool on = settings_.ambience >= 2 && weather_ != 0 && playMode_ && !title_ && !cutsceneActive();
+    weatherK_ += ((on ? 1.0f : 0.0f) - weatherK_) * std::min(1.0f, dt * 0.5f);
+    EnvironmentParams& env = renderer_.environment();
+    if (weatherK_ > 0.001f) {
+        const float sun = weather_ == 2 ? 0.6f : (weather_ == 1 ? 0.68f : 0.8f);
+        const float k = weatherK_;
+        env.sunColor = env.sunColor * (1.0f - (1.0f - sun) * k);
+        const float g = (env.fogColor.x + env.fogColor.y + env.fogColor.z) / 3.0f;
+        const float grey = weather_ == 2 ? 0.15f : 0.3f;
+        env.fogColor = env.fogColor + (Vec3{g, g, g * 1.05f} - env.fogColor) * (grey * k);
+        env.clearColor = env.fogColor;
+        env.skyHorizon = env.fogColor;
+    }
+    if (on && weather_ == 2) {
+        lightningNext_ -= dt;
+        if (lightningNext_ <= 0) {
+            lightningNext_ = 7.0f + 14.0f * frand();
+            lightningT_ = 0.0f;
+            thunderDelay_ = 0.4f + 2.6f * frand();
+            LOGI("Weather: lightning (thunder in %.1f s)", thunderDelay_);
+        }
+    }
+    if (lightningT_ >= 0) {
+        lightningT_ += dt;
+        // Two or three flickers in a quarter of a second, then gone.
+        const float t = lightningT_;
+        const float f = t < 0.06f ? 1.0f : (t < 0.1f ? 0.25f : (t < 0.16f ? 0.8f : std::max(0.0f, 0.6f - (t - 0.16f) * 4.0f)));
+        if (t > 0.4f) lightningT_ = -1.0f;
+        env.ambientColor = env.ambientColor + Vec3{0.75f, 0.78f, 0.9f} * f;
+        env.skyTint = env.skyTint * (1.0f + 1.6f * f);
+        env.fogColor = env.fogColor + Vec3{0.25f, 0.26f, 0.32f} * f;
+        env.clearColor = env.fogColor;
+        env.skyHorizon = env.fogColor;
+    }
+    if (thunderDelay_ > 0) {
+        thunderDelay_ -= dt;
+        if (thunderDelay_ <= 0 && audio_) {
+            const std::string name = std::string(ambienceName(AmbienceKind::Thunder)) + char('1' + int(frand() * 2.999f));
+            audio_->play2D(name, 0.55f + 0.35f * frand(), 0.85f + 0.25f * frand());
+        }
+    }
 }
 
 }  // namespace gvr

@@ -2484,3 +2484,7 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   phase. Weather from the level marker (GVR_WEATHER to force): light rain 600 streaks, storm 1100 (faster, slanted),
   snow 900 flakes swaying, in a cylinder round the head (13 m, wrapped as you move), splashes near you, lit by the
   sky; the rain's hiss in 2D. Off at AMBIENCE OFF; weather only at SOUNDS + WEATHER (the default).
+- Weather light: rain/snow/storm make the sky overcast (sun x0.6-0.8, haze greyer, faded in over ~2 s); the storm
+  has lightning every 7-21 s (two or three flickers in 0.4 s: ambient, sky and haze brightened) and thunder 0.4-3 s
+  later (three procedural claps: a crack and a roll of deep noise bursts, a one-shot). Harness Kstory5, 1500 frames:
+  2 strikes; frame brightness 32.8 -> 50.5 at the flash; audio rms 0.057 -> 0.14 in the thunder.

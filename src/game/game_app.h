@@ -1501,6 +1501,8 @@ private:  // the mission placed enemies: no test waves
     TextureId weatherTex_ = 0;
     void initAmbience(AssetWorld* w);
     void makeAmbienceSounds();
+    void applyWeatherLight(float dt);
+    float weatherK_ = 0, lightningT_ = -1.0f, lightningNext_ = 5.0f, thunderDelay_ = 0;
     void updateAmbience(float dt);
     void updateWeather(float dt);
     void renderWeather();
