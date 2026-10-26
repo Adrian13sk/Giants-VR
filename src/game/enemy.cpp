@@ -435,6 +435,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 if (!sees) { e.state = EnemyState::Idle; break; }
                 e.fireCooldown -= dt;
                 if (e.burstLeft > 0) {
+                    e.ducked = false;  // (up to fire: the next pause ducks again)
                     // Rework: pressing in - a Reaper not yet at his stand-off distance walks at you while
                     // he fires (rpman_walk_fire), instead of standing still to be shot.
                     const bool press = (params.pressIn && e.role != 1) && !e.posted && dist > fireR + 2.0f;
@@ -452,8 +453,15 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                         e.fireCooldown = e.burstLeft > 0 ? params.fireInterval : burstP;
                     }
                 } else {
-                    // Between bursts: a Reaper in cover or a croucher stays down (rpman_crouch_breathe).
-                    setClip(e, (e.inCover || e.role == 2) && e.weapon != 1 ? EnemyClip::CrouchIdle : EnemyClip::Idle, true);
+                    // Between bursts: a Reaper in cover ducks right down behind it (rpman_rock_into, then
+                    // rpman_rock_breathe: rework); a croucher stays down (rpman_crouch_breathe).
+                    if (e.inCover && e.weapon != 1) {
+                        if (!e.ducked) { setClip(e, EnemyClip::RockInto, false); e.ducked = true; }
+                        else if (e.clip == EnemyClip::RockInto && e.clipTime >= clipDuration[int(EnemyClip::RockInto)] * 0.97f) setClip(e, EnemyClip::RockBreathe, true);
+                        else if (e.clip != EnemyClip::RockInto && e.clip != EnemyClip::RockBreathe) setClip(e, EnemyClip::RockBreathe, true);
+                    } else {
+                        setClip(e, e.role == 2 && e.weapon != 1 ? EnemyClip::CrouchIdle : EnemyClip::Idle, true);
+                    }
                     if (e.fireCooldown <= 0) {
                         if (--e.burstsLeft > 0) {
                             e.burstLeft = burstN;

@@ -17,7 +17,7 @@
 namespace gvr {
 
 enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, FallCycle, FallLand, Poke,
-                             KneelFire, Punch, DieHead, DieKnees, Throw, Hover, CrouchFire, HitBig, GetUp, BzkaFire, CrouchIdle, Count };  // (from KneelFire on: rework)
+                             KneelFire, Punch, DieHead, DieKnees, Throw, Hover, CrouchFire, HitBig, GetUp, BzkaFire, CrouchIdle, RockInto, RockBreathe, Count };  // (from KneelFire on: rework)
 enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead, Falling };
 
 struct Enemy {
@@ -77,6 +77,7 @@ struct Enemy {
     bool punchPending = false;
     bool dropping = false;
     bool inCover = false;   // rework: running to / firing from coverAt
+    bool ducked = false;    // rework: down behind its cover between bursts (rpman_rock_into, then rpman_rock_breathe)
     Vec3 coverAt, coverFrom; // the spot, and where the player was when it was chosen  // rework: coming down on a hover pack (an ambush from the air)
     // Rework: ragdolls (game_app_ragdoll.cpp). kick: the impulses of the last moments (m/s, decaying,
     // shots, blasts, blows - also on the dead); ragdoll: the body is a ragdoll (the game layer moves it).
@@ -157,6 +158,7 @@ public:
     float bodyHeight(const Enemy& e) const {
         if (e.state == EnemyState::Hit && e.clip == EnemyClip::HitBig) return params.height * 0.45f;  // knocked down
         if (e.state == EnemyState::Hit && e.clip == EnemyClip::GetUp) return params.height * 0.75f;
+        if (e.state == EnemyState::Fire && (e.clip == EnemyClip::RockInto || e.clip == EnemyClip::RockBreathe)) return params.height * 0.5f;  // ducked
         return (e.clip == EnemyClip::CrouchFire || e.clip == EnemyClip::KneelFire || e.clip == EnemyClip::BzkaFire || e.clip == EnemyClip::CrouchIdle) && e.state == EnemyState::Fire ? params.height * 0.66f : params.height;
     }
     // A one-shot action clip that holds until it ends (rework: the grenade throw).

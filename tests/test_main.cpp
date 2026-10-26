@@ -535,6 +535,16 @@ static void testEnemies() {
             tookCover = c.enemies[0].inCover && length(c.enemies[0].pos - Vec3{6, 0, -14}) < 1.2f;
         }
         CHECK(tookCover);
+        // Between bursts there he ducks right down (rpman_rock_into, then rpman_rock_breathe): a smaller target.
+        bool ducked = false, breathed = false;
+        c.enemies[0].weapon = 0;
+        for (int i = 0; i < 72 * 20 && !breathed; ++i) {
+            c.update(1.0f / 72.0f, Vec3{0, 0, 0}, true, sh);
+            const Enemy& ce = c.enemies[0];
+            if (ce.state == EnemyState::Fire && ce.clip == EnemyClip::RockInto) ducked = true;
+            if (ducked && ce.state == EnemyState::Fire && ce.clip == EnemyClip::RockBreathe) breathed = c.bodyHeight(ce) < 0.51f * c.params.height;
+        }
+        CHECK(ducked && breathed);
         // A heavy blow knocks him down (a low hit box), he gets up, then fights on.
         EnemyDirector k;
         k.groundHeight = r.groundHeight;
