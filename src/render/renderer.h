@@ -43,7 +43,7 @@ struct DrawParams {
     float sway = 0.0f;      // wind: metres the top (uv v = 0) of a card sways (grass); 0 = still; < 0: a tree bending (-sway m at 10 m up)
     // Material: Standard (lit/unlit textured), Water (animated surface: waves, fresnel sky
     // reflection, sun glints), Sky (drifting clouds, sun disc and glow).
-    enum class Material : uint8_t { Standard, Water, Sky, Terrain, Grass } material = Material::Standard;
+    enum class Material : uint8_t { Standard, Water, Sky, Terrain, Grass, Stone } material = Material::Standard;
     bool alphaCoverage = false;  // AlphaTest edges as MSAA coverage (when the target is multisampled)
 };
 

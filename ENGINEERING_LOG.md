@@ -2172,3 +2172,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   head", the head flies, the body lies headless; ragdoll blast script: "Reaper 5 loses his head". HARNESS only.
 - Graphics: non-green worlds now get sparse dry tufts (30 % density, the ground's own colour: orange scrub on
   Story3's sand); snow/ice grounds (blue above green, or very bright) none - Rstory2's flats stay bare.
+- Graphics: ground stones. Up to 260 jittered, squashed icosahedra (20 flat-shaded faces each, every face oriented
+  outward from the centre - a remembered face list had mixed winding and showed half-shells) on a 1.3 m hashed grid
+  in 9 m patches within the grass radius, rebuilt with the grass, one dynamic mesh, one draw (also at the fallback
+  quality). New Material::Stone: the ground's colour at the stone (terrainColor with an up normal, bias 3), paled,
+  grained by the rock texture's luminance against its mean, lit like rock (0.55 + 0.9 ndl) - the terrain rock layer
+  itself is near-black on several worlds (their cliffs only read through baked light).

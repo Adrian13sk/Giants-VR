@@ -1530,6 +1530,13 @@ private:  // the mission placed enemies: no test waves
     Vec3 grassCentre_{1e9f, 0, 1e9f}, grassColor_{0.3f, 0.4f, 0.2f};
     TextureId grassTex_ = 0;
     QuadBatch grassBatch_;
+    // Rework: stones scattered on the ground near the player (game_app_grass.cpp), drawn with the
+    // terrain material - their sides take the world's rock, their tops its ground.
+    MeshId pebbleMesh_ = 0;
+    size_t pebbleVerts_ = 0, pebbleUsed_ = 0;
+    std::vector<Vertex> pebbleBuf_;
+    void buildPebbles(const Vec3& c, float radius);
+    void renderPebbles();
     void renderObjectiveMarker();
     float playerHitTop() const;
     bool handReach(const Vec3& p, float r) const;

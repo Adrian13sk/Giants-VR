@@ -400,9 +400,19 @@ void main() {
     }
     // (The terrain colour from one expression, as a select: called twice, or inside an if, Mesa's
     // llvmpipe - the PC test renderer - miscompiled the whole shader.)
-    bool terr = uMaterial == 3 || uMaterial == 4;
-    vec4 base = terr ? vec4(terrainColor(vWorldPos, uMaterial == 4 ? vec3(0.0, 1.0, 0.0) : normalize(vNormal), vUv, d, uMaterial == 4 ? 10.0 : 0.0), 1.0)
+    bool terr = uMaterial >= 3;
+    vec4 base = terr ? vec4(terrainColor(vWorldPos, uMaterial >= 4 ? vec3(0.0, 1.0, 0.0) : normalize(vNormal), vUv, d, uMaterial == 4 ? 10.0 : (uMaterial == 5 ? 3.0 : 0.0)), 1.0)
                      : texture(uTex, vUv);
+    if (uMaterial == 5) {
+        // Rework stones: the ground's colour (dusty, a little paler), grained by the rock texture's
+        // brightness (one projection along the dominant axis of the facet).
+        vec3 an = abs(vNormal);
+        highp vec2 q = an.x > an.z ? vWorldPos.zy : vWorldPos.xy;
+        if (an.y > max(an.x, an.z)) q = vWorldPos.xz;
+        float g = dot(texture(uTerrRock, q * 0.9).rgb, vec3(0.299, 0.587, 0.114));
+        float gm = dot(textureLod(uTerrRock, vec2(0.5), 10.0).rgb, vec3(0.299, 0.587, 0.114));
+        base.rgb = mix(base.rgb, vec3(dot(base.rgb, vec3(0.333))), 0.35) * clamp(0.75 + 0.6 * (g - gm) / max(gm, 0.05), 0.45, 1.5) * 1.05;
+    }
     if (uMaterial == 4) {
         // Rework grass: the card's blade coordinates (x across, y up, z the tuft's tone) ride in the
         // normal; vUv is the ground's own texture coordinate under the tuft, so the blades take the
@@ -431,9 +441,10 @@ void main() {
     vec3 n = normalize(vNormal);
     if (!gl_FrontFacing) n = -n;
     if (uMaterial == 4) n = vec3(0.0, 1.0, 0.0);  // grass: lit like the ground
+    float stoneK = uMaterial == 5 ? 1.0 : 0.0;  // stones: the facets lit by the sun as rock
     float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
     vec3 ng = n;  // the geometric normal (shadow lookups)
-    if (uLook > 0.5 && uLook < 1.5 && d < 45.0 && uMaterial != 4) {
+    if (uLook > 0.5 && uLook < 1.5 && d < 45.0 && uMaterial < 4) {
         // Relief up close (fades out by 45 m: no shimmer far away). Terrain a little deeper.
         float k = (uMaterial == 3 ? 0.10 : 0.025) * (1.0 - smoothstep(25.0, 45.0, d));
         // Terrain: the relief of its detail noise (the ground textures are too soft to read from).
@@ -452,7 +463,7 @@ void main() {
         // Baked lighting (lightmaps, vertex colours) still darkens under a moving shadow, and the
         // moving sun brightens what faces it a little.
         // (Rock: the relief shows - ledges lit, cracks dark - around the same mean brightness.)
-        rgb = base.rgb * mix(0.36, 1.0, sh) * mix(0.86 + 0.32 * ndl * sh, 0.6 + 0.85 * ndl * sh, uMaterial == 3 ? gRockW : 0.0) * uBakedLight;
+        rgb = base.rgb * mix(0.36, 1.0, sh) * mix(0.86 + 0.32 * ndl * sh, 0.55 + 0.9 * ndl * sh, uMaterial == 3 ? gRockW : stoneK) * uBakedLight;
     } else {
         // Sky light from above, darker bounce from below; warm sun; a faint rim of sky light.
         vec3 amb = uAmbient * mix(vec3(0.62, 0.58, 0.52), vec3(1.08, 1.1, 1.18), n.y * 0.5 + 0.5) * (uLook > 0.5 ? 1.25 : 1.0);
