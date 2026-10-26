@@ -1498,7 +1498,7 @@ private:  // the mission placed enemies: no test waves
     // the clear shallows near the player; they dart away from a wading / swimming player, a hand
     // in the water, a splash or a shot, then gather again.
     struct ShinerFish { Vec3 pos, vel, offset; float yaw = 0, flee = 0; };
-    struct ShinerSchool { Vec3 centre, target; float wanderT = 0; bool live = false; std::vector<ShinerFish> fish; };
+    struct ShinerSchool { Vec3 centre, target; float wanderT = 0, swimDepth = 0.35f; bool live = false; std::vector<ShinerFish> fish; };
     std::vector<ShinerSchool> shinerSchools_;
     std::vector<std::unique_ptr<SkinnedModel>> shinerModels_;  // a few, posed at different phases
     float shinerLift_ = 0, shinerSpawnT_ = 0;

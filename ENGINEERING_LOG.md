@@ -2563,3 +2563,5 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Speed wind: the procedural wind loop played 2D at pitch 1.35, volume with speed (6 -> 22 m/s, at most 0.7; a
   giant's speed divided by sqrt of his scale; the Reaperski's speed counts) - the rush of air in a jetpack dive or
   a fall. Harness Story1 jetpack flight: audio rms 0.029 -> 0.045 in the fast part.
+- Fish for divers: with Delphi, schools also go in water up to 14 m deep, swimming 1-5 m down where it is over
+  4 m deep; a still hand draws its school to the hand's own depth. delphi_dive: a school 4.2 m deep at 3 m down.

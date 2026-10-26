@@ -77,11 +77,14 @@ bool GameApp::placeSchool(ShinerSchool& sc, const Vec3& near, float minD, float 
         float g;
         if (!t.heightAt(c.x, c.z, g)) continue;
         const float depth = player_.seaLevel - g;
-        if (depth < 0.8f || depth > 3.0f) continue;
+        // (Delphi dives: deeper water too, the school swimming deeper in it)
+        const float maxDepth = hero_ == Hero::Delphi ? 14.0f : 3.0f;
+        if (depth < 0.8f || depth > maxDepth) continue;
         bool clash = false;
         for (const ShinerSchool& o : shinerSchools_) clash |= &o != &sc && o.live && length(o.centre - c) < 8.0f;
         if (clash) continue;
-        sc.centre = sc.target = Vec3{c.x, player_.seaLevel - 0.35f, c.z};
+        sc.swimDepth = depth > 4.0f ? 1.0f + frand() * std::min(5.0f, depth - 2.0f) : 0.35f;
+        sc.centre = sc.target = Vec3{c.x, player_.seaLevel - sc.swimDepth, c.z};
         sc.wanderT = 0;
         sc.live = true;
         sc.fish.assign(size_t(7 + int(frand() * 6.0f)), ShinerFish{});
@@ -188,12 +191,12 @@ void GameApp::updateFish(float dt) {
             for (int k = 0; k < 6; ++k) {
                 const Vec3 c = sc.centre + Vec3{(frand() - 0.5f) * 10.0f, 0, (frand() - 0.5f) * 10.0f};
                 const float d = depthAt(c.x, c.z);
-                if (d > 0.7f && d < 3.5f) { sc.target = Vec3{c.x, sea - 0.35f, c.z}; break; }
+                if (d > 0.7f && d < std::max(3.5f, sc.swimDepth + 2.0f)) { sc.target = Vec3{c.x, sea - sc.swimDepth, c.z}; break; }
             }
         }
         for (const Vec3& hp : stillHands)
             if (length(Vec3{hp.x - sc.centre.x, 0, hp.z - sc.centre.z}) < 6.0f && depthAt(hp.x, hp.z) > 0.3f) {
-                sc.target = Vec3{hp.x, sea - 0.35f, hp.z};
+                sc.target = Vec3{hp.x, std::min(sea - 0.2f, hp.y), hp.z};  // (to the hand: a diver's too)
                 sc.wanderT = std::max(sc.wanderT, 1.5f);
             }
         Vec3 to = sc.target - sc.centre;
