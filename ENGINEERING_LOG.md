@@ -2184,3 +2184,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   triplanar/strata work never reached them. Both paths now blend a second sample at ~1/4 the frequency (offset),
   by large-scale noise and more with distance (look 1: triplanar pair; look 2: one extra fetch). The grid is gone.
 - Rock projection follows the true facet normal (cross of screen-space derivatives) instead of the smoothed vertex normal: sheer terrain walls (Rstory2's ice canyons) had a band of smeared streaks where the smoothed normal still leaned up. Both quality levels.
+- Reapers: cover behind trees. findCover now also offers class-60 objects (trees) at their placement point (the
+  trunk; their bounding radius is the fronds' 6-20 m, which had excluded them), the spot 0.75 m behind the trunk
+  away from the player, with a tree flag; such a Reaper hides standing (TreeHide -> TreeBreathe, a TreePeek now and
+  then; bodyHeight 0.25 x while hidden), rocks/walls keep the duck (RockInto -> RockBreathe). Unit test for both;
+  1c_1: four Reapers take cover behind palms and fire round them. Sweep 56/56.

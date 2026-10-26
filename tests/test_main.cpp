@@ -526,7 +526,7 @@ static void testEnemies() {
         c.params.crouchers = 0;
         c.params.coverShare = 1.0f;
         c.params.punch = false;
-        c.findCover = [](const Vec3&, const Vec3&, Vec3& spot) { spot = Vec3{6, 0, -14}; return true; };
+        c.findCover = [](const Vec3&, const Vec3&, Vec3& spot, bool& tree) { spot = Vec3{6, 0, -14}; tree = false; return true; };
         c.spawn({0, 0, -15}, kPi);
         c.enemies[0].aware = true;
         bool tookCover = false;
@@ -545,6 +545,25 @@ static void testEnemies() {
             if (ducked && ce.state == EnemyState::Fire && ce.clip == EnemyClip::RockBreathe) breathed = c.bodyHeight(ce) < 0.51f * c.params.height;
         }
         CHECK(ducked && breathed);
+        // Behind a tree he stands flat against the trunk (rpman_behind_tree_hide, then _breathe; a sliver to hit).
+        EnemyDirector t;
+        t.groundHeight = r.groundHeight;
+        for (auto& cd : t.clipDuration) cd = 0.6f;
+        t.params.marksmen = 0;
+        t.params.crouchers = 0;
+        t.params.coverShare = 1.0f;
+        t.params.punch = false;
+        t.findCover = [](const Vec3&, const Vec3&, Vec3& spot, bool& tree) { spot = Vec3{6, 0, -14}; tree = true; return true; };
+        t.spawn({0, 0, -15}, kPi);
+        t.enemies[0].aware = true;
+        t.enemies[0].weapon = 0;
+        bool hid = false;
+        for (int i = 0; i < 72 * 40 && !hid; ++i) {
+            t.update(1.0f / 72.0f, Vec3{0, 0, 0}, true, sh);
+            const Enemy& te = t.enemies[0];
+            hid = te.treeCover && te.state == EnemyState::Fire && te.clip == EnemyClip::TreeBreathe && t.bodyHeight(te) < 0.3f * t.params.height;
+        }
+        CHECK(hid);
         // A heavy blow knocks him down (a low hit box), he gets up, then fights on.
         EnemyDirector k;
         k.groundHeight = r.groundHeight;

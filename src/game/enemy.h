@@ -17,7 +17,7 @@
 namespace gvr {
 
 enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, FallCycle, FallLand, Poke,
-                             KneelFire, Punch, DieHead, DieKnees, Throw, Hover, CrouchFire, HitBig, GetUp, BzkaFire, CrouchIdle, RockInto, RockBreathe, Count };  // (from KneelFire on: rework)
+                             KneelFire, Punch, DieHead, DieKnees, Throw, Hover, CrouchFire, HitBig, GetUp, BzkaFire, CrouchIdle, RockInto, RockBreathe, TreeHide, TreeBreathe, TreePeek, Count };  // (from KneelFire on: rework)
 enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead, Falling };
 
 struct Enemy {
@@ -78,6 +78,7 @@ struct Enemy {
     bool dropping = false;
     bool inCover = false;   // rework: running to / firing from coverAt
     bool ducked = false;    // rework: down behind its cover between bursts (rpman_rock_into, then rpman_rock_breathe)
+    bool treeCover = false; // rework: its cover is a tree trunk (stands behind it, peeks out)
     Vec3 coverAt, coverFrom; // the spot, and where the player was when it was chosen  // rework: coming down on a hover pack (an ambush from the air)
     // Rework: ragdolls (game_app_ragdoll.cpp). kick: the impulses of the last moments (m/s, decaying,
     // shots, blasts, blows - also on the dead); ragdoll: the body is a ragdoll (the game layer moves it).
@@ -125,7 +126,8 @@ public:
     std::function<float(float, float)> groundHeight;
     // Rework: a spot in cover (behind a rock or a tree, to one side, as seen from the player) near
     // `near`; false if there is none. Set by the game layer.
-    std::function<bool(const Vec3& near, const Vec3& player, Vec3& spot)> findCover;
+    // tree: the spot is behind a tree trunk (he hides standing: rpman_behind_tree_*), else behind a rock/wall.
+    std::function<bool(const Vec3& near, const Vec3& player, Vec3& spot, bool& tree)> findCover;
     const CollisionWorld* collision = nullptr;
     float clipDuration[int(EnemyClip::Count)] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     // The player hidden in his bush pack (2b): an unaware Reaper only finds him by walking up and
@@ -159,6 +161,7 @@ public:
         if (e.state == EnemyState::Hit && e.clip == EnemyClip::HitBig) return params.height * 0.45f;  // knocked down
         if (e.state == EnemyState::Hit && e.clip == EnemyClip::GetUp) return params.height * 0.75f;
         if (e.state == EnemyState::Fire && (e.clip == EnemyClip::RockInto || e.clip == EnemyClip::RockBreathe)) return params.height * 0.5f;  // ducked
+        if (e.state == EnemyState::Fire && (e.clip == EnemyClip::TreeHide || e.clip == EnemyClip::TreeBreathe)) return params.height * 0.25f;  // flat behind a trunk (only a sliver shows)
         return (e.clip == EnemyClip::CrouchFire || e.clip == EnemyClip::KneelFire || e.clip == EnemyClip::BzkaFire || e.clip == EnemyClip::CrouchIdle) && e.state == EnemyState::Fire ? params.height * 0.66f : params.height;
     }
     // A one-shot action clip that holds until it ends (rework: the grenade throw).

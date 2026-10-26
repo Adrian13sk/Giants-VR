@@ -515,27 +515,35 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             enemies_.collision = &w->collision();
             // Rework: cover for Reapers - beside the far side of a solid object of rock / tree / hut size
             // standing on the ground, as seen from the player.
-            enemies_.findCover = [w](const Vec3& near, const Vec3& player, Vec3& spot) {
+            enemies_.findCover = [w](const Vec3& near, const Vec3& player, Vec3& spot, bool& tree) {
                 float best = 12.0f;
                 bool found = false;
+                const ObjectRegistry& reg = w->registry();
                 for (const auto& o : w->worldObjects()) {
-                    if (o.collision < 0 || o.hidden || o.radius < 0.7f || o.radius > 6.0f) continue;
-                    const Vec3 c{o.centre.x, 0, o.centre.z};
+                    if (o.collision < 0 || o.hidden) continue;
+                    // A tree (class 60): its trunk at the placement point, whatever the fronds' reach
+                    // (rework: they hide standing behind it). Else a rock, a wall or a hut of fitting size.
+                    const ObjectType* ot = reg.type(o.type);
+                    const bool isTree = ot && ot->objectClass == 60;
+                    if (!isTree && (o.radius < 0.7f || o.radius > 6.0f)) continue;
+                    const Vec3 c = isTree ? Vec3{o.placement.m[12], 0, o.placement.m[14]} : Vec3{o.centre.x, 0, o.centre.z};
                     const float dn = length(Vec3{c.x - near.x, 0, c.z - near.z});
                     if (dn > best) continue;
                     float gy;
-                    if (!w->terrain().heightAt(c.x, c.z, gy) || o.centre.y - gy > 1.5f * o.radius) continue;  // (in the air: a bridge, a roof)
+                    if (!w->terrain().heightAt(c.x, c.z, gy)) continue;
+                    if (!isTree && o.centre.y - gy > 1.5f * o.radius) continue;  // (in the air: a bridge, a roof)
                     Vec3 away{c.x - player.x, 0, c.z - player.z};
                     const float da = length(away);
                     if (da < 6.0f || da > 40.0f) continue;
                     away = away * (1.0f / da);
                     const Vec3 perp{-away.z, 0, away.x};
                     const float sideSign = dot(Vec3{near.x - c.x, 0, near.z - c.z}, perp) >= 0 ? 1.0f : -1.0f;
-                    Vec3 p = c + away * (0.6f * o.radius + 0.8f) + perp * (sideSign * 0.55f * o.radius);
+                    Vec3 p = isTree ? c + away * 0.75f : c + away * (0.6f * o.radius + 0.8f) + perp * (sideSign * 0.55f * o.radius);
                     if (!w->terrain().heightAt(p.x, p.z, p.y)) continue;
                     if (p.y < -0.5f) continue;  // (not in the sea)
                     best = dn;
                     spot = p;
+                    tree = isTree;
                     found = true;
                 }
                 return found;
@@ -548,7 +556,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                                     "rpman_hit_fall_cycle.anm", "rpman_hit_fall_land.anm", "rpman_poke_bush.anm",
                                     // rework: kneeling marksman, punch, head-shot and leg-shot deaths, grenade throw
                                     "rpman_snipe_kneel_fire.anm", "rpman_punch.anm", "rpman_hit_eye_die.anm",
-                                    "rpman_hit_to_knees_die.anm", "rpman_grenade.anm", "rpman_Hover.anm", "rpman_crouch_fire.anm", "rpman_hit_big.anm", "rpman_hit_big_getup.anm", "rpman_bzka_kneel_fire.anm", "rpman_crouch_breathe.anm", "rpman_rock_into.anm", "rpman_rock_breathe.anm"};
+                                    "rpman_hit_to_knees_die.anm", "rpman_grenade.anm", "rpman_Hover.anm", "rpman_crouch_fire.anm", "rpman_hit_big.anm", "rpman_hit_big_getup.anm", "rpman_bzka_kneel_fire.anm", "rpman_crouch_breathe.anm", "rpman_rock_into.anm", "rpman_rock_breathe.anm", "rpman_behind_tree_hide.anm", "rpman_behind_tree_breathe.anm", "rpman_behind_tree_peek.anm"};
             int poolSize = 6;
             {
                 int missionReapers = 0;

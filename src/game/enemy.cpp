@@ -456,9 +456,15 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     // Between bursts: a Reaper in cover ducks right down behind it (rpman_rock_into, then
                     // rpman_rock_breathe: rework); a croucher stays down (rpman_crouch_breathe).
                     if (e.inCover && e.weapon != 1) {
-                        if (!e.ducked) { setClip(e, EnemyClip::RockInto, false); e.ducked = true; }
-                        else if (e.clip == EnemyClip::RockInto && e.clipTime >= clipDuration[int(EnemyClip::RockInto)] * 0.97f) setClip(e, EnemyClip::RockBreathe, true);
-                        else if (e.clip != EnemyClip::RockInto && e.clip != EnemyClip::RockBreathe) setClip(e, EnemyClip::RockBreathe, true);
+                        // Behind a tree he steps in and stands flat against the trunk, a peek out now
+                        // and then (rpman_behind_tree_hide / _breathe / _peek); behind a rock he ducks.
+                        const EnemyClip into = e.treeCover ? EnemyClip::TreeHide : EnemyClip::RockInto;
+                        const EnemyClip hold = e.treeCover ? EnemyClip::TreeBreathe : EnemyClip::RockBreathe;
+                        if (!e.ducked) { setClip(e, into, false); e.ducked = true; }
+                        else if (e.clip == into && e.clipTime >= clipDuration[int(into)] * 0.97f) setClip(e, hold, true);
+                        else if (e.treeCover && e.clip == hold && e.fireCooldown > 1.2f && (nextRand() % 1000) < 4) setClip(e, EnemyClip::TreePeek, false);
+                        else if (e.clip == EnemyClip::TreePeek && e.clipTime >= clipDuration[int(EnemyClip::TreePeek)] * 0.97f) setClip(e, hold, true);
+                        else if (e.clip != into && e.clip != hold && e.clip != EnemyClip::TreePeek) setClip(e, hold, true);
                     } else {
                         setClip(e, e.role == 2 && e.weapon != 1 ? EnemyClip::CrouchIdle : EnemyClip::Idle, true);
                     }
@@ -478,13 +484,15 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                                 const Vec3 side{-to.z / std::max(dist, 1e-3f), 0, to.x / std::max(dist, 1e-3f)};
                                 const Vec3 want = e.pos + side * e.flank;
                                 Vec3 spot;
-                                if (findCover(want, player, spot) && length(Vec3{spot.x - e.pos.x, 0, spot.z - e.pos.z}) < 18.0f) {
+                                bool tree = false;
+                                if (findCover(want, player, spot, tree) && length(Vec3{spot.x - e.pos.x, 0, spot.z - e.pos.z}) < 18.0f) {
                                     e.inCover = true;
+                                    e.treeCover = tree;
                                     e.coverAt = spot;
                                     e.coverFrom = player;
                                     e.flankTimer = 6.0f;
                                     static const bool trace = std::getenv("GVR_COVER_TRACE") != nullptr;
-                                    if (trace) LOGI("Reaper %u takes cover %.1f m away", e.uid, length(Vec3{spot.x - e.pos.x, 0, spot.z - e.pos.z}));
+                                    if (trace) LOGI("Reaper %u takes cover %.1f m away%s", e.uid, length(Vec3{spot.x - e.pos.x, 0, spot.z - e.pos.z}), tree ? " (a tree)" : "");
                                 }
                             }
                         }
