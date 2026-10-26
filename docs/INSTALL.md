@@ -212,10 +212,9 @@ Options → NEW GAME: choose **REAPER STORY (DELPHI)** with the stick, hold the 
   straight ahead), about one a second. The HUD's fire icon is lit when it's ready.
 - In first person you see her body and arms (her head is hidden so it doesn't block the view).
 - **Bows** (from the game's data: the **RPG bow** in "Smartie grab", the **bow**, RPG bow and **sniper bow** in
-  Sappho's Fleet): **right stick forward** switches sword → bow → RPG bow → sniper bow → sword. First person:
-  **grab the string with your left hand (grip), pull back and let go** - the arrow flies from your hand through the
-  bow, harder the further you pull (the left grip doesn't turbo while it's on the string). Or hold the **right
-  trigger** to draw and let go. Third person: the right trigger. The plain bow never runs out; RPG arrows (they
+  Sappho's Fleet): **right stick forward** switches sword → bow → RPG bow → sniper bow → sword. First person
+  (rework): the bow is in your **left hand**; **grab the string with your right hand (grip), pull back and let go** -
+  the arrow flies when you let go, harder the further you pull. Third person: the right trigger. The plain bow never runs out; RPG arrows (they
   explode) and sniper arrows are counted under the sword icon; a Shop's AMMO box refills them.
 
 **Delphi's spells** (move-hand trigger): a **tap** throws her fire bolt - or, aimed at a Smartie, a **bubble** that catches
@@ -253,6 +252,20 @@ scaled so your eyes are at his height (about 13 m). The HUD and menu stay their 
   points, in third person in front of him. It sets enemies alight and is the only thing that burns through the
   CRYSTAL GATE.
 - In first person you see his arms and hands following the controllers.
+
+## Hands (rework) - also in Options → CONTROLS
+- **Pick things up** (Meccaryn, Delphi): bend down and squeeze a grip with your hand on a stone, a dead body (it
+  hangs from your hand by the arm, leg or head you took), a Smartie, a gun shot out of a Reaper's hand or a cut-off
+  limb. **Swing and let go to throw** - a thrown stone, body, gun or Smartie hurts the Reaper it hits. Options →
+  GROUND REACH: EASY (default) lets you reach the ground by bending down with your hand out in front; NATURAL means
+  crouching all the way.
+- **Kabuto** reaches down and grips Smarties, Reapers, trees, boulders and dead bodies; bring them to his mouth to
+  eat, swing and let go to throw. Beat your chest three times to roar.
+- **Swimming** (Meccaryn, Delphi): in deep water hold the grips and pull your hands back through the water.
+- **Reaperski**: hold both grips to take the handlebars - turn them to steer, twist your right wrist back for gas,
+  A for turbo.
+- **Shooting a Reaper's gun** out of his hand disarms him (he comes at you with his fists, or runs back for the gun);
+  leg shots make him limp.
 
 ## Main menu
 The game now starts at the main menu: night over the intro island with the GIANTS logo in the sky.
