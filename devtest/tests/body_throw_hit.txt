@@ -1,0 +1,22 @@
+# Rework (2026-10-26): pick up a dead Reaper and throw him at a living one standing beside him (GVR_PASSIVE_REAPERS:
+# he doesn't move). The log says "The thrown body hits Reaper ..." - he is shoved back and hurt.
+name body_throw_hit
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_TEST_KILL quiet
+env GVR_GRAB_TRACE 1
+env GVR_PASSIVE_REAPERS 1
+view first
+pitch -30
+duration 9
+reapers 1 2.6 0.4 99
+reapers 1 1.4 0.3 0.32
+move 0 0.5 3.0 3.25
+hand_l 0.15 -0.8 -0.3 3.6 4.2
+hold grip_l 4.4 6.78
+hand_l 0 1.1 0.35 4.8 5.6
+hand_l 0.15 0 0.35 5.9 6.3
+hand_l 0.6 0.3 -1.0 6.6 6.75

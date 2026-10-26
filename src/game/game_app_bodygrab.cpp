@@ -19,8 +19,7 @@ constexpr int kReaperBody = 3;      // heldBody_.kind beyond the NPC kinds (0 cr
 constexpr float kReach = 0.42f;     // m from the hand to the nearest part of the body
 }  // namespace
 
-Ragdoll* GameApp::heldRagdoll() {
-    const HeldBody& b = heldBody_;
+Ragdoll* GameApp::bodyRagdoll(const HeldBody& b) {
     if (b.kind < 0 || b.slot < 0) return nullptr;
     if (b.kind == kReaperBody) {
         for (auto& e : enemies_.enemies)
@@ -36,7 +35,51 @@ Ragdoll* GameApp::heldRagdoll() {
     return r.active && r.uid == b.uid ? &r : nullptr;
 }
 
+// A thrown body knocks into the living: a Reaper (or creature) it meets at speed is shoved and hurt.
+void GameApp::updateThrownBody(float dt) {
+    HeldBody& b = thrownBody_;
+    if (b.kind < 0) return;
+    b.t += dt;
+    Ragdoll* r = bodyRagdoll(b);
+    if (!r || b.t > 2.0f || dt <= 0) { b = HeldBody{}; return; }
+    const Vec3 c = r->centre();
+    const Vec3 v = (c - b.prev) * (1.0f / dt);
+    b.prev = c;
+    const float sp = length(v);
+    static const bool trace = std::getenv("GVR_GRAB_TRACE") != nullptr;
+    if (trace && int(b.t / dt) % 6 == 0) {
+        float nearest = 1e9f;
+        Vec3 at;
+        for (const auto& e : enemies_.enemies)
+            if (e.state != EnemyState::Dead && length(Vec3{e.pos.x - c.x, 0, e.pos.z - c.z}) < nearest) {
+                nearest = length(Vec3{e.pos.x - c.x, 0, e.pos.z - c.z});
+                at = e.pos;
+            }
+        LOGI("grab trace: thrown body at (%.2f %.2f %.2f) %.1f m/s, nearest living Reaper %.2f m at (%.2f %.2f %.2f)", c.x, c.y, c.z, sp, nearest, at.x, at.y, at.z);
+    }
+    if (sp < 2.5f || b.t < 0.05f) return;
+    auto already = [&](uint32_t uid) {
+        for (int k = 0; k < b.nHit; ++k)
+            if (b.hit[k] == uid) return true;
+        return b.nHit >= 4;
+    };
+    for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
+        Enemy& e = enemies_.enemies[i];
+        if (e.state == EnemyState::Dead || e.uid == b.uid || already(e.uid)) continue;
+        const Vec3 d{e.pos.x - c.x, 0, e.pos.z - c.z};
+        if (length(d) > 1.0f || c.y < e.pos.y - 0.3f || c.y > e.pos.y + 2.4f) continue;
+        b.hit[b.nHit++] = e.uid;
+        const Vec3 dir = normalize(Vec3{v.x, 0, v.z} + Vec3{0.001f, 0, 0});
+        enemies_.push(int(i), dir * std::min(8.0f, 1.2f * sp));
+        const bool killed = enemies_.damage(int(i), 6.0f + 4.0f * sp);
+        r->kick(v * -0.4f);  // (the body stops against him)
+        sfx(frand() < 0.5f ? "ex_bdyl1" : "ex_bdyl2", c, std::min(1.0f, 0.4f + sp * 0.08f), 1.0f);
+        LOGI("The thrown body hits Reaper %u at %.1f m/s%s", e.uid, sp, killed ? " - he's dead" : "");
+    }
+}
+
 void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
+    updateThrownBody(dt);
     const bool can = playMode_ && firstPerson_ && !dying_ && hero_ != Hero::Kabuto && !cutsceneActive() && !riding_;
     static const bool trace = std::getenv("GVR_GRAB_TRACE") != nullptr;
     // Taking hold: a grip squeezed (its edge) with the hand on a body, the other hand not holding one.
@@ -76,7 +119,7 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
         heldBody_ = pick;
         heldBody_.prev = p;
         heldBody_.vel = Vec3{0, 0, 0};
-        if (Ragdoll* r = heldRagdoll()) {
+        if (Ragdoll* r = bodyRagdoll(heldBody_)) {
             r->pinParticle(part, p);
             r->posedAsleep = false;
         }
@@ -87,7 +130,7 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
     if (heldBody_.kind < 0) return;
     // Holding: the part follows the hand; the rest hangs and drags.
     HeldBody& b = heldBody_;
-    Ragdoll* r = heldRagdoll();
+    Ragdoll* r = bodyRagdoll(heldBody_);
     const ControllerState& c = in.hand[b.hand];
     if (!r || !can || !c.gripPoseValid) {
         if (r) r->unpin();
@@ -97,7 +140,7 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
     const Vec3 p = rig_.toWorld(c.gripPose).position;
     if (dt > 0) {
         b.vel = b.vel * 0.5f + (p - b.prev) * (0.5f / dt);
-        b.recent[b.nRecent++ % 8] = (p - b.prev) * (1.0f / dt);
+        b.recent[b.nRecent++ % 12] = (p - b.prev) * (1.0f / dt);
     }
     b.prev = p;
     b.t += dt;
@@ -125,15 +168,19 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
         r->unpin();
         // Let go: the part leaves at the hand's speed; a throw takes the body with it (a Smartie flies
         // further than a Reaper).
-        // (the throw: the fastest the hand went in the last ~0.1 s - a hand opens as the arm slows)
+        // (the throw: the fastest the hand went in the last ~0.17 s - a hand opens as the arm slows)
         Vec3 thr = b.vel;
-        for (int k = 0; k < std::min(b.nRecent, 8); ++k)
+        for (int k = 0; k < std::min(b.nRecent, 12); ++k)
             if (length(b.recent[k]) > length(thr)) thr = b.recent[k];
         const float sp = length(thr);
         if (sp > 2.0f) {
             const float heavy = b.kind == kReaperBody ? 0.55f : (b.kind == kNpcCreature ? 0.6f : 0.85f);
             r->kick(thr * heavy);
             LOGI("Threw the body (%u) at %.1f m/s", b.uid, sp);
+            thrownBody_ = b;
+            thrownBody_.t = 0;
+            thrownBody_.nHit = 0;
+            thrownBody_.prev = r->centre();
         } else {
             LOGI("Let go of the body (%u)", b.uid);
         }

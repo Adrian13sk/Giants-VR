@@ -199,6 +199,9 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             }
             sees = sees && dist <= 8.0f;
         }
+        // (test hook GVR_PASSIVE_REAPERS: they never notice the player - targets that stand still)
+        static const bool passive = std::getenv("GVR_PASSIVE_REAPERS") != nullptr;
+        if (passive) { sees = false; e.aware = false; }
         // Rework: a marksman keeps his distance and fires single aimed shots.
         const bool marks = e.role == 1;
         // (disarmed: no shooting - he runs right up to punch)

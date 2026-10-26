@@ -2248,3 +2248,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   devtest body_grab (1c_1, left hand): "Took hold of a Reaper body (1) by part 43, 0.29 m from the hand", lifted,
   swung, "Threw the body (1) at 5.0 m/s". Unit test (stick figure taken by the hand, lifted 2 m: the hand point at
   the hand, the body hanging over 0.9 m below, the forearm 0.4 m; thrown at 6 m/s: lands over 1 m away). Sweep 56/56.
+- Thrown bodies (updateThrownBody, 2 s after the throw): while the body's centre moves over 2.5 m/s, a living
+  Reaper within 1 m across (and at body height) is shoved along the flight (1.2 x its speed, up to 8 m/s) and takes
+  6 + 4 x speed damage, once each; the body stops against him. The throw speed is now the fastest hand speed over
+  the last 12 frames (0.17 s; a scripted release 0.15 s after the swing stopped found none in 8). Test hook
+  GVR_PASSIVE_REAPERS (they never notice the player). devtest body_throw_hit: "The thrown body hits Reaper 2 at
+  9.0 m/s" (he moved 1 m). Sweep 56/56 clean.

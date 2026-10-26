@@ -440,14 +440,18 @@ private:
         uint32_t uid = 0;
         int hand = -1;
         Vec3 prev, vel;
-        Vec3 recent[8];  // the hand's velocity over the last frames (a throw: the fastest of them)
+        Vec3 recent[12];  // the hand's velocity over the last frames (a throw: the fastest of them)
         int nRecent = 0;
+        uint32_t hit[4] = {0, 0, 0, 0};  // thrown: whom it has knocked into
+        int nHit = 0;
         float t = 0;
     };
     HeldBody heldBody_;
     bool bodyGripWas_[2] = {false, false};
-    Ragdoll* heldRagdoll();
+    HeldBody thrownBody_;  // a body just thrown (2 s): it knocks into the living
+    Ragdoll* bodyRagdoll(const HeldBody& b);
     void updateBodyGrab(float dt, const InputFrame& in);
+    void updateThrownBody(float dt);
     std::vector<float> slotLift_;   // per model slot: lift so the posed body's lowest point is on the ground
     WeaponSystem enemyFire_;
     std::vector<int> shooters_;
