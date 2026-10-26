@@ -11,6 +11,7 @@
 #include "core/log.h"
 #include "game/game_app.h"
 #include "scene/model_cache.h"
+#include "scene/skinned_model.h"
 
 namespace gvr {
 
@@ -38,6 +39,26 @@ void GameApp::addGroundMark(int kind, const Vec3& at, float size, float angle, f
 
 void GameApp::updateGroundMarks(float dt) {
     if (marksWorld_ != assetWorld_.get()) { marksWorld_ = assetWorld_.get(); marks_.clear(); }
+    // Kabuto's footprints: one per step of his run cycle (two per cycle, as the footstep sounds), the
+    // left foot's mirrored; not on structures or in water.
+    const PlayerAnim pa = player_.anim();
+    if (hero_ == Hero::Kabuto && playMode_ && player_.onGround && playerModel_ &&
+        (pa == PlayerAnim::Run || pa == PlayerAnim::Strafe || pa == PlayerAnim::Turbo)) {
+        const float dur = std::max(0.1f, playerModel_->animDuration(clip_[int(pa)]));
+        const float half = std::floor(player_.animTime() / dur * 2.0f);
+        if (half != footPhase_) {
+            footPhase_ = half;
+            const bool wade = player_.position.y < player_.seaLevel - 0.05f;
+            if (!wade && !player_.onObject()) {
+                const float side = (int(half) & 1) ? 1.0f : -1.0f;
+                const Quat r = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
+                const Vec3 foot = player_.position + r.rotate(Vec3{0.12f * side * player_.height, 0, -0.05f * player_.height});
+                addGroundMark(1, foot, 0.2f * player_.height, -player_.yaw, 45.0f, 0.5f * side);
+            }
+        }
+    } else {
+        footPhase_ = -1;
+    }
     for (auto& m : marks_) m.age += dt;
     marks_.erase(std::remove_if(marks_.begin(), marks_.end(), [](const GroundMark& m) { return m.age >= m.life; }), marks_.end());
 }

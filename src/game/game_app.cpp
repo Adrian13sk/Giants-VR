@@ -1228,11 +1228,6 @@ void GameApp::updateAudio(float dt) {
                 const Quat r = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
                 const Vec3 foot = player_.position + r.rotate(Vec3{((int(halfIndex) & 1) ? 0.12f : -0.12f) * player_.height, 0, 0});
                 if (!wade) dustBurst(foot, 0.08f * player_.height, 4);
-                // Rework: his footprint pressed into the ground (the original's Kabuto_footprint), the
-                // left foot's mirrored; not on structures or in water.
-                if (!wade && !player_.onObject())
-                    addGroundMark(1, foot + r.rotate(Vec3{0, 0, -0.05f * player_.height}), 0.2f * player_.height, -player_.yaw, 45.0f,
-                                  (int(halfIndex) & 1) ? 0.5f : -0.5f);
             }
             if (wade) {  // a splash at the foot
                 const Quat r = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);

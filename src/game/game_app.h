@@ -570,6 +570,7 @@ private:
     QuadBatch arrowBatch_;  // (stuck arrows, built with the marks)
     void addGroundMark(int kind, const Vec3& at, float size, float angle, float life, float width = 1.0f);
     void updateGroundMarks(float dt);
+    float footPhase_ = -1;
     void buildGroundMarks(const Vec3& eye, ModelCache* mc);
     void renderGroundMarks();
     // Rework (game_app_casings.cpp): spent casings thrown out of the Meccaryn's guns.
@@ -1399,6 +1400,7 @@ private:  // the mission placed enemies: no test waves
     int heldVillagerN_ = 0;
     struct FlyingVillager { uint32_t uid; Vec3 pos, vel; bool hit = false; };  // (hit: it has bowled a Reaper over - once)
     std::vector<FlyingVillager> flyingVillagers_;
+    float villagerFearT_ = 0;  // rework: you killed one of them: the Smarties run from you this long
     uint32_t aimedVillager_ = 0;
     float aimedVillagerT_ = 0;
     bool smartieWarned_ = false;

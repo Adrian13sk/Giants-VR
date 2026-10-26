@@ -1,0 +1,9 @@
+# Rework (2026-10-26): Kabuto walks 4 s (third person) - his footprints stay on the ground behind him.
+name kabuto_footprints
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view third
+duration 9
+move 0 1 0.5 4.5

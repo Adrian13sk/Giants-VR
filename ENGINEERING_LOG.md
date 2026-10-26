@@ -2412,3 +2412,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   streak (two crossed quads of b_streak2): stuck, it was invisible, so a stuck arrow is drawn as a dark shaft
   (0.75 m, two crossed quads) with teal fletching. devtest arrows_stick (Rstory2): "arrow stuck ... in a Reaper"
   twice, once in the ground.
+- Smarties: villagerFearT_ (40 s) set when the player kills one (hitVillager - shots, thrown stones, hard landings
+  after a throw); while it runs the player's position is a threat (they flee within the fear radius, calm ones
+  don't wave). Thrown bodies, fast stones and thrown Smarties are scares. devtest smartie_fear (5a, the shotgun):
+  "Smartie 5 killed", "The Smarties are afraid of you now"; the others run off.
+- Kabuto's footprints moved out of updateAudio (which returns without a mixer) into updateGroundMarks, on their
+  own stride phase.

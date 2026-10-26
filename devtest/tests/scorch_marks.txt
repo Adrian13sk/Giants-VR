@@ -1,0 +1,14 @@
+# Rework (2026-10-26): two blasts 3 m ahead in 5a - each chars the ground (the original's blastmark), embers glowing at first.
+name scorch_marks
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+view first
+pitch -30
+duration 5
+at 150 -135
+look 150 -160
+blast 150 -150 0.5 1 1.0
+blast 156 -147 0.5 1 2.0

@@ -1,0 +1,16 @@
+# Rework (2026-10-26): shoot one Smartie (5a, the shotgun) - the others are afraid of you for 40 s: they run from you
+# and nobody waves. The log says "The Smarties are afraid of you now".
+name smartie_fear
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_WEAPON 4
+env GVR_ARSENAL 1
+view first
+duration 10
+at 143 -135
+look 143 -160
+aim 0 -30
+hold trigger_r 1.0 1.2

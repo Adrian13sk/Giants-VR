@@ -1,0 +1,5 @@
+# Progress video 13 (rework): caption|world|mission|from frame|frames|env and harness args
+Explosions char the ground - the embers glow at first|Story5|5a_killcharger|40|300|--script devtest/tests/scorch_marks.txt
+Spent casings fly out of the machine gun and tink on the ground|Story1|1c_1_firstmecc|40|260|GVR_ARSENAL=1 GVR_WEAPON=5 GVR_CUTSCENE=none GVR_GOD=1 --first-person --pitch -25 --trigger-window 40 300
+Delphi's arrows stay where they strike|Rstory2|rstory2_battle_1|40|620|--script devtest/tests/arrows_stick.txt
+Kabuto's footprints|Kstory1|k1a_smarties|0|620|--script devtest/tests/kabuto_footprints.txt

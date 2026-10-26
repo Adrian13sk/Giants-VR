@@ -117,6 +117,16 @@ void GameApp::updateVillagers(float dt) {
     for (const auto& c : creatures_.creatures)
         if (c.state != CreatureState::Dead && !CreatureDirector::underground(c)) threats.push_back(c.pos);
     if (hero_ == Hero::Kabuto) threats.push_back(player_.position);  // Smarties are his food
+    // Rework: kill one of them and the rest are afraid of you for a while - they run from you, and
+    // nobody waves.
+    villagerFearT_ = std::max(0.0f, villagerFearT_ - dt);
+    if (villagerFearT_ > 0 && hero_ != Hero::Kabuto) threats.push_back(player_.position);
+    // ...and things flying at them frighten them: a thrown body, a stone, one of their own thrown.
+    if (thrownBody_.kind >= 0)
+        if (Ragdoll* r = bodyRagdoll(thrownBody_)) scares.push_back(r->centre());
+    for (const auto& st : stones_)
+        if (st.flying && length(st.vel) > 4.0f) scares.push_back(st.pos);
+    for (const auto& f : flyingVillagers_) scares.push_back(f.pos);
     for (const auto& b : blasts_)
         if (b.age < 0.05f) scares.push_back(b.pos);
     if (weapon_.shotsFired() != villagerShots_) {  // the Meccaryn's gunfire frightens them too
@@ -195,6 +205,10 @@ void GameApp::hitVillager(int i, float amount, const Vec3& at, const Vec3& dir) 
     std::snprintf(nm, sizeof nm, "gsm%02d_%d", voices[int(frand() * 5.99f)], frand() < 0.5f ? 1 : 2);
     sfx(nm, v.pos + Vec3{0, 0.6f, 0}, 1.0f, killed ? 0.8f : 1.3f);
     LOGI("Smartie %u %s", v.uid, killed ? "killed" : "hurt");
+    if (killed && hero_ != Hero::Kabuto) {
+        if (villagerFearT_ <= 0) LOGI("The Smarties are afraid of you now");
+        villagerFearT_ = 40.0f;
+    }
     if (killed && hero_ != Hero::Kabuto && !smartieWarned_) {
         smartieWarned_ = true;
         timmyLine_ = "HEY! THE SMARTIES ARE ON YOUR SIDE!";
