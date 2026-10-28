@@ -134,6 +134,8 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
       left hand's palm-up pinch (the menu gesture) opens / closes Options. Picking a controller up takes over again.
 - [ ] **Weapon wheel (Baz, and Delphi's bows by name):** hold the right stick forward: a ring of what you carry appears before you; move the
       gun hand toward one and let the stick go. A short push still steps to the next weapon (now when you let go).
+- [ ] **Baz's Repair Gun** (base missions: 22. 5c; and PRACTICE): in the weapon cycle / wheel. Aim it at a
+      damaged building (one a raid has worn down) and hold the trigger: green fire and the repair ring, +50 every 1.5 s.
 - [ ] **Delphi's new spells** (Reaper story 3 on, the battles, or PRACTICE as Delphi), left trigger held:
       SUMMON HAIL - raise the hand above your head and bring it down hard: ice falls where you aim.
       SLOW TIME - both hands together in front of your chest for half a second: Reapers slow to a third for 8 s.

@@ -306,6 +306,18 @@ private:
     // Ref_handle / Ref_nozzle01 of each weapon (game units, model frame; defaults = measured values).
     Vec3 gunHandle_{-0.01f, 1.23f, -0.71f}, gunMuzzle_{-0.01f, -1.84f, 0.33f};
     Vec3 launcherHandle_{0.0f, 3.85f, -0.45f}, launcherMuzzle_{0.0f, -4.58f, 0.03f};
+    // (2026-10-28) The Repair Gun (weapondefs item 19 IconRepair, mc_repairgun; weapon 19 "-50 every 1.5 s, 50 game
+    // units", fx fxb_repair): weapon slot 10. The data's table has it but no mission hands it out; ours: Baz carries it
+    // in the base missions (and in practice). Its beam mends a standing base building (+50 every 1.5 s).
+    const RenderModel* repairModel_ = nullptr;
+    const RenderModel* repairRing_ = nullptr;
+    Vec3 repairHandle_{-0.18f, 1.17f, -0.45f}, repairMuzzle_{0.0f, -1.74f, -0.08f};
+    bool hasRepairGun_ = false, repairOn_ = false;
+    Vec3 repairTo_;
+    float repairTick_ = 0;
+    int repairTarget_ = -1;
+    void updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const Vec3& fwd);
+    void renderRepairBeam();
     const RenderModel* rocketModel_ = nullptr;
     bool hasLauncher_ = false;
     // Its rockets (weapondefs item 14: 12 carried, 8 with it; ammo item 40, 3 per mc_pickup_rockets).
@@ -1821,7 +1833,7 @@ private:  // the mission placed enemies: no test waves
     // (FP: over the move-hand wrist; TP: head-locked, lower left); the weapon strip that pops up on
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
-                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudMine, kHudLayers };
+                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudMine, kHudRepair, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     float digitU_[11] = {}, digitU0_[10] = {}, digitU1_[10] = {};

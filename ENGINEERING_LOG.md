@@ -2772,3 +2772,10 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   (renderGhost), ends when she shoots; 30 s between. CLUSTER - a fire bolt let go while the hand flicks up
   (> 2.2 m/s): six bolts in a 50-degree spread, 4 s between. From Rstory4 on and in practice. Found in testing: the
   cloak's timeout never logged (endCloak returned early once the timer was already at zero).
+- Baz's Repair Gun: weapondefs.bin has it (item 19 IconRepair, object mc_repairgun; weapon 19: -50 damage every
+  1.5 s, range 50, fx fxb_repair / fxb_repair_yourself) and the art is in the archives (MC_repairgun with Ref_handle /
+  Ref_nozzle01, EFX_repair_ring, i_repair), and GText has its lines ("You cannot repair a building until it is fully
+  built!"), but no mission's item list gives it. Ours: weapon slot 10, carried in the base missions and in practice;
+  the beam (green fire along it, the ring at the hit) mends a standing building it points at within 50 m, +50 every
+  1.5 s; a building still going up gets the game's own line. Not saved with the checkpoint (handed out per mission).
+  "Repair yourself" (the second fx) left out - it would make the injections pointless.

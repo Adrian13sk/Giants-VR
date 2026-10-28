@@ -162,6 +162,7 @@ void GameApp::resetArsenal() {
     grenades_ = 0;
     mines_ = 0;
     hasLauncher_ = false;
+    hasRepairGun_ = false;
     weaponSel_ = 0;
 }
 
@@ -206,6 +207,7 @@ bool GameApp::weaponOwned(int sel) const {
         case 3: return popupBombs_ > 0;
         case 8: return grenades_ > 0 && grenadeModel_;
         case 9: return mines_ > 0 && mineModel_;
+        case 10: return hasRepairGun_ && repairModel_;
         default: {
             const int g = gunOfSel(sel);
             return g >= 0 && guns_[g].have && guns_[g].model;
@@ -215,6 +217,7 @@ bool GameApp::weaponOwned(int sel) const {
 
 const RenderModel* GameApp::heldModel() const {
     if (weaponSel_ == 1 && launcherModel_) return launcherModel_;
+    if (weaponSel_ == 10 && repairModel_) return repairModel_;
     const int g = gunOfSel(weaponSel_);
     if (g >= 0 && guns_[g].model) return guns_[g].model;
     return gunModel_;
@@ -223,6 +226,7 @@ const RenderModel* GameApp::heldModel() const {
 void GameApp::heldRefs(Vec3& handle, Vec3& muzzle) const {
     const int g = gunOfSel(weaponSel_);
     if (weaponSel_ == 1 && launcherModel_) { handle = launcherHandle_; muzzle = launcherMuzzle_; }
+    else if (weaponSel_ == 10 && repairModel_) { handle = repairHandle_; muzzle = repairMuzzle_; }
     else if (g >= 0 && guns_[g].model) { handle = guns_[g].handle; muzzle = guns_[g].muzzle; }
     else { handle = gunHandle_; muzzle = gunMuzzle_; }
 }

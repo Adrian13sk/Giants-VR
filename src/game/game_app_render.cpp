@@ -358,6 +358,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     if (playMode_ && !cut && !dying_) renderBush();
     if (playMode_ && swordValid_ && swordModel_ && !cut && !dying_) drawModel(swordModel_, swordXf_, false);
     if (!cut) renderBow();
+    if (playMode_ && !cut && !dying_) renderRepairBeam();
     // Timmy on the back: seen in third person (and in reflections and shadows). In first person he
     // sits right behind your head and the body turns with it, so he'd only ever flicker at the edge
     // of view: not drawn there.

@@ -129,6 +129,10 @@ void GameApp::initMission() {
     setHero(practice_ ? practiceHero_ : (race == 1 ? Hero::Kabuto : (race == 2 ? Hero::Mecc : (race == 3 ? Hero::Delphi : heroForWorld(worldName_)))));
     if (hero_ != Hero::Mecc) player_.jetpackAvailable = false;
     initBase();   // both depend on the hero just chosen (initCharacters may have run them with the last one)
+    if (hero_ == Hero::Mecc && (base_.on || practice_) && repairModel_) {  // the Repair Gun (ours: see game_app.h)
+        hasRepairGun_ = true;
+        LOGI("Arsenal: the Repair Gun (base mission)");
+    }
     initPopup();
     // A level's Shop also sells ammo for the guns he carries / her bows' arrows (ours).
     if (shopOn_ && hero_ != Hero::Kabuto && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 4; }))

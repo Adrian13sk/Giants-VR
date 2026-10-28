@@ -274,6 +274,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 ref("mc_gun.anm", "ref_nozzle01", gunMuzzle_);
                 ref("mc_launcher.anm", "ref_handle", launcherHandle_);
                 ref("mc_launcher.anm", "ref_nozzle01", launcherMuzzle_);
+                ref("MC_repairgun.anm", "ref_handle", repairHandle_);
+                ref("MC_repairgun.anm", "ref_nozzle01", repairMuzzle_);
                 // Held by its wooden pistol grip (the shaft running down and back to the knob at
                 // the rear), not at Ref_handle: that sits on the knuckles modelled over the neck
                 // (offline side view of mc_launcher_l0; user report after device test 22).
@@ -283,6 +285,10 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                      launcherHandle_.z, launcherMuzzle_.x, launcherMuzzle_.y, launcherMuzzle_.z);
             }
             launcherModel_ = mc->get("mc_launcher_l0.gbs", "", /*dynamicLit=*/true);
+            repairModel_ = mc->get("MC_repairgun.gbs", "", /*dynamicLit=*/true);
+            repairRing_ = mc->get("EFX_repair_ring.gbs");
+            if (repairModel_ && repairRing_)
+                LOGI("Repair gun: model ok, ring %.2f m across", length(repairRing_->boundsMax - repairRing_->boundsMin));
             arsenalReady_ = false;  // this world's model cache: the guns are fetched again (kept: what he carries)
             initArsenal();
             rocketModel_ = mc->get("mc_rocket.gbs", "mc_rocket.anm", /*dynamicLit=*/true);
@@ -1892,11 +1898,11 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         } else {
             // Handgun -> shotgun -> machine gun -> sniper gun -> mortar -> grenades -> launcher -> bush pack ->
             // pop-up bomb, skipping what he doesn't carry.
-            static const int kOrder[10] = {0, 4, 5, 6, 7, 8, 9, 1, 2, 3};
+            static const int kOrder[11] = {0, 4, 5, 6, 7, 8, 9, 1, 10, 2, 3};
             int at = 0;
-            while (at < 10 && kOrder[at] != weaponSel_) ++at;
-            for (int k = 1; k <= 10; ++k) {
-                const int next = kOrder[(at + k) % 10];
+            while (at < 11 && kOrder[at] != weaponSel_) ++at;
+            for (int k = 1; k <= 11; ++k) {
+                const int next = kOrder[(at + k) % 11];
                 if (weaponOwned(next)) { weaponSel_ = next; break; }
             }
         }
@@ -1922,8 +1928,12 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             timmyLineT_ = 2.0f;
         }
         if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
-        static const char* kSelNames[10] = {"gun", "rocket launcher", "bush pack", "pop-up bomb", "", "", "", "", "grenades", "mines"};
-        LOGI("Weapon: %s", gs >= 0 ? guns_[gs].name : kSelNames[std::max(0, std::min(9, weaponSel_))]);
+        static const char* kSelNames[11] = {"gun", "rocket launcher", "bush pack", "pop-up bomb", "", "", "", "", "grenades", "mines", "repair gun"};
+        LOGI("Weapon: %s", gs >= 0 ? guns_[gs].name : kSelNames[std::max(0, std::min(10, weaponSel_))]);
+        if (weaponSel_ == 10) {
+            timmyLine_ = "REPAIR GUN - AIM AT A DAMAGED BUILDING, HOLD THE TRIGGER";
+            timmyLineT_ = 3.0f;
+        }
     }
     weaponsTicked_ = true;
     scopeWanted_ = false;
@@ -2111,6 +2121,12 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         return;
     }
     rocketTriggerHeld_ = trigger;
+    if (weaponSel_ == 10) {  // the Repair Gun: a beam, no shots (the gun's bolts already in flight fly on)
+        weapon_.update(dt, false, muzzle, fwd);
+        updateRepairGun(dt, trigger && gunValid_, muzzle, fwd);
+        return;
+    }
+    repairOn_ = false;
     if (fireGun(dt, trigger, gunValid_, muzzle, fwd)) return;  // shotgun, machine gun, sniper gun
     if (weapon_.update(dt, trigger && gunValid_, muzzle, fwd)) {
         haptics_.push_back({gh, 0.35f, 0.04f});

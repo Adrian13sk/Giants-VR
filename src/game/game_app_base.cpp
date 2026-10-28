@@ -18,6 +18,7 @@
 // drop-off. Not yet: building collision, enemies attacking the base, upgrades to stone, and the
 // POP-UP BOMB the Smarties make once the base is complete.
 #include "game/game_app.h"
+#include "assets/gtext.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1335,6 +1336,90 @@ void GameApp::renderBaseTable() {
     dot(player_.position, 0.016f, {0.3f, 0.7f, 1.0f, 1.0f});
     static bool logged = false;
     if (!logged) { logged = true; LOGI("Base: table map shown (%.4f m of table per m, %zu sites)", s, base_.bldgs.size()); }
+}
+
+// (2026-10-28) The Repair Gun's beam: aimed at a base building within 50 m (the data's range, 50 game units read
+// as metres here - ours), held: +50 every 1.5 s (the data's -50 damage per 1.5 s), shown as green fire along the beam
+// and the original repair ring (EFX_repair_ring) on the building.
+void GameApp::updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const Vec3& fwd) {
+    repairOn_ = false;
+    if (!trigger) { repairTarget_ = -1; repairTick_ = 0; return; }
+    int best = -1;
+    float bestT = 50.0f;
+    Vec3 hit = muzzle + fwd * 50.0f;
+    for (size_t i = 0; i < base_.bldgs.size(); ++i) {
+        const Base::Bldg& b = base_.bldgs[i];
+        if (b.state == 0) continue;
+        Vec3 mn, mx;
+        if (b.model) { mn = b.model->restMin(); mx = b.model->restMax(); }
+        else if (b.still) { mn = b.still->boundsMin; mx = b.still->boundsMax; }
+        else continue;
+        const Vec4 cw = b.xf * Vec4{0.5f * (mn.x + mx.x), 0.5f * (mn.y + mx.y), 0.5f * (mn.z + mx.z), 1};
+        const Vec3 c{cw.x, cw.y, cw.z};
+        const float r = 0.35f * length(mx - mn);
+        const float t = dot(c - muzzle, fwd);
+        if (t < 0 || t > bestT + r) continue;
+        if (length(muzzle + fwd * t - c) > r) continue;
+        best = int(i);
+        bestT = std::max(0.0f, t - 0.5f * r);
+        hit = muzzle + fwd * bestT;
+    }
+    repairOn_ = true;
+    repairTo_ = hit;
+    if (frand() < dt * 40.0f) {  // green fire along the beam
+        const float u = frand();
+        smokePuff(FxTex::FireGreen, muzzle + (hit - muzzle) * u, Vec3{0, 0.4f, 0}, 0.18f, 0.05f, 0.3f, 1.0f, 0.0f);
+    }
+    // Test hook GVR_REPAIR_AUTO: the nearest damaged standing building, wherever the gun points (scripted runs).
+    static const bool autoAim = std::getenv("GVR_REPAIR_AUTO") != nullptr;
+    if (autoAim) {
+        float bd = 1e9f;
+        for (size_t i = 0; i < base_.bldgs.size(); ++i) {
+            const Base::Bldg& b = base_.bldgs[i];
+            const Vec3 c{b.xf.m[12], b.xf.m[13] + 2.0f, b.xf.m[14]};
+            if (b.state == 3 && b.hp < b.maxHp && length(c - muzzle) < bd) { bd = length(c - muzzle); best = int(i); hit = c; }
+        }
+        repairTo_ = hit;
+    }
+    if (best != repairTarget_) {
+        repairTarget_ = best;
+        repairTick_ = 0;
+        if (best >= 0) {
+            const Base::Bldg& b = base_.bldgs[size_t(best)];
+            if (b.state == 1) {  // the game's own line
+                const std::string t = gameText_ ? gameText_->get("hintwaitrepair") : std::string();
+                timmyLine_ = t.empty() ? "YOU CANNOT REPAIR A BUILDING UNTIL IT IS FULLY BUILT!" : t;
+                timmyLineT_ = 3.0f;
+            }
+        }
+    }
+    if (best < 0) return;
+    Base::Bldg& b = base_.bldgs[size_t(best)];
+    if (b.state != 3 || b.hp >= b.maxHp) return;
+    repairTick_ += dt;
+    b.hp = std::min(b.maxHp, b.hp + (50.0f / 1.5f) * dt);
+    if (repairTick_ >= 1.5f) {
+        repairTick_ -= 1.5f;
+        sfx("pu_hlth", hit, 0.6f, 1.2f);
+        haptics_.push_back({rig_.turnHand(), 0.3f, 0.05f});
+        LOGI("Repair gun: %s %.0f / %.0f", bldgLabel(b.def, b.level), b.hp, b.maxHp);
+        if (b.hp >= b.maxHp) {
+            timmyLine_ = std::string(bldgLabel(b.def, b.level)) + " REPAIRED";
+            timmyLineT_ = 2.5f;
+        }
+    }
+}
+
+void GameApp::renderRepairBeam() {
+    if (!repairOn_ || !repairRing_) return;
+    const float t = float(time_);
+    const Vec3 eye = renderer_.currentView().eyePosition;
+    const Vec3 d = eye - repairTo_;
+    const float yaw = std::atan2(d.x, d.z);
+    for (int k = 0; k < 2; ++k)
+        drawModel(repairRing_, Mat4::translation(repairTo_) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, yaw) * Quat::fromAxisAngle({0, 0, 1}, t * (2.0f + float(k)))) *
+                                   Mat4::scale(Vec3{1, 1, 1} * (repairTarget_ >= 0 ? 8.0f + 3.0f * float(k) : 3.0f)),  // (the model is 0.28 m across)
+                  true, 0.9f);
 }
 
 }  // namespace gvr

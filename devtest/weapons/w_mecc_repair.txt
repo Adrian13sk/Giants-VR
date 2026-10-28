@@ -1,0 +1,20 @@
+# (2026-10-28) Baz's Repair Gun (the data's item 19 / weapon 19; ours: carried in the base missions): the Pub is
+# built, a raid takes it to 40 % (GVR_BASE_DAMAGE), the beam held on it mends it (+50 every 1.5 s). GVR_REPAIR_AUTO
+# points the beam at the nearest damaged building (the aim is the player's own on the headset).
+# Log (checked by devtest.ps1): "Arsenal: the Repair Gun" "Repair gun: PUB N / N".
+name w_mecc_repair
+world Story5
+mission 5c_securebase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_BASE_FOOD 60
+env GVR_BASE_ORDER all
+env GVR_BASE_DAMAGE 22
+env GVR_WEAPON 10
+env GVR_REPAIR_AUTO 1
+view first
+duration 36
+hold trigger_r 24 34
+shot 28 repair

@@ -1106,3 +1106,4 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Weapon wheel (Baz) | weapons/w_mecc_wheel 72 / 24 Hz (machine gun chosen by moving the hand right); frame checked; regression: weapons 19/19, tests 69 + 3 known, ui 19/19, npcs 11/11, missions 31/31 |
 | Review fixes (spells / wheel) | tests/delphi_throw_overhand (an overhand throw stays a fire bolt, 72 / 24 Hz); delphi_hail now 3 of 3 Reapers 10 m out where she looks; wheels unchanged in their tests |
 | Delphi: CLOAK and CLUSTER (r4a's items 23 / 22) | tests/delphi_cloak, tests/delphi_cluster 72 / 24 Hz; see-through hands checked in a frame; regression: tests 72 + 3 known, weapons 20/20, ui 19/19, npcs 11/11, missions 31/31 |
+| Baz's Repair Gun (base missions) | weapons/w_mecc_repair 72 / 24 Hz (the Pub 160 -> 360 / 400 over 6 s); frame: the gun in hand; regression: tests 72 + 3 known, weapons 21/21, ui 19/19, npcs 11/11, missions 31/31 |
