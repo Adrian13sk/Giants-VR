@@ -17,6 +17,7 @@
 #include "game/game_app.h"
 #include "platform/android/audio_aaudio.h"
 #include "platform/android/autotest.h"
+#include "platform/android/crash_handler.h"
 #include "render/gl.h"
 #include "xr/xr_app.h"
 
@@ -151,6 +152,7 @@ void android_main(android_app* app) {
     // first: its settings (GVR_MULTIVIEW, ...) decide how the swapchains are made.
     gvr::AutoTest autotest;
     const std::string filesDir = app->activity->externalDataPath ? app->activity->externalDataPath : "";
+    if (!filesDir.empty()) gvr::installCrashHandler((filesDir + "/crash").c_str());  // (2026-10-28) files/crash/crash_<time>.txt
     const bool scripted = !filesDir.empty() && autotest.load(filesDir);
     if (scripted) autotest.applyEnvironment();
     bool ok = egl.init();

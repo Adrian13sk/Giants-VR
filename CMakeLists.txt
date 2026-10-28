@@ -16,6 +16,7 @@ set(GVR_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 # ------------------------------------------------------------------------------------------
 add_library(gvr_core STATIC
   src/core/prof.cpp
+  src/core/log.cpp
   src/render/renderer.cpp
   src/assets/gzp.cpp
   src/assets/gbs.cpp
@@ -138,6 +139,7 @@ if(ANDROID)
   add_library(giantsvr SHARED
     src/platform/android/android_main.cpp
     src/platform/android/autotest.cpp
+    src/platform/android/crash_handler.cpp
     src/platform/android/audio_aaudio.cpp
     src/xr/xr_app.cpp
     src/xr/xr_input.cpp

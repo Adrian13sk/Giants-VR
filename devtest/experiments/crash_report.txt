@@ -1,0 +1,9 @@
+# (2026-10-28) The crash report's own test: the app faults on purpose at 4 s (GVR_TEST_CRASH). The runner should
+# say "crashed" and find files/crash/crash_<time>.txt with the signal, a backtrace and the last log lines.
+# Log (checked by devtest.ps1): "crashing on purpose" "Crash report written".
+name crash_report
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE none
+env GVR_TEST_CRASH 4
+duration 10

@@ -137,6 +137,13 @@ void AutoTest::beginFrame(GameApp& game, XrApp& xr, XrFrameContext& frame, doubl
     }
     for (const auto* s : script_.shotsIn(prevT_, t_)) pendingShots_.push_back(s->label);
     if (script_.completesIn(prevT_, t_) > 0) { LOGI("autotest: mission marked complete at %.1f s", t_); game.debugCompleteMission(); }
+    // (2026-10-28) Test hook GVR_TEST_CRASH=<s>: a deliberate fault at that second - the crash report's own test.
+    static const char* crashAt = std::getenv("GVR_TEST_CRASH");
+    if (crashAt && t_ > float(std::atof(crashAt))) {
+        LOGE("autotest: crashing on purpose (GVR_TEST_CRASH)");
+        volatile int* bad = nullptr;
+        *bad = 42;
+    }
     const int aims = script_.autoAimAt(t_);
     if (aims & 1) game.debugAutoAim(frame.input, kRight);
     if (aims & 2) game.debugAutoAim(frame.input, kLeft);

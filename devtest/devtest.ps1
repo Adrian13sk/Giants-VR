@@ -149,6 +149,7 @@ while ($queue.Count -gt 0) {
     Adb shell am force-stop $pkg | Out-Null
     Adb shell input keyevent KEYCODE_WAKEUP | Out-Null   # (each time: a long run or a pause lets the headset sleep)
     Adb shell rm -rf "$files/autotest_out" | Out-Null
+    Adb shell rm -rf "$files/crash" | Out-Null   # (a crash report left by an earlier run)
     # Unix line endings for the app.
     $tmp = Join-Path $env:TEMP 'gvr_autotest.txt'
     [IO.File]::WriteAllText($tmp, ((Get-Content $script) -join "`n") + "`n")
@@ -185,6 +186,14 @@ while ($queue.Count -gt 0) {
     }
     Start-Sleep -Seconds 2
     Adb pull "$files/autotest_out" $dest | Out-Null
+    # A native crash report (APKs from 2026-10-28 on): the signal, a backtrace and the last log lines.
+    $crashNote = ''
+    $hasCrash = (Adb shell "ls $files/crash 2>/dev/null") -join ''
+    if ($hasCrash -match 'crash_') {
+        Adb pull "$files/crash" $dest | Out-Null
+        $crashNote = '; CRASH REPORT in crash\'
+        Write-Host "   A crash report was written (crash\ in its results)." -ForegroundColor Red
+    }
     Adb logcat -d -v time | Out-File -Encoding utf8 (Join-Path $dest 'logcat_full.txt')
     if ($logProc -and -not $logProc.HasExited) { Stop-Process -Id $logProc.Id -Force -ErrorAction SilentlyContinue }
     Start-Sleep -Milliseconds 500
@@ -263,7 +272,7 @@ while ($queue.Count -gt 0) {
         Write-Host "   The headset took the app out of focus (Guardian / standby) during this test." -ForegroundColor Yellow
     }
     $errs = (Select-String -Path (Join-Path $dest 'logcat.txt') -Pattern ' E/GiantsVR' -SimpleMatch -ErrorAction SilentlyContinue | Measure-Object).Count
-    $line = "{0}: {1}; {2}; {3}{4}{5}; {6} errors logged" -f $name, $status, $fps, $vrs, $shell, $events, $errs
+    $line = "{0}: {1}; {2}; {3}{4}{5}{7}; {6} errors logged" -f $name, $status, $fps, $vrs, $shell, $events, $errs, $crashNote
     Write-Host "   $line"
     $line | Add-Content $summary
     $fpsNum = 99.0
