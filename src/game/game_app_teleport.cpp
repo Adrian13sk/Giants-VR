@@ -64,6 +64,10 @@ void GameApp::updateTeleport(float dt, PlayerInput& pi, const InputFrame& in) {
                 const float dist = length(Vec3{telTarget_.x - player_.position.x, 0, telTarget_.z - player_.position.z});
                 const bool deep = telTarget_.y < player_.seaLevel - 0.6f * H;
                 telValid_ = n.y > 0.75f && !deep && dist > 0.4f * s && dist < 14.0f * s;
+                // Room to stand: nothing overhead within the hero's height (under a hut's eaves, inside a rock arch).
+                float tu = 0;
+                Vec3 nu;
+                if (telValid_ && worldRay_(telTarget_ + Vec3{0, 0.1f, 0}, Vec3{0, 1, 0}, 0.95f * H, tu, nu)) telValid_ = false;
             }
             telArc_.push_back(landed ? telTarget_ : q);
             p = q;
