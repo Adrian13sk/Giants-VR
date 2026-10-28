@@ -147,7 +147,7 @@ void GameApp::initMission() {
         // The shield (ours: see game_app.h): from Story 4 on, and in practice.
         const bool story4 = mn.rfind("4", 0) == 0 || mn.rfind("5", 0) == 0;
         hasShield_ = hero_ == Hero::Mecc && shieldSphere_ && (story4 || practice_ || std::getenv("GVR_SHIELD"));  // (test hook)
-        shieldT_ = shieldCool_ = shieldTaken_ = 0;
+        shieldT_ = shieldCool_ = shieldTaken_ = shieldClock_ = 0;
         if (hasShield_) LOGI("Arsenal: the shield");
     }
     initPopup();

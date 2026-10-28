@@ -1041,7 +1041,7 @@ private:
     // (2026-10-28) Baz's shield (weapondefs item 17 IconShield, mc_shield; game_app_shield.cpp): weapon-wheel slot 12,
     // chosen it raises a bubble for 12 s taking up to 150 of the hits meant for him; 40 s between. Story 4 on, practice.
     bool hasShield_ = false;
-    float shieldT_ = 0, shieldCool_ = 0, shieldHp_ = 0, shieldHitT_ = 0, shieldTaken_ = 0, shieldScale_ = 1;
+    float shieldT_ = 0, shieldCool_ = 0, shieldHp_ = 0, shieldHitT_ = 0, shieldTaken_ = 0, shieldScale_ = 1, shieldClock_ = 0;
     const RenderModel* shieldSphere_ = nullptr;
     TextureId shieldTex_ = 0;
     void initShield(ModelCache* mc);
@@ -1344,6 +1344,8 @@ private:  // the mission placed enemies: no test waves
     float followT_ = 0, followCool_ = 0, followDist_ = 0, followCandT_ = 0;
     Vec3 followVel_, followHandPrev_;
     bool followHandValid_ = false;
+    float followAimT_ = 0, followPullDist_ = 0;
+    double followLastT_ = -1;
     struct FollowThrown { uint32_t uid; float speed, age; };
     std::vector<FollowThrown> followThrown_;
     bool followOwned() const;

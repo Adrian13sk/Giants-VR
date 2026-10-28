@@ -71,8 +71,9 @@ float GameApp::shieldAbsorb(float amount, DeathCause cause) {
 
 void GameApp::updateShield(float dt) {
     shieldHitT_ = std::max(0.0f, shieldHitT_ - dt);
-    static const char* autoAt = std::getenv("GVR_RAISE_SHIELD");  // test hook: raised this many seconds in (as if chosen on the wheel)
-    if (autoAt && hasShield_ && time_ >= std::atof(autoAt) && time_ - dt < std::atof(autoAt)) raiseShield();
+    static const char* autoAt = std::getenv("GVR_RAISE_SHIELD");  // test hook: raised this many seconds into the mission (as the wheel would)
+    shieldClock_ += dt;
+    if (autoAt && hasShield_ && shieldClock_ >= float(std::atof(autoAt)) && shieldClock_ - dt < float(std::atof(autoAt))) raiseShield();
     if (shieldT_ > 0) {
         shieldT_ -= dt;
         if (shieldT_ <= 0) {
@@ -101,8 +102,8 @@ void GameApp::renderShield() {
     const float fade = std::min(1.0f, std::min((kShieldTime - shieldT_) / 0.3f, shieldT_ / 0.6f));
     // Faint, flaring where a hit lands; flickering in its last seconds.
     float a = 0.10f + 0.45f * (shieldHitT_ / 0.5f);
-    if (shieldT_ < 2.5f) a *= 0.6f + 0.4f * std::sin(t * 25.0f);
-    const Mat4 xf = Mat4::translation(player_.position + Vec3{0, 0.5f * player_.height, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.7f)) *
+    if (shieldT_ < 2.5f) a *= 0.7f + 0.3f * std::sin(t * 9.4f);  // (a slow 1.5 Hz pulse as it runs out - no fast flicker filling the view)
+    const Mat4 xf = Mat4::translation(player_.position + Vec3{0, 0.5f * player_.height, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.05f)) *
                     Mat4::scale(Vec3{shieldScale_, shieldScale_ * 1.1f, shieldScale_});
     for (const auto& part : shieldSphere_->parts) {
         DrawParams dp;

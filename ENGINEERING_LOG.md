@@ -2845,3 +2845,31 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   steps skip it); 12 s, takes up to 150 of shots / bites / blasts (not falls or drowning), flares where hits land,
   40 s between; Story 4 on and practice. Also: the HUD now uses the original st_mec_repair / st_mec_turret1 icons
   for the Repair Gun and the turret (the st_ art exists; the i_ icons were the inventory screen's).
+- Review of e2d07c5 (FOLLOW; read-only reviewer agent), fixed: (1) any hit that didn't kill a Reaper in the air
+  (held, thrown, Kabuto's, a knocked-off tower guard) put him in the Hit state - snapped to the ground from any
+  height: damage() now leaves a Falling Reaper falling; (2) a hover-pack ambusher could be caught but kept hovering
+  (knockOff now clears `dropping`, and he isn't a candidate while dropping; it also clears `postObject`); (3) a
+  trigger easing to 0.4-0.6 mid-hold let the other gestures and a charged fire wall / tornado through on release:
+  the hold keeps them off every frame; (4) a thrown fire bolt's wind-up could catch a Reaper: the catch now needs the
+  Reaper pointed at steadily 0.2 s, a pull of 12 cm or more measured relative to the head (stepping back isn't a
+  pull), and no other gesture cast on that pull; (5) caught through walls / dragged through them: line of sight
+  for the catch, the hold stops short of what's in the way (thrown bodies can still fly through walls - open);
+  (6) trailing up a slope landed him: kept 0.3 m off the ground; (7) a false pull after a gap (menu, death): the
+  hand speed resets; (8) dropped into deep sea he walked on the Reapers' invisible shelf: drowned (a splash);
+  (10) released on a switch to third person or a bow, and thrown Reapers are watched from stepSpells; (12) the
+  enemy update's `landed` / `punches` index lists went stale when corpses were erased the same frame (an older bug):
+  carried across by uid; (13) Reapers in the air no longer shove the ones under them or slide down slopes; a fall now
+  counts from the top of the arc. The test's pull needed recalibrating (the harness hand's pull reads 1.3-2 m/s).
+- Review of e5e8fed / 469ae93 (fire circle, shield; read-only reviewer agent), fixed: (1) HIGH - a grenade or bazooka
+  rocket stopped in the circle's wall was marked spent but updateRockets didn't skip spent entries, so next frame it
+  burst again - hurting Delphi (hidden by GVR_GOD in the test); the same old fault re-burst rockets fused by the
+  Reaperski. updateRockets now skips them (checked without god mode: no blast damage after the bursts); (2) flinging
+  the arms out also added up as the low sweep - a fire wall instead of the circle: no sweep while the hands are over
+  0.9 m apart; (3) both bubbles surround the first-person eye: the circle's column turned 46 deg/s and the shield
+  flickered at ~4 Hz in its last seconds - now a slow drift and a 1.5 Hz pulse (comfort; device check pending);
+  (4) the shield picked on the wheel was announced as the gun in hand; (5) the circle's burn went through the gun-hit
+  path (could knock a gun from his hand, blood, haptics): a plain burn now; (6) a half-held arms-out pose carried
+  over a trigger release / gap; (7) bolts jumping the 1.2 m band at low frame rates: a crossing test; (8) the circle
+  is put on the ground if cast mid-jump; (9) the shield's 150 counts the hit as the difficulty makes it, and an
+  absorbed hit buzzes the hand; (10) GVR_RAISE_SHIELD counts mission time (it used the app clock); (11) the shield
+  recharges through Baz's death.

@@ -101,6 +101,8 @@ void EnemyDirector::knockOff(int i, const Vec3& v) {
     Enemy& e = enemies[size_t(i)];
     if (e.state == EnemyState::Dead || e.state == EnemyState::Falling) return;
     e.posted = false;
+    e.postObject = -1;   // (off his tower: its fall later doesn't knock him over again wherever he is)
+    e.dropping = false;  // (a hover pack's descent would keep steering him)
     e.actT = 0;
     e.punchPending = false;
     e.state = EnemyState::Falling;
@@ -137,6 +139,9 @@ bool EnemyDirector::damage(int i, float amount, bool blast) {
     e.actT = 0;
     if (e.dropping && e.health <= 0) e.dropping = false;  // (falls from the sky: see update)
     e.punchPending = false;
+    // (2026-10-28 review) In the air - held by Delphi's FOLLOW or Kabuto, thrown, knocked off a tower - and still alive:
+    // he flinches but keeps falling (the Hit state would put him on the ground at once, from any height).
+    if (e.state == EnemyState::Falling && e.health > 0) return false;
     if (e.health <= 0) {
         e.state = EnemyState::Dead;
         e.stateTime = 0;
@@ -532,6 +537,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             case EnemyState::Falling: {
                 e.vel.y -= 14.0f * dt;
                 e.pos += e.vel * dt;
+                e.fallFrom = std::max(e.fallFrom, e.pos.y);  // (thrown upward: the fall counts from the top of the arc)
                 const float g = groundHeight ? groundHeight(e.pos.x, e.pos.z) : 0.0f;
                 if (e.pos.y <= g) {
                     e.pos.y = g;
@@ -575,7 +581,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             const float gx = (groundHeight(e.pos.x + h, e.pos.z) - groundHeight(e.pos.x - h, e.pos.z)) / (2 * h);
             const float gz = (groundHeight(e.pos.x, e.pos.z + h) - groundHeight(e.pos.x, e.pos.z - h)) / (2 * h);
             const float grade = std::sqrt(gx * gx + gz * gz);
-            if (grade > params.maxSlope) e.pos += Vec3{-gx / grade, 0, -gz / grade} * (params.slideSpeed * dt);
+            if (grade > params.maxSlope && e.state != EnemyState::Falling) e.pos += Vec3{-gx / grade, 0, -gz / grade} * (params.slideSpeed * dt);
         }
         // Ground and buildings.
         if (!e.posted && e.state != EnemyState::Falling) {
@@ -593,6 +599,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
         for (size_t b = a + 1; b < enemies.size(); ++b) {
             Enemy &p = enemies[a], &q = enemies[b];
             if (p.state == EnemyState::Dead || q.state == EnemyState::Dead || p.posted || q.posted) continue;
+            if (p.state == EnemyState::Falling || q.state == EnemyState::Falling) continue;  // (one in the air doesn't shove those under him)
             Vec3 d{q.pos.x - p.pos.x, 0, q.pos.z - p.pos.z};
             const float l = std::sqrt(d.x * d.x + d.z * d.z), minD = 2.0f * params.radius + 0.2f;
             if (l < minD && l > 1e-4f) {
@@ -601,7 +608,23 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 q.pos += d;
             }
         }
+    // (2026-10-28 review) The frame's index lists are made before the removed are erased: carried across by uid.
+    auto keepUids = [this](std::vector<int>& v) {
+        std::vector<uint32_t> u;
+        for (int k : v)
+            if (k >= 0 && size_t(k) < enemies.size()) u.push_back(enemies[size_t(k)].uid);
+        return u;
+    };
+    const std::vector<uint32_t> landedU = keepUids(landed), punchU = keepUids(punches);
     enemies.erase(std::remove_if(enemies.begin(), enemies.end(), [](const Enemy& e) { return e.remove; }), enemies.end());
+    auto back = [this](const std::vector<uint32_t>& u, std::vector<int>& v) {
+        v.clear();
+        for (uint32_t id : u)
+            for (size_t k = 0; k < enemies.size(); ++k)
+                if (enemies[k].uid == id) { v.push_back(int(k)); break; }
+    };
+    back(landedU, landed);
+    back(punchU, punches);
 }
 
 bool EnemyDirector::raycast(const Vec3& o, const Vec3& d, float maxDist, float& t, Vec3& normal, int& index) const {

@@ -168,6 +168,7 @@ constexpr float kCircleTime = 8.0f;   // s
 void GameApp::castFireCircle() {
     endCloak("she cast");
     circleAt_ = player_.position;
+    if (enemies_.groundHeight) circleAt_.y = std::min(circleAt_.y, enemies_.groundHeight(circleAt_.x, circleAt_.z));  // (cast mid-jump: on the ground)
     circleT_ = kCircleTime;
     circleCool_ = 20.0f;
     circleBurnt_ = 0;
@@ -221,14 +222,14 @@ void GameApp::updateSpellGestures(float dt, const InputFrame& in, const Vec3& di
     const ControllerState& c = in.hand[mh];
     static const bool trace = std::getenv("GVR_SPELL_TRACE") != nullptr;
     // (review 2026-10-28) Not evaluated last frame (dying, riding, the menu): no motion measured across the gap.
-    if (time_ - gestLastT_ > 0.1) gestPrevValid_ = false, gestHighT_ = 0, gestTogether_ = 0;
+    if (time_ - gestLastT_ > 0.1) gestPrevValid_ = false, gestHighT_ = 0, gestTogether_ = 0, gestArmsT_ = 0;
     gestLastT_ = float(time_);
     // With a bow in the casting hand (first person) its trigger lights fire arrows: no gestures there.
     if (!firstPerson_ || !c.gripPoseValid || !in.headValid || c.trigger < 0.6f || spellGestureCast_ || dt <= 0 || delphiBow()) {
         gestCircle_ = 0;
         gestSweep_ = 0;
         gestT_ = 0;
-        gestHighT_ = gestTogether_ = 0;
+        gestHighT_ = gestTogether_ = gestArmsT_ = 0;
         gestPrevValid_ = false;
         return;
     }
@@ -251,7 +252,10 @@ void GameApp::updateSpellGestures(float dt, const InputFrame& in, const Vec3& di
         Vec3 side{-f.z, 0, f.x};
         side = length(side) > 1e-3f ? normalize(side) : Vec3{1, 0, 0};
         const float vs = dot(h - gestPrev_, side) / dt;
-        if (h.y < head.y - 0.15f && std::fabs(vs) > 2.2f) gestSweep_ += std::fabs(vs) * dt;
+        // (not with both arms flung wide: that is the fire circle's gesture on its way)
+        const ControllerState& oh = in.hand[1 - mh];
+        const bool wide = oh.gripPoseValid && length(Vec3{h.x - oh.gripPose.position.x, 0, h.z - oh.gripPose.position.z}) > 0.9f;
+        if (h.y < head.y - 0.15f && std::fabs(vs) > 2.2f && !wide) gestSweep_ += std::fabs(vs) * dt;
         else gestSweep_ = std::max(0.0f, gestSweep_ - 2.0f * dt);
         // Hail: the hand raised high (in the last 0.7 s), then brought down - mostly straight down - at least 0.4 m
         // from its highest point to below the chin, fast (an overhand fire-bolt throw goes forward, not down).
@@ -408,6 +412,7 @@ bool GameApp::updateSpells(float dt, bool trig, const Vec3& from, const Vec3& di
 
 void GameApp::stepSpells(float dt) {
     const float t = float(time_);
+    stepFollowThrown(dt);  // (FOLLOW's thrown Reapers: watched to the ground whatever she does meanwhile)
     circleCool_ = std::max(0.0f, circleCool_ - dt);
     if (circleT_ > 0) {
         const float was = circleT_;
@@ -421,8 +426,9 @@ void GameApp::stepSpells(float dt) {
         auto& ps = enemyFire_.projectiles();
         for (size_t i = 0; i < ps.size();) {
             const Vec3 d{ps[i].pos.x - circleAt_.x, 0, ps[i].pos.z - circleAt_.z};
-            const float r = length(d), y = ps[i].pos.y - circleAt_.y;
-            if (std::fabs(r - kCircleR) < 0.6f && y > -0.5f && y < 6.0f) {
+            const Vec3 p0 = ps[i].pos - ps[i].vel * (dt * enemyTimeScale());  // (where it was: a fast step can jump the band)
+            const float r = length(d), r0 = length(Vec3{p0.x - circleAt_.x, 0, p0.z - circleAt_.z}), y = ps[i].pos.y - circleAt_.y;
+            if ((std::fabs(r - kCircleR) < 0.6f || (r - kCircleR) * (r0 - kCircleR) < 0) && y > -0.5f && y < 6.0f) {
                 smokePuff(FxTex::FireBlue, ps[i].pos, Vec3{0, 1.0f, 0}, 0.5f, 0.3f, 0.4f, 1.0f, 0.0f);
                 ++circleBurnt_;
                 ps[i] = ps.back();
@@ -449,9 +455,12 @@ void GameApp::stepSpells(float dt) {
                 if (e.state == EnemyState::Dead) continue;
                 const float r = length(Vec3{e.pos.x - circleAt_.x, 0, e.pos.z - circleAt_.z});
                 if (std::fabs(r - kCircleR) < 0.9f && std::fabs(e.pos.y - circleAt_.y) < 3.0f) {
-                    hitMul_ = 0.8f;
-                    weapon_.onHit(int(i), e.pos + Vec3{0, 1.0f, 0}, normalize(Vec3{e.pos.x - circleAt_.x, 0.1f, e.pos.z - circleAt_.z}));
-                    hitMul_ = 1.0f;
+                    // (burnt, not shot: no gun knocked from his hand, no limb hit - review 2026-10-28)
+                    const int obj = e.objective;
+                    const bool killed = enemies_.damage(int(i), 20.0f);
+                    if (killed && obj >= 0) completeObjective(obj);
+                    if (frand() < 0.5f) smokePuff(FxTex::FireBlue, e.pos + Vec3{0, 1.0f, 0}, Vec3{0, 1.5f, 0}, 0.6f, 0.4f, 0.5f, 0.9f, 0.3f);
+                    if (killed) LOGI("Fire circle: Reaper %u burnt", e.uid);
                 }
             }
             for (size_t i = 0; i < creatures_.creatures.size(); ++i) {
@@ -686,7 +695,7 @@ void GameApp::renderSpells() {
     if (circleModel_ && circleT_ > 0) {
         // The flared column of blue fire, turning, fading in and out (its foot ~1.1 m round, scaled to the ring).
         const float k = std::min(1.0f, std::min((kCircleTime - circleT_) / 0.4f, circleT_ / 0.8f));
-        drawModel(circleModel_, Mat4::translation(circleAt_) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.8f)) * Mat4::scale(Vec3{1.8f, 1.0f, 1.8f}),
+        drawModel(circleModel_, Mat4::translation(circleAt_) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.08f)) * Mat4::scale(Vec3{1.8f, 1.0f, 1.8f}),  // (barely turning: it fills her view)
                   true, 0.45f * k);
     }
     if (bubbleModel_)

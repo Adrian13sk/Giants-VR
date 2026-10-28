@@ -19,7 +19,7 @@ namespace {
 float groundOf(const EnemyDirector& d, const Vec3& p) { return d.groundHeight ? d.groundHeight(p.x, p.z) : p.y - 10.0f; }
 constexpr float kFollowRange = 30.0f;    // m
 constexpr float kFollowCone = 0.122f;    // rad (7 degrees) off the hand's aim
-constexpr float kFollowPull = 1.4f;      // m/s of the hand toward her (horizontal) that catches
+constexpr float kFollowPull = 1.2f;      // m/s of the hand toward her (horizontal, relative to the head) that catches - over 12 cm
 constexpr float kFollowHold = 6.0f;      // s at most
 constexpr float kFollowCool = 12.0f;     // s between
 constexpr float kFollowMaxSpeed = 22.0f; // m/s he can be moved / thrown at
@@ -46,22 +46,25 @@ void GameApp::releaseFollow(const char* why) {
     e.aware = true;
     enemies_.setBodyClip(ei, EnemyClip::FallCycle, true);
     const float speed = std::min(sp, kFollowMaxSpeed);
-    if (speed > 6.0f) followThrown_.push_back({e.uid, speed, 0.0f});
+    followThrown_.push_back({e.uid, speed, 0.0f});  // (watched to the ground: hurt if thrown hard, drowned in the sea)
     LOGI("FOLLOW: Reaper %u let go (%s) at %.1f m/s, %.1f m up", e.uid, why, double(speed), double(e.pos.y - groundOf(enemies_, e.pos)));
 }
 
 void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
     followCool_ = std::max(0.0f, followCool_ - dt);
     followCandT_ = std::max(0.0f, followCandT_ - dt);
-    stepFollowThrown(dt);
     const int mh = rig_.moveHand();
     const ControllerState& c = in.hand[mh];
     const bool held = c.trigger > 0.4f;
-    // The hand's speed (tracking space) toward her head, horizontally.
+    // (review 2026-10-28) Not run last frame (dying, riding, the menu, a cutscene): no hand speed across the gap.
+    if (time_ - followLastT_ > 0.1) { followHandValid_ = false; followPullDist_ = 0; followAimT_ = 0; }
+    followLastT_ = time_;
+    // The hand's speed toward her head (horizontally), relative to the head - stepping back is not a pull.
     Vec3 hv{0, 0, 0};
-    if (c.gripPoseValid && dt > 0) {
-        if (followHandValid_) hv = (c.gripPose.position - followHandPrev_) * (1.0f / dt);
-        followHandPrev_ = c.gripPose.position;
+    if (c.gripPoseValid && in.headValid && dt > 0) {
+        const Vec3 rel = c.gripPose.position - in.head.position;
+        if (followHandValid_) hv = (rel - followHandPrev_) * (1.0f / dt);
+        followHandPrev_ = rel;
         followHandValid_ = true;
     } else {
         followHandValid_ = false;
@@ -75,8 +78,13 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
             return;
         }
         followT_ += dt;
+        // (review: kept on every frame of the hold - a trigger easing between 0.4 and 0.6 must not let the other
+        // gestures, a fire bolt or a charged fire wall / tornado through when he is let go)
+        spellGestureCast_ = true;
+        spellCharge_ = 0;
         if (!held) { releaseFollow("the trigger"); return; }
         if (followT_ > kFollowHold || !c.aimPoseValid) { releaseFollow("time"); return; }
+        if (!firstPerson_ || delphiBow()) { releaseFollow("the view / a bow"); return; }
         Enemy& e = enemies_.enemies[size_t(ei)];
         // He floats where the hand points, at the distance he was caught at (his middle on the line).
         const Pose aim = rig_.toWorld(c.aimPose);
@@ -86,9 +94,18 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
         Vec3 step = (want - e.pos) * std::min(1.0f, 8.0f * dt);
         const float sl = length(step), maxStep = kFollowMaxSpeed * dt;
         if (sl > maxStep) step = step * (maxStep / sl);
+        // Not dragged through walls or rock: stopped short of what is in the way.
+        {
+            const Vec3 c0 = e.pos + Vec3{0, 1.1f, 0};
+            const float l = length(step);
+            float t;
+            Vec3 n;
+            if (worldRay_ && l > 1e-3f && worldRay_(c0, step * (1.0f / l), l + 0.5f, t, n)) step = step * (std::max(0.0f, t - 0.5f) / l);
+        }
         const Vec3 v = dt > 0 ? step * (1.0f / dt) : Vec3{0, 0, 0};
         followVel_ = followVel_ * 0.5f + v * 0.5f;
         e.pos = e.pos + step;
+        e.pos.y = std::max(e.pos.y, groundOf(enemies_, e.pos) + 0.3f);  // (trailing up a slope: kept off it)
         e.vel = Vec3{0, 0, 0};
         e.fallFrom = e.pos.y;
         // Caught, then hanging limp.
@@ -101,8 +118,9 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
         if (int(followT_ * 4) != int((followT_ - dt) * 4)) haptics_.push_back({mh, 0.25f, 0.04f});
         return;
     }
-    if (!followOwned() || !firstPerson_ || !c.aimPoseValid || !c.gripPoseValid || !in.headValid || !held || delphiBow()) {
+    if (!followOwned() || !firstPerson_ || !c.aimPoseValid || !c.gripPoseValid || !in.headValid || !held || delphiBow() || spellGestureCast_) {
         followCandUid_ = 0;
+        followAimT_ = followPullDist_ = 0;
         return;
     }
     // The Reaper she points at (nearest the line within the cone), remembered a moment.
@@ -114,10 +132,17 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
         if (e.state == EnemyState::Dead || e.state == EnemyState::Falling || e.remove) continue;
         const Vec3 to = e.pos + Vec3{0, 1.1f, 0} - from;
         const float d = length(to);
-        if (d > kFollowRange || d < 1.5f) continue;
+        if (d > kFollowRange || d < 1.5f || e.dropping) continue;
         const float a = std::acos(std::max(-1.0f, std::min(1.0f, dot(to * (1.0f / d), dir))));
-        if (a < bestA) { bestA = a; cand = e.uid; candD = d; }
+        if (a >= bestA) continue;
+        float t;
+        Vec3 n;
+        if (worldRay_ && worldRay_(from, to * (1.0f / d), d - 1.0f, t, n)) continue;  // (behind a wall or a hill)
+        bestA = a; cand = e.uid; candD = d;
     }
+    // Pointed at steadily (0.2 s on the same one) before the pull counts: the wind-up of a thrown fire bolt doesn't.
+    if (cand && cand == followCandUid_ && followCandT_ > 0) followAimT_ += dt;
+    else if (cand) followAimT_ = 0;
     if (cand) { followCandUid_ = cand; followCandT_ = 0.4f; followDist_ = candD; }
     static const bool ctrace = std::getenv("GVR_SPELL_TRACE") != nullptr;
     if (ctrace && int(time_ * 2) != int((time_ - dt) * 2))
@@ -132,9 +157,12 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
     // Pulled back toward her: caught.
     const Vec3 toHead{in.head.position.x - c.gripPose.position.x, 0, in.head.position.z - c.gripPose.position.z};
     const float pull = length(toHead) > 1e-3f ? dot(hv, normalize(toHead)) : 0.0f;
+    // The pull: fast, and over at least 12 cm.
+    if (pull > 1.0f) followPullDist_ += pull * dt;
+    else if (pull < 0.5f) followPullDist_ = 0;
     static const bool trace = std::getenv("GVR_SPELL_TRACE") != nullptr;
-    if (trace && pull > 0.8f) LOGI("spell trace: FOLLOW pull %.1f m/s, candidate %u (%.1f s left)", double(pull), followCandUid_, double(followCandT_));
-    if (pull < kFollowPull || !followCandUid_ || followCandT_ <= 0 || followCool_ > 0) return;
+    if (trace && pull > 0.8f) LOGI("spell trace: FOLLOW pull %.1f m/s (%.2f m), candidate %u (%.1f s left, aimed %.2f s)", double(pull), double(followPullDist_), followCandUid_, double(followCandT_), double(followAimT_));
+    if (pull < kFollowPull || followPullDist_ < 0.12f || !followCandUid_ || followCandT_ <= 0 || followAimT_ < 0.2f || followCool_ > 0) return;
     const int ei = enemyOfUid(followCandUid_);
     if (ei < 0) return;
     Enemy& e = enemies_.enemies[size_t(ei)];
@@ -143,9 +171,9 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
     enemies_.knockOff(ei, Vec3{0, 0, 0});
     e.pos.y += 0.6f;  // (off his feet at once: on the ground the fall would end in a landing next frame)
     enemies_.setBodyClip(ei, EnemyClip::SpellCaught, false);
-    e.weaponOn = false;
     followUid_ = e.uid;
     followCandUid_ = 0;
+    followAimT_ = followPullDist_ = 0;
     followT_ = 0;
     followVel_ = Vec3{0, 0, 0};
     followDist_ = std::max(3.0f, std::min(10.0f, followDist_));  // (brought in close, or kept off a little)
@@ -180,6 +208,18 @@ void GameApp::stepFollowThrown(float dt) {
             }
             continue;
         }
+        t.age = 99;
+        // Into the sea (the Reapers' floor there is an invisible shelf under the surface): drowned.
+        if (e.pos.y < player_.seaLevel - 1.0f) {  // (deep: at the shelf - the shallows only wet him)
+            if (e.state != EnemyState::Dead) {
+                const int obj = e.objective;
+                if (enemies_.damage(ti, 1e5f) && obj >= 0) completeObjective(obj);
+            }
+            waterSplash(Vec3{e.pos.x, player_.seaLevel, e.pos.z}, 1.2f, 2);
+            LOGI("FOLLOW: the Reaper she let go drowns");
+            continue;
+        }
+        if (t.speed <= 6.0f) continue;  // (just let go: an ordinary fall)
         if (e.state != EnemyState::Dead) {
             const int obj = e.objective;
             const bool killed = enemies_.damage(ti, 6.0f * t.speed);
@@ -188,7 +228,6 @@ void GameApp::stepFollowThrown(float dt) {
         }
         bleed(c, Vec3{0, 1, 0}, e.state == EnemyState::Dead, 1.0f);
         sfx("ex_bdys1", e.pos, 1.0f, 0.8f);
-        t.age = 99;
     }
     followThrown_.erase(std::remove_if(followThrown_.begin(), followThrown_.end(), [](const FollowThrown& t) { return t.age > 20.0f; }), followThrown_.end());
 }

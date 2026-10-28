@@ -826,6 +826,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     if (dying_) {
         updateDeath(dt, in);
         updatePortTurret(dt, in);  // (it fights on while he falls)
+        updateShield(dt);
         updateCombat(dt);
         { GVR_PROF("audio"); updateAudio(dt); }
         updateFlashes(dt);
@@ -1910,12 +1911,15 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         switchArmed_ = false;
         if (wheelOpen_) wheelWasOpen_ = true;
     }
+    if (pick == 12) {  // the shield: raised, the gun in hand stays - no weapon announced
+        raiseShield();
+        weaponHudT_ = 0;
+        pick = -1;
+    }
     if (step || pick >= 0) {
         // The weapon strip drops in either way (showing what is carried); with only the gun
         // there is nothing to switch to.
-        if (pick == 12) {
-            raiseShield();  // (a gadget: the gun in hand stays)
-        } else if (pick >= 0) {
+        if (pick >= 0) {
             if (weaponOwned(pick)) weaponSel_ = pick;
         } else {
             // Handgun -> shotgun -> machine gun -> sniper gun -> mortar -> grenades -> launcher -> bush pack ->
@@ -1949,7 +1953,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             timmyLineT_ = 2.0f;
         }
         if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
-        static const char* kSelNames[kNumSel] = {"gun", "rocket launcher", "bush pack", "pop-up bomb", "", "", "", "", "grenades", "mines", "repair gun", "turret"};
+        static const char* kSelNames[kNumSel] = {"gun", "rocket launcher", "bush pack", "pop-up bomb", "", "", "", "", "grenades", "mines", "repair gun", "turret", "shield"};
         LOGI("Weapon: %s", gs >= 0 ? guns_[gs].name : kSelNames[std::max(0, std::min(kNumSel - 1, weaponSel_))]);
         if (weaponSel_ == 11) {
             timmyLine_ = "TURRET (" + std::to_string(turretRounds_) + " ROUNDS) - POINT AT THE GROUND, TRIGGER TO PLANT IT";

@@ -15,6 +15,6 @@ duration 9
 reapers 1 10 0.5 99
 pitch_l 17 0.5 1.0
 hold trigger_l 1.5 4.8
-hand_l 0 0 0.35 2.5 2.65
+hand_l 0 0 0.45 2.5 2.65
 shot 3.8 follow_held
 yaw_l -70 4.4 4.75

@@ -57,8 +57,16 @@ void GameApp::spawnWave() {
 void GameApp::damagePlayer(float amount, DeathCause cause) {
     if (playerHealth_ <= 0 || dying_) return;
     if (cloakT_ > 0) ++cloakHits_;  // (counted even in god mode: devtest delphi_cloak_fight)
-    amount = shieldAbsorb(amount, cause);  // (Baz's shield takes what it can - before god mode, so a test can see it)
-    if (amount <= 0) return;
+    {
+        // Baz's shield takes what it can - before god mode, so a test can see it; counted in the damage the
+        // difficulty makes of the hit (its 150 is the same on every level).
+        const float k = std::max(0.01f, difficultyDamage());
+        amount = shieldAbsorb(amount * k, cause) / k;
+        if (amount <= 0) {
+            if (shieldT_ > 0) haptics_.push_back({rig_.turnHand(), 0.25f, 0.04f});
+            return;
+        }
+    }
     static const bool god = std::getenv("GVR_GOD") != nullptr;  // test hook: the player can't be hurt (perf runs)
     if (god) return;
     if (hero_ == Hero::Kabuto) amount *= 0.3f;  // a giant's hide: Reaper bolts and bites sting
@@ -322,6 +330,7 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int
 
 void GameApp::updateRockets(float dtAll) {
     for (auto& r : rockets_) {
+        if (r.life >= 1e9f) continue;  // (spent elsewhere - burst in a fire circle, a jetski's fuse: erased below, never burst again)
         // (SLOW TIME: the enemies' missiles, bazooka rockets and grenades fly slow too - review 2026-10-28)
         const float dt = (r.kind == 2 || r.kind == 3 || r.kind == 6) ? dtAll * enemyTimeScale() : dtAll;
         r.life += dt;
