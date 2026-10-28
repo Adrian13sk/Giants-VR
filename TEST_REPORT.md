@@ -1014,3 +1014,10 @@ per-world quality levels and the lite look did it (B19).
 
 **Tool changes:** `--frame-times` in the harness; devtest.ps1: FOCUS LOST detection + rerun, per-set totals count
 each test once, the other-app flag needs 6+ s.
+
+### Re-run of the 7 (20261028-090114): 6/7 pass on the headset
+birds_shoot, delphi_dive, gun_grab, kabuto_smartie_throw, smartie_throw_hit and m_race_rstory3_race_2 (won) pass
+with the current scripts. kabuto_lobird missed: the swoop reached the hand at ~5.6 s, after the squeeze pulses had
+ended (5.34 s; harness 5.43 s, on the last edge). Its pulses now run to 8.4 s (a427765; harness 24/72 Hz: caught
+and eaten). The race had the system shell drawing for 214 s (Guardian visible?): its GPU figures are not the game's.
+
