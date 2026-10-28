@@ -2625,6 +2625,9 @@ void GameApp::renderReflection() {
     if (quality_ >= 2) { renderer_.setReflectionActive(false); return; }
     if (frameNo_ % every != 0 && reflFresh_) return;
     reflFresh_ = false;
+    // (2026-10-28) Half size at quality 1 (GVR_REFL_HALF=0/1 forces it either way, to compare).
+    static const char* rh = std::getenv("GVR_REFL_HALF");
+    renderer_.setReflectionHalf(rh ? rh[0] == '1' : quality_ >= 1);
     renderer_.setReflectionActive(false);
     if (!reflOn_ || !haveFov_ || !assetWorld_ || !assetWorld_->loaded() || !lastInput_.headValid) return;
     if (load_.phase != LoadPhase::Idle && load_.phase != LoadPhase::FadeOut) return;

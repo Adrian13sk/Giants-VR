@@ -1149,9 +1149,10 @@ void Renderer::beginViews(const ViewParams* views, int n, int w, int h, bool cle
     glUniform1i(U_->uReflDepth_, 3);
     glUniform1i(U_->uWaterDepth_, 4);
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, refl ? reflColor_ : whiteTexture_);
+    const bool half = reflHalf_ && reflFboHalf_;
+    glBindTexture(GL_TEXTURE_2D, refl ? (half ? reflColorHalf_ : reflColor_) : whiteTexture_);
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, refl ? reflDepth_ : whiteTexture_);
+    glBindTexture(GL_TEXTURE_2D, refl ? (half ? reflDepthHalf_ : reflDepth_) : whiteTexture_);
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, waterDepthTex_ ? waterDepthTex_ : whiteTexture_);
     glUniform1f(U_->uReflOn_, refl ? 1.0f : 0.0f);
@@ -1366,37 +1367,48 @@ void Renderer::endShadowPass() {
     gpuTimer_.end(GpuPass::Shadow);
 }
 
-bool Renderer::initReflection(int w, int h) {
-    glGenTextures(1, &reflColor_);
-    glBindTexture(GL_TEXTURE_2D, reflColor_);
+// One reflection target: colour + depth textures and their framebuffer (0 on failure).
+static GLuint makeReflTarget(int w, int h, GLuint& color, GLuint& depth) {
+    glGenTextures(1, &color);
+    glBindTexture(GL_TEXTURE_2D, color);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glGenTextures(1, &reflDepth_);
-    glBindTexture(GL_TEXTURE_2D, reflDepth_);
+    glGenTextures(1, &depth);
+    glBindTexture(GL_TEXTURE_2D, depth);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, w, h, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glGenFramebuffers(1, &reflFbo_);
-    glBindFramebuffer(GL_FRAMEBUFFER, reflFbo_);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, reflColor_, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, reflDepth_, 0);
+    GLuint fbo = 0;
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
     const bool complete = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
     if (!complete) {
+        glDeleteFramebuffers(1, &fbo);
+        return 0;
+    }
+    return fbo;
+}
+
+bool Renderer::initReflection(int w, int h) {
+    reflFbo_ = makeReflTarget(w, h, reflColor_, reflDepth_);
+    if (!reflFbo_) {
         LOGE("Reflection framebuffer incomplete");
-        glDeleteFramebuffers(1, &reflFbo_);
-        reflFbo_ = 0;
         return false;
     }
     reflW_ = w;
     reflH_ = h;
-    LOGI("Water reflections: %dx%d", w, h);
+    // (2026-10-28) A half-size target for the reduced quality level (setReflectionHalf).
+    reflFboHalf_ = makeReflTarget(w / 2, h / 2, reflColorHalf_, reflDepthHalf_);
+    LOGI("Water reflections: %dx%d (and %dx%d%s)", w, h, w / 2, h / 2, reflFboHalf_ ? "" : " - failed");
     return checkGl("initReflection");
 }
 
@@ -1505,8 +1517,9 @@ void Renderer::endScopePass() {
 void Renderer::beginReflectionPass(const ViewParams& view, float nearZ) {
     gpuTimer_.begin(GpuPass::Reflection);
     inReflection_ = true;
-    glBindFramebuffer(GL_FRAMEBUFFER, reflFbo_);
-    beginView(view, reflW_, reflH_, false);
+    const bool half = reflHalf_ && reflFboHalf_;
+    glBindFramebuffer(GL_FRAMEBUFFER, half ? reflFboHalf_ : reflFbo_);
+    beginView(view, half ? reflW_ / 2 : reflW_, half ? reflH_ / 2 : reflH_, false);
     glClearColor(env_.fogColor.x, env_.fogColor.y, env_.fogColor.z, 0.0f);  // alpha 0: nothing reflected (sky fallback)
     glClearDepthf(1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

@@ -156,6 +156,8 @@ public:
     void beginReflectionPass(const ViewParams& view, float nearZ);
     void endReflectionPass();
     void setReflectionActive(bool on) { reflActive_ = on; }
+    // Render (and sample) the half-size reflection target: the reduced quality level (2026-10-28).
+    void setReflectionHalf(bool on) { reflHalf_ = on; }
     bool inReflectionPass() const { return inReflection_; }
     // A gun scope's picture: the world from the scope, rendered into a small square texture that is
     // then drawn on the scope's eyepiece like any other texture (scopeTexture()).
@@ -238,6 +240,8 @@ private:
     float look_ = 1.0f;
     bool lookLite_ = false;
     GLuint reflFbo_ = 0, reflColor_ = 0, reflDepth_ = 0, waterDepthTex_ = 0;
+    GLuint reflFboHalf_ = 0, reflColorHalf_ = 0, reflDepthHalf_ = 0;
+    bool reflHalf_ = false;
     int reflW_ = 0, reflH_ = 0;
     GLuint scopeFbo_ = 0, scopeDepth_ = 0;
     GLuint screenFbo_ = 0, screenMsFbo_ = 0, screenMsColor_ = 0, screenMsDepth_ = 0;
