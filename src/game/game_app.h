@@ -287,7 +287,7 @@ private:
     uint32_t recenterSerial_ = 0;
     Vec3 headPrev_;                   // previous tracking-space head position (physical walking)
     bool haveHeadPrev_ = false;
-    struct ArmPose { bool valid = false; Vec3 grip, forward, up; float squeeze = 0, trigger = 0; };
+    struct ArmPose { bool valid = false; Vec3 grip, forward, up; float squeeze = 0, trigger = 0; bool point = false, triggerRest = false; };
     ArmPose armTargets_[2];           // model space (game units), per hand
     // Weapon: the original Meccaryn gun in the right hand (attached at the skeleton's Ref_Rhand).
     const RenderModel* gunModel_ = nullptr;

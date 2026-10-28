@@ -219,7 +219,9 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     solveArmIk(world, children, c, t);
                     // Grip closes the hand; the trigger curls the leading finger (Meccaryn: 4 digits).
                     const float g = armTargets_[h].squeeze, tr = armTargets_[h].trigger;
-                    const float curl[4] = {std::max(g, tr), std::max(g * 0.9f, 0.25f * tr), g, g};
+                    float curl[4] = {std::max(g, tr), std::max(g * 0.9f, 0.25f * tr), g, g};
+                    if (armTargets_[h].point) curl[0] = 0.0f;                                // finger off the trigger: straight
+                    else if (armTargets_[h].triggerRest) curl[0] = std::max(curl[0], 0.3f);  // resting on it
                     curlFingers(world, children, c, curl);
                 }
             });
@@ -4502,6 +4504,10 @@ void GameApp::poseFirstPersonBody(const InputFrame& in) {
         a.up = toModelDir(aim.orientation.rotate(Vec3{0, 1, 0}));
         a.squeeze = c.squeeze;
         a.trigger = c.trigger;
+        // (2026-10-28) Hand presence: the index straight while it is off the trigger (pointing, or along a
+        // gun's side), resting bent on it when touching but not pulling.
+        a.point = c.touchValid && !c.triggerTouch;
+        a.triggerRest = c.touchValid && c.triggerTouch;
     }
 }
 

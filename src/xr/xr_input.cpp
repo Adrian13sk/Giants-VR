@@ -49,6 +49,8 @@ bool XrInput::init(XrInstance instance, XrSession session) {
     ok &= createAction(&gripPose_, XR_ACTION_TYPE_POSE_INPUT, "grip_pose", "Grip pose", true);
     ok &= createAction(&aimPose_, XR_ACTION_TYPE_POSE_INPUT, "aim_pose", "Aim pose", true);
     ok &= createAction(&haptic_, XR_ACTION_TYPE_VIBRATION_OUTPUT, "haptic", "Haptics", true);
+    ok &= createAction(&triggerTouch_, XR_ACTION_TYPE_BOOLEAN_INPUT, "trigger_touch", "Finger on the trigger", true);
+    ok &= createAction(&thumbTouch_, XR_ACTION_TYPE_BOOLEAN_INPUT, "thumb_touch", "Thumb on a button or the thumb rest", true);
     if (!ok) return false;
 
     // --- Oculus Touch bindings -------------------------------------------------------------
@@ -74,11 +76,29 @@ bool XrInput::init(XrInstance instance, XrSession session) {
             {haptic_, path("/user/hand/left/output/haptic")},
             {haptic_, path("/user/hand/right/output/haptic")},
         };
+        // (2026-10-28) Capacitive touch for the fingers' poses (oculus/touch_controller paths from the OpenXR spec).
+        // Suggested with the rest; should the runtime refuse the set, the bindings go in again without them.
+        std::vector<XrActionSuggestedBinding> withTouch = b;
+        const char* thumbPaths[] = {"/user/hand/left/input/thumbstick/touch", "/user/hand/right/input/thumbstick/touch",
+                                    "/user/hand/left/input/thumbrest/touch",  "/user/hand/right/input/thumbrest/touch",
+                                    "/user/hand/left/input/x/touch",          "/user/hand/left/input/y/touch",
+                                    "/user/hand/right/input/a/touch",         "/user/hand/right/input/b/touch"};
+        withTouch.push_back({triggerTouch_, path("/user/hand/left/input/trigger/touch")});
+        withTouch.push_back({triggerTouch_, path("/user/hand/right/input/trigger/touch")});
+        for (const char* tp : thumbPaths) withTouch.push_back({thumbTouch_, path(tp)});
         XrInteractionProfileSuggestedBinding sb{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
         sb.interactionProfile = path("/interaction_profiles/oculus/touch_controller");
-        sb.suggestedBindings = b.data();
-        sb.countSuggestedBindings = static_cast<uint32_t>(b.size());
-        XR_CHECK_RET(xrSuggestInteractionProfileBindings(instance_, &sb), false);
+        sb.suggestedBindings = withTouch.data();
+        sb.countSuggestedBindings = static_cast<uint32_t>(withTouch.size());
+        touchBound_ = XR_SUCCEEDED(xrSuggestInteractionProfileBindings(instance_, &sb));
+        if (!touchBound_) {
+            LOGW("XR input: the runtime refused the touch bindings - fingers follow trigger and grip only");
+            sb.suggestedBindings = b.data();
+            sb.countSuggestedBindings = static_cast<uint32_t>(b.size());
+            XR_CHECK_RET(xrSuggestInteractionProfileBindings(instance_, &sb), false);
+        } else {
+            LOGI("XR input: capacitive touch bound (trigger, thumb)");
+        }
     }
     // --- KHR simple controller fallback ----------------------------------------------------
     {
@@ -171,6 +191,17 @@ void XrInput::sync(XrTime time, XrSpace baseSpace, InputFrame& out) {
         c.secondary = getBool(secondary_, h);
         c.thumbstickClick = getBool(stickClick_, h);
         c.menu = getBool(menu_, h);
+        if (touchBound_) {
+            XrActionStateGetInfo ti{XR_TYPE_ACTION_STATE_GET_INFO};
+            ti.action = triggerTouch_;
+            ti.subactionPath = handPath_[h];
+            XrActionStateBoolean st{XR_TYPE_ACTION_STATE_BOOLEAN};
+            if (XR_SUCCEEDED(xrGetActionStateBoolean(session_, &ti, &st)) && st.isActive) {
+                c.touchValid = true;
+                c.triggerTouch = st.currentState == XR_TRUE || c.trigger > 0.05f;
+                c.thumbTouch = getBool(thumbTouch_, h) || c.primary || c.secondary || c.thumbstickClick;
+            }
+        }
 
         XrSpaceLocation loc{XR_TYPE_SPACE_LOCATION};
         const XrSpaceLocationFlags need =

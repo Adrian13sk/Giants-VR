@@ -59,6 +59,12 @@ bool TestScript::parse(const std::string& text, std::string& error) {
             s.what = cmd;
             ok = bool(ss >> s.x >> s.y >> s.z >> s.t0 >> s.t1) && s.t1 > s.t0;
             if (ok) spans.push_back(s);
+        } else if (cmd == "point_r" || cmd == "point_l") {
+            // (2026-10-28) touch data: the index finger off the trigger over [t0, t1] (capacitive touch)
+            Span s;
+            s.what = cmd;
+            ok = bool(ss >> s.t0 >> s.t1) && s.t1 > s.t0;
+            if (ok) spans.push_back(s);
         } else if (cmd == "yaw_r" || cmd == "yaw_l") {
             // (2026-10-28) the controller turns about the vertical by x degrees over [t0, t1] and stays (+ = left)
             Span s;
@@ -139,6 +145,14 @@ void TestScript::inputAt(float t, InputFrame& in) const {
         c.aimPose = c.gripPose;
     }
     for (const Span& s : spans) {
+        if (s.what == "point_r" || s.what == "point_l") {
+            if (t >= s.t0 && t < s.t1) {
+                ControllerState& c = in.hand[s.what == "point_r" ? kRight : kLeft];
+                c.touchValid = true;
+                c.triggerTouch = false;
+            }
+            continue;
+        }
         if (s.what == "yaw_r" || s.what == "yaw_l") {
             const float k = std::max(0.0f, std::min(1.0f, (t - s.t0) / (s.t1 - s.t0)));
             ControllerState& c = in.hand[s.what == "yaw_r" ? kRight : kLeft];

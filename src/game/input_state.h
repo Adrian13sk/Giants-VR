@@ -23,6 +23,11 @@ struct ControllerState {
     bool secondary = false;    // B (right) / Y (left)
     bool thumbstickClick = false;
     bool menu = false;         // left controller menu button
+    // Capacitive touch (2026-10-28; Touch controllers): a finger on the trigger, the thumb on a button,
+    // the stick or the thumb rest. touchValid: the runtime reports them (else both read as touching).
+    bool touchValid = false;
+    bool triggerTouch = true;
+    bool thumbTouch = true;
 };
 
 struct InputFrame {

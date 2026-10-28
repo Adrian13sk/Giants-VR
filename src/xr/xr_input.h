@@ -27,6 +27,8 @@ private:
     XrAction primary_ = XR_NULL_HANDLE, secondary_ = XR_NULL_HANDLE, stickClick_ = XR_NULL_HANDLE;
     XrAction menu_ = XR_NULL_HANDLE, gripPose_ = XR_NULL_HANDLE, aimPose_ = XR_NULL_HANDLE;
     XrAction haptic_ = XR_NULL_HANDLE;
+    XrAction triggerTouch_ = XR_NULL_HANDLE, thumbTouch_ = XR_NULL_HANDLE;
+    bool touchBound_ = false;
     XrSpace gripSpace_[2] = {XR_NULL_HANDLE, XR_NULL_HANDLE};
     XrSpace aimSpace_[2] = {XR_NULL_HANDLE, XR_NULL_HANDLE};
     std::string profile_[2];
