@@ -1,0 +1,15 @@
+# Rework (2026-10-28): the wrist display. The left forearm held across in front of the face (as to read a watch) for a
+# moment: a small panel over the wrist shows health, ammo, injections and flares, and the objective's distance.
+# Log (checked by devtest.ps1): "Wrist display shown".
+name wrist_display
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_SYRINGES 2
+view first
+duration 6
+hand_l 0.15 0.3 0.05 1.0 2.0
+yaw_l -80 1.0 2.0
+shot 3.5 wrist

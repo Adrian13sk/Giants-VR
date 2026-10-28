@@ -234,6 +234,8 @@ void GameApp::renderControlsCard(const Mat4& base) {
         {"THROW", "SWING AND LET GO OF THE GRIP"},
         {"SWIM", "HOLD THE GRIPS, PULL YOUR HANDS BACK"},
         {"X / Y", "HEALTH INJECTION / MAP"},
+        {"INJECTION", "JAB THE NEEDLE INTO YOUR CHEST OR OTHER ARM"},
+        {"WRIST", "LEFT FOREARM ACROSS YOUR FACE: HEALTH, AMMO, GOAL"},
         {"LEFT TRIGGER", "FLARE"},
         {"LEFT STICK DOWN", "MISSION BRIEFING (HOLD)"},
         {"RIGHT STICK CLICK", "FIRST / THIRD PERSON"},
@@ -254,6 +256,7 @@ void GameApp::renderControlsCard(const Mat4& base) {
         {"SWIM", "HOLD THE GRIPS, PULL YOUR HANDS BACK"},
         {"REAPERSKI", "BOTH GRIPS: HANDLEBARS, TWIST RIGHT HAND: GAS"},
         {"WAVE", "HAND OVER YOUR HEAD, SIDE TO SIDE: SMARTIES WAVE"},
+        {"WRIST", "LEFT FOREARM ACROSS YOUR FACE: HEALTH, ARROWS, GOAL"},
     };
     static const char* kabuto[][2] = {
         {"LEFT STICK", "WALK (LEFT GRIP HELD: RUN)"},

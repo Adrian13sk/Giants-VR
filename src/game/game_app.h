@@ -1832,6 +1832,11 @@ private:  // the mission placed enemies: no test waves
     float fxCover_[kCostCount] = {}, fxCoverMax_[kCostCount] = {}, fxCoverT_ = 0;
     static float coverOf(float size, float dist) { const float a = size / std::max(0.05f, dist); return std::min(1.0f, a * a / 5.7f); }
     void logFxCost(float dt);
+    // (2026-10-28) The wrist display: hold the move hand's forearm across in front of your face (as to read a
+    // watch) for a moment and a small panel over the wrist shows health, ammo, items and the objective.
+    float wristT_ = 0;
+    bool wristShown_ = false;
+    void renderWristPanel();
     Vec3 lastShotSplash_;
     std::vector<Vec3> skiRoute_;  // (test hook GVR_SKI_AUTOPILOT outside races: the route to a reach objective)
     size_t skiRouteAt_ = 0;

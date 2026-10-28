@@ -3,6 +3,7 @@
 #include "game/game_app.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 
@@ -513,7 +514,21 @@ void GameApp::updatePickups(float dt, const InputFrame& in) {
                 const Vec3 chestTop = head.position + Vec3{0, -0.22f, 0} + flat * 0.04f;
                 const float drop = chestTop.y - tip.y;
                 const Vec3 dxz{tip.x - chestTop.x, 0, tip.z - chestTop.z};
-                if (drop > 0.0f && drop < 0.55f && length(dxz) < 0.17f) {
+                // (2026-10-28) ...or into the other forearm (the controller's back end runs along it): a jab in the arm.
+                bool arm = false;
+                const ControllerState& oc = in.hand[mh == kLeft ? kRight : kLeft];
+                if (oc.gripPoseValid) {
+                    const Pose og = rig_.toWorld(oc.gripPose);
+                    const Vec3 a = og.position, b = og.position + og.orientation.rotate(Vec3{0, 0, 0.26f * rig_.comfort.worldScale});
+                    const Vec3 ab = b - a;
+                    const float t = std::max(0.0f, std::min(1.0f, dot(tip - a, ab) / std::max(1e-6f, dot(ab, ab))));
+                    arm = length(tip - (a + ab * t)) < 0.09f * rig_.comfort.worldScale && t > 0.15f;  // (a forearm ~5 cm round, and some slack)
+                    static const bool tr = std::getenv("GVR_SYRINGE_TRACE") != nullptr;
+                    static int n = 0;
+                    if (tr && n++ % 12 == 0) LOGI("syringe trace: tip (%.2f %.2f %.2f), forearm %.2f m away at %.2f along", tip.x, tip.y, tip.z, length(tip - (a + ab * t)), t);
+                }
+                if ((drop > 0.0f && drop < 0.55f && length(dxz) < 0.17f) || arm) {
+                    if (arm) LOGI("Injection into the forearm");
                     injectHealth();
                     syringeOut_ = false;
                 }
@@ -568,6 +583,76 @@ void GameApp::renderPickups() {
         }
     if (syringeValid_ && syringeModel_ && !dying_) drawModel(syringeModel_, syringeXf_, false);
     renderAmmoPickups();
+}
+
+void GameApp::renderWristPanel() {
+    const int mh = rig_.moveHand();
+    const InputFrame& in = lastInput_;
+    const ControllerState& c = in.hand[mh];
+    bool want = false;
+    Vec3 wrist, toEye, eye;
+    if (firstPerson_ && hero_ != Hero::Kabuto && c.gripPoseValid && in.headValid && !menuOpen_ && text_.ready()) {
+        const Pose head = rig_.toWorld(in.head), grip = rig_.toWorld(c.gripPose);
+        eye = head.position;
+        wrist = grip.position;
+        const Vec3 hf = head.orientation.rotate(Vec3{0, 0, -1});
+        const Vec3 d = wrist - eye;
+        const float dist = length(d);
+        const Vec3 arm = grip.orientation.rotate(Vec3{0, 0, -1});  // the forearm's line (the controller points along it)
+        const float s = rig_.comfort.worldScale > 0 ? 1.0f / rig_.comfort.worldScale : 1.0f;
+        // Near the face (15-50 cm), in front of the eyes, below them, the forearm across the view.
+        want = dist * s > 0.15f && dist * s < 0.5f && dot(normalize(d), hf) > 0.7f && d.y < 0.05f && std::fabs(dot(arm, hf)) < 0.55f;
+        toEye = dist > 1e-4f ? d * (-1.0f / dist) : Vec3{0, 0, 1};
+    }
+    // (a moment's hold: no flicker as the hand passes the face)
+    const float dt = 1.0f / 72.0f;  // (once a frame: the first view of it)
+    if (fxCostView_) wristT_ = want ? wristT_ + dt : std::max(0.0f, wristT_ - 3.0f * dt);
+    const bool show = wristT_ > 0.25f;
+    if (show && !wristShown_) LOGI("Wrist display shown (health %.0f)", playerHealth_);
+    wristShown_ = show;
+    if (!show) return;
+    // The lines.
+    std::string ammo = "AMMO -";
+    if (hero_ == Hero::Mecc) {
+        const int g = gunOfSel(weaponSel_);
+        if (g >= 0) ammo = std::string(guns_[g].name) + " " + std::to_string(guns_[g].ammo);
+        else if (weaponSel_ == 1) ammo = "LAUNCHER " + std::to_string(launcherAmmo_);
+        else if (weaponSel_ == 8) ammo = "GRENADES " + std::to_string(grenades_);
+        else if (weaponSel_ == 9) ammo = "MINES " + std::to_string(mines_);
+        else ammo = "HANDGUN";
+    } else if (hero_ == Hero::Delphi) {
+        if (delphiBow()) ammo = std::string(bows_[delphiWeapon_].name) + (bows_[delphiWeapon_].ammo >= 0 ? " " + std::to_string(bows_[delphiWeapon_].ammo) : "");
+        else ammo = delphiWeapon_ == kDelphiMine ? "MINES " + std::to_string(mines_) : "SWORD";
+    }
+    for (char& ch : ammo) ch = char(std::toupper(static_cast<unsigned char>(ch)));
+    std::string obj = "NO OBJECTIVE";
+    float best = 1e18f;
+    for (const auto& o : objectives_) {
+        if (o.done) continue;
+        Vec3 p = (o.boundsMin + o.boundsMax) * 0.5f;
+        if (o.item >= 0 && size_t(o.item) < destruct_.items.size()) p = destruct_.items[size_t(o.item)].base;
+        best = std::min(best, length(Vec3{p.x - player_.position.x, 0, p.z - player_.position.z}));
+    }
+    if (best < 1e17f) obj = "OBJECTIVE " + std::to_string(int(best + 0.5f)) + " M";
+    if (missionComplete_) obj = "MISSION COMPLETE";
+    const std::string text = "HEALTH " + std::to_string(int(playerHealth_ + 0.5f)) + "\n" + ammo + "\n" +
+                             (hero_ == Hero::Mecc ? "INJECTIONS " + std::to_string(syringes_) + "  FLARES " + std::to_string(flares_) + "\n" : std::string()) + obj;
+    float w = 0, h = 0;
+    const float k = rig_.comfort.worldScale;
+    const MeshId m = text_.mesh(text, 0.015f * k, 0.3f * k, &w, &h);
+    if (!m) return;
+    // Over the wrist, facing the eyes, upright.
+    const Vec3 at = wrist + Vec3{0, 0.07f * k, 0} + toEye * (0.02f * k);
+    const Vec3 fwd = normalize(Vec3{toEye.x, 0, toEye.z} + Vec3{0, 0, 1e-4f});
+    const Quat q = Quat::fromAxisAngle({0, 1, 0}, std::atan2(fwd.x, fwd.z));
+    const float fade = std::min(1.0f, (wristT_ - 0.25f) / 0.15f);
+    const Mat4 xf = Mat4::translation(at) * Mat4::rotation(q);
+    static int dbg = 0;
+    if (std::getenv("GVR_WRIST_TRACE") && dbg++ % 30 == 0)
+        LOGI("wrist trace: eye (%.2f %.2f %.2f) wrist (%.2f %.2f %.2f) panel (%.2f %.2f %.2f) %.3f x %.3f m, fade %.2f, mesh %u", eye.x, eye.y, eye.z,
+             wrist.x, wrist.y, wrist.z, at.x, at.y, at.z, w, h, fade, unsigned(m));
+    text_.drawPanel(xf * Mat4::translation({0, 0, -0.002f}), w + 0.02f * k, h + 0.016f * k, {0.02f, 0.04f, 0.05f, 0.75f * fade});
+    text_.draw(m, xf, {playerHealth_ < 35.0f ? 1.0f : 0.75f, playerHealth_ < 35.0f ? 0.45f : 0.95f, 0.6f, fade});
 }
 
 }  // namespace gvr

@@ -1,0 +1,16 @@
+# Rework (2026-10-28): the health injection jabbed into the other forearm. X takes the syringe out in the left hand;
+# the left hand swings round and pushes the needle into the right forearm: the dose goes in.
+# Log (checked by devtest.ps1): "Injection into the forearm" "Health injection: N left".
+name syringe_arm
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_SYRINGES 2
+view first
+duration 5
+hold x 1.0 1.1
+yaw_l -90 1.5 2.5
+hand_l 0.285 0 0.15 1.5 2.5
+shot 2.4 jab
