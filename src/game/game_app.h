@@ -1798,6 +1798,8 @@ private:  // the mission placed enemies: no test waves
     // it aims along the line between your hands.
     float gunKick_ = 0, gunKickV_ = 0;
     bool twoHand_ = false;
+    std::string battleSet_;       // the battle music last playing (its "end" phrase closes it)
+    bool battleEndHeard_ = false;
     uint32_t shadowFrame_ = 0;
     bool shadowFresh_ = false;  // a shadow map from an earlier frame may be reused
     // Teleport movement (Options; game_app_teleport.cpp).

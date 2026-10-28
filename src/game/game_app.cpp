@@ -3060,6 +3060,17 @@ void GameApp::updateMusic(float dt) {
         const std::string& own = assetWorld_->world().music[engaged >= 4 ? 3 : 1];
         if (!own.empty()) want = toLower(own);
     }
+    // (2026-10-28) A battle that ends closes on its own ending phrase (msbend, rlbend...: one segment) before the
+    // ambient set, instead of cutting across; the player's death plays the death song (mdh / rdh / kdh).
+    if (combatHold_ > 0) battleSet_ = want;
+    else if (!battleSet_.empty()) {
+        const std::string end = battleSet_ + "end";
+        if (!musicSet_ || musicSet_->variants(end).empty()) battleSet_.clear();  // (no ending phrase: straight back)
+        else if (musicSet_ && !musicSet_->variants(end).empty() && music_->current() != end && !battleEndHeard_) want = end;
+        else if (music_->current() == end) { battleEndHeard_ = true; }
+        if (battleEndHeard_) { battleSet_.clear(); battleEndHeard_ = false; }
+    }
+    if (dying_ && musicSet_ && !musicSet_->variants(pre + "dh").empty()) want = pre + "dh";
     if (stingerLeft_ > 0) want = pre + "vy";
     if (streamLeft_ > 0) want.clear();  // a cutscene soundtrack is playing
     music_->request(want);
