@@ -71,7 +71,26 @@ void GameApp::enterTitle() {
     if (assetWorld_ && assetWorld_->models()) logoModel_ = assetWorld_->models()->get("Giants_logo_3D.gbs");
     // Mission select (ours): every mission of the three stories in campaign order; starts at the
     // checkpoint's mission when there is one.
-    if (assetWorld_ && titleMissions_.empty()) titleMissions_ = assetWorld_->campaignMissions();
+    if (assetWorld_ && titleMissions_.empty()) {
+        titleMissions_ = assetWorld_->campaignMissions();
+        // (2026-10-28) Unlocks: each hero's story up to its first unfinished mission (and the checkpoint's).
+        static const char* all = std::getenv("GVR_ALL_MISSIONS");
+        if (!(all && all[0] == '1')) {
+            bool blocked[3] = {false, false, false};
+            std::vector<std::pair<std::string, std::string>> open;
+            for (const auto& wm : titleMissions_) {
+                const std::string m = toLower(wm.second);
+                const Hero h = heroForWorld(wm.first);
+                const int k = h == Hero::Delphi ? 1 : (h == Hero::Kabuto ? 2 : 0);
+                const bool done = missionsDone_.count(m) > 0;
+                const bool kept = !blocked[k] || m == toLower(titleMission_);
+                if (kept) open.push_back(wm);
+                if (!done) blocked[k] = true;
+            }
+            LOGI("Main menu: %zu of %zu missions unlocked (%zu finished)", open.size(), titleMissions_.size(), missionsDone_.size());
+            titleMissions_ = open;
+        }
+    }
     titleMissionSel_ = 0;
     for (size_t i = 0; i < titleMissions_.size(); ++i)
         if (toLower(titleMissions_[i].second) == toLower(titleMission_)) titleMissionSel_ = int(i);
@@ -141,12 +160,19 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
         if (titleRepeat_ > 0) dx = dy = 0;
         else { titleRepeat_ = titleFirst_ ? 0.4f : 0.16f; titleFirst_ = false; }
     }
-    const int first = titleWorld_.empty() ? kTitleNewGame : kTitleContinue;
+    // (The CONTINUE row is also the save slot's: reachable when the slot is empty, to switch slots.)
+    const int first = baseSavePath_.empty() && titleWorld_.empty() ? kTitleNewGame : kTitleContinue;
     if (dy != 0) {
         titleRow_ = std::max(first, std::min(int(kTitleRowCount) - 1, titleRow_ + dy));
         if (titleRow_ == kTitleSkAddr && skNetWant_ != 2) titleRow_ = std::max(first, std::min(int(kTitleRowCount) - 1, titleRow_ + dy));  // (only when joining)
         haptics_.push_back({kRight, 0.2f, 0.02f});
         sfx2D("ph_selct", 0.4f);
+        titleHold_ = 0;
+    }
+    if (dx != 0 && titleRow_ == kTitleContinue && !baseSavePath_.empty()) {
+        switchSaveSlot((settings_.saveSlot + dx + 3) % 3);
+        haptics_.push_back({kRight, 0.3f, 0.03f});
+        sfx2D("ph_selct", 0.6f, 1.2f);
         titleHold_ = 0;
     }
     if (dx != 0 && titleRow_ == kTitleMission && !titleMissions_.empty()) {
@@ -320,6 +346,13 @@ void GameApp::renderTitle() {
         missionText(titleMission_, t, b);
         cont += "  -  " + (t.empty() ? titleMission_ : t);
     }
+    if (!baseSavePath_.empty()) {
+        std::string t, b;
+        if (!titleWorld_.empty()) missionText(titleMission_, t, b);
+        const std::string slot = std::to_string(settings_.saveSlot + 1);
+        cont = (titleRow_ == kTitleContinue ? "SLOT < " + slot + " >  " : "SLOT " + slot + "  ") +
+               (titleWorld_.empty() ? std::string("EMPTY") : "CONTINUE: " + (t.empty() ? titleMission_ : t));
+    }
     const std::string story = kStoryName[titleCampaign_];
     const std::string ng = titleHold_ > 0.05f && titleRow_ == kTitleNewGame ? "HOLD... " + std::to_string(int(std::ceil(1.5f - titleHold_))) : "NEW GAME:  < " + story + " >";
     std::string ms = "MISSION: (none)";
@@ -361,7 +394,8 @@ void GameApp::renderTitle() {
         const bool sel = i == titleRow_;
         if (sel) text_.drawPanel(panel * Mat4::translation({0, y, 0.002f}), w - 0.06f, rowH * 0.9f, {0.75f, 0.5f, 0.15f, 0.45f});
         const Vec4 col = !usable ? Vec4{0.45f, 0.45f, 0.45f, 1} : (sel ? Vec4{1, 1, 0.8f, 1} : Vec4{0.85f, 0.85f, 0.85f, 1});
-        if (const MeshId m = text_.mesh(rows[i], 0.055f, w - 0.1f, &tw, &th)) text_.draw(m, panel * Mat4::translation({0, y, 0.004f}), col);
+        const float size = rows[i].size() > 34 ? std::max(0.038f, 0.055f * 34.0f / float(rows[i].size())) : 0.055f;  // (long rows: smaller, on one line)
+        if (const MeshId m = text_.mesh(rows[i], size, w - 0.1f, &tw, &th)) text_.draw(m, panel * Mat4::translation({0, y, 0.004f}), col);
     }
     if (const MeshId m = text_.mesh("STICK: CHOOSE    TRIGGER: SELECT", 0.03f, 1.0f, &tw, &th))
         text_.draw(m, panel * Mat4::translation({0, -0.5f * h + 0.04f, 0.004f}), {0.7f, 0.7f, 0.7f, 1});
@@ -387,6 +421,70 @@ std::string GameApp::ambientFor(const std::string& world) const {
     if (assetWorld_ && toLower(assetWorld_->worldName()) == w && !assetWorld_->world().music[0].empty())
         return toLower(assetWorld_->world().music[0]);
     return std::string(1, pre) + (chapter % 2 == 1 ? "a1" : "a2");
+}
+
+void GameApp::loadProgress() {
+    missionsDone_.clear();
+    if (const char* p = std::getenv("GVR_PROGRESS")) {  // test hook: these missions count as finished
+        std::string list = p;
+        size_t at = 0;
+        while (at <= list.size()) {
+            size_t end = list.find(',', at);
+            if (end == std::string::npos) end = list.size();
+            if (end > at) missionsDone_.insert(toLower(list.substr(at, end - at)));
+            at = end + 1;
+        }
+        LOGI("Progress from GVR_PROGRESS: %zu missions finished", missionsDone_.size());
+        return;
+    }
+    if (progressPath_.empty()) return;
+    FILE* f = std::fopen(progressPath_.c_str(), "r");
+    if (!f) return;
+    char line[256];
+    while (std::fgets(line, sizeof line, f)) {
+        std::string s = line;
+        while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' ')) s.pop_back();
+        if (s.rfind("done=", 0) == 0 && s.size() > 5) missionsDone_.insert(toLower(s.substr(5)));
+    }
+    std::fclose(f);
+    LOGI("Progress: %zu missions finished", missionsDone_.size());
+}
+
+void GameApp::markMissionDone(const std::string& mission) {
+    const std::string m = toLower(mission);
+    if (m.empty() || !missionsDone_.insert(m).second) return;
+    LOGI("Progress: %s finished (%zu missions)", m.c_str(), missionsDone_.size());
+    if (progressPath_.empty() || std::getenv("GVR_PROGRESS")) return;
+    if (FILE* f = std::fopen(progressPath_.c_str(), "a")) {  // (appended: a crash can't lose the earlier ones)
+        std::fprintf(f, "done=%s\n", m.c_str());
+        std::fclose(f);
+    }
+}
+
+std::string GameApp::slotPath(int slot) const {
+    if (slot <= 0 || baseSavePath_.empty()) return baseSavePath_;
+    const size_t slash = baseSavePath_.find_last_of("/\\");
+    return (slash == std::string::npos ? std::string(".") : baseSavePath_.substr(0, slash)) + "/save" + std::to_string(slot + 1) + ".txt";
+}
+
+void GameApp::switchSaveSlot(int slot) {
+    settings_.saveSlot = std::max(0, std::min(2, slot));
+    saveSettings();
+    savePath_ = slotPath(settings_.saveSlot);
+    SaveGame g;
+    if (loadSaveGame(savePath_, g)) {
+        pendingRestore_ = g;
+        haveRestore_ = true;
+        titleWorld_ = g.world;
+        titleMission_ = g.mission;
+        const Hero h = heroForWorld(titleWorld_);
+        titleCampaign_ = h == Hero::Delphi ? 1 : (h == Hero::Kabuto ? 2 : 0);
+    } else {
+        haveRestore_ = false;
+        titleWorld_.clear();
+        titleMission_.clear();
+    }
+    LOGI("Save slot %d: %s", settings_.saveSlot + 1, titleWorld_.empty() ? "empty" : (titleWorld_ + " / " + titleMission_).c_str());
 }
 
 }  // namespace gvr

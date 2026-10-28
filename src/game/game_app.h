@@ -1399,6 +1399,16 @@ private:  // the mission placed enemies: no test waves
     bool titleWanted_ = false, title_ = false, titleViewSet_ = false, titleActHeld_ = true, titleFirst_ = true;
     std::string titleWorld_, titleMission_;   // the checkpoint CONTINUE goes to ("" none)
     std::vector<std::pair<std::string, std::string>> titleMissions_;  // main menu mission select: (world, mission)
+    // (2026-10-28) Missions finished in this install (progress.txt beside the save): the mission select offers
+    // each hero's story up to its first unfinished mission. GVR_PROGRESS=<m,m,...> overrides; GVR_ALL_MISSIONS=1 offers all.
+    std::set<std::string> missionsDone_;
+    // Save slots (2026-10-28): slot 1 is the original save file, 2 and 3 save2.txt / save3.txt beside it.
+    std::string baseSavePath_;
+    std::string slotPath(int slot) const;
+    void switchSaveSlot(int slot);
+    std::string progressPath_;
+    void loadProgress();
+    void markMissionDone(const std::string& mission);
     int titleMissionSel_ = 0;
     void startChosenMission(const InputFrame& in);
     int titleRow_ = 0, titleCampaign_ = 0;

@@ -3,6 +3,7 @@
 name ui_title_mission_select
 world Story1
 title
+env GVR_ALL_MISSIONS 1
 duration 40
 move 0 -1 5.0 5.25
 move 1 0 6.0 6.25

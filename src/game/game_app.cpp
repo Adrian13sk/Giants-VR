@@ -47,9 +47,16 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         const size_t slash = savePath_.find_last_of("/\\");
         settingsPath_ = (slash == std::string::npos ? std::string(".") : savePath_.substr(0, slash)) + "/settings.txt";
         if (loadSettings(settingsPath_, settings_)) LOGI("Settings loaded from %s", settingsPath_.c_str());
+        progressPath_ = (slash == std::string::npos ? std::string(".") : savePath_.substr(0, slash)) + "/progress.txt";
         loadWorldQuality();
     }
+    loadProgress();
     if (const char* ov = std::getenv("GVR_SETTINGS")) { applySettingsList(ov, settings_); LOGI("Settings from GVR_SETTINGS: %s", ov); }
+    if (!savePath_.empty()) {
+        baseSavePath_ = savePath_;
+        savePath_ = slotPath(settings_.saveSlot);
+        if (settings_.saveSlot != 0) LOGI("Save slot %d: %s", settings_.saveSlot + 1, savePath_.c_str());
+    }
     firstPerson_ = !settings_.thirdPerson;
     applySettings();
     std::string startMission;
@@ -2917,6 +2924,7 @@ void GameApp::completeObjective(int index) {
     if (objectivesDone_ < objectives_.size() || missionComplete_) return;
     missionComplete_ = true;
     LOGI("Mission %s complete", assetWorld_->missionName().c_str());
+    markMissionDone(assetWorld_->missionName());
     haptics_.push_back({kLeft, 0.9f, 0.3f});
     haptics_.push_back({kRight, 0.9f, 0.3f});
     // The outro cutscene (op 0x19); where it can't be played, its soundtrack still carries the
@@ -2948,6 +2956,7 @@ void GameApp::updateMission(float dt) {
             if (!missionComplete_) {
                 missionComplete_ = true;
                 LOGI("Mission %s complete", assetWorld_->missionName().c_str());
+                markMissionDone(assetWorld_->missionName());
             }
             return;
         }

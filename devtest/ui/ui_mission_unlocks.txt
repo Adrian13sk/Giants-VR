@@ -1,0 +1,10 @@
+# Rework (2026-10-28): mission select unlocks. With 1a, 1b and 1c_1 finished (GVR_PROGRESS) the main menu offers the
+# Meccaryn story up to 1c_2 (its first unfinished mission) and the first mission of Delphi's and Kabuto's stories: 6.
+# Log (checked by devtest.ps1): "Main menu: 6 of 55 missions unlocked (3 finished)".
+name ui_mission_unlocks
+world Story1
+title
+env GVR_PROGRESS 1a_1_timmy,1b_1_catchsmarties,1c_1_firstmecc
+duration 4
+move 0 -1 2.0 2.25
+shot 3 unlocks

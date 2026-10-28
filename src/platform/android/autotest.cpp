@@ -86,7 +86,8 @@ bool AutoTest::load(const std::string& filesDir) {
 void AutoTest::applyEnvironment() const {
     if (!script_.mission.empty()) setenv("GVR_MISSION", script_.mission.c_str(), 1);
     setenv("GVR_NO_BRIEF", "1", 1);
-    setenv("GVR_GPU_PASSES", "1", 0);  // (2026-10-28) GPU time per offscreen pass in every test (a script may set 0)
+    setenv("GVR_GPU_PASSES", "1", 0);
+    setenv("GVR_ALL_MISSIONS", "1", 0);  // (2026-10-28) the mission select's choices don't depend on the headset's own progress  // (2026-10-28) GPU time per offscreen pass in every test (a script may set 0)
     for (const auto& e : script_.env) setenv(e.first.c_str(), e.second.c_str(), 1);
 }
 

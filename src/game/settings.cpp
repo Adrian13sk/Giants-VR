@@ -29,6 +29,7 @@ void setKey(UserSettings& s, const std::string& k, int v) {
     else if (k == "seated") s.seated = v != 0;
     else if (k == "teleport") s.teleport = v != 0;
     else if (k == "difficulty") s.difficulty = std::max(0, std::min(2, v));
+    else if (k == "save_slot") s.saveSlot = std::max(0, std::min(2, v));
     else if (k == "hints_shown") s.hintsShown = v;
     else if (k == "classic_look") s.classicLook = v != 0;
     else if (k == "ambience") s.ambience = std::max(0, std::min(2, v));
@@ -67,7 +68,7 @@ bool writeSettings(const std::string& path, const UserSettings& s) {
         std::ofstream f(tmp, std::ios::trunc);
         if (!f) return false;
         f << "turn=" << s.turn << "\nleft_handed=" << int(s.leftHanded) << "\nthird_person=" << int(s.thirdPerson)
-          << "\nhud_size=" << s.hudSize << "\nvolume=" << s.volume << "\nmusic=" << s.music << "\nsubtitles=" << int(s.subtitles) << "\ncutscene_screen=" << int(s.cutsceneScreen) << "\nshow_fps=" << int(s.showFps) << "\nday_night=" << int(s.dayNight) << "\noriginal_fx=" << int(s.originalFx) << "\nfoveation=" << s.foveation << "\nvignette=" << s.vignette << "\nambushes=" << int(s.ambushes) << "\naim_laser=" << int(s.aimLaser) << "\nreach_assist=" << int(s.reachAssist) << "\nmic_roar=" << int(s.micRoar) << "\nseated=" << int(s.seated) << "\nteleport=" << int(s.teleport) << "\ndifficulty=" << s.difficulty << "\nhints_shown=" << s.hintsShown << "\nclassic_look=" << int(s.classicLook) << "\nambience=" << s.ambience << "\n";
+          << "\nhud_size=" << s.hudSize << "\nvolume=" << s.volume << "\nmusic=" << s.music << "\nsubtitles=" << int(s.subtitles) << "\ncutscene_screen=" << int(s.cutsceneScreen) << "\nshow_fps=" << int(s.showFps) << "\nday_night=" << int(s.dayNight) << "\noriginal_fx=" << int(s.originalFx) << "\nfoveation=" << s.foveation << "\nvignette=" << s.vignette << "\nambushes=" << int(s.ambushes) << "\naim_laser=" << int(s.aimLaser) << "\nreach_assist=" << int(s.reachAssist) << "\nmic_roar=" << int(s.micRoar) << "\nseated=" << int(s.seated) << "\nteleport=" << int(s.teleport) << "\ndifficulty=" << s.difficulty << "\nsave_slot=" << s.saveSlot << "\nhints_shown=" << s.hintsShown << "\nclassic_look=" << int(s.classicLook) << "\nambience=" << s.ambience << "\n";
         if (!f.good()) return false;
     }
     return std::rename(tmp.c_str(), path.c_str()) == 0;
