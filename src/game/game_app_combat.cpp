@@ -176,6 +176,7 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
         else if (haveCheckpoint_) teleportPlayer(clearSpawn(checkpointAt_, checkpointYaw_), checkpointYaw_);  // (the last objective's spot)
         else teleportPlayer(clearSpawn(assetWorld_->spawnPoint(), assetWorld_->spawnYaw()), assetWorld_->spawnYaw());
         respawnFade_ = 1.0f;
+        recallTurret("Baz respawned");
         LOGI("Player respawned%s", haveCheckpoint_ && !skirmish_ ? " at the checkpoint" : "");
     }
 }

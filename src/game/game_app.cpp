@@ -824,6 +824,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     renderer_.environment().pointLightColor = Vec3{0, 0, 0};  // the jetpack's light (updateJetFx) is off unless lit
     if (dying_) {
         updateDeath(dt, in);
+        updatePortTurret(dt, in);  // (it fights on while he falls)
         updateCombat(dt);
         { GVR_PROF("audio"); updateAudio(dt); }
         updateFlashes(dt);
@@ -925,6 +926,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updatePopup(dt, in);
     updateGrenades(dt, in);
     updateMines(dt, in);
+    updatePortTurret(dt, in);  // (planted: it fights on whatever is in hand)
     { GVR_PROF("map"); updateMap(dt, in); }
     updateFlares(dt, in);
     { GVR_PROF("camera"); placeCamera(dt, false, &in); }
@@ -1868,7 +1870,14 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     const int gh = rig_.turnHand();
     if (weaponSel_ != 10) repairOn_ = false;  // (2026-10-28 review: the beam stayed drawn after a switch to the bush or bombs)
     if (weaponSel_ != 11) lastWeaponSel_ = weaponSel_;
-    updatePortTurret(dt, in);  // (planted: it fights on whatever is in hand)
+    {
+        // The turret's trigger: a fresh pull plants it; after planting (or taking it back), the pull still held
+        // fires nothing until it is let go.
+        const bool raw = in.hand[gh].trigger > 0.6f;
+        turretPull_ = raw && !turretTrigHeld_;
+        turretTrigHeld_ = raw;
+        if (turretTrigBlock_ && !raw) turretTrigBlock_ = false;
+    }
     updateGunKick(dt);
     // Right stick forward: next weapon (released to neutral before it switches again).
     const float sy = in.hand[gh].thumbstick.y;
@@ -2115,10 +2124,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         laserOn_ = false;
     }
     bool trigger = in.hand[gh].trigger > 0.6f;
-    if (turretTrigBlock_) {  // (the pull that planted the turret doesn't also fire what comes back into the hand)
-        if (!trigger) turretTrigBlock_ = false;
-        trigger = false;
-    }
+    if (turretTrigBlock_) trigger = false;  // (the pull that planted the turret doesn't also fire what comes back into the hand)
     rocketCooldown_ -= dt;
     if (launcher) {
         // One rocket per pull, 1 s to reload. The gun's bolts still fly (update with no trigger).
@@ -2148,11 +2154,9 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     rocketTriggerHeld_ = trigger;
     if (weaponSel_ == 11) {  // the turret in hand: the trigger plants it where the hand points
         weapon_.update(dt, false, muzzle, fwd);
-        if (trigger && !turretTrigHeld_ && gunValid_) plantTurret(muzzle, fwd);
-        turretTrigHeld_ = trigger;
+        if (turretPull_ && !turretTrigBlock_ && gunValid_) plantTurret(muzzle, fwd);
         return;
     }
-    turretTrigHeld_ = trigger;
     if (weaponSel_ == 10) {  // the Repair Gun: a beam, no shots (the gun's bolts already in flight fly on)
         weapon_.update(dt, false, muzzle, fwd);
         updateRepairGun(dt, trigger && gunValid_, muzzle, fwd);

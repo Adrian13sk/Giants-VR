@@ -1028,10 +1028,12 @@ private:
     } turret_;
     int turretRounds_ = 60;
     bool turretTrigHeld_ = false, turretTrigBlock_ = false, turretGripWas_[2] = {false, false};
+    bool turretPull_ = false;  // this frame: a fresh pull of the gun hand's trigger
     float turretReadyT_ = 0;
     std::vector<Base::TurretShot> turretShots_;
     void initPortTurret(ModelCache* mc);
     void resetPortTurret();
+    void recallTurret(const char* why);
     void plantTurret(const Vec3& muzzle, const Vec3& fwd);
     void updatePortTurret(float dt, const InputFrame& in);
     void renderPortTurret();

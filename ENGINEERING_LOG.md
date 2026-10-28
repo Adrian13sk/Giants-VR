@@ -2811,3 +2811,22 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   later; a grip squeeze with the hand on its head takes it back at once. Checked: the drawn nozzle (the posed skin's
   Ref_nozzle01) is 0.00 m from where its rounds leave; devtests w_mecc_turret (plant, take back, replant, kills)
   and w_mecc_turret_spent (runs dry, folds, recharges) at 72 and 24 Hz. Reapers don't target it (it can't be hurt).
+- Review of 1d70b8b (the turret; read-only reviewer agent), fixed: (1) third person, any grip within 1.6 m took it
+  back - the move hand's grip is sprint - and a grip already held when it was planted counted as fresh: the grips'
+  state is now tracked every frame, third person takes only the gun hand, first person skips a hand holding a stone,
+  a body or a two-handed gun's barrel; (2) planting with grenades as the last weapon cocked one with the trigger still
+  held (and the bush put him in it): it goes back to the handgun from those; the trigger block now clears at the top
+  of updateWeapon whatever is in hand, and the plant is a fresh pull measured there (it went stale in the launcher /
+  bomb branches); (4) a planted turret was lost for the mission once he moved on: more than 60 m away, or a respawn,
+  sends it back to the pack (rounds kept), and the weapon strip shows it dimmed while planted / recharging; (5) a
+  roof, bridge or walkway the ray meets is planted on (it went to the terrain underneath, inside the building), and
+  "stand on the ground" while airborne; (6) it fires on through Baz's death; (7) taking it back stops the machine
+  gun's loop and gives the switch feedback. Not changed: it shoots Reapers only (not creatures, bosses, Vimps).
+- Delphi's FOLLOW: weapondefs item 30 (IconRSFollow) and clips for its victims - rpman_followspell_caught (2.6 s: a
+  Reaper lifted off his feet, toes down) and _loop (hanging limp), also for Rippers, Vimps, Smarties and Meccaryns;
+  no mission hands it out. Ours: trigger held, the casting hand pointing at a Reaper (within 7 degrees, 30 m) is pulled
+  back toward her (> 1.4 m/s): he is caught (Falling state, as Kabuto's grab, lifted 0.6 m so it doesn't end in a
+  landing), floats where her hand points at the distance he was caught at (3-10 m), and follows it (at most 22 m/s);
+  letting go throws him on with the swing: he bowls over Reapers he meets (3 x speed) and takes 6 x speed where he
+  lands. 6 s at most, 12 s between; Rstory5 and practice; a blue thread of fire from the hand. Found in testing: the
+  default left-hand aim in the harness points 17 degrees under a Reaper's middle at 10 m (the script pitches it up).

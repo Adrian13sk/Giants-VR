@@ -11,6 +11,7 @@
 #include <cstdlib>
 
 #include "assets/gzp.h"
+#include "audio/mixer.h"
 #include "assets/skin_anim.h"
 #include "core/log.h"
 #include "scene/asset_world.h"
@@ -89,25 +90,47 @@ void GameApp::resetPortTurret() {
     turretRounds_ = kTurretRounds;
     turretReadyT_ = 0;
     turretShots_.clear();
-    turretTrigHeld_ = false;
+    turretTrigHeld_ = turretTrigBlock_ = false;
+    turretGripWas_[0] = turretGripWas_[1] = false;
+}
+
+// Back into the pack at once, its rounds kept (left far behind, or Baz back at a checkpoint).
+void GameApp::recallTurret(const char* why) {
+    if (!turret_.up) return;
+    turret_.up = false;
+    turret_.folding = false;
+    LOGI("Turret: %s - back in the pack (%d rounds)", why, turretRounds_);
 }
 
 void GameApp::plantTurret(const Vec3& muzzle, const Vec3& fwd) {
     if (!turretModel_ || !assetWorld_ || turret_.up) return;
     // Where the hand points: the ground it meets within 8 m (a wall: just short of it), else 3 m along it.
+    if (!player_.onGround) {
+        sfx2D("me_outam", 0.8f);
+        timmyLine_ = "TURRET: STAND ON THE GROUND TO PLANT IT";
+        timmyLineT_ = 2.0f;
+        return;
+    }
     Vec3 at = muzzle + fwd * 3.0f;
     float t;
     Vec3 n;
-    if (worldRay_ && worldRay_(muzzle, fwd, 8.0f, t, n)) at = muzzle + fwd * (n.y > 0.5f ? t : std::max(0.0f, t - 0.6f));
+    bool onTop = false;  // (the ray met a floor - a roof, a bridge, a walkway: planted on it, not on the terrain under it)
+    if (worldRay_ && worldRay_(muzzle, fwd, 8.0f, t, n)) {
+        at = muzzle + fwd * (n.y > 0.5f ? t : std::max(0.0f, t - 0.6f));
+        onTop = n.y > 0.5f;
+    }
     Vec3 flat{at.x - player_.position.x, 0, at.z - player_.position.z};
     const float d = length(flat);
-    if (d > kTurretReach) at = player_.position + flat * (kTurretReach / d);
-    if (d < 0.8f) {  // (not into his own feet: a step ahead)
+    if (d > kTurretReach) { at = player_.position + flat * (kTurretReach / d); onTop = false; }
+    if (d < 0.8f) {  // (not into his own feet: a step ahead, where he stands)
         const Vec3 ahead{-std::sin(player_.yaw), 0, -std::cos(player_.yaw)};
         at = player_.position + ahead * 1.2f;
+        at.y = player_.position.y;
+        onTop = true;
     }
-    float h;
-    if (!assetWorld_->terrain().heightAt(at.x, at.z, h) || h < player_.seaLevel - 0.2f || std::fabs(h - player_.position.y) > 3.0f) {
+    float h = at.y;
+    if (!onTop && !assetWorld_->terrain().heightAt(at.x, at.z, h)) h = -1e9f;
+    if (h < player_.seaLevel - 0.2f || std::fabs(h - player_.position.y) > 3.0f) {
         sfx2D("me_outam", 0.8f);
         timmyLine_ = "TURRET: NO GROUND TO PLANT IT THERE";
         timmyLineT_ = 2.0f;
@@ -126,7 +149,8 @@ void GameApp::plantTurret(const Vec3& muzzle, const Vec3& fwd) {
     sfx("ph_enter", turret_.pos, 0.7f, 1.3f);
     haptics_.push_back({rig_.turnHand(), 0.7f, 0.12f});
     LOGI("Turret planted %.1f m away (%d rounds)", length(Vec3{at.x - player_.position.x, 0, at.z - player_.position.z}), turretRounds_);
-    weaponSel_ = weaponOwned(lastWeaponSel_) ? lastWeaponSel_ : 0;
+    // Back to what was in hand - not into the bush, and not a grenade cocked by the trigger still held.
+    weaponSel_ = weaponOwned(lastWeaponSel_) && lastWeaponSel_ != 2 && lastWeaponSel_ != 8 ? lastWeaponSel_ : 0;
     weaponHudT_ = 0;
     turretTrigBlock_ = true;
 }
@@ -146,7 +170,15 @@ void GameApp::updatePortTurret(float dt, const InputFrame& in) {
         }
     }
     stepTurretShots(turretShots_, dt, "Baz's turret");
+    // The grips' last state, every frame (a squeeze already held when it is planted is not a fresh one).
+    bool fresh[2];
+    for (int h = 0; h < 2; ++h) {
+        const bool sq = in.hand[h].squeeze > 0.8f;
+        fresh[h] = sq && !turretGripWas_[h];
+        turretGripWas_[h] = sq;
+    }
     if (!turret_.up) return;
+    if (length(Vec3{player_.position.x - turret_.pos.x, 0, player_.position.z - turret_.pos.z}) > 60.0f) { recallTurret("left behind"); return; }
     if (turret_.folding) {
         turret_.rise -= dt / kTurretRise;
         if (turret_.rise <= 0) {
@@ -161,10 +193,11 @@ void GameApp::updatePortTurret(float dt, const InputFrame& in) {
     const Vec3 head = turret_.pos + Vec3{0, 0.85f - kTurretSink, 0};
     for (int h = 0; h < 2; ++h) {
         const ControllerState& c = in.hand[h];
-        const bool sq = c.squeeze > 0.8f;
-        const bool fresh = sq && !turretGripWas_[h];
-        turretGripWas_[h] = sq;
-        if (!fresh || !c.gripPoseValid) continue;
+        if (!fresh[h] || !c.gripPoseValid || hero_ != Hero::Mecc || dying_) continue;
+        // (third person: the gun hand only - the other's grip is sprint; first person: not a hand already holding
+        // something - a stone, a body, the barrel of a gun held in two hands)
+        if (!firstPerson_ && h != rig_.turnHand()) continue;
+        if (firstPerson_ && (stoneInHand(h) || heldBody_.hand == h || (twoHand_ && h != rig_.turnHand()))) continue;
         const Vec3 hp = rig_.toWorld(c.gripPose).position;
         static const bool trace = std::getenv("GVR_TURRET_TRACE") != nullptr;  // test hook
         if (trace) LOGI("turret trace: grip %d at %.2f m from its head (hand %.1f %.1f %.1f, head %.1f %.1f %.1f, Baz %.1f m off)", h, double(length(hp - head)), hp.x, hp.y, hp.z, head.x, head.y, head.z, double(length(player_.position - turret_.pos)));
@@ -175,7 +208,11 @@ void GameApp::updatePortTurret(float dt, const InputFrame& in) {
         sfx("me_minth", turret_.pos, 0.8f, 1.2f);
         haptics_.push_back({h, 0.6f, 0.1f});
         LOGI("Turret: taken back (%d rounds left)", turretRounds_);
-        if (hero_ == Hero::Mecc) weaponSel_ = 11;
+        if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
+        weaponSel_ = 11;
+        weaponHudT_ = 0;
+        sfx2D("ph_selct", 0.7f);
+        turretTrigBlock_ = in.hand[rig_.turnHand()].trigger > 0.6f;  // (a trigger held now doesn't plant it again)
         return;
     }
     // The nearest Reaper it can see.

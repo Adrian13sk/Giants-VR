@@ -139,7 +139,7 @@ void GameApp::initMission() {
     // The portable turret (ours: see game_app.h): Baz carries it from Story 3 on, and in practice.
     {
         const std::string mn = toLower(assetWorld_->missionName());
-        const bool later = mn.rfind("story3", 0) == 0 || mn.rfind("4", 0) == 0 || mn.rfind("5", 0) == 0 || mn.rfind("kstory5_5", 0) == 0;
+        const bool later = mn.rfind("story3", 0) == 0 || mn.rfind("4", 0) == 0 || mn.rfind("5", 0) == 0;
         resetPortTurret();
         hasTurret_ = hero_ == Hero::Mecc && turretModel_ && turretHeldModel_ && (later || practice_ || std::getenv("GVR_TURRET"));  // (test hook)
         if (const char* r = std::getenv("GVR_TURRET_ROUNDS")) turretRounds_ = std::max(1, std::atoi(r));  // test hook

@@ -230,7 +230,7 @@ void GameApp::hudWeaponStrip() {
     // One cell per thing carried, in the switching order (the injections, not a weapon, after the
     // guns); a count under those that run out. The first four sit on the original strip art
     // (st_mec_wpslot, four slots), more continue on plates.
-    struct Cell { int layer; bool chosen; int count; };
+    struct Cell { int layer; bool chosen; int count; bool dim = false; };
     Cell cells[kNumSel + 1];  // (every slot and the injections)
     int n = 0;
     auto add = [&](int layer, bool chosen, int count) { if (n < kNumSel + 1) cells[n++] = {layer, chosen, count}; };
@@ -242,6 +242,7 @@ void GameApp::hudWeaponStrip() {
     if (hasLauncher_ && launcherModel_) add(kHudLauncher, weaponSel_ == 1, launcherAmmo_ + launcherHoming_);
     if (hasRepairGun_ && repairModel_) add(kHudRepair, weaponSel_ == 10, -1);
     if (weaponOwned(11)) add(kHudTurret, weaponSel_ == 11, turretRounds_);
+    else if (hasTurret_ && turretModel_ && hero_ == Hero::Mecc && n < kNumSel + 1) cells[n++] = {kHudTurret, false, -1, true};  // (planted / recharging: dim)
     if (syringes_ > 0) add(kHudSyringe, false, syringes_);
     if (hasBush()) add(kHudBush, weaponSel_ == 2, -1);
     if (popupBombs_ > 0) add(kHudPop, weaponSel_ == 3, popupBombs_);
@@ -258,7 +259,7 @@ void GameApp::hudWeaponStrip() {
             hudRect(kHudMarks, f, cx, 0, cw - 0.006f, H - 0.006f, glow);
         }
         const float sz = H * 0.82f * (c.chosen ? popK : 0.85f);
-        const uint8_t col[4] = {255, 255, 255, uint8_t((c.chosen ? 255 : 130) * a)};
+        const uint8_t col[4] = {255, 255, 255, uint8_t((c.chosen ? 255 : c.dim ? 55 : 130) * a)};
         hudRect(c.layer, f, cx + 0.004f, 0.004f, sz, sz, col);
         if (c.count >= 0) {
             const uint8_t nc[4] = {255, uint8_t(c.count > 0 ? 255 : 80), uint8_t(c.count > 0 ? 255 : 80), uint8_t(255 * a)};

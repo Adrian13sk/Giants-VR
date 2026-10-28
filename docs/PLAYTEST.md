@@ -147,6 +147,9 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
       SLOW TIME - both hands together in front of your chest for half a second: Reapers slow to a third for 8 s.
       CLOAK (Reaper story 4 on: r4a hands it to her) - hand over your eyes for a moment: see-through, unseen until
       you shoot. CLUSTER - let a fire bolt go while flicking the hand upward: six bolts in a spread.
+- [ ] **Delphi's FOLLOW** (Reaper story 5, or PRACTICE as Delphi): left trigger held, point at a Reaper and pull the
+      hand back sharply: he is lifted and hangs where you point. Swing the hand and let go of the trigger: he flies.
+      Is the pull easy to do on purpose and hard to do by accident? Does a hard throw feel right?
       Easy to do on purpose? Ever by accident (e.g. while fighting with the sword)?
 - [ ] **Options -> FOVEATED RENDERING: AUTO (UP TO HIGH):** the headset itself sharpens the edges when there is time
       to spare. Compare with MEDIUM in 1a's village: sharper? smoother? Note the FRAME RATE either way.
