@@ -2880,7 +2880,10 @@ void GameApp::renderLoading() {
         const int m = int(lastStats_.seconds) / 60, sec = int(lastStats_.seconds) % 60;
         char s[200];
         const std::string acc = lastStats_.shots > 0 ? std::to_string(int(100.0 * double(lastStats_.hits) / double(lastStats_.shots) + 0.5)) + "% HITS" : "NO SHOTS";
-        std::snprintf(s, sizeof s, "DONE: %s  -  %d:%02d   %d KILLS   %s   %d %s", lastStats_.title.c_str(), m, sec, lastStats_.kills, acc.c_str(),
+        char best[40] = "";
+        if (lastStats_.newBest && lastStats_.best > 0) std::snprintf(best, sizeof best, "   NEW BEST (WAS %d:%02d)", int(lastStats_.best) / 60, int(lastStats_.best) % 60);
+        else if (lastStats_.best > 0) std::snprintf(best, sizeof best, "   BEST %d:%02d", int(lastStats_.best) / 60, int(lastStats_.best) % 60);
+        std::snprintf(s, sizeof s, "DONE: %s  -  %d:%02d%s   %d KILLS   %s   %d %s", lastStats_.title.c_str(), m, sec, best, lastStats_.kills, acc.c_str(),
                       lastStats_.deaths, lastStats_.deaths == 1 ? "DEATH" : "DEATHS");
         if (const MeshId st = text_.mesh(s, 0.045f, 2.6f, &w, &h)) text_.draw(st, place(0.0f, -0.555f), {0.7f, 1.0f, 0.75f, 0.9f});
     }
@@ -2903,8 +2906,22 @@ void GameApp::recordMissionStats() {
     st.hits = weapon_.hits() - statHits0_;
     st.deaths = statDeaths_;
     st.valid = true;
+    // The fastest finish so far (progress.txt keeps it).
+    const std::string key = toLower(assetWorld_->missionName());
+    const auto it = bestTimes_.find(key);
+    st.best = it != bestTimes_.end() ? it->second : -1.0f;
+    st.newBest = st.seconds > 1.0f && (st.best < 0 || st.seconds < st.best);
+    if (st.newBest) {
+        bestTimes_[key] = st.seconds;
+        if (!progressPath_.empty() && !std::getenv("GVR_PROGRESS"))
+            if (FILE* f = std::fopen(progressPath_.c_str(), "a")) {
+                std::fprintf(f, "best=%s %.1f\n", key.c_str(), st.seconds);
+                std::fclose(f);
+            }
+    }
     lastStats_ = st;
-    LOGI("Mission stats: %s, %.0f s, %d kills, %zu shots %zu hits, %d deaths", st.title.c_str(), st.seconds, st.kills, st.shots, st.hits, st.deaths);
+    LOGI("Mission stats: %s, %.0f s, %d kills, %zu shots %zu hits, %d deaths%s", st.title.c_str(), st.seconds, st.kills, st.shots, st.hits, st.deaths,
+         st.newBest ? " - a new best time" : "");
 }
 
 void GameApp::loadMission(const std::string& name) {

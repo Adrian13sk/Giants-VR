@@ -1407,7 +1407,8 @@ private:  // the mission placed enemies: no test waves
     // each hero's story up to its first unfinished mission. GVR_PROGRESS=<m,m,...> overrides; GVR_ALL_MISSIONS=1 offers all.
     std::set<std::string> missionsDone_;
     // (2026-10-28) The last finished mission's numbers, on the next loading screen: time, kills, hits, deaths.
-    struct MissionStats { std::string title; float seconds = 0; int kills = 0; size_t shots = 0, hits = 0; int deaths = 0; bool valid = false; };
+    struct MissionStats { std::string title; float seconds = 0; int kills = 0; size_t shots = 0, hits = 0; int deaths = 0; bool valid = false; float best = -1; bool newBest = false; };
+    std::map<std::string, float> bestTimes_;  // (progress.txt "best=<mission> <s>": the fastest finish of each)
     MissionStats lastStats_;
     double statStartT_ = 0;
     size_t statShots0_ = 0, statHits0_ = 0;

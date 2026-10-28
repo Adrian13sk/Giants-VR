@@ -416,6 +416,7 @@ std::string GameApp::ambientFor(const std::string& world) const {
 
 void GameApp::loadProgress() {
     missionsDone_.clear();
+    bestTimes_.clear();
     if (const char* p = std::getenv("GVR_PROGRESS")) {  // test hook: these missions count as finished
         std::string list = p;
         size_t at = 0;
@@ -436,6 +437,14 @@ void GameApp::loadProgress() {
         std::string s = line;
         while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' ')) s.pop_back();
         if (s.rfind("done=", 0) == 0 && s.size() > 5) missionsDone_.insert(toLower(s.substr(5)));
+        if (s.rfind("best=", 0) == 0) {
+            const size_t sp = s.find(' ', 5);
+            if (sp != std::string::npos) {
+                const float t = float(std::atof(s.c_str() + sp + 1));
+                const std::string m = toLower(s.substr(5, sp - 5));
+                if (t > 0 && (!bestTimes_.count(m) || t < bestTimes_[m])) bestTimes_[m] = t;
+            }
+        }
     }
     std::fclose(f);
     LOGI("Progress: %zu missions finished", missionsDone_.size());
