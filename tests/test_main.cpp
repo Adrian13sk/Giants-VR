@@ -39,6 +39,7 @@
 #include "game/jetski.h"
 #include "game/save_game.h"
 #include "game/settings.h"
+#include "game/progress.h"
 #include "audio/mixer.h"
 #include "audio/music.h"
 #include "assets/gtext.h"
@@ -2164,6 +2165,29 @@ static void testAmbience() {
     }
 }
 
+static void testProgress() {
+    const std::vector<std::pair<std::string, std::string>> all = {
+        {"Story1", "1a_1_timmy"}, {"Story1", "1b_1_catchsmarties"}, {"Story2", "2a_1_getmeat"},
+        {"Rstory1", "r1_smartiegrab"}, {"Rstory1", "r1_turbo"}, {"Kstory1", "k1a_smarties"}, {"Kstory1", "k1b_portal"}};
+    // Nothing finished: the first mission of each story.
+    auto o = unlockedMissions(all, {}, "");
+    CHECK(o.size() == 3 && o[0].second == "1a_1_timmy" && o[1].second == "r1_smartiegrab" && o[2].second == "k1a_smarties");
+    // 1a done: 1b opens; the Meccaryn story stops there.
+    o = unlockedMissions(all, {"1a_1_timmy"}, "");
+    CHECK(o.size() == 4 && o[1].second == "1b_1_catchsmarties");
+    // A checkpoint further on is offered anyway (names compared without case).
+    o = unlockedMissions(all, {}, "2A_1_GetMeat");
+    CHECK(o.size() == 4 && o[1].second == "2a_1_getmeat");
+    // Everything done: everything offered.
+    o = unlockedMissions(all, {"1a_1_timmy", "1b_1_catchsmarties", "2a_1_getmeat", "r1_smartiegrab", "r1_turbo", "k1a_smarties", "k1b_portal"}, "");
+    CHECK(o.size() == all.size());
+    CHECK(saveSlotPath("/data/files/save.txt", 0) == "/data/files/save.txt");
+    CHECK(saveSlotPath("/data/files/save.txt", 2) == "/data/files/save3.txt");
+    CHECK(saveSlotPath("save.txt", 1) == "./save2.txt");
+    CHECK(saveSlotPath("", 1).empty());
+    std::printf("progress ok\n");
+}
+
 int main() {
     testAmbience();
     testUpscale();
@@ -2205,6 +2229,7 @@ int main() {
     testWeapon();
     testEnemies();
     testCreatures();
+    testProgress();
     testBurrows();
     testAudio();
     testMusic();

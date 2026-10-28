@@ -1,6 +1,7 @@
 // GameApp: the main menu (title screen) and the loading-screen art. Same class; see game_app.h
 // ("Main menu").
 #include "game/game_app.h"
+#include "game/progress.h"
 
 #include <cstdlib>
 
@@ -76,17 +77,7 @@ void GameApp::enterTitle() {
         // (2026-10-28) Unlocks: each hero's story up to its first unfinished mission (and the checkpoint's).
         static const char* all = std::getenv("GVR_ALL_MISSIONS");
         if (!(all && all[0] == '1')) {
-            bool blocked[3] = {false, false, false};
-            std::vector<std::pair<std::string, std::string>> open;
-            for (const auto& wm : titleMissions_) {
-                const std::string m = toLower(wm.second);
-                const Hero h = heroForWorld(wm.first);
-                const int k = h == Hero::Delphi ? 1 : (h == Hero::Kabuto ? 2 : 0);
-                const bool done = missionsDone_.count(m) > 0;
-                const bool kept = !blocked[k] || m == toLower(titleMission_);
-                if (kept) open.push_back(wm);
-                if (!done) blocked[k] = true;
-            }
+            const auto open = unlockedMissions(titleMissions_, missionsDone_, titleMission_);
             LOGI("Main menu: %zu of %zu missions unlocked (%zu finished)", open.size(), titleMissions_.size(), missionsDone_.size());
             titleMissions_ = open;
         }
@@ -461,11 +452,7 @@ void GameApp::markMissionDone(const std::string& mission) {
     }
 }
 
-std::string GameApp::slotPath(int slot) const {
-    if (slot <= 0 || baseSavePath_.empty()) return baseSavePath_;
-    const size_t slash = baseSavePath_.find_last_of("/\\");
-    return (slash == std::string::npos ? std::string(".") : baseSavePath_.substr(0, slash)) + "/save" + std::to_string(slot + 1) + ".txt";
-}
+std::string GameApp::slotPath(int slot) const { return saveSlotPath(baseSavePath_, slot); }
 
 void GameApp::switchSaveSlot(int slot) {
     settings_.saveSlot = std::max(0, std::min(2, slot));
