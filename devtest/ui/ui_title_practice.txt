@@ -1,0 +1,13 @@
+# The main menu's PRACTICE row: Delphi (right once), trigger - the title island, her bows, Reaper waves; nothing saved.
+# (2026-10-28)
+# Log (checked by devtest.ps1): "Main menu: practice as Delphi" "Practice: the kit of N missions (N bows)" "Wave N: N Reapers".
+name ui_title_practice
+world Story1
+title
+duration 30
+move 0 -1 5.0 5.25
+move 0 -1 5.6 5.85
+move 1 0 6.6 6.85
+hold trigger_r 8 8.3
+shot 7.5 select
+shot 28 practice

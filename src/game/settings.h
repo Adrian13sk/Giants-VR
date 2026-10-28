@@ -29,7 +29,7 @@ struct UserSettings {
     bool teleport = false;
     int difficulty = 1;
     int saveSlot = 0;        // (2026-10-28) which of the three checkpoint slots CONTINUE and the saves use      // (2026-10-28) 0 easy (half damage, wilder aim), 1 normal, 2 hard (x1.5 damage, sharper aim)   // (2026-10-28) movement by teleport (stick forward: aim an arc; release: blink there) instead of smooth     // (2026-10-28) playing sitting down: the view and hands raised 0.45 m to a standing height    // (2026-10-28) Kabuto roars when you roar into the headset's microphone (asks for the permission when turned on)
-    int foveation = 2;       // fixed foveated rendering 0 off .. 3 high (2: measured on the Quest 2 to hold 72 fps)
+    int foveation = 2;       // fixed foveated rendering 0 off .. 3 high (2: measured on the Quest 2 to hold 72 fps); 4 dynamic up to high
     float hudScale() const { return hudSize == 0 ? 0.8f : (hudSize == 2 ? 1.3f : 1.0f); }
 };
 

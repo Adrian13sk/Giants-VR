@@ -1579,6 +1579,10 @@ static void testSaveGame() {
         UserSettings o;
         applySettingsList("seated=1,volume=3,bogus=7,turn=9", o);
         CHECK(o.seated && o.volume == 3 && o.turn == 3 && !o.micRoar);
+        applySettingsList("foveation=4", o);  // AUTO: dynamic, up to high (2026-10-28)
+        CHECK(o.foveation == 4);
+        applySettingsList("foveation=9", o);
+        CHECK(o.foveation == 4);
     }
     CHECK(UserSettings{}.foveation == 2);  // an old settings file without the key: medium
     std::remove(path.c_str());

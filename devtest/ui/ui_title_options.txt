@@ -1,5 +1,6 @@
 # The main menu's OPTIONS: turn and view changed, closed with the menu button. (2026-10-27, full test; 2026-10-28: two
-# more rows above VIEW - MOVEMENT and PLAY SEATED - so two more steps down; then DIFFICULTY above TURNING, one more.)
+# more rows above VIEW - MOVEMENT and PLAY SEATED - so two more steps down; then DIFFICULTY above TURNING, one more;
+# then PRACTICE on the main menu, one more step to OPTIONS.)
 # Log (checked by devtest.ps1): "Options menu opened (main menu)" "Options: turn changed" "Options: view changed".
 name ui_title_options
 world Story1
@@ -10,6 +11,7 @@ move 0 -1 5.6 5.85
 move 0 -1 6.2 6.45
 move 0 -1 6.8 7.05
 move 0 -1 7.4 7.65
+move 0 -1 8.0 8.25
 hold trigger_r 9 9.3
 move 0 -1 10.0 10.25
 move 0 -1 10.6 10.85

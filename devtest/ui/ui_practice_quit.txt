@@ -1,0 +1,15 @@
+# Practice as Baz, then Options -> MAIN MENU (up once from RESUME: the last row), trigger held 2.5 s: back on the
+# main menu. (2026-10-28)
+# Log (checked by devtest.ps1): "Main menu: practice as Baz" "Options: back to the main menu (practice)" "Main menu (logo".
+name ui_practice_quit
+world Story1
+title
+duration 40
+move 0 -1 5.0 5.25
+move 0 -1 5.6 5.85
+hold trigger_r 7 7.3
+hold menu 22 22.2
+move 0 1 23 23.25
+shot 24 menu
+hold trigger_r 25 27.5
+shot 38 title

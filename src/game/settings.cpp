@@ -20,7 +20,7 @@ void setKey(UserSettings& s, const std::string& k, int v) {
     else if (k == "show_fps") s.showFps = v != 0;
     else if (k == "day_night") s.dayNight = v != 0;
     else if (k == "original_fx") s.originalFx = v != 0;
-    else if (k == "foveation") s.foveation = std::max(0, std::min(3, v));
+    else if (k == "foveation") s.foveation = std::max(0, std::min(4, v));  // (4: dynamic, up to high)
     else if (k == "vignette") s.vignette = std::max(0, std::min(2, v));
     else if (k == "ambushes") s.ambushes = v != 0;
     else if (k == "aim_laser") s.aimLaser = v != 0;

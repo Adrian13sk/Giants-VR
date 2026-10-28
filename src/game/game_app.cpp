@@ -2231,7 +2231,7 @@ void GameApp::initMission() {
     // The mission's race (setup op 0x0B: 1 Kabuto, 2 Mecc, 3 Reaper) picks the hero - kstory5_5 is
     // played as the Meccaryn; the world name decides where the data gives none.
     const uint32_t race = m.setup[0];
-    setHero(race == 1 ? Hero::Kabuto : (race == 2 ? Hero::Mecc : (race == 3 ? Hero::Delphi : heroForWorld(worldName_))));
+    setHero(practice_ ? practiceHero_ : (race == 1 ? Hero::Kabuto : (race == 2 ? Hero::Mecc : (race == 3 ? Hero::Delphi : heroForWorld(worldName_)))));
     if (hero_ != Hero::Mecc) player_.jetpackAvailable = false;
     initBase();   // both depend on the hero just chosen (initCharacters may have run them with the last one)
     initPopup();
@@ -2281,7 +2281,8 @@ void GameApp::initMission() {
         syringes_ = std::max(syringes_, std::min(kMaxSyringes, pendingRestore_.syringes));
         haveRestore_ = false;
     }
-    writeCheckpoint();
+    if (practice_) grantPracticeKit();
+    else writeCheckpoint();  // (practice: never)
     // The mission's ambient music (the world's race and chapter).
     ambientSet_ = ambientFor(worldName_);
     initJetski();
@@ -2825,22 +2826,39 @@ void GameApp::updateLoading(float dt, const InputFrame& in) {
             if (++load_.frames >= 3) {
                 if (!load_.world.empty() && assetWorld_ && assetWorld_->switchWorld(load_.world)) {
                     worldName_ = load_.world;
+                    practice_ = load_.practice;  // (each world switch: a practice session only when asked for)
+                    if (load_.toTitle) title_ = true;  // (loadMission sets the island up as the main menu's scene)
                     streamsIndexed_ = false;
                     streamFiles_.clear();
                     load_.mission = assetWorld_->missions().empty() ? std::string() : assetWorld_->missions().front();
                     for (const auto& m : assetWorld_->missions())  // a checkpoint's mission
                         if (!load_.worldMission.empty() && toLower(m) == toLower(load_.worldMission)) load_.mission = m;
                     missionText(load_.mission, load_.title, load_.brief);
+                    if (practice_) {
+                        const char* who = practiceHero_ == Hero::Delphi ? "DELPHI" : (practiceHero_ == Hero::Kabuto ? "KABUTO" : "BAZ");
+                        load_.title = std::string("PRACTICE: ") + who;
+                        load_.brief = "Every weapon of this hero's story. Reapers come in waves.\n"
+                                      "Nothing here is saved.\nOptions -> MAIN MENU to leave.";
+                    } else if (load_.toTitle) {
+                        load_.title = "MAIN MENU";
+                        load_.brief.clear();
+                    }
+                } else if (!load_.world.empty()) {
+                    LOGW("Loading: world %s unavailable", load_.world.c_str());
                 }
                 // A world without missions (the multiplayer maps) is still set up (its scenery, a skirmish).
                 if (!load_.mission.empty() || (assetWorld_ && assetWorld_->missions().empty())) loadMission(load_.mission);
                 load_.phase = LoadPhase::Brief;
                 load_.t = 0;
+                if (load_.toTitle && title_) {
+                    enterTitle();
+                    load_.phase = LoadPhase::FadeIn;  // (no briefing to read)
+                }
                 LOGI("Briefing: %s (%zu characters of objectives)", load_.title.c_str(), load_.brief.size());
             }
             break;
         case LoadPhase::Brief:
-            if (load_.t > 6.0f) { load_.phase = LoadPhase::FadeIn; load_.t = 0; }
+            if (load_.t > (practice_ ? 4.0f : 6.0f)) { load_.phase = LoadPhase::FadeIn; load_.t = 0; }
             break;
         case LoadPhase::FadeIn:
             load_.phase = LoadPhase::Idle;  // the spawn (and its opening cutscene, with its own fade) follows
@@ -2863,7 +2881,7 @@ void GameApp::renderLoading() {
     auto place = [&](float x, float up) { return Mat4::translation(base + r.rotate(Vec3{x, up, 0})) * Mat4::rotation(r); };
     // The original loading art of the story's race on the left (mecc_ / reaper_ / kabuto_loading),
     // the mission's title and objectives on the right.
-    const Hero dest = !load_.world.empty() ? heroForWorld(load_.world) : hero_;
+    const Hero dest = load_.practice ? practiceHero_ : (!load_.world.empty() ? heroForWorld(load_.world) : hero_);
     const TextureId art = loadingArt(dest);
     const float fade = std::min(1.0f, (load_.phase == LoadPhase::Show ? 0.0f : 0.3f) + load_.t / 0.6f);
     float textX = 0.0f, wrap = 2.6f, titleWrap = 1.8f;
@@ -2897,7 +2915,7 @@ void GameApp::renderLoading() {
 }
 
 void GameApp::recordMissionStats() {
-    if (!assetWorld_) return;
+    if (!assetWorld_ || practice_) return;
     MissionStats st;
     std::string t, b;
     missionText(assetWorld_->missionName(), t, b);
@@ -4670,7 +4688,7 @@ void GameApp::update(float dt, const InputFrame& in) {
             const MissionData& m = assetWorld_->mission();
             // Test hook (headless): GVR_CUTSCENE=<first shot> plays that cutscene instead; "none" skips it.
             const char* forced = std::getenv("GVR_CUTSCENE");
-            if (forced && std::string(forced) == "none") {}
+            if (practice_ || (forced && std::string(forced) == "none")) {}  // (practice: straight in)
             else if (forced && *forced) startCutscene(forced);
             else if (!m.startFlick.empty()) startCutscene(m.startFlick);
         }

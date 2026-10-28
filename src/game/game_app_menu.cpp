@@ -24,7 +24,7 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 }
 
 namespace {
-enum MenuRow { kRowResume, kRowControls, kRowDifficulty, kRowTurn, kRowMove, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowSeated, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowControls, kRowDifficulty, kRowTurn, kRowMove, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowSeated, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowNewGame, kRowMainMenu, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -112,7 +112,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowSubs: s.subtitles = !s.subtitles; changed = true; break;
             case kRowCuts: s.cutsceneScreen = !s.cutsceneScreen; changed = true; break;
             case kRowFps: s.showFps = !s.showFps; changed = true; break;
-            case kRowFov: s.foveation = std::max(0, std::min(3, s.foveation + dx)); changed = true; break;
+            case kRowFov: s.foveation = std::max(0, std::min(4, s.foveation + dx)); changed = true; break;
             case kRowDay: s.dayNight = !s.dayNight; changed = true; break;
             case kRowFx: s.originalFx = !s.originalFx; changed = true; break;
             case kRowMic: s.micRoar = !s.micRoar; changed = true; break;
@@ -120,7 +120,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             default: break;
         }
         if (changed) {
-            static const char* kRowNames[kRowCount] = {"resume", "controls", "difficulty", "turn", "movement", "vignette", "ambushes", "aim laser", "reach assist", "seated", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "mic roar", "new game"};
+            static const char* kRowNames[kRowCount] = {"resume", "controls", "difficulty", "turn", "movement", "vignette", "ambushes", "aim laser", "reach assist", "seated", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "mic roar", "new game", "main menu"};
             LOGI("Options: %s changed", kRowNames[menuRow_]);
             applySettings();
             saveSettings();
@@ -161,6 +161,19 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
     } else {
         menuNewGame_ = 0;
     }
+    // (2026-10-28) MAIN MENU, held 2 s: back to the title island (the checkpoint stays as saved).
+    if (menuRow_ == kRowMainMenu && act) {
+        menuQuit_ += dt;
+        if (menuQuit_ > 2.0f) {
+            menuQuit_ = 0;
+            haptics_.push_back({kLeft, 1.0f, 0.3f});
+            haptics_.push_back({kRight, 1.0f, 0.3f});
+            if (title_) menuOpen_ = false;  // (already there)
+            else quitToTitle(in);
+        }
+    } else {
+        menuQuit_ = 0;
+    }
     menuActHeld_ = act;
 }
 
@@ -172,7 +185,7 @@ void GameApp::renderMenu() {
     const UserSettings& s = settings_;
     static const char* turns[] = {"SNAP 30", "SNAP 45", "SMOOTH, SLOW", "SMOOTH, FAST"};
     static const char* huds[] = {"SMALL", "NORMAL", "LARGE"};
-    static const char* fovs[] = {"OFF (SHARPEST)", "LOW", "MEDIUM", "HIGH (FASTEST)"};
+    static const char* fovs[] = {"OFF (SHARPEST)", "LOW", "MEDIUM", "HIGH (FASTEST)", "AUTO (UP TO HIGH)"};
     char vol[32], mus[32];
     std::snprintf(vol, sizeof vol, "%d%%", s.volume * 10);
     std::snprintf(mus, sizeof mus, "%d%%", s.music * 10);
@@ -204,6 +217,8 @@ void GameApp::renderMenu() {
         {"EFFECTS", s.originalFx ? "ORIGINAL (TEST)" : "SIMPLE"},
         {"KABUTO MIC ROAR", s.micRoar ? (micAllowed_ ? "ON - MIC READY" : "ON") : "OFF"},
         {"NEW GAME", newGame},
+        {"MAIN MENU", menuQuit_ > 0.05f ? "HOLD... " + std::to_string(int(std::ceil(2.0f - menuQuit_)))
+                                         : std::string(practice_ ? "LEAVE PRACTICE" : (title_ ? "" : "LAST CHECKPOINT KEPT"))},
     };
     // (2026-10-28) A window of 16 rows that scrolls with the choice: with 26 rows the panel stood ~1.9 m tall.
     constexpr int kVisible = 16;
@@ -226,12 +241,13 @@ void GameApp::renderMenu() {
         if (const MeshId m = text_.mesh(rows[i][0], 0.042f, 0.7f, &tw, &th))
             text_.draw(m, base * Mat4::translation({-0.5f * w + 0.06f + 0.5f * tw, y, 0.004f}), col);
         if (!rows[i][1].empty()) {
-            const std::string v = sel && menuNewGame_ <= 0.05f ? "< " + rows[i][1] + " >" : rows[i][1];
+            const bool arrows = sel && menuNewGame_ <= 0.05f && i != kRowMainMenu;
+            const std::string v = arrows ? "< " + rows[i][1] + " >" : rows[i][1];
             if (const MeshId m = text_.mesh(v, 0.042f, 0.7f, &tw, &th))
                 text_.draw(m, base * Mat4::translation({0.5f * w - 0.06f - 0.5f * tw, y, 0.004f}), col);
         }
     }
-    if (const MeshId m = text_.mesh("STICK: CHOOSE / CHANGE    NEW GAME: HOLD TRIGGER 2 S    MENU: CLOSE", 0.032f, 1.1f, &tw, &th))
+    if (const MeshId m = text_.mesh("STICK: CHOOSE / CHANGE    NEW GAME, MAIN MENU: HOLD TRIGGER 2 S    MENU: CLOSE", 0.032f, 1.1f, &tw, &th))
         text_.draw(m, base * Mat4::translation({0, -0.5f * h + 0.045f, 0.004f}), {0.7f, 0.7f, 0.7f, 1});
 }
 

@@ -122,6 +122,12 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
 - [ ] **Mission numbers:** the loading screen after a mission shows its time (and your best), kills, hit rate and deaths.
 - [ ] **Delphi's arrows:** walk over arrows stuck in the ground (or pick one up) - the bow's count goes up.
 - [ ] **Options menu** now scrolls (16 rows at a time) - is it easier to read than the tall panel?
+- [ ] **Main menu -> PRACTICE < BAZ | DELPHI | KABUTO >:** the main menu's island with every weapon of that hero's
+      story; Reapers come in threes. Nothing is saved there. A good place to learn the hands.
+- [ ] **Options -> MAIN MENU** (last row: push up once from RESUME; hold the trigger 2 s): back to the main menu from
+      practice or a mission. CONTINUE then starts the mission you were in from its beginning (its checkpoint).
+- [ ] **Options -> FOVEATED RENDERING: AUTO (UP TO HIGH):** the headset itself sharpens the edges when there is time
+      to spare. Compare with MEDIUM in 1a's village: sharper? smoother? Note the FRAME RATE either way.
 
 ## Reporting
 Anything odd: the mission number and what you did just before. If the Quest is plugged in, the automated runner

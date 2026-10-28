@@ -105,6 +105,9 @@ public:
     int foveationWanted() const {
         return foveationOverride_ >= 0 ? foveationOverride_ : std::min(3, settings_.foveation + (quality_ >= 1 ? 1 : 0));
     }
+    // (2026-10-28) Options -> FOVEATED RENDERING: AUTO (setting 4): the runtime's dynamic foveation, up to HIGH -
+    // sharp where the GPU has time to spare, stronger when it is busy (XR_FB_foveation's dynamic level).
+    bool foveationDynamicWanted() const { return foveationOverride_ < 0 && settings_.foveation >= 4; }
     void setFoveationOverride(int level) { foveationOverride_ = level; }
     bool playMode() const { return playMode_; }
     void setPlayMode(bool on, const InputFrame& in);
@@ -775,6 +778,8 @@ private:
         std::string mission, title, brief;
         std::string world;  // non-empty: switch to this world first (end of a story chapter)
         std::string worldMission;  // with `world`: start this mission of it (a checkpoint) instead of the first
+        bool practice = false;     // with `world`: a practice session there (practice_ follows each world switch)
+        bool toTitle = false;      // with `world`: the main menu's island, the main menu after it
     } load_;
     int warmFrame_ = 0;  // warm-up views drawn behind the briefing
     bool warmedThisFrame_ = false;
@@ -1437,6 +1442,15 @@ private:  // the mission placed enemies: no test waves
     void updateTitle(float dt, const InputFrame& in);
     void renderTitle();
     void startFromTitle(const std::string& world, const std::string& mission, bool restore, const InputFrame& in);
+    // (2026-10-28) PRACTICE (main menu): the title's own island with the hero chosen, every weapon of
+    // that hero's story, Reaper waves; never touches the save, the progress or the best times.
+    bool practice_ = false;
+    Hero practiceHero_ = Hero::Mecc;
+    int titlePractice_ = 0;  // the hero on the PRACTICE row (0 Baz, 1 Delphi, 2 Kabuto)
+    void startPractice(Hero h, const InputFrame& in);
+    void grantPracticeKit();
+    // Options -> MAIN MENU (held 2 s): back to the title island; the checkpoint stays as it was saved.
+    void quitToTitle(const InputFrame& in);
     TextureId loadingArt(Hero h);
     // Music: the ambient set for a mission (a1/a2 alternate by chapter; ours).
     std::string ambientFor(const std::string& world) const;
@@ -1461,7 +1475,7 @@ private:  // the mission placed enemies: no test waves
     bool menuControls_ = false;  // rework: the controls card over the options (game_app_menu.cpp)
     void renderControlsCard(const Mat4& base);
     int menuRow_ = 0, menuCampaign_ = 0;
-    float menuRepeat_ = 0, menuNewGame_ = 0, menuYaw_ = 0;
+    float menuRepeat_ = 0, menuNewGame_ = 0, menuQuit_ = 0, menuYaw_ = 0;
     Vec3 menuPos_;
     ButtonEdge menuEdge_;
     void applySettings();

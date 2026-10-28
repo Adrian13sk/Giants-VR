@@ -1,7 +1,9 @@
 // GameApp: the main menu (title screen) and the loading-screen art. Same class; see game_app.h
 // ("Main menu").
 #include "game/game_app.h"
+#include "game/cutscene.h"
 #include "game/progress.h"
+#include "game/save_game.h"
 
 #include <cstdlib>
 
@@ -16,7 +18,7 @@
 namespace gvr {
 
 namespace {
-enum TitleRow { kTitleContinue, kTitleNewGame, kTitleMission, kTitleSkMode, kTitleSkirmish, kTitleSkTeam, kTitleSkAddr, kTitleOptions, kTitleRowCount };
+enum TitleRow { kTitleContinue, kTitleNewGame, kTitleMission, kTitlePractice, kTitleSkMode, kTitleSkirmish, kTitleSkTeam, kTitleSkAddr, kTitleOptions, kTitleRowCount };
 // This headset's own address on the Wi-Fi (the host's differs only in its last number, almost always).
 uint32_t ownLanAddress() {
     for (const auto& a : UdpSocket::localAddresses())
@@ -107,6 +109,77 @@ void GameApp::startFromTitle(const std::string& world, const std::string& missio
     load_.worldMission = mission;
     load_.title = world;
     LOGI("Main menu: %s %s / %s", restore ? "continue" : "new game", world.c_str(), mission.empty() ? "(first)" : mission.c_str());
+}
+
+// (2026-10-28) PRACTICE: the main menu's island (intro_island: no objectives, so the Reaper test waves
+// come) with the hero chosen. The save, the progress file and the best times are left alone.
+void GameApp::startPractice(Hero h, const InputFrame& in) {
+    title_ = false;
+    haveRestore_ = false;
+    firstBriefDone_ = true;
+    practiceHero_ = h;
+    syringes_ = 0;
+    flares_ = 0;
+    resetArsenal();
+    setPlayMode(true, in);
+    beginLoading(std::string(), in);
+    load_.world = "intro_island";
+    load_.practice = true;
+    load_.title = "PRACTICE";
+    LOGI("Main menu: practice as %s", h == Hero::Delphi ? "Delphi" : (h == Hero::Kabuto ? "Kabuto" : "Baz"));
+}
+
+// Everything the hero's story hands out over its missions (as mission select carries it), full.
+void GameApp::grantPracticeKit() {
+    if (!assetWorld_) return;
+    std::vector<uint32_t> items;
+    int missions = 0;
+    for (const auto& wm : assetWorld_->campaignMissions()) {
+        if (heroForWorld(wm.first) != practiceHero_) continue;
+        const auto it = missionItems(wm.second);
+        items.insert(items.end(), it.begin(), it.end());
+        ++missions;
+    }
+    if (practiceHero_ == Hero::Kabuto) items.clear();  // (his fists; kstory5_5's guns are the Meccaryn's)
+    grantMissionItems(items, "practice");
+    for (auto& g : guns_)
+        if (g.have && g.maxAmmo > 0) g.ammo = g.maxAmmo;
+    for (auto& b : bows_)
+        if (b.have && b.maxAmmo > 0) b.ammo = b.maxAmmo;
+    if (hasLauncher_) launcherAmmo_ = launcherMax_;
+    if (hero_ == Hero::Mecc && mineModel_) mines_ = minesMax_;
+    syringes_ = kMaxSyringes;
+    flares_ = kMaxFlares;
+    int bows = 0;
+    for (const auto& b : bows_) bows += b.have;
+    LOGI("Practice: the kit of %d missions (%d bows)", missions, bows);
+}
+
+void GameApp::quitToTitle(const InputFrame& in) {
+    menuOpen_ = false;
+    if (cutsceneActive()) cutscene_->stop();
+    // The CONTINUE row: the checkpoint as it is on disk now (this mission's start, or none).
+    SaveGame g;
+    if (!savePath_.empty() && loadSaveGame(savePath_, g)) {
+        pendingRestore_ = g;
+        titleWorld_ = g.world;
+        titleMission_ = g.mission;
+    } else {
+        titleWorld_.clear();
+        titleMission_.clear();
+    }
+    haveRestore_ = false;
+    // What he carries now is left behind: CONTINUE hands out the checkpoint's kit (and practice's kit
+    // must never reach the campaign).
+    syringes_ = 0;
+    flares_ = 0;
+    resetArsenal();
+    titleMissions_.clear();  // (rebuilt by enterTitle: missions finished since unlock the next)
+    beginLoading(std::string(), in);
+    load_.world = "intro_island";
+    load_.toTitle = true;
+    load_.title = "MAIN MENU";
+    LOGI("Options: back to the main menu (%s)", practice_ ? "practice" : (titleWorld_.empty() ? "no checkpoint" : titleWorld_.c_str()));
 }
 
 // Mission select: a fresh start at the chosen mission, carrying what the campaign would have
@@ -238,6 +311,11 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
         haptics_.push_back({kRight, 0.2f, 0.02f});
         sfx2D("ph_selct", 0.5f, 1.3f);
     }
+    if (dx != 0 && titleRow_ == kTitlePractice) {
+        titlePractice_ = (titlePractice_ + dx + 3) % 3;
+        haptics_.push_back({kRight, 0.3f, 0.03f});
+        sfx2D("ph_selct", 0.6f, 1.2f);
+    }
     if (dx != 0 && titleRow_ == kTitleNewGame) {
         titleCampaign_ = (titleCampaign_ + dx + 3) % 3;
         haptics_.push_back({kRight, 0.3f, 0.03f});
@@ -265,6 +343,7 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
             if (titleRow_ == kTitleContinue && !titleWorld_.empty()) startFromTitle(titleWorld_, titleMission_, true, in);
             else if (titleRow_ == kTitleNewGame) startFromTitle(kStoryWorld[titleCampaign_], std::string(), false, in);
             else if (missionRow) startChosenMission(in);
+            else if (titleRow_ == kTitlePractice) startPractice(titlePractice_ == 1 ? Hero::Delphi : (titlePractice_ == 2 ? Hero::Kabuto : Hero::Mecc), in);
             else if (titleRow_ == kTitleSkAddr && skNetWant_ == 2 && !titleJoining_) {
                 if (titleSkAddr_ <= 0) titleSkAddr_ = int(ownLanAddress() & 0xFF);
                 const NetAddr host{(ownLanAddress() & 0xFFFFFF00u) | uint32_t(titleSkAddr_), kSkNetPort};
@@ -376,7 +455,9 @@ void GameApp::renderTitle() {
         std::snprintf(a, sizeof a, "   OR HOST'S ADDRESS:  %u.%u.%u.< %d >", own >> 24, (own >> 16) & 0xFF, (own >> 8) & 0xFF, last);
         addr = a;
     }
-    const std::string rows[kTitleRowCount] = {cont, ng, ms, mode, sk, skt, addr, "OPTIONS"};
+    static const char* kPracticeName[3] = {"BAZ (MECCARYN)", "DELPHI (SEA REAPER)", "KABUTO"};
+    const std::string pr = std::string("PRACTICE:  < ") + kPracticeName[titlePractice_] + " >";
+    const std::string rows[kTitleRowCount] = {cont, ng, ms, pr, mode, sk, skt, addr, "OPTIONS"};
     float tw, th;
     for (int i = 0, vi = 0; i < kTitleRowCount; ++i) {
         if (i == kTitleSkAddr && skNetWant_ != 2) continue;  // (a row only for joining)
@@ -396,6 +477,7 @@ void GameApp::renderTitle() {
         text_.draw(m, panel * Mat4::translation({0, -0.5f * h - 0.05f, 0.004f}), {0.6f, 0.6f, 0.6f, 0.9f});
     // The chosen story's loading art beside the menu.
     const Hero h2 = titleRow_ == kTitleContinue && !titleWorld_.empty() ? heroForWorld(titleWorld_)
+                    : titleRow_ == kTitlePractice ? (titlePractice_ == 1 ? Hero::Delphi : (titlePractice_ == 2 ? Hero::Kabuto : Hero::Mecc))
                                                                          : (titleCampaign_ == 1 ? Hero::Delphi : (titleCampaign_ == 2 ? Hero::Kabuto : Hero::Mecc));
     if (const TextureId art = loadingArt(h2)) {
         const Mat4 card = Mat4::translation(titleEye_ + r.rotate(Vec3{0.92f, -0.45f, -1.6f})) * Mat4::rotation(r * Quat::fromAxisAngle({0, 1, 0}, -0.35f));
@@ -456,7 +538,7 @@ void GameApp::loadProgress() {
 
 void GameApp::markMissionDone(const std::string& mission) {
     const std::string m = toLower(mission);
-    if (m.empty() || !missionsDone_.insert(m).second) return;
+    if (practice_ || m.empty() || !missionsDone_.insert(m).second) return;  // (practice counts for nothing)
     LOGI("Progress: %s finished (%zu missions)", m.c_str(), missionsDone_.size());
     if (progressPath_.empty() || std::getenv("GVR_PROGRESS")) return;
     if (FILE* f = std::fopen(progressPath_.c_str(), "a")) {  // (appended: a crash can't lose the earlier ones)

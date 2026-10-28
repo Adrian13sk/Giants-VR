@@ -205,6 +205,7 @@ void android_main(android_app* app) {
     if (ok)
         if (const char* f = std::getenv("GVR_FFR")) game.setFoveationOverride(std::max(0, std::min(3, std::atoi(f))));
     int foveationApplied = -1;
+    bool foveationDynamic = false;
 
     // Audio: AAudio stream -> software mixer with the original sound effects.
     gvr::AAudioOutput audioOut;
@@ -273,9 +274,11 @@ void android_main(android_app* app) {
             // Not focused (system menu / guardian): keep rendering, ignore gameplay input.
             for (auto& h : frame.input.hand) { h.thumbstick = {}; h.trigger = h.squeeze = 0; }
         }
-        if (game.foveationWanted() != foveationApplied) {  // changed in the menu (or first frame)
+        if (game.foveationWanted() != foveationApplied || game.foveationDynamicWanted() != foveationDynamic) {  // changed in the menu (or first frame)
             foveationApplied = game.foveationWanted();
-            xr.setFoveation(foveationApplied, false);
+            foveationDynamic = game.foveationDynamicWanted();
+            xr.setFoveation(foveationApplied, foveationDynamic);
+            LOGI("Foveation: level %d%s", foveationApplied, foveationDynamic ? ", dynamic" : "");
         }
         if (autotest.active()) autotest.beginFrame(game, xr, frame, now);
         const double u0 = nowSeconds();
