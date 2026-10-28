@@ -114,7 +114,7 @@ moves him too.
 | **Y** | **Map**: a holographic table of the island in front of you (dark until you've been there); Y again closes it | Debug fly/noclip on/off (strong buzz = on) |
 | X | Health injection (FP: into the left hand, push into the chest; TP: inject) | Tap: next mission. Hold 3 s: **new game** (forgets the checkpoint, back to 1a) |
 | **Left trigger** | **Flare** (once you have some from a Shop): thrown up off the jetpack; homing missiles go for it | — |
-| **Menu button (left)** | **Options** (game paused): turning, main hand, first/third person, HUD size, volume, music, subtitles, new game. Stick up/down to choose, left/right to change; trigger or A on RESUME | same |
+| **Menu button (left)** | **Options** (game paused): difficulty, turning, movement (smooth / teleport), seated play, main hand, first/third person, HUD size, volume, music, subtitles, new game. Stick up/down to choose, left/right to change; trigger or A on RESUME | same |
 | **Left stick click (hold)** | **Mission briefing** over the world while held (title, objectives, progress) | Toggle the engineering test geometry |
 | Long-press Oculus button | System recentre | same |
 
@@ -130,6 +130,11 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
   trigger 2 s), or in the free camera hold X for 3 s.
 - **Options** are kept in `settings.txt` next to `save.txt`. FRAME RATE: SHOWN puts a frame-rate counter at the top
   left of the view (green at 70+; please note it for the performance pass).
+- **Options added 2026-10-28:** DIFFICULTY (easy: half the damage, wilder Reaper aim; hard: x1.5, sharper aim),
+  MOVEMENT: TELEPORT (push the move stick forward to aim an arc, let go to blink there; on foot only), PLAY SEATED
+  (the view and hands raised 45 cm), KABUTO MIC ROAR (shout and he roars; asks for the microphone).
+- **Checkpoints within a mission:** dying brings you back where you finished the last objective.
+- After each mission the next loading screen shows its numbers: time, kills, hit rate, deaths.
 - **FOVEATED RENDERING** (Options): the edges of each eye are drawn at lower resolution, which you mostly can't see
   but saves a lot of graphics work. MEDIUM (the default) held 72 fps in every measured scene; OFF is the sharpest
   but drops to 62-68 fps with Kabuto walking or in flight; HIGH is the fastest.
@@ -282,11 +287,13 @@ scaled so your eyes are at his height (about 13 m). The HUD and menu stay their 
 ## Main menu
 The game now starts at the main menu: night over the intro island with the GIANTS logo in the sky.
 - **Stick**: choose. **Trigger or A**: select.
-- **CONTINUE** goes back to your last checkpoint (the mission's name is shown).
+- **CONTINUE** goes back to your last checkpoint (the mission's name is shown). Left/right on this row picks one
+  of **three save slots** (SLOT 1 is the original `save.txt`; 2 and 3 are `save2.txt` / `save3.txt`). NEW GAME and
+  MISSION replace only the chosen slot's checkpoint.
 - **NEW GAME**: pick the story with the stick left/right (its loading art shows beside the menu). If you have a
   checkpoint, hold the trigger 1.5 s, because a new game replaces it.
-- **MISSION**: jump straight to any mission (left/right through all 55 in campaign order: 1-22 Meccaryn, 23-38
-  Reaper, 39-54 Kabuto, 55 the finale), trigger to start it. Like NEW GAME it replaces your checkpoint, so with one it needs a 1.5 s
+- **MISSION**: jump straight to a mission you have reached (left/right, in campaign order), trigger to start it.
+  Each story offers its missions up to its first unfinished one (finished missions are listed in `progress.txt`). Like NEW GAME it replaces your checkpoint, so with one it needs a 1.5 s
   hold. See docs/PLAYTEST.md for what to look at in each.
 - **OPTIONS**: the usual options. The left menu button opens them too.
 - Loading screens show the original art of the story's race next to the mission briefing.
