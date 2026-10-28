@@ -486,6 +486,16 @@ static void testWeapon() {
     int shots = 0;
     for (int i = 0; i < 72; ++i) shots += a.update(dt, true, {0, 0, 0}, {0, 1, 0}) ? 1 : 0;
     CHECK(shots == 5);  // t = 0, 0.2, 0.4, 0.6, 0.8 s within one second
+    // (2026-10-28) A shot's tag (e.g. the bow it came from) is known while its hit is handled, and only then.
+    WeaponSystem tg;
+    tg.raycast = w.raycast;
+    int seen = -9;
+    tg.onHit = [&](int, const Vec3&, const Vec3&) { seen = tg.hitTag(); };
+    tg.shotTag = 3;
+    tg.spawnShot({0, 1, 0}, {0, 0, -1});
+    tg.shotTag = -1;
+    for (int i = 0; i < 20; ++i) tg.update(dt, false, {0, 1, 0}, {0, 0, -1});
+    CHECK(seen == 3 && tg.hitTag() == -1);
 }
 
 static void testEnemies() {
