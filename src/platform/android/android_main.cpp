@@ -304,6 +304,7 @@ void android_main(android_app* app) {
         if (autotest.active() && frame.shouldRender) autotest.renderBegin();
         if (frame.shouldRender) {
             game.renderer().resetStats();
+            game.renderer().gpuTimer().beginFrame();
             {
                 const gvr::EyeView& l = frame.eyes[0];
                 const gvr::EyeView& r = frame.eyes[1];
@@ -347,6 +348,7 @@ void android_main(android_app* app) {
             for (int eye = 0; eye < 2; ++eye) xr.releaseEye(eye);
             frame.shouldRender = false;
         }
+        if (frame.shouldRender) game.renderer().gpuTimer().endFrame();
         if (autotest.active() && frame.shouldRender) autotest.renderEnd((nowSeconds() - r0) * 1000.0, game.renderer().drawCallsThisFrame());
         if (!xr.endFrame(frame)) exitRequested = true;
         if (autotest.active()) {

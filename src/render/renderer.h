@@ -10,6 +10,7 @@
 
 #include "core/math.h"
 #include "render/gl.h"
+#include "render/gpu_timer.h"
 
 namespace gvr {
 
@@ -182,8 +183,11 @@ public:
 
     uint32_t drawCallsThisFrame() const { return drawCalls_; }
     void resetStats() { drawCalls_ = 0; culled_ = 0; }
+    // GPU time per offscreen pass (GVR_GPU_PASSES=1; see gpu_timer.h). The platform brackets each frame.
+    GpuPassTimer& gpuTimer() { return gpuTimer_; }
 
 private:
+    GpuPassTimer gpuTimer_;
     struct GpuMesh {
         GLuint vao = 0, vbo = 0, ibo = 0;
         GLsizei indexCount = 0;

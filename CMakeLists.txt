@@ -18,6 +18,7 @@ add_library(gvr_core STATIC
   src/core/prof.cpp
   src/core/log.cpp
   src/render/renderer.cpp
+  src/render/gpu_timer.cpp
   src/assets/gzp.cpp
   src/assets/gbs.cpp
   src/assets/image.cpp

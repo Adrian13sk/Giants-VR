@@ -812,6 +812,7 @@ void Renderer::updateHaze() {
     // Only where it is used: the rework look with the sky haze on and the world's sky band loaded.
     if (!hazeCube_ || !(look_ > 0.5f && look_ < 1.5f) || !skyHaze_) return;
     if (skyTex_ == 0 || skyTex_ > textures_.size() || !textures_[skyTex_ - 1].live) return;
+    gpuTimer_.begin(GpuPass::Haze);
     GLint prevFbo = 0, vp[4];
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
     glGetIntegerv(GL_VIEWPORT, vp);
@@ -844,6 +845,7 @@ void Renderer::updateHaze() {
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
+    gpuTimer_.end(GpuPass::Haze);
 }
 
 const Renderer::Variant* Renderer::variant(bool multiview, int key) {
@@ -859,6 +861,7 @@ const Renderer::Variant* Renderer::variant(bool multiview, int key) {
 }
 
 bool Renderer::init() {
+    gpuTimer_.init();  // (GVR_GPU_PASSES=1 only)
     // The sky haze cube (GVR_HAZE_CUBE=0: the per-pixel sky lookup instead - A/B tests).
     {
         const char* hc = std::getenv("GVR_HAZE_CUBE");
@@ -1327,6 +1330,7 @@ Mat4 Renderer::sunShadowMatrix(const Vec3& centre, float half) const {
 }
 
 void Renderer::beginShadowPass(const Mat4& lightViewProj) {
+    gpuTimer_.begin(GpuPass::Shadow);
     shadowMat_ = lightViewProj;
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFbo_);
     glViewport(0, 0, shadowSize_, shadowSize_);
@@ -1359,6 +1363,7 @@ void Renderer::endShadowPass() {
     glDisable(GL_POLYGON_OFFSET_FILL);
     glEnable(GL_CULL_FACE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    gpuTimer_.end(GpuPass::Shadow);
 }
 
 bool Renderer::initReflection(int w, int h) {
@@ -1457,6 +1462,7 @@ bool Renderer::initScreen(int width, int height) {
 }
 
 void Renderer::beginScreenPass(const ViewParams& view) {
+    gpuTimer_.begin(GpuPass::Screen);
     glBindFramebuffer(GL_FRAMEBUFFER, screenMsFbo_);
     beginView(view, screenW_, screenH_, false);
     glClearColor(env_.fogColor.x, env_.fogColor.y, env_.fogColor.z, 1.0f);
@@ -1476,9 +1482,11 @@ void Renderer::endScreenPass() {
     glBindFramebuffer(GL_FRAMEBUFFER, screenMsFbo_);
     glInvalidateFramebuffer(GL_FRAMEBUFFER, 1, discard);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    gpuTimer_.end(GpuPass::Screen);
 }
 
 void Renderer::beginScopePass(const ViewParams& view) {
+    gpuTimer_.begin(GpuPass::Scope);
     glBindFramebuffer(GL_FRAMEBUFFER, scopeFbo_);
     beginView(view, scopeSize_, scopeSize_, false);
     glClearColor(env_.fogColor.x, env_.fogColor.y, env_.fogColor.z, 1.0f);
@@ -1491,9 +1499,11 @@ void Renderer::endScopePass() {
     glDisable(GL_BLEND);
     glDepthMask(GL_TRUE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    gpuTimer_.end(GpuPass::Scope);
 }
 
 void Renderer::beginReflectionPass(const ViewParams& view, float nearZ) {
+    gpuTimer_.begin(GpuPass::Reflection);
     inReflection_ = true;
     glBindFramebuffer(GL_FRAMEBUFFER, reflFbo_);
     beginView(view, reflW_, reflH_, false);
@@ -1516,6 +1526,7 @@ void Renderer::endReflectionPass() {
     // Only the colour is sampled later; depth too (the per-eye correction): keep both.
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     inReflection_ = false;
+    gpuTimer_.end(GpuPass::Reflection);
 }
 
 void Renderer::setWaterDepthMap(int w, int h, const uint8_t* depth, float x0, float z0, float width, float depthZ) {

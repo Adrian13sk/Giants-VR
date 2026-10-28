@@ -86,6 +86,7 @@ bool AutoTest::load(const std::string& filesDir) {
 void AutoTest::applyEnvironment() const {
     if (!script_.mission.empty()) setenv("GVR_MISSION", script_.mission.c_str(), 1);
     setenv("GVR_NO_BRIEF", "1", 1);
+    setenv("GVR_GPU_PASSES", "1", 0);  // (2026-10-28) GPU time per offscreen pass in every test (a script may set 0)
     for (const auto& e : script_.env) setenv(e.first.c_str(), e.second.c_str(), 1);
 }
 
@@ -269,6 +270,7 @@ void AutoTest::writeResults() {
     else
         std::snprintf(buf, sizeof(buf), "gpu_ms n/a\n");
     r << buf;
+    if (game_) r << "gpu_passes " << game_->renderer().gpuTimer().summary() << "\n";
     if (game_)
         r << "mission_complete " << (game_->missionComplete() ? 1 : 0) << "\nplayer_health " << int(game_->playerHealth())
           << "\nreapers_alive " << game_->enemiesAlive() << "\neffects_quality_level " << game_->effectsQuality() << " (0 = full)\n";

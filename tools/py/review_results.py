@@ -279,6 +279,21 @@ def main(argv):
                 n, label, fmt(a['fps']), fmt(a['p95']), fmt(a['gpu'], 2), fmt(b['fps']), fmt(b['p95']), fmt(b['gpu'], 2),
                 ('%+.2f' % gc) if gc is not None else '-'))
 
+    # GPU time per offscreen pass (result.txt "gpu_passes", APKs from 2026-10-28 on).
+    rows = []
+    for n, t in tests.items():
+        m = re.search(r'^gpu_passes (frame .*)$', t.res, re.M)
+        if not m: continue
+        v = dict(re.findall(r'([a-z]+) ([\d.]+)', m.group(1)))
+        rows.append('| %s | %s | %s | %s | %s | %s | %s | %s |' % (
+            n, v.get('frame', '-'), v.get('shadow', '-'), v.get('haze', '-'), v.get('reflection', '-'), v.get('scope', '-'),
+            v.get('screen', '-'), v.get('eyes', '-')))
+    if rows:
+        o += ['', '## GPU time per pass (mean ms; "eyes" = the rest of the frame: the eye pass itself)', '']
+        o.append('| Test | frame | shadow | haze | reflection | scope | screen | eyes |')
+        o.append('|---|---|---|---|---|---|---|---|')
+        o += rows
+
     # Worst frames.
     o += ['', '## Worst frames (in each test\'s window)', '']
     for n, t in tests.items():

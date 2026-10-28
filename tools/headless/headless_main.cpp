@@ -374,9 +374,11 @@ int main(int argc, char** argv) {
             // Multisampled like the headset's eye buffers: alpha-to-coverage as there (GVR_VIDEO_A2C=0: off).
             static const bool a2c = !std::getenv("GVR_VIDEO_A2C") || std::getenv("GVR_VIDEO_A2C")[0] != '0';
             app.renderer().setMsaa(a2c && vMsFbo != 0);
+            app.renderer().gpuTimer().beginFrame();
             app.renderShadows(ve, ve);
             glBindFramebuffer(GL_FRAMEBUFFER, vMsFbo ? vMsFbo : vFbo);
             app.renderEye(ve);
+            app.renderer().gpuTimer().endFrame();
             app.renderer().setMsaa(false);
             if (vMsFbo) {
                 glBindFramebuffer(GL_READ_FRAMEBUFFER, vMsFbo);
@@ -501,6 +503,7 @@ int main(int argc, char** argv) {
         ei.width = w;
         ei.height = h;
     }
+    if (app.renderer().gpuTimer().enabled()) LOGI("GPU passes (video frames): %s", app.renderer().gpuTimer().summary().c_str());
     app.renderShadows(eyes[0], eyes[1]);
     auto texMultiview = reinterpret_cast<PFNGLFRAMEBUFFERTEXTUREMULTIVIEWOVRPROC>(eglGetProcAddress("glFramebufferTextureMultiviewOVR"));
     if (app.renderer().multiviewSupported() && texMultiview) {
