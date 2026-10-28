@@ -1254,6 +1254,24 @@ private:  // the mission placed enemies: no test waves
     bool spellGestureCast_ = false, gestPrevValid_ = false;
     float gestCircle_ = 0, gestSweep_ = 0, gestT_ = 0, gestPrevAng_ = 0;
     Vec3 gestPrev_;
+    // (2026-10-28) Two more of the original's Reaper spells (GText iconrshail / iconrstime, their effect models
+    // EFX_hail_missile / EFX_slow_spell), by gesture - the rules are ours: SUMMON HAIL (the casting hand raised
+    // above the head, trigger held, brought down hard: ice falls where she aims) and SLOW TIME (both hands
+    // together before the chest, trigger held, half a second: Reapers, creatures and their shots at a third of
+    // the speed for 8 s).
+    struct HailStone { Vec3 pos, vel; float age = 0; };
+    struct HailStorm { Vec3 centre; float t = 0, next = 0; int left = 0; };
+    std::vector<HailStone> hailStones_;
+    std::vector<HailStorm> hailStorms_;
+    const RenderModel* hailModel_ = nullptr;
+    const RenderModel* slowModel_ = nullptr;
+    float hailCool_ = 0, slowCool_ = 0, slowT_ = 0, gestHighT_ = 0, gestTogether_ = 0;
+    bool blastNoFire_ = false;  // (explode: an ice blast - no fireball, no scorch)
+    bool hailOwned() const;
+    bool slowOwned() const;
+    void castHail(const Vec3& from, const Vec3& dir);
+    void castSlowTime();
+    float enemyTimeScale() const { return slowT_ > 0 ? 0.35f : 1.0f; }
     bool updateSpells(float dt, bool trig, const Vec3& from, const Vec3& dir, bool aimOk);
     void stepSpells(float dt);
     void renderSpells();

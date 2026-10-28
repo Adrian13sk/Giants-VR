@@ -42,8 +42,15 @@ void GameApp::initSpells() {
     swirl_ = mc->get("EFX_swirl.gbs", "", false);
     auto b = std::make_unique<SkinnedModel>();
     if (b->load(assetWorld_->fs(), *mc, renderer_, "EFX_bubble_reflection", "EFX_bubble_reflection.anm")) bubbleModel_ = std::move(b);
+    hailModel_ = mc->get("EFX_hail_missile.gbs", "", false);
+    slowModel_ = mc->get("EFX_slow_spell.gbs", "", false);
     spellReady_ = true;
-    LOGI("Spells: fire roll %d, swirl %d, bubble %d", fireRoll_ != nullptr, swirl_ != nullptr, bubbleModel_ != nullptr);
+    LOGI("Spells: fire roll %d, swirl %d, bubble %d, hail %d, slow %d", fireRoll_ != nullptr, swirl_ != nullptr, bubbleModel_ != nullptr,
+         hailModel_ != nullptr, slowModel_ != nullptr);
+    if (hailModel_) {
+        const Vec3 e = hailModel_->boundsMax - hailModel_->boundsMin;
+        LOGI("Spells: hail stone %.2f x %.2f x %.2f m", e.x, e.y, e.z);
+    }
 }
 
 bool GameApp::smartieInAim(const Vec3& from, const Vec3& dir, int& index) const {
@@ -59,6 +66,48 @@ bool GameApp::smartieInAim(const Vec3& from, const Vec3& dir, int& index) const 
         if (c > best) { best = c; index = int(i); }
     }
     return index >= 0;
+}
+
+// (Ours) Hail from the third Reaper chapter on, Slow Time from the fourth; both in the battles and in practice.
+bool GameApp::hailOwned() const {
+    if (hero_ != Hero::Delphi || !assetWorld_) return false;
+    if (practice_ || tornadoOwned()) return true;
+    const std::string w = toLower(worldName_);
+    return w == "rstory3" || w == "rstory4" || w == "rstory5";
+}
+
+bool GameApp::slowOwned() const {
+    if (hero_ != Hero::Delphi || !assetWorld_) return false;
+    if (practice_ || tornadoOwned()) return true;
+    const std::string w = toLower(worldName_);
+    return w == "rstory4" || w == "rstory5";
+}
+
+void GameApp::castHail(const Vec3& from, const Vec3& dir) {
+    // Where she aims: the first ground along the aim within 60 m, else 40 m out.
+    Vec3 at = from + dir * 40.0f;
+    for (float t = 2.0f; t <= 60.0f; t += 1.0f) {
+        const Vec3 p = from + dir * t;
+        const float g = enemies_.groundHeight ? enemies_.groundHeight(p.x, p.z) : 0.0f;
+        if (p.y <= std::max(g, player_.seaLevel)) { at = p; break; }
+    }
+    if (enemies_.groundHeight) at.y = std::max(player_.seaLevel, enemies_.groundHeight(at.x, at.z));
+    HailStorm s;
+    s.centre = at;
+    s.left = 16;
+    hailStorms_.push_back(s);
+    hailCool_ = 10.0f;
+    sfx("sr_spfsh", from, 1.0f, 0.5f);
+    addFlash(from + Vec3{0, 0.5f, 0}, {0.8f, 1.1f, 1.6f}, 4.0f, 0.3f);
+    LOGI("Delphi casts SUMMON HAIL at (%.1f %.1f %.1f), %.0f m away", at.x, at.y, at.z, length(at - player_.position));
+}
+
+void GameApp::castSlowTime() {
+    slowT_ = 8.0f;
+    slowCool_ = 25.0f;
+    sfx2D("sr_spfsh", 1.0f, 0.4f);
+    addFlash(player_.position + Vec3{0, 1.2f, 0}, {0.6f, 0.8f, 1.6f}, 10.0f, 0.5f);
+    LOGI("Delphi casts SLOW TIME (8 s)");
 }
 
 void GameApp::castTornado(const Vec3& dir) {
@@ -98,6 +147,7 @@ void GameApp::updateSpellGestures(float dt, const InputFrame& in, const Vec3& di
         gestCircle_ = 0;
         gestSweep_ = 0;
         gestT_ = 0;
+        gestHighT_ = gestTogether_ = 0;
         gestPrevValid_ = false;
         return;
     }
@@ -122,6 +172,38 @@ void GameApp::updateSpellGestures(float dt, const InputFrame& in, const Vec3& di
         const float vs = dot(h - gestPrev_, side) / dt;
         if (h.y < head.y - 0.15f && std::fabs(vs) > 2.2f) gestSweep_ += std::fabs(vs) * dt;
         else gestSweep_ = std::max(0.0f, gestSweep_ - 2.0f * dt);
+        // Hail: the hand was raised high in the last 0.7 s and now comes down hard past the head.
+        const float vy = (h.y - gestPrev_.y) / dt;
+        if (gestHighT_ > 0 && vy < -2.5f && h.y < head.y - 0.05f && hailOwned() && hailCool_ <= 0) {
+            gestHighT_ = 0;
+            castHail(rig_.toWorld(in.head).position, dir);
+            if (trace) LOGI("spell gesture: raised and brought down (%.1f m/s) -> hail", -vy);
+            spellGestureCast_ = true;
+            spellCharge_ = 0;
+            gestCircle_ = gestSweep_ = 0;
+            gestPrev_ = h;
+            haptics_.push_back({mh, 1.0f, 0.2f});
+            return;
+        }
+    }
+    gestHighT_ = h.y > head.y + 0.15f ? 0.7f : std::max(0.0f, gestHighT_ - dt);
+    // Slow time: both hands together before the chest for half a second.
+    {
+        const ControllerState& o = in.hand[1 - mh];
+        const bool together = o.gripPoseValid && length(h - o.gripPose.position) < 0.2f && h.y < head.y - 0.1f && h.y > head.y - 0.75f;
+        gestTogether_ = together ? gestTogether_ + dt : 0.0f;
+        if (gestTogether_ > 0.5f && slowOwned() && slowCool_ <= 0) {
+            castSlowTime();
+            if (trace) LOGI("spell gesture: hands together -> slow time");
+            gestTogether_ = 0;
+            spellGestureCast_ = true;
+            spellCharge_ = 0;
+            gestCircle_ = gestSweep_ = 0;
+            gestPrev_ = h;
+            haptics_.push_back({kLeft, 0.8f, 0.3f});
+            haptics_.push_back({kRight, 0.8f, 0.3f});
+            return;
+        }
     }
     gestPrev_ = h;
     gestPrevAng_ = ang;
@@ -193,6 +275,48 @@ bool GameApp::updateSpells(float dt, bool trig, const Vec3& from, const Vec3& di
 
 void GameApp::stepSpells(float dt) {
     const float t = float(time_);
+    hailCool_ = std::max(0.0f, hailCool_ - dt);
+    slowCool_ = std::max(0.0f, slowCool_ - dt);
+    if (slowT_ > 0) {
+        slowT_ -= dt;
+        if (slowT_ <= 0) { slowT_ = 0; LOGI("Slow time over"); }
+    }
+    // Hail: each storm drops its stones one by one (~2.4 s), from 30 m up within 7 m of the spot, slanting in.
+    for (auto& s : hailStorms_) {
+        s.t += dt;
+        s.next -= dt;
+        while (s.next <= 0 && s.left > 0) {
+            s.next += 0.17f;
+            --s.left;
+            const float a = frand() * 6.2832f, r = 5.0f * std::sqrt(frand());
+            HailStone st;
+            const Vec3 slant{std::cos(a + 1.0f) * 3.0f, 0, std::sin(a + 1.0f) * 3.0f};
+            st.pos = s.centre + Vec3{std::cos(a) * r, 30.0f, std::sin(a) * r} - slant;
+            st.vel = slant * (32.0f / 30.0f) + Vec3{0, -32.0f, 0};
+            hailStones_.push_back(st);
+        }
+    }
+    hailStorms_.erase(std::remove_if(hailStorms_.begin(), hailStorms_.end(), [](const HailStorm& s) { return s.left <= 0; }), hailStorms_.end());
+    for (auto& st : hailStones_) {
+        st.age += dt;
+        st.pos += st.vel * dt;
+        if (frand() < dt * 30.0f) smokePuff(FxTex::Dust, st.pos, Vec3{0, 1.0f, 0}, 0.25f, 0.4f, 0.4f, 0.5f, 0.0f);
+        const float g = enemies_.groundHeight ? std::max(player_.seaLevel, enemies_.groundHeight(st.pos.x, st.pos.z)) : 0.0f;
+        if (st.pos.y > g && st.age < 4.0f) continue;
+        st.pos.y = g;
+        blastNoFire_ = true;
+        const size_t alive0 = enemies_.aliveCount();
+        explode(st.pos, 3.0f, 70.0f, /*fire=*/false, /*hurtsPlayer=*/0);
+        blastNoFire_ = false;
+        if (enemies_.aliveCount() < alive0) LOGI("Hail: %zu Reaper(s) killed", alive0 - enemies_.aliveCount());
+        static const bool trace = std::getenv("GVR_SPELL_TRACE") != nullptr;
+        if (trace) LOGI("Hail stone lands at (%.1f %.1f %.1f)", st.pos.x, st.pos.y, st.pos.z);
+        for (int k = 0; k < 6; ++k)
+            smokePuff(FxTex::Dust, st.pos + Vec3{0, 0.2f, 0}, Vec3{(frand() - 0.5f) * 6.0f, 2.0f + 3.0f * frand(), (frand() - 0.5f) * 6.0f}, 0.5f, 1.2f, 0.8f, 0.6f, 0.6f);
+        sfx(frand() < 0.5f ? "ex_stons" : "ex_dirts", st.pos, 0.8f, 1.2f + 0.2f * frand());
+        st.age = 99;
+    }
+    hailStones_.erase(std::remove_if(hailStones_.begin(), hailStones_.end(), [](const HailStone& s) { return s.age >= 99.0f; }), hailStones_.end());
     // Charging glow in the casting hand: orange toward the wall, blue-white toward the tornado.
     if (spellCharge_ > 0.25f && hero_ == Hero::Delphi) {
         Vec3 hand = player_.position + Vec3{0, 1.2f, 0};
@@ -342,6 +466,22 @@ void GameApp::renderSpells() {
                           true, 0.75f * k);
             }
         }
+    if (hailModel_)
+        for (const auto& st : hailStones_) {
+            // Along its fall (the model's long axis taken as its local y), spinning.
+            const Vec3 d = normalize(st.vel);
+            const Vec3 up{0, 1, 0};
+            const Vec3 ax = cross(up, d * -1.0f);
+            const float ang = std::acos(std::max(-1.0f, std::min(1.0f, dot(up, d * -1.0f))));
+            const Quat q = length(ax) > 1e-4f ? Quat::fromAxisAngle(normalize(ax), ang) : Quat{};
+            drawModel(hailModel_, Mat4::translation(st.pos) * Mat4::rotation(q * Quat::fromAxisAngle(up, t * 6.0f)) * Mat4::scale(Vec3{0.55f, 0.55f, 0.55f}), true, 0.95f);  // (the model is ~3 m long: a ~1.7 m block)
+        }
+    if (slowModel_ && slowT_ > 0) {
+        // Round her while time runs slow: fading in and out, slowly turning.
+        const float k = std::min(1.0f, std::min((8.0f - slowT_) / 0.4f, slowT_ / 0.8f));
+        drawModel(slowModel_, Mat4::translation(player_.position + Vec3{0, 0.1f, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.4f)) *
+                                  Mat4::scale(Vec3{3.0f, 3.0f, 3.0f}), true, (0.16f + 0.29f * std::max(0.0f, std::min(1.0f, (slowT_ - 6.3f) / 0.5f))) * k);  // (bright as it is cast, faint after)
+    }
     if (bubbleModel_)
         for (const auto& b : bubbles_) {
             bubbleModel_->pose(renderer_, t);

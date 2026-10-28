@@ -81,8 +81,10 @@ quality levels chosen per world are logged and stay put.
   kick in the steadying hand too. The bow string tension already rises with the draw.
 - **Weapons in the hand:** 2026-10-28: the rounds left on top of the gun, the arrows by the bow's grip (harness).
   Reloading by gesture: not done (the original has no reload).
-- **Delphi's spells by gesture:** the circle and sweep exist. Add the other spells the data has as
-  gestures, each with a practice card in Options → CONTROLS. 2 sessions.
+- **Delphi's spells by gesture:** the circle and sweep exist; 2026-10-28: SUMMON HAIL (hand raised high, brought
+  down hard) and SLOW TIME (both hands together before the chest), with the original's EFX_hail_missile /
+  EFX_slow_spell models, on the CONTROLS card (harness). The data names more Reaper spells (GText iconrs*: Cloak,
+  Cluster, Fire Circle, Follow, Repair, Sea Monster, Shadow, Shrink, Teleport) - candidates.
 - **Kabuto at scale:** a "giant's view" setting (true eye height vs a lowered, comfortable one), and his
   hands reaching the ground without stooping (the reach assist exists; tune it on the device).
 

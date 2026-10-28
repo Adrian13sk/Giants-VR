@@ -2733,3 +2733,10 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   the first row seen counted as a move - pointing now starts once the view is set; (6) bare-hand pinch got hysteresis (on 0.8 / the runtime's
   pinch, off 0.4). Checked fine by the review: nothing written in practice, practice_ cleared by every world switch,
   Kabuto's scale on the title, OpenXR struct chaining and tracker lifetime, hit-test maths, side/scroll zones.
+- Delphi's spells, more of the original's list (GText iconrshail / iconrstime and the effect models
+  EFX_hail_missile, EFX_slow_spell are in the data; how they behave is native code, so ours): SUMMON HAIL - the
+  casting hand above the head then brought down faster than 2.5 m/s, trigger held: 16 ice blocks (the model,
+  ~3 m long, drawn at 0.55) fall over 2.7 s within 5 m of where she aims, each an ice blast (3 m, 70; no fireball
+  or scorch - explode() gained a no-fire flag), 10 s between casts. SLOW TIME - both grips within 0.2 m before the
+  chest for 0.5 s, trigger held: Reapers, creatures and the Reapers' shots update at 0.35x for 8 s, 25 s between.
+  Owned from Rstory3 / Rstory4, in the battles and in practice.

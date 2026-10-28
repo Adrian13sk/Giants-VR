@@ -179,11 +179,11 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
 void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int hurtsPlayer) {
     recentBlasts_.push_back({at, radius, time_});  // (rework: ragdolls take the push)
     // Rework: the ground is charred where it went off (not Kabuto's quakes: no fire there).
-    if (fire || hurtsPlayer == 1 || (damage > 0 && hero_ != Hero::Kabuto))
+    if (!blastNoFire_ && (fire || hurtsPlayer == 1 || (damage > 0 && hero_ != Hero::Kabuto)))
         addGroundMark(0, at, std::min(7.0f, 0.8f + 0.55f * radius), frand() * 6.2832f, 75.0f);
     addFlash(at + Vec3{0, 1.0f, 0}, fire ? Vec3{2.6f, 1.5f, 0.6f} : Vec3{1.8f, 1.5f, 1.2f}, std::min(30.0f, 4.0f + radius * 3.0f), 0.45f);
     // Fireballs for fire, grenades and rockets - not Kabuto's quakes and bursting boulders (one at his own feet filled the view).
-    if (fire || hurtsPlayer == 1 || (damage > 0 && hero_ != Hero::Kabuto)) addFireball(at + Vec3{0, 0.4f, 0}, radius);
+    if (!blastNoFire_ && (fire || hurtsPlayer == 1 || (damage > 0 && hero_ != Hero::Kabuto))) addFireball(at + Vec3{0, 0.4f, 0}, radius);
     if (at.y < player_.seaLevel + 1.0f && (!enemies_.groundHeight || enemies_.groundHeight(at.x, at.z) < player_.seaLevel - 0.2f))
         waterSplash(at, std::min(3.0f, 0.5f * radius), 2);  // in (or just over) the water
     creatures_.disturb(at, std::max(15.0f, radius * 4.0f));  // the ground shakes: buried Rippers come up
@@ -708,7 +708,7 @@ void GameApp::updateCombat(float dt) {
     damageFlash_ = std::max(0.0f, damageFlash_ - dt * 3.0f);
 
     enemies_.params.punch = hero_ != Hero::Kabuto;
-    { GVR_PROF("enemies"); enemies_.update(dt, player_.position, playMode_ && playerHealth_ > 0 && !dying_, shooters_); }
+    { GVR_PROF("enemies"); enemies_.update(dt * enemyTimeScale(), player_.position, playMode_ && playerHealth_ > 0 && !dying_, shooters_); }
     for (int i : enemies_.punches) {  // rework: a Reaper's punch landed
         const Enemy& e = enemies_.enemies[size_t(i)];
         hitFrom_ = e.pos;
@@ -823,7 +823,7 @@ void GameApp::updateCombat(float dt) {
         enemyFire_.spawnShot(muzzle, dir);
         sfx("rh_sprsh", muzzle, 0.6f, 0.9f + 0.2f * frand());
     }
-    enemyFire_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
+    enemyFire_.update(dt * enemyTimeScale(), false, Vec3{}, Vec3{0, 0, -1});  // (SLOW TIME: their shots too)
     // Next wave after the last Reaper has fallen.
     { GVR_PROF("chars"); updateCharacters(dt); }
     { GVR_PROF("gore"); updateGore(dt); }

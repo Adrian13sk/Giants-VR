@@ -1,0 +1,17 @@
+# (2026-10-28) Delphi's SLOW TIME by gesture: both hands brought together before the chest, the left trigger held,
+# half a second - Reapers and creatures move at a third of the speed for 8 s.
+# Log (checked by devtest.ps1): "Delphi casts SLOW TIME" "Slow time over".
+name delphi_slow_time
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BASE 0
+env GVR_SPELL_TRACE 1
+duration 14
+reapers 3 15 0.5 99
+hand_l 0.15 0 0 0.8 1.0
+hand_r -0.15 0 0 0.8 1.0
+hold trigger_l 1.2 2.4
+shot 3 slow
