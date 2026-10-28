@@ -642,13 +642,12 @@ void GameApp::renderGunCounter() {
     if (!said) { said = true; LOGI("Gun counter shown: %d rounds", rounds); }
 }
 
-void GameApp::renderWristPanel() {
+bool GameApp::wristWanted(Vec3& wrist, Vec3& toEye, Vec3& eye) const {
     const int mh = rig_.moveHand();
     const InputFrame& in = lastInput_;
     const ControllerState& c = in.hand[mh];
     bool want = false;
-    Vec3 wrist, toEye, eye;
-    if (firstPerson_ && hero_ != Hero::Kabuto && c.gripPoseValid && in.headValid && !menuOpen_ && text_.ready()) {
+    if (playMode_ && firstPerson_ && hero_ != Hero::Kabuto && c.gripPoseValid && in.headValid && !menuOpen_) {
         const Pose head = rig_.toWorld(in.head), grip = rig_.toWorld(c.gripPose);
         eye = head.position;
         wrist = grip.position;
@@ -661,12 +660,24 @@ void GameApp::renderWristPanel() {
         want = dist * s > 0.15f && dist * s < 0.5f && dot(normalize(d), hf) > 0.7f && d.y < 0.05f && std::fabs(dot(arm, hf)) < 0.55f;
         toEye = dist > 1e-4f ? d * (-1.0f / dist) : Vec3{0, 0, 1};
     }
-    // (a moment's hold: no flicker as the hand passes the face)
-    const float dt = 1.0f / 72.0f;  // (once a frame: the first view of it)
-    if (fxCostView_) wristT_ = want ? wristT_ + dt : std::max(0.0f, wristT_ - 3.0f * dt);
+    return want;
+}
+
+// (2026-10-28) The hold timer advances in update(), with the frame's step: it was advanced while drawing at a fixed
+// 1/72 s - at 36 fps the 0.25 s hold took half a second, and the PC harness (drawing only some frames) missed it.
+void GameApp::updateWristPanel(float dt) {
+    Vec3 wrist, toEye, eye;
+    const bool want = wristWanted(wrist, toEye, eye);
+    wristT_ = want ? wristT_ + dt : std::max(0.0f, wristT_ - 3.0f * dt);
     const bool show = wristT_ > 0.25f;
     if (show && !wristShown_) LOGI("Wrist display shown (health %.0f)", playerHealth_);
     wristShown_ = show;
+}
+
+void GameApp::renderWristPanel() {
+    Vec3 wrist, toEye, eye;
+    const bool want = wristWanted(wrist, toEye, eye) && text_.ready();
+    const bool show = wristShown_ && want;
     if (!show) return;
     // The lines.
     std::string ammo = "AMMO -";

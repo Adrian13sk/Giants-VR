@@ -252,6 +252,7 @@ void android_main(android_app* app) {
         audioOut.poll();
         if (state.resumed && !audioRunning && audioOut.isOpen()) audioRunning = audioOut.start();
         if (!state.resumed && audioRunning) { audioOut.pause(); audioRunning = false; }
+        if ((!state.resumed || !xr.sessionRunning()) && micIn.isOpen()) micIn.close();  // (paused / headset off: no mic)
 
         xr.pollEvents(exitRequested);
         if (!xr.sessionRunning()) {
@@ -288,7 +289,10 @@ void android_main(android_app* app) {
                     granted = hasPermission(env, app->activity->clazz, "android.permission.RECORD_AUDIO");
                     if (!granted && !asked) { asked = true; requestPermission(env, app->activity->clazz, "android.permission.RECORD_AUDIO"); }
                 }
-                if (granted && !micIn.isOpen()) micIn.open();
+                // (a failed open, or a stream the device dropped, is retried every 3 s, not every frame)
+                static double lastOpen = -10;
+                if (micIn.failed()) micIn.close();
+                if (granted && !micIn.isOpen() && now - lastOpen > 3.0) { lastOpen = now; micIn.open(); }
             } else if (micIn.isOpen()) {
                 micIn.close();
             }
@@ -366,6 +370,7 @@ void android_main(android_app* app) {
         }
     }
 
+    micIn.close();     // (its callback writes into micIn: closed before it goes - review 2026-10-28)
     audioOut.close();  // stop callbacks before the mixer and game go away
     game.setAudio(nullptr);
     mixer.reset();

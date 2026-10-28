@@ -1416,6 +1416,7 @@ private:  // the mission placed enemies: no test waves
     Vec3 checkpointAt_;
     float checkpointYaw_ = 0;
     bool haveCheckpoint_ = false;  // (2026-10-28) respawn at the last objective's spot
+    float frameDt_ = 1.0f / 72.0f; // this frame's update step (render-side timers)
     void recordMissionStats();
     // Save slots (2026-10-28): slot 1 is the original save file, 2 and 3 save2.txt / save3.txt beside it.
     std::string baseSavePath_;
@@ -1911,6 +1912,8 @@ private:
     Vec3 gunCounterAt_, gunHandleLocal_;
     bool gunCounterValid_ = false;
     void renderGunCounter();
+    bool wristWanted(Vec3& wrist, Vec3& toEye, Vec3& eye) const;
+    void updateWristPanel(float dt);
     bool wristShown_ = false;
     void renderWristPanel();
     Vec3 lastShotSplash_;

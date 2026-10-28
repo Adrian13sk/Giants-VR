@@ -49,7 +49,10 @@ void GameApp::stickArrow(int enemy, const Vec3& at, const Vec3& dir) {
         a.localDir = inv.rotate(a.dir);
     }
     // (2026-10-28) An arrow from a bow that counts its arrows can be taken back (walk over it or pick it up).
-    if (hero_ == Hero::Delphi && delphiBow() && bows_[delphiWeapon_].ammo >= 0) a.bow = delphiWeapon_;
+    // (The bow is the one the arrow was shot from - its tag - not the one in hand when it lands; a Reaper gun's
+    // bolts and the fan's side arrows carry none.)
+    const int tag = weapon_.hitTag();
+    if (hero_ == Hero::Delphi && tag >= 0 && tag < kNumBows && bows_[tag].ammo >= 0) a.bow = tag;
     stuckArrows_.push_back(a);
     static const bool trace = std::getenv("GVR_HIT_TRACE") != nullptr;
     if (trace) LOGI("arrow stuck at (%.2f %.2f %.2f)%s", a.pos.x, a.pos.y, a.pos.z, a.uid ? " in a Reaper" : "");

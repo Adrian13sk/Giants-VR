@@ -481,6 +481,16 @@ void GameApp::switchSaveSlot(int slot) {
         titleMission_.clear();
     }
     LOGI("Save slot %d: %s", settings_.saveSlot + 1, titleWorld_.empty() ? "empty" : (titleWorld_ + " / " + titleMission_).c_str());
+    // The mission list again, with this slot's checkpoint mission (review 2026-10-28).
+    titleMissions_.clear();
+    if (assetWorld_) {
+        titleMissions_ = assetWorld_->campaignMissions();
+        static const char* all = std::getenv("GVR_ALL_MISSIONS");
+        if (!(all && all[0] == '1')) titleMissions_ = unlockedMissions(titleMissions_, missionsDone_, titleMission_);
+    }
+    titleMissionSel_ = 0;
+    for (size_t i = 0; i < titleMissions_.size(); ++i)
+        if (toLower(titleMissions_[i].second) == toLower(titleMission_)) titleMissionSel_ = int(i);
 }
 
 }  // namespace gvr

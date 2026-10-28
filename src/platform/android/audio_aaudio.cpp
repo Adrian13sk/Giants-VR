@@ -89,8 +89,11 @@ bool AAudioInput::open() {
     AAudioStreamBuilder_setChannelCount(b, 1);
     AAudioStreamBuilder_setPerformanceMode(b, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
     AAudioStreamBuilder_setSharingMode(b, AAUDIO_SHARING_MODE_SHARED);
-    AAudioStreamBuilder_setInputPreset(b, AAUDIO_INPUT_PRESET_GENERIC);
+    // (the voice-recognition preset: tuned for a voice, with the device's own processing - review 2026-10-28)
+    AAudioStreamBuilder_setInputPreset(b, AAUDIO_INPUT_PRESET_VOICE_RECOGNITION);
     AAudioStreamBuilder_setDataCallback(b, &AAudioInput::onData, this);
+    AAudioStreamBuilder_setErrorCallback(b, &AAudioInput::onError, this);
+    failed_.store(false);
     const aaudio_result_t r = AAudioStreamBuilder_openStream(b, &stream_);
     AAudioStreamBuilder_delete(b);
     if (r != AAUDIO_OK || !stream_) {
@@ -114,7 +117,15 @@ void AAudioInput::close() {
     AAudioStream_close(stream_);
     stream_ = nullptr;
     level_.store(0.0f);
+    failed_.store(false);
     LOGI("Microphone: closed");
+}
+
+void AAudioInput::onError(AAudioStream*, void* user, aaudio_result_t) {
+    // (On an error thread: only flags it - the stream is closed and reopened from the main loop.)
+    auto* self = static_cast<AAudioInput*>(user);
+    self->level_.store(0.0f);
+    self->failed_.store(true);
 }
 
 aaudio_data_callback_result_t AAudioInput::onData(AAudioStream*, void* user, void* data, int32_t frames) {

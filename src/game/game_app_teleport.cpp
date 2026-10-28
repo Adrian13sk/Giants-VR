@@ -24,6 +24,7 @@ void GameApp::updateTeleport(float dt, PlayerInput& pi, const InputFrame& in) {
         if (telFade_ >= 1.0f) {
             const float before = length(telPending_ - player_.position);
             player_.teleport(telPending_, player_.yaw);
+            placeCamera(0.0f, true, &in);  // (the camera snaps with it; not teleportPlayer, which would reset the view yaw)
             telPhase_ = 2;
             LOGI("Teleport: %.1f m", before);
         }

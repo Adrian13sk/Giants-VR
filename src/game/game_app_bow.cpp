@@ -215,7 +215,8 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
         bowFlameT_ = flame ? bowFlameT_ + dt : 0.0f;
         if (flame && frand() < dt * 30.0f) smokePuff(FxTex::Fire, tip, Vec3{0, 0.3f, 0}, 0.1f, 0.04f, 0.25f, 1.0f, 0.2f);
         if (!bowDrawing_) arrowLit_ = false;
-        else if (!arrowLit_ && plain && (always || bowFlameT_ > 0.4f || fireNear(tip, 0.6f))) {
+        // (fireNear only without her own flame: its puffs at the tip lit the arrow in a frame or two - review 2026-10-28)
+        else if (!arrowLit_ && plain && (always || bowFlameT_ > 0.4f || (!flame && fireNear(tip, 0.6f)))) {
             arrowLit_ = true;
             sfx("sr_spfsh", tip, 0.5f, 1.4f);
             haptics_.push_back({bowHand, 0.3f, 0.08f});
@@ -253,7 +254,11 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
         weapon_.shotDamage = bow.damage * power * 0.6f;
         weapon_.projectileSpeed = 25.0f + 50.0f * draw;
         weapon_.shotStyle = lit ? 4 : 3;
-        for (int k = -2; k <= 2; ++k) weapon_.spawnShot(from, normalize(dir + side * (0.07f * float(k))));
+        for (int k = -2; k <= 2; ++k) {
+            weapon_.shotTag = k == 0 && bow.ammo >= 0 ? delphiWeapon_ : -1;  // (one ammo for the fan: one arrow to take back)
+            weapon_.spawnShot(from, normalize(dir + side * (0.07f * float(k))));
+        }
+        weapon_.shotTag = -1;
         weapon_.shotStyle = 0;
         weapon_.shotDamage = 1.0f;
         weapon_.projectileSpeed = 70.0f;
@@ -262,7 +267,9 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
         weapon_.projectileSpeed = delphiWeapon_ == kBowSniper ? 40.0f + 160.0f * draw : 25.0f + 50.0f * draw;
         weapon_.range = delphiWeapon_ == kBowSniper ? 600.0f : 250.0f;
         weapon_.shotStyle = lit ? 4 : 3;
+        weapon_.shotTag = bow.ammo >= 0 ? delphiWeapon_ : -1;  // (whose arrow: to take back)
         weapon_.spawnShot(from, dir);
+        weapon_.shotTag = -1;
         weapon_.shotStyle = 0;
         weapon_.shotDamage = 1.0f;
         weapon_.projectileSpeed = 70.0f;

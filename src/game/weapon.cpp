@@ -29,9 +29,11 @@ bool WeaponSystem::update(float dt, bool triggerHeld, const Vec3& muzzle, const 
             lastHitDist_ = p.travelled + t;
             hitDamage_ = p.damage;
             hitStyle_ = p.style;
+            hitTag_ = p.tag;
             if (onHit) onHit(target, hp, dir);
             hitDamage_ = 1.0f;
             hitStyle_ = 0;
+            hitTag_ = -1;
         } else {
             if (onSegment) onSegment(p.pos, p.pos + step, dir);
             p.pos += step;
@@ -51,7 +53,7 @@ bool WeaponSystem::update(float dt, bool triggerHeld, const Vec3& muzzle, const 
 
 void WeaponSystem::spawnShot(const Vec3& muzzle, const Vec3& forward) {
     const Vec3 f = normalize(forward);
-    projectiles_.push_back({muzzle, f * projectileSpeed, range / projectileSpeed, 0.0f, shotDamage, shotStyle});
+    projectiles_.push_back({muzzle, f * projectileSpeed, range / projectileSpeed, 0.0f, shotDamage, shotStyle, shotTag});
     if (shotStyle != 3) effects_.push_back({WeaponEffect::Muzzle, muzzle, f, 0.0f, shotStyle == 2 ? 0.12f : 0.07f, shotStyle});  // no flash off a bow
     ++shots_;
 }

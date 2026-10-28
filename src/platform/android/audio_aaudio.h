@@ -37,15 +37,19 @@ private:
 // loudness (RMS of the last burst, decaying). Opened only while wanted, with RECORD_AUDIO granted.
 class AAudioInput {
 public:
+    ~AAudioInput() { close(); }
     bool open();
     void close();
     bool isOpen() const { return stream_ != nullptr; }
-    float level() const { return level_.load(); }
+    float level() const { return failed_.load() ? 0.0f : level_.load(); }
+    bool failed() const { return failed_.load(); }  // the device dropped the stream (error callback): close and reopen
 
 private:
     static aaudio_data_callback_result_t onData(AAudioStream* s, void* user, void* data, int32_t frames);
+    static void onError(AAudioStream* s, void* user, aaudio_result_t error);
     AAudioStream* stream_ = nullptr;
     std::atomic<float> level_{0.0f};
+    std::atomic<bool> failed_{false};
 };
 
 }  // namespace gvr

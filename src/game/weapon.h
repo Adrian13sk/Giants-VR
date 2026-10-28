@@ -15,6 +15,7 @@ struct Projectile {
     float travelled = 0;
     float damage = 1.0f;  // x the handgun's hit (the gun that fired it)
     int style = 0;        // how it looks (the game draws it): 0 handgun bolt, 1 machine gun, 2 sniper, 3 arrow
+    int tag = -1;         // (2026-10-28) the caller's own mark, e.g. the bow an arrow came from (-1 none)
 };
 
 struct WeaponEffect {
@@ -32,6 +33,7 @@ public:
     float range = 250.0f;           // m
     float shotDamage = 1.0f;        // damage of the shots fired from now on (x the handgun's)
     int shotStyle = 0;              // and their look (Projectile::style)
+    int shotTag = -1;               // and their tag (Projectile::tag)
     // Hit test along a segment: origin, unit dir, max distance -> hit distance, normal and
     // target id (-1 = world geometry, >= 0 or other negatives = characters, caller-defined).
     std::function<bool(const Vec3&, const Vec3&, float, float&, Vec3&, int&)> raycast;
@@ -57,6 +59,7 @@ public:
     // While onHit runs: the damage factor of the shot that hit (1 otherwise).
     float hitDamage() const { return hitDamage_; }
     int hitStyle() const { return hitStyle_; }  // (rework: inside onHit, the style of the shot that hit)
+    int hitTag() const { return hitTag_; }      // (and its tag)
 
 private:
     std::vector<Projectile> projectiles_;
@@ -66,6 +69,7 @@ private:
     float lastHitDist_ = 0;
     float hitDamage_ = 1.0f;
     int hitStyle_ = 0;
+    int hitTag_ = -1;
 };
 
 }  // namespace gvr

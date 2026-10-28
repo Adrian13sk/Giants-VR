@@ -756,7 +756,7 @@ void GameApp::placeCamera(float dt, bool snap, const InputFrame* in) {
     pos.y = (firstPerson_ ? player_.position.y : camFloor_) + seatLift() * ws;  // (seated: the real floor maps above the feet)
     // Camera collision: if a cliff or building is between the character and the viewer's eyes,
     // pull the camera in front of it so the character stays visible.
-    const float eyeH = (((in && in->headValid) ? in->head.position.y : 1.6f) + seatLift()) * ws;
+    const float eyeH = ((in && in->headValid) ? in->head.position.y : 1.6f) * ws;  // (pos already has the seated lift)
     const Vec3 chest = player_.position + Vec3{0, 1.4f * hs, 0};
     const Vec3 eye = pos + Vec3{0, eyeH, 0};
     const Vec3 toEye = eye - chest;
@@ -838,11 +838,12 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     if (!reachPath_.empty()) reachWalkInput(pi.move, pi.viewYaw, pi.jet, dt);  // test hook GVR_REACH_WALK
     kabutoFeedInput(pi.move, pi.viewYaw, dt);                                   // test hook GVR_KABUTO_FEED
     updateTeleport(dt, pi, in);                                                 // Options -> MOVEMENT: TELEPORT
+    updateWristPanel(dt);
     // Rework: Kabuto leaps when you jump - a quick rise of your real head from standing (first person)
     // springs him up half as high again as the button's jump.
     kbLeapCool_ = std::max(0.0f, kbLeapCool_ - dt);
     if ((hero_ == Hero::Kabuto || hero_ == Hero::Delphi) && firstPerson_ && in.headValid && dt > 0) {
-        const float y = in.head.position.y;
+        const float y = in.head.position.y + seatLift();  // (as userEye_: seated, the lifted height)
         const float vy = kbHeadValid_ ? (y - kbHeadPrevY_) / dt : 0.0f;
         kbHeadVelY_ = kbHeadVelY_ * 0.5f + vy * 0.5f;
         kbHeadPrevY_ = y;
@@ -2841,6 +2842,7 @@ void GameApp::updateLoading(float dt, const InputFrame& in) {
             break;
         case LoadPhase::FadeIn:
             load_.phase = LoadPhase::Idle;  // the spawn (and its opening cutscene, with its own fade) follows
+            lastStats_.valid = false;       // (shown on this one loading screen only - review 2026-10-28)
             break;
         case LoadPhase::Idle:
             break;
@@ -2937,6 +2939,9 @@ void GameApp::loadMission(const std::string& name) {
     objectives_.clear();
     objectivesDone_ = 0;
     haveCheckpoint_ = false;
+    blazes_.clear();                                  // (review 2026-10-28: a blaze burnt on into the next mission)
+    telPhase_ = 0; telFade_ = 0; telAiming_ = false;  // (and a teleport blink in progress)
+    shadowFresh_ = false;
     missionComplete_ = false;
     missionHostiles_ = false;
     advanceDone_ = false;
@@ -4598,6 +4603,7 @@ void GameApp::update(float dt, const InputFrame& in) {
     fxCostView_ = true;  // (the first view this frame counts the effects drawn in the views)
     warmedThisFrame_ = false;
     gunCounterValid_ = false;  // (placed again with the gun, if it is in the hand)
+    frameDt_ = dt;
     GVR_PROF("update (all)");
     time_ += dt;
     if (dt > 1e-4f) fpsSmooth_ += (1.0f / dt - fpsSmooth_) * std::min(1.0f, dt * 2.0f);
@@ -5124,7 +5130,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     endUiFrame();
     fxCostView_ = false;
     // Death: fade to black before the respawn, and back in after it.
-    const float black = std::max(telFade_, dying_ ? std::min(1.0f, std::max(0.0f, (deathTime_ - 4.3f) / 1.0f)) : respawnFade_);
+    const float black = std::max(menuOpen_ ? 0.0f : telFade_, dying_ ? std::min(1.0f, std::max(0.0f, (deathTime_ - 4.3f) / 1.0f)) : respawnFade_);
     if (black > 0.01f && text_.ready()) {
         const Vec3 fwd = headWorldRot_.rotate(Vec3{0, 0, -1});
         text_.drawPanel(Mat4::translation(v.eyePosition + fwd * 0.1f) * Mat4::rotation(headWorldRot_), 1.0f, 1.0f, {0, 0, 0, black});
