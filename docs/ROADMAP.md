@@ -21,14 +21,13 @@ the meadow, k1a and r1; level 2 is needed in 1a's village; level 3 in Kstory5's 
 
 1. **GPU timer queries per pass:** DONE 2026-10-28 (dc8f316, harness; device numbers pending): shadow, haze cube,
    reflection, scope, cinema screen and "eyes" (the rest) in every scripted run's result.txt; review_results.py tables it.
-2. **Terrain:** a cheaper far ring (no detail octaves or relief beyond ~60 m, one texture fetch). Also
-   front-to-back draw order and a depth pre-pass test for the village's overdraw. 1–2 sessions.
+2. **Terrain:** 2026-10-28: the far ring past ~90 m drops the second grass and rock textures and uses one rock
+   projection (invisible under the haze). Depth pre-pass for the village: not tried.
 3. **Foliage and grass:** alpha-to-coverage costs MSAA bandwidth. Try density by distance, impostor cards for
    far palms, and fewer grass layers at level 1+. 1–2 sessions.
-4. **Shadows:** cascade 2 every other frame and a static-geometry cache (the sun barely moves). 1 session.
-5. **Water reflection:** half resolution at level 1+, and skipped when the water is off-screen (the storm). 1 session.
-6. **Fixed foveation per level:** HIGH at level 2+, and the Meta "dynamic foveation" extension where the
-   runtime offers it. 0.5 session.
+4. **Shadows:** 2026-10-28: the map is drawn every other frame at quality 1+ (one map, no cascades to split).
+5. **Water reflection:** 2026-10-28: half size at quality 1 (already skipped at 2+ and when looking up).
+6. **Fixed foveation per level:** done earlier (one step stronger at quality 1+). Dynamic foveation: not tried.
 7. **Quest 2 at 90 Hz?** No: 72 Hz stays the target. Offer 90 Hz only for the classic look, as an option.
 8. **CPU side:** the frame-time spikes found by the soak (world switches, cutscene loads). Move texture
    decoding to a loader thread with a time budget per frame. 2 sessions.
@@ -41,6 +40,9 @@ quality levels chosen per world are logged and stay put.
 ## 2. Gameplay bugs and gaps the test suite already shows
 
 - **Parry below 20 fps:** 2026-10-28: the blade is now swept from last frame's place to this one's, so a swing that
+  jumps across a bolt's path between frames still meets it. Measured in the harness: delphi_parry parries at 12, 15,
+  20, 24, 36 and 72 Hz; at 18 Hz this script's bolts happen to pass 0.14-0.6 m from the blade (the Reapers' aim
+  spread), not a frame-rate fault - the bolts are checked before they move, against their path 1.5 frames ahead.
   jumps across a bolt's path between frames still meets it. Measured in the harness: delphi_parry parries at 12, 15,
   20, 24, 36 and 72 Hz; at 18 Hz this script's bolts happen to pass 0.14-0.6 m from the blade (the Reapers' aim
   spread), not a frame-rate fault - the bolts are checked before they move, against their path 1.5 frames ahead.
@@ -70,7 +72,8 @@ quality levels chosen per world are logged and stay put.
   blink with a fade; on foot only, races keep smooth movement. Needs the user's feel test.
 - **Seated mode:** DONE 2026-10-28 (harness): Options -> PLAY SEATED raises the view and hands 0.45 m. No crouch
   button (the ground reach assist covers pickups).
-- **Hand presence:** finger poses from capacitive touch (thumb rest, index on trigger) on every hero; the
+- **Hand presence:** 2026-10-28: the index finger from the trigger's capacitive touch (pointing). Thumb: not
+  done (which of the 4 digits is the thumb is not verified). Hand tracking for menus: not done.
   Quest 2's hand tracking for menus only. 1–2 sessions.
 - **Haptics everywhere:** per-weapon kicks were already there; 2026-10-28: Kabuto's footfalls by size, the gun's
   kick in the steadying hand too. The bow string tension already rises with the draw.
@@ -91,7 +94,8 @@ quality levels chosen per world are logged and stay put.
   user's screenshots.
 - **B16 — weapon records:** confirm which record each gun uses, from the original's behaviour (rate of fire
   measured in a recording).
-- **Music:** the original's mood selection (calm / tension / combat), driven by our combat state. Its
+- **Music:** the mood selection (ambient / small / large battle / victory) was done earlier; 2026-10-28: a battle
+  closes on its ending phrase, dying plays the death song (device to hear).
   transitions should be beat-aligned where the tracks allow. 1 session.
 - **`.abx` object sets (B4):** decode them and check whether missions use objects we don't place yet.
 - **Cutscenes:** lip-sync the dialogue (jaw nodes, from the audio's loudness), and set the actors'
@@ -105,17 +109,18 @@ quality levels chosen per world are logged and stay put.
 - **Skirmish vs bots on all 12 maps:** a balance pass from the logged capture counts.
 - **A PC "spectator" build** (the harness with a window, mouse and keyboard). It's a cheap second player
   for multiplayer tests and lets the user watch a test without the headset. 1–2 sessions.
-- **Save slots and checkpoints per mission** (now one checkpoint). 0.5 session.
-- **Difficulty levels:** enemy damage and accuracy scaled; the god-mode test switch stays a test switch. 0.5 session.
-- **Mission select unlocks:** finished missions only (now every mission is offered). 0.5 session.
+- **Save slots:** DONE 2026-10-28 (three, on the CONTINUE row). Checkpoints within a mission: not done.
+- **Difficulty levels:** DONE 2026-10-28 (damage taken and Reaper aim).
+- **Mission select unlocks:** DONE 2026-10-28 (progress.txt; each hero's story up to its first unfinished mission).
 
 ## 6. Test and build infrastructure
 
-- **The whole test on a schedule:** after each APK, a weekly `-All` run. A one-page report (HTML) built from
+- **The whole test on a schedule:** 2026-10-28: devtest.ps1 writes report.html (a coloured row per test with its
+  screenshots). Trends against the last run: review_results.py.
   the results folder: per set, per test, trends against the last run, with screenshots. 1 session.
 - **Harness parity:** run every device script in the harness at 72 Hz before each APK (the `runall` +
   `expect3` scripts) as part of `scripts/build_apk.sh --check`. 0.5 session.
-- **Frame-rate-independence tests:** every script also at 36 Hz in the harness. This finds the
+- **Frame-rate-independence tests:** 2026-10-28: every script run at 36 Hz in the harness (found the stale aim laser).
   parry-style bugs before the device does. 0.5 session.
 - **Crash reporting:** DONE 2026-10-28 (ed4ed9e, BUILD only): signal, backtrace and the last 160 log lines in
   `files/crash/crash_<time>.txt`; devtest pulls it; `experiments/crash_report` checks it on the headset.
