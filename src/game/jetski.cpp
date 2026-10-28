@@ -40,8 +40,10 @@ bool stepJetski(JetskiState& s, const JetskiParams& p, float throttle, float ste
             s.air = false;
             s.vy = 0;
         }
-    } else if (next > seaLevel + 0.3f && ((next - here) / run > p.maxSlope && (std::fabs(s.speed) < 3.0f || next - here > 2.5f))) {
-        // (Moving, it hops up small steps of the heightfield - sandbar edges - like a ramp.)
+    } else if (next > seaLevel + 0.3f && ((next - here) / run > p.maxSlope && (std::fabs(s.speed) < 3.0f || next - here > 2.5f || next > seaLevel + 8.0f))) {
+        // (Moving, it hops up small steps of the heightfield - sandbar edges, the islet race 3's line crosses (5.7 m) -
+        // like a ramp; not up a hillside: over 8 m above the sea a steep face stops it at any speed. 2026-10-28: the
+        // test autopilot drove up a hill to 38 m above the sea, a frame's climb at a time.)
         // A face too steep to drive up: knocked back, most of the speed lost.
         s.speed = -0.3f * s.speed;
         np = s.pos;

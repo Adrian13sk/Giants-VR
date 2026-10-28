@@ -1,0 +1,22 @@
+# Effect cost in the water (2026-10-28): the machine gun at Rippers while backing into the sea - rounds into the
+# shallows at your feet, piranhas at your legs (on 2026-10-27 this ran at 32 fps on the headset: splash crowns,
+# rings and spray filling the view). GVR_FX_COST logs the blended screen cover twice a second.
+# Log (checked by devtest.ps1): "Piranhas!" "fx cost".
+name fx_water_fight
+world Story2
+mission 2c_1_clearrippers
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_ARSENAL 1
+env GVR_WEAPON 5
+env GVR_SPAWN_FAST 1
+env GVR_FX_COST 1
+view first
+duration 45
+perf 25 45
+at 601 -220
+look 601 -70
+autoaim r 2 45
+hold trigger_r 8 44
+move 0 -0.6 10 44
+shot 32 water

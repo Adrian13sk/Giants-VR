@@ -249,7 +249,11 @@ void GameApp::initJetski() {
     }
 }
 
-void GameApp::mountJetski(const Vec3& pos, float yaw) {
+void GameApp::mountJetski(const Vec3& posIn, float yawIn) {
+    // (Copies first: the moored ski mounts with its own ski_.pos / ski_.yaw, which the reset below clears -
+    // until 2026-10-28 that put Delphi and the ski at the world's origin, (0, 0), as she got on.)
+    const Vec3 pos = posIn;
+    const float yaw = yawIn;
     riding_ = true;
     skiParked_ = false;
     ski_ = JetskiState{};
@@ -340,6 +344,61 @@ void GameApp::updateRiding(float dt, const InputFrame& in) {
         stuckT = ski_.speed < 1.0f && race_.time > 2.0f && backUp <= 0 ? stuckT + dt : 0.0f;
         if (stuckT > 1.0f) { backUp = 1.2f; stuckT = 0; }
         if (backUp > 0.4f) { throttle = -1.0f; steer = -steer; }
+    }
+    if (std::getenv("GVR_SKI_AUTOPILOT") && canGo && !raceMode_ && assetWorld_) {
+        // (2026-10-28) Test hook, the moored-Reaperski missions (rstory2_jetski_2/3): full throttle along a water
+        // route to the first unfinished "reach" objective (planned as the rivals' lines are, round the headlands).
+        int obj = -1;
+        for (size_t i = 0; i < objectives_.size() && obj < 0; ++i)
+            if (objectives_[i].kind == 1 && !objectives_[i].done) obj = int(i);
+        if (obj >= 0) {
+            const Vec3 goal = (objectives_[size_t(obj)].boundsMin + objectives_[size_t(obj)].boundsMax) * 0.5f;
+            if (obj != skiRouteObj_) {
+                skiRouteObj_ = obj;
+                AssetWorld* w = assetWorld_.get();
+                auto groundAt = [w](float x, float z) { float g = -20.0f; w->terrain().heightAt(x, z, g); return g; };
+                // The moored ski (in the shallows by a pier) and the objective (perhaps ashore) may not be in open
+                // water: route between the nearest open water to each, then on in.
+                auto openWater = [&](Vec3 p) {
+                    if (groundAt(p.x, p.z) <= -0.8f) return p;
+                    for (float r = 5.0f; r <= 250.0f; r += 5.0f)
+                        for (int k = 0; k < 24; ++k) {
+                            const float an = float(k) * 0.2618f;
+                            const Vec3 q{p.x + std::cos(an) * r, 0, p.z + std::sin(an) * r};
+                            if (groundAt(q.x, q.z) < -0.8f) return q;
+                        }
+                    return p;
+                };
+                const Vec3 a = openWater(Vec3{ski_.pos.x, 0, ski_.pos.z});
+                const Vec3 b = openWater(Vec3{goal.x, 0, goal.z});
+                LOGI("autopilot: ski ground %.1f, goal ground %.1f; open water %.0f m and %.0f m from them", groundAt(ski_.pos.x, ski_.pos.z),
+                     groundAt(goal.x, goal.z), length(a - Vec3{ski_.pos.x, 0, ski_.pos.z}), length(b - Vec3{goal.x, 0, goal.z}));
+                skiRoute_ = waterRoute(a, b, groundAt, -0.4f);
+                if (skiRoute_.size() == 2) skiRoute_ = waterRoute(a, b, groundAt, -0.4f, 2.0f, 300.0f);
+                if (skiRoute_.size() == 2) skiRoute_ = waterRoute(a, b, groundAt, 0.6f, 2.0f, 300.0f);
+                if (skiRoute_.size() == 2) skiRoute_ = waterRoute(a, b, groundAt, 0.6f, 8.0f, 1400.0f);
+                if (skiRoute_.size() == 2) skiRoute_ = waterRoute(a, b, groundAt, 1.2f, 4.0f, 800.0f);  // (over the sandbars it hops)
+                skiRouteAt_ = 1;
+                skiRoute_.push_back(Vec3{goal.x, 0, goal.z});  // (the last stretch: in to the objective itself)
+                LOGI("autopilot: a route of %zu points to objective %d, %.0f m straight", skiRoute_.size(), obj, length(b - a));
+                for (const Vec3& q : skiRoute_) LOGI("autopilot:   (%.1f %.1f)", q.x, q.z);
+            }
+            while (skiRouteAt_ + 1 < skiRoute_.size() && length(Vec3{skiRoute_[skiRouteAt_].x - ski_.pos.x, 0, skiRoute_[skiRouteAt_].z - ski_.pos.z}) < 8.0f)
+                ++skiRouteAt_;
+            const Vec3 tgt = skiRouteAt_ < skiRoute_.size() ? skiRoute_[skiRouteAt_] : goal;
+            const Vec3 d = tgt - ski_.pos;
+            steer = std::max(-1.0f, std::min(1.0f, -angleDelta(ski_.yaw, std::atan2(-d.x, -d.z)) * 2.0f));
+            throttle = 1.0f;
+            static float backUp2 = 0, stuck2 = 0;
+            backUp2 = std::max(0.0f, backUp2 - dt);
+            stuck2 = ski_.speed < 1.0f && backUp2 <= 0 ? stuck2 + dt : 0.0f;
+            if (stuck2 > 1.0f) { backUp2 = 1.2f; stuck2 = 0; }
+            if (backUp2 > 0.4f) { throttle = -1.0f; steer = -steer; }
+            static int tick = 0;
+            if (++tick % 600 == 0)
+                LOGI("autopilot: point %zu of %zu, %.0f m to the objective, speed %.1f", skiRouteAt_, skiRoute_.size(),
+                     length(Vec3{goal.x - ski_.pos.x, 0, goal.z - ski_.pos.z}), ski_.speed);
+        }
     }
     if (std::fabs(throttle) < 0.15f) throttle = 0;
     if (std::fabs(steer) < 0.15f) steer = 0;
@@ -446,9 +505,10 @@ void GameApp::updateRiding(float dt, const InputFrame& in) {
 void GameApp::updateJetskiWorld(float dt, const InputFrame& in) {
     (void)in;
     if (!skiModel_ && !raceMode_) return;
-    // Walking into the moored Reaperski: on it.
+    // Walking into the moored Reaperski: on it. (Test hook GVR_SKI_AUTOPILOT: the autopilot gets on at once.)
+    static const bool autopilot = std::getenv("GVR_SKI_AUTOPILOT") != nullptr;
     if (skiParked_ && !riding_ && hero_ == Hero::Delphi && playMode_ && !dying_ &&
-        length(Vec3{player_.position.x - ski_.pos.x, 0, player_.position.z - ski_.pos.z}) < 2.6f)
+        (autopilot || length(Vec3{player_.position.x - ski_.pos.x, 0, player_.position.z - ski_.pos.z}) < 2.6f))
         mountJetski(ski_.pos, ski_.yaw);
     if (skiParked_) { ski_.bob += dt; ski_.bank *= 0.95f; }
     if (skiModel_ && (riding_ || skiParked_)) skiModel_->pose(renderer_, std::fmod(ski_.bob, std::max(0.1f, skiModel_->animDuration())));

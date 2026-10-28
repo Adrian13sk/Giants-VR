@@ -112,6 +112,15 @@ void GameApp::updateShop(float dt, const InputFrame& in) {
     int nh = 0;
     for (int h = 0; h < 2; ++h)
         if (firstPerson_ && in.hand[h].gripPoseValid) hands[nh++] = rig_.toWorld(in.hand[h].gripPose).position;
+    static const bool shopTrace = std::getenv("GVR_SHOP_TRACE") != nullptr;  // (test hook)
+    if (shopTrace && int(time_ * 2.0) != int((time_ - dt) * 2.0))
+        for (size_t i = 0; i < shopItems_.size(); ++i) {
+            float hd = 1e9f;
+            for (int k = 0; k < nh; ++k) hd = std::min(hd, length(hands[k] - shopItems_[i].pos));
+            LOGI("shop trace: item %zu (kind %d%s) at (%.2f %.2f %.2f), %.2f m from the nearest hand, %.2f m from the player; hands %d: (%.2f %.2f %.2f) (%.2f %.2f %.2f)",
+                 i, shopItems_[i].kind, shopItems_[i].taken ? ", taken" : "", shopItems_[i].pos.x, shopItems_[i].pos.y, shopItems_[i].pos.z, hd,
+                 length(shopItems_[i].pos - player_.position), nh, hands[0].x, hands[0].y, hands[0].z, hands[1].x, hands[1].y, hands[1].z);
+        }
     for (auto& it : shopItems_) {
         if (it.taken) continue;
         const Vec3 f = it.pos - player_.position;

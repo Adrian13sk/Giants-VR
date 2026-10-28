@@ -43,20 +43,20 @@ quality levels chosen per world are logged and stay put.
 
 - **Parry below 20 fps:** bolts resolve inside the enemy weapon's own update. Move parry into a swept
   sword-vs-bolt test that runs before the bolts' step. 0.5 session.
-- **Shop: taking an item by hand.** `ui_shop` gets in, but in the harness the reach doesn't take an item.
-  Check the reach distance and the items' heights at the counter (they're placed 1.1 m up). 0.5 session.
-- **Moored Reaperski missions (rstory2_jetski_2/3):** the autopilot runs only in races. Make it steer to a
-  "reach" objective, so these two have a mechanics test too. 0.5 session.
+- **Shop: taking an item by hand.** DONE 2026-10-28: the test reached for the wrong side (items at positive
+  angles stand to the LEFT); the ammo box is taken by hand at 24 and 72 Hz.
+- **Moored Reaperski missions:** DONE for rstory2_jetski_2 (2026-10-28: the autopilot gets on and rides a water
+  route; it found that getting on the moored ski put Delphi at the world's origin - fixed). rstory2_jetski_3: no
+  water route to its objective even over 1.2 m sandbars (ice walls or a closed lake?) - not yet tested by its
+  mechanic. 0.5 session.
 - **Kabuto's growth in real play:** the gate tests start him at full size (GVR_KABUTO_GROW). Add a test
   that eats its way from 50 % to the size k1a's gate needs, with timings. 1 session.
 - **Reach objectives on foot:** GVR_REACH_WALK walks the path in four missions. Add the rest (every
   "reach" objective in the campaign) as mission tests. 1 session.
 - **Smarties cheering, Timmy, the bush poke:** behaviours that exist but whose tests didn't fire in the
   harness (dropped from the NPC set for now). Find the right setups and add them back. 1 session.
-- **Point-blank shots at Rippers:** in `npc_ripper_fight` at 72 Hz, Rippers attacking from 1.2-1.5 m took 324
-  machine-gun rounds and none died (at 24 Hz, 2 died; backing off, 3 die at both rates). Likely the muzzle starts
-  past or inside the Ripper's capsule, or the ray hits the ground first. Trace it, then fix it: a Ripper at your
-  feet must be shootable. 0.5 session.
+- **Point-blank shots at Rippers:** FIXED 2026-10-28 (674b41e): a ray starting inside a Ripper's hit box (it
+  reaches ~1.1 m in front) counted as a miss.
 - **A Reaper hiding behind cover:** `takes cover` didn't show in the open bunker field. Test it where there
   are trees and rocks. 0.5 session.
 

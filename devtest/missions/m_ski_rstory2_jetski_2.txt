@@ -1,0 +1,11 @@
+# Moored-Reaperski mission rstory2_jetski_2 (2026-10-28): Delphi gets on the moored jet-ski (it stands by the objective) and the
+# harness autopilot (GVR_SKI_AUTOPILOT) rides a water route to the "reach" objective.
+# Log (checked by devtest.ps1): "Delphi rides the Reaperski" "Objective 0 done".
+name m_ski_rstory2_jetski_2
+world Rstory2
+mission rstory2_jetski_2
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_SKI_AUTOPILOT 1
+view first
+duration 240

@@ -1817,6 +1817,9 @@ private:  // the mission placed enemies: no test waves
     static float coverOf(float size, float dist) { const float a = size / std::max(0.05f, dist); return std::min(1.0f, a * a / 5.7f); }
     void logFxCost(float dt);
     Vec3 lastShotSplash_;
+    std::vector<Vec3> skiRoute_;  // (test hook GVR_SKI_AUTOPILOT outside races: the route to a reach objective)
+    size_t skiRouteAt_ = 0;
+    int skiRouteObj_ = -1;
     float lastShotSplashT_ = -10.0f;
     bool fxCostView_ = false;
     TextureId glowTexture();
