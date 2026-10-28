@@ -1,5 +1,7 @@
 # Rework (2026-10-28): hand presence - with the grip held, the index finger lifted off the trigger (capacitive touch)
-# stands straight (pointing); resting on it, it bends a little. Screenshots: fist at 1.2 s, pointing at 2.5 s.
+# stands straight (pointing); resting on it, it bends a little; the thumb off the buttons stands up (digit 4 taken
+# as the thumb: its base sits nearest the wrist - to confirm in the headset). Screenshots: fist 1.2 s, pointing 2.5 s,
+# thumb up 3.6 s.
 # The device log line shows the runtime took the touch bindings (the harness has no OpenXR: that line is device-only).
 # Log (checked by devtest.ps1): "XR input: capacitive touch bound".
 name point
@@ -10,7 +12,7 @@ env GVR_GOD 1
 env GVR_NO_AMBUSH 1
 env GVR_WEAPON 0
 view first
-duration 3
+duration 4.2
 at 150 -135
 look 150 -160
 pitch -15
@@ -18,5 +20,7 @@ hand_l 0.15 0.3 0.05 0.2 0.5
 yaw_l -70 0.2 0.5
 hold grip_l 0.5 3
 point_l 1.5 3
+thumb_l 3.1 4.2
 shot 1.2 fist
 shot 2.5 point
+shot 3.6 thumb

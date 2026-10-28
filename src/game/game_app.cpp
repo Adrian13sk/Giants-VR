@@ -222,6 +222,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     float curl[4] = {std::max(g, tr), std::max(g * 0.9f, 0.25f * tr), g, g};
                     if (armTargets_[h].point) curl[0] = 0.0f;                                // finger off the trigger: straight
                     else if (armTargets_[h].triggerRest) curl[0] = std::max(curl[0], 0.3f);  // resting on it
+                    // The thumb (digit 4: its base sits nearest the wrist) straight while it is off the buttons and stick.
+                    if (armTargets_[h].thumbUp) curl[3] = 0.0f;
                     curlFingers(world, children, c, curl);
                 }
             });
@@ -4593,6 +4595,7 @@ void GameApp::poseFirstPersonBody(const InputFrame& in) {
         // gun's side), resting bent on it when touching but not pulling.
         a.point = c.touchValid && !c.triggerTouch;
         a.triggerRest = c.touchValid && c.triggerTouch;
+        a.thumbUp = c.touchValid && !c.thumbTouch;
     }
 }
 
