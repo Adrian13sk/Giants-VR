@@ -68,6 +68,10 @@ void GameApp::updateTeleport(float dt, PlayerInput& pi, const InputFrame& in) {
                 float tu = 0;
                 Vec3 nu;
                 if (telValid_ && worldRay_(telTarget_ + Vec3{0, 0.1f, 0}, Vec3{0, 1, 0}, 0.95f * H, tu, nu)) telValid_ = false;
+                static const bool trace = std::getenv("GVR_TELEPORT_TRACE") != nullptr;  // test hook
+                if (trace && int(time_ * 4) != int((time_ - dt) * 4))
+                    LOGI("teleport aim: (%.1f %.1f %.1f) %.1f m, normal y %.2f, %s%s", telTarget_.x, telTarget_.y, telTarget_.z, dist, n.y,
+                         telValid_ ? "valid" : "invalid", deep ? " (deep water)" : "");
             }
             telArc_.push_back(landed ? telTarget_ : q);
             p = q;
@@ -79,6 +83,9 @@ void GameApp::updateTeleport(float dt, PlayerInput& pi, const InputFrame& in) {
             telPending_ = telTarget_;
             telPhase_ = 1;
             sfx2D("ph_selct", 0.4f, 1.6f);
+        } else if (telPhase_ == 0) {
+            sfx2D("ph_selct", 0.3f, 0.6f);  // (a low click: nowhere to stand there)
+            LOGI("Teleport: no place to stand there");
         }
     } else if (!push) {
         telAiming_ = st.y > 0.25f && telAiming_;  // (easing back toward the middle keeps the aim until released)

@@ -1,0 +1,19 @@
+# Rework (2026-10-28): teleport refused where you can't stand - the arc aimed at a steep rock face beside you on 1c's
+# shore (its slope too steep): a low click, no blink. GVR_TELEPORT_TRACE logs where the arc lands.
+# Log (checked by devtest.ps1): "invalid" "Teleport: no place to stand there".
+name teleport_refused
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_SETTINGS teleport=1
+env GVR_TELEPORT_TRACE 1
+view first
+duration 4
+at 380 4625
+look 300 4610
+pitch_l 30 0.2 0.5
+yaw_l 225 0.6 0.9
+move 0 1 1.2 2.4
+shot 2.0 red_arc
