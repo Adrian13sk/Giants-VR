@@ -1,0 +1,14 @@
+# Rework (2026-10-28): the base table map on Delphi's Build Pad (r4a): the Persuader's site touched on the table.
+# Log (checked by devtest.ps1): "PERSUADER touched on the table map" "ordered PERSUADER".
+name base_table_map_delphi
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BASE_FOOD 40
+env GVR_BASE_TABLE PERSUADER
+view first
+duration 7
+at 2965.5 201.5
+look 2965.5 30
