@@ -37,7 +37,8 @@ void GameApp::initVimps(AssetWorld* w, ModelCache* mc) {
     meatModel_[2] = mc->get("VimpFoodChunk3.gbs", "", true);
     meatIcon_ = mc->texture("st_vimpmeat");
     dropoffTex_ = mc->texture("vimp_dropoff");
-    if (!vimpWorld(w->worldName()) || std::getenv("GVR_NO_VIMPS")) return;
+    // (Practice on the main menu's island too: something to hunt, grab and eat - 2026-10-28.)
+    if (!(vimpWorld(w->worldName()) || practice_) || std::getenv("GVR_NO_VIMPS")) return;
     const Terrain& terr = w->terrain();
     vimps_.groundHeight = [w](float x, float z) {
         float y;

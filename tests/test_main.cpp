@@ -1843,6 +1843,33 @@ static void testSkirmish() {
                 sk.teams[0].captures, sk.teams[1].captures, sk.teams[0].kills, sk.teams[1].kills);
 }
 
+static void testSkirmishKabutoFumble() {
+    // (2026-10-28 balance) Kabuto drops a flag after 60 damage since he took it, and can't take one again for 4 s.
+    Skirmish sk;
+    sk.groundAt = [](float, float) { return 0.0f; };
+    sk.setup({SkHero::Mecc, SkHero::Kabuto}, {{-100, 0, 0}, {100, 0, 0}}, {});
+    PlayerController proto;
+    const int m = sk.addPlayer("m", 0, true, false, proto);
+    PlayerController giant;
+    giant.height = 20.0f;
+    const int k = sk.addPlayer("k", 1, true, false, giant, 500.0f);
+    SkPlayer& kb = *sk.player(k);
+    kb.body.position = Vec3{0, 0, 0};
+    sk.flags[0].carrier = k;
+    sk.flags[0].atHome = false;
+    kb.carrying = 0;
+    kb.carryHurt = 0;
+    sk.damage(k, 40.0f, m, Vec3{});
+    CHECK(kb.carrying == 0);  // (40: still has it)
+    sk.damage(k, 25.0f, m, Vec3{});
+    CHECK(kb.carrying < 0 && sk.flags[0].carrier < 0 && kb.alive && kb.noGrabT > 3.5f);
+    // Standing on it: not taken again until the 4 s are up.
+    sk.flags[0].pos = kb.body.position;
+    for (int i = 0; i < 72; ++i) { sk.update(1.0f / 72.0f); sk.events.clear(); kb.body.position = sk.flags[0].pos; }
+    CHECK(kb.carrying < 0);
+    std::printf("skirmish kabuto fumble ok\n");
+}
+
 static Vec3 flat3(const Vec3& v) { return Vec3{v.x, 0, v.z}; }
 
 static void testSkNav() {
@@ -2209,6 +2236,7 @@ int main() {
     testReverb();
     testRagdoll();
     testSkirmish();
+    testSkirmishKabutoFumble();
     testSkNav();
     testSkNet();
     testSoundTable();
