@@ -57,8 +57,8 @@ quality levels chosen per world are logged and stay put.
   harness (dropped from the NPC set for now). Find the right setups and add them back. 1 session.
 - **Point-blank shots at Rippers:** FIXED 2026-10-28 (674b41e): a ray starting inside a Ripper's hit box (it
   reaches ~1.1 m in front) counted as a miss.
-- **A Reaper hiding behind cover:** `takes cover` didn't show in the open bunker field. Test it where there
-  are trees and rocks. 0.5 session.
+- **A Reaper hiding behind cover:** DONE 2026-10-28: npcs/npc_reaper_cover in 5a's palm meadow - Reapers take
+  cover behind palms and rocks at 24 and 72 Hz (the bunker field has nothing to hide behind).
 
 ## 3. VR feel and comfort (needs the user's hands in the headset)
 

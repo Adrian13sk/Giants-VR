@@ -1,0 +1,16 @@
+# Rework (2026-10-28): Reapers between bursts run to cover - behind a palm (standing flat against the trunk,
+# peeking out) or a rock (ducking) - in 5a's palm meadow, where there is some (the open bunker field had none).
+# Log (checked by devtest.ps1): "takes cover".
+name npc_reaper_cover
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_COVER_TRACE 1
+view first
+duration 25
+at 150 -135
+look 150 -160
+reapers 3 16 1 999
+shot 18 cover
