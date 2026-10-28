@@ -19,9 +19,8 @@ and they are guesses.
 The rework look costs 15.6–21 ms of GPU in the busiest scenes against 13.9 ms. Level 1 (lite) holds 72 Hz in
 the meadow, k1a and r1; level 2 is needed in 1a's village; level 3 in Kstory5's storm.
 
-1. **GPU timer queries per pass** (EXT_disjoint_timer_query) logged in test runs: terrain, objects,
-   foliage, water, sky, shadows, reflection, particles and post. We price passes now by switching them off
-   (`GVR_LOOK_OFF`). Direct timings would be faster and more exact. 1 session.
+1. **GPU timer queries per pass:** DONE 2026-10-28 (dc8f316, harness; device numbers pending): shadow, haze cube,
+   reflection, scope, cinema screen and "eyes" (the rest) in every scripted run's result.txt; review_results.py tables it.
 2. **Terrain:** a cheaper far ring (no detail octaves or relief beyond ~60 m, one texture fetch). Also
    front-to-back draw order and a depth pre-pass test for the village's overdraw. 1–2 sessions.
 3. **Foliage and grass:** alpha-to-coverage costs MSAA bandwidth. Try density by distance, impostor cards for
@@ -33,8 +32,8 @@ the meadow, k1a and r1; level 2 is needed in 1a's village; level 3 in Kstory5's 
 7. **Quest 2 at 90 Hz?** No: 72 Hz stays the target. Offer 90 Hz only for the classic look, as an option.
 8. **CPU side:** the frame-time spikes found by the soak (world switches, cutscene loads). Move texture
    decoding to a loader thread with a time budget per frame. 2 sessions.
-9. **Memory (B15):** evict the model and texture cache by world, so the campaign soak stays flat (now
-   174 → 436 MB). 1 session.
+9. **Memory (B15):** not needed now: the headset's campaign run (2026-10-27) stayed flat at ~350 MB. Evicting the
+   shared cache would risk pointers kept across worlds. Revisit if a longer device soak climbs.
 
 **Done when:** the whole test's median fps is 72 at the default quality, no scene is under 60, and the
 quality levels chosen per world are logged and stay put.
@@ -67,15 +66,16 @@ quality levels chosen per world are logged and stay put.
 
 - **Comfort pass with the user:** vignette strength, snap vs smooth turn defaults, Kabuto's eye height and
   speed, the Reaperski view turning with the ski, and the jetpack's vertical acceleration.
-- **Teleport locomotion** as an option for players who get motion sick (not in the original; VR-only).
-  Blink with a fade; disabled in races. 1–2 sessions.
-- **Seated mode:** raise the floor by a set height, plus a "crouch" button. 0.5 session.
+- **Teleport locomotion:** DONE 2026-10-28 (harness): Options -> MOVEMENT: TELEPORT - an arc from the move hand, a
+  blink with a fade; on foot only, races keep smooth movement. Needs the user's feel test.
+- **Seated mode:** DONE 2026-10-28 (harness): Options -> PLAY SEATED raises the view and hands 0.45 m. No crouch
+  button (the ground reach assist covers pickups).
 - **Hand presence:** finger poses from capacitive touch (thumb rest, index on trigger) on every hero; the
   Quest 2's hand tracking for menus only. 1–2 sessions.
-- **Haptics everywhere:** per-weapon waveforms (machine gun rumble, sniper crack), Kabuto's footsteps by
-  size, Delphi's bow string tension rising with the draw. 1 session.
-- **Weapons in the hand:** visible ammo counters on the guns (the original's HUD numbers moved onto the
-  weapon), and reloading by a gesture (an option; the original has no reload). 1–2 sessions.
+- **Haptics everywhere:** per-weapon kicks were already there; 2026-10-28: Kabuto's footfalls by size, the gun's
+  kick in the steadying hand too. The bow string tension already rises with the draw.
+- **Weapons in the hand:** 2026-10-28: the rounds left on top of the gun, the arrows by the bow's grip (harness).
+  Reloading by gesture: not done (the original has no reload).
 - **Delphi's spells by gesture:** the circle and sweep exist. Add the other spells the data has as
   gestures, each with a practice card in Options → CONTROLS. 2 sessions.
 - **Kabuto at scale:** a "giant's view" setting (true eye height vs a lowered, comfortable one), and his
