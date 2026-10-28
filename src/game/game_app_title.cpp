@@ -1,6 +1,7 @@
 // GameApp: the main menu (title screen) and the loading-screen art. Same class; see game_app.h
 // ("Main menu").
 #include "game/game_app.h"
+#include "audio/mixer.h"
 #include "game/cutscene.h"
 #include "game/progress.h"
 #include "game/save_game.h"
@@ -64,6 +65,8 @@ void GameApp::enterTitle() {
     titleHold_ = 0;
     titleActHeld_ = true;  // a trigger still held from the app start doesn't select
     hoverRow_ = -2;
+    titleHoldRow_ = -1;
+    stickChose_ = true;  // (the highlighted row is the menu's own choice until the pointer moves onto another)
     pointDotOn_ = false;
     playMode_ = false;
     titleRow_ = titleWorld_.empty() ? kTitleNewGame : kTitleContinue;
@@ -160,6 +163,16 @@ void GameApp::grantPracticeKit() {
 void GameApp::quitToTitle(const InputFrame& in) {
     menuOpen_ = false;
     if (cutsceneActive()) cutscene_->stop();
+    // Sounds that loop with the hero's state (the main menu doesn't update them, review 2026-10-28).
+    if (audio_) {
+        for (uint32_t* v : {&jetLoop_, &slideLoop_, &swimLoop_, &speedWind_, &mgLoop_, &streamVoice_})
+            if (*v) audio_->stop(*v);
+        for (uint32_t v : cueVoices_) audio_->stop(v);
+    }
+    jetLoop_ = slideLoop_ = swimLoop_ = speedWind_ = mgLoop_ = streamVoice_ = 0;
+    cueVoices_.clear();
+    streamLeft_ = 0;
+    wasThrusting_ = wasSliding_ = false;
     // The CONTINUE row: the checkpoint as it is on disk now (this mission's start, or none).
     SaveGame g;
     if (!savePath_.empty() && loadSaveGame(savePath_, g)) {
@@ -211,7 +224,7 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
     if (menuOpen_) {
         if (menuEdge_.pressed(in.hand[kLeft].menu)) menuOpen_ = false;
         else updateMenu(dt, in);
-        if (!menuOpen_) hoverRow_ = -2;  // (back on the main menu: the row under the pointer now isn't a choice)
+        if (!menuOpen_) { hoverRow_ = -2; stickChose_ = true; }  // (back on the main menu: OPTIONS stays the choice, the row under the pointer isn't one)
         if (load_.phase != LoadPhase::Idle) title_ = false;
         titleActHeld_ = true;
         return;
@@ -237,7 +250,7 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
         float lx = 0, ly = 0;
         int ph = kRight;
         const float w = 1.05f, rowH = 0.11f, h = rowH * float(kTitleRowCount) + 0.16f;
-        pointDotOn_ = panelRay(titlePanel(), w, h, in, lx, ly, ph);
+        pointDotOn_ = titleViewSet_ && panelRay(titlePanel(), w, h, in, lx, ly, ph);  // (not before the view is placed)
         int row = -1;
         if (pointDotOn_) {
             const int vi = int(std::floor((0.5f * h - 0.08f - ly) / rowH));
@@ -250,20 +263,31 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
         if (hoverRow_ != -2 && row >= 0 && row != hoverRow_) {
             titleRow_ = row;
             titleHold_ = 0;
+            stickChose_ = false;
             haptics_.push_back({ph, 0.15f, 0.015f});
             sfx2D("ph_selct", 0.3f);
             LOGI("Main menu: pointing at row %d", row);
         }
         static const bool trace = std::getenv("GVR_POINT_TRACE") != nullptr;
-        if (trace && int(titleT_ * 4) != int((titleT_ - dt) * 4)) LOGI("point: on %d at (%.2f %.2f) row %d", int(pointDotOn_), lx, ly, row);
-        hoverRow_ = row;
+        if (trace && int(titleT_ * 4) != int((titleT_ - dt) * 4)) LOGI("point: on %d at (%.2f %.2f) row %d stick %d sel %d", int(pointDotOn_), lx, ly, row, int(stickChose_), titleRow_);
+        if (titleViewSet_) hoverRow_ = row;  // (until then the first row seen is still to be adopted)
+        pointDotDim_ = row != titleRow_;
+        // (review 2026-10-28) A fresh press on a row other than the chosen one only chooses it.
+        if (row >= 0 && row != titleRow_ && actRaw && !titleActHeld_ && !stickChose_) {
+            titleRow_ = row;
+            titleHold_ = 0;
+            side = 2;
+            sfx2D("ph_selct", 0.3f);
+            LOGI("Main menu: pointing at row %d (pressed)", row);
+        }
         const bool changes = row != kTitleOptions && (row != kTitleContinue || !baseSavePath_.empty());
-        if (row >= 0 && row == titleRow_ && changes && std::fabs(lx) > 0.3f * w) side = lx > 0 ? 1 : -1;
-        if (side != 0 && actRaw && !titleActHeld_ && dx == 0) dx = side;
+        if (side == 0 && row >= 0 && row == titleRow_ && changes && std::fabs(lx) > 0.3f * w) side = lx > 0 ? 1 : -1;
+        if ((side == 1 || side == -1) && actRaw && !titleActHeld_ && dx == 0) dx = side;
     }
     if (dy != 0) {
         titleRow_ = std::max(first, std::min(int(kTitleRowCount) - 1, titleRow_ + dy));
         if (titleRow_ == kTitleSkAddr && skNetWant_ != 2) titleRow_ = std::max(first, std::min(int(kTitleRowCount) - 1, titleRow_ + dy));  // (only when joining)
+        stickChose_ = true;
         haptics_.push_back({kRight, 0.2f, 0.02f});
         sfx2D("ph_selct", 0.4f);
         titleHold_ = 0;
@@ -359,8 +383,13 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
     }
     // A or either trigger: select. A new game over an existing checkpoint is held 1.5 s.
     const bool act = side == 0 && actRaw;
+    // (review 2026-10-28) A hold counts only when the press began on this row (not a trigger still held from the
+    // last screen with the pointer drifting onto NEW GAME).
+    if (act && !titleActHeld_) titleHoldRow_ = titleRow_;
+    if (!act || titleHoldRow_ != titleRow_) titleHoldRow_ = -1;
+    const bool held = act && titleHoldRow_ == titleRow_;
     const bool missionRow = titleRow_ == kTitleMission && !titleMissions_.empty();
-    if ((titleRow_ == kTitleNewGame || missionRow) && act && !titleWorld_.empty()) {
+    if ((titleRow_ == kTitleNewGame || missionRow) && held && !titleWorld_.empty()) {
         titleHold_ += dt;
         if (titleHold_ > 1.5f) {
             haptics_.push_back({kLeft, 1.0f, 0.3f});

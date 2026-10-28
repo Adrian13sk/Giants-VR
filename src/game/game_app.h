@@ -1479,11 +1479,13 @@ private:  // the mission placed enemies: no test waves
     void renderControlsCard(const Mat4& base);
     int menuRow_ = 0, menuCampaign_ = 0;
     int menuTop_ = 0;  // the Options window's first row (moves only when the choice leaves it)
+    int menuHoldRow_ = -1, titleHoldRow_ = -1;
+    bool stickChose_ = false;  // the stick moved the choice since the pointer last did (a press then acts on it)  // the row a hold-to-confirm press began on (-1: none)
     // (2026-10-28) Pointing at the menus: either controller's aim ray on a panel (local x right, y up, metres);
     // the hand whose trigger is pulled furthest wins. A change of the row under the pointer selects it; the
     // trigger then acts (or, on a row's left / right part, changes its value).
     bool panelRay(const Mat4& panel, float w, float h, const InputFrame& in, float& lx, float& ly, int& hand);
-    bool pointDotOn_ = false;
+    bool pointDotOn_ = false, pointDotDim_ = false;
     Mat4 pointDotXf_ = Mat4::identity();
     int hoverRow_ = -2;  // the row last under the pointer (-1 none, -2 not looked yet: the first doesn't select)
     void renderPointDot();

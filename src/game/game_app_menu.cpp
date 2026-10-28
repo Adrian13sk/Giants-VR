@@ -62,7 +62,8 @@ bool GameApp::panelRay(const Mat4& panel, float w, float h, const InputFrame& in
 
 void GameApp::renderPointDot() {
     if (!pointDotOn_ || !text_.ready()) return;
-    text_.drawPanel(pointDotXf_, 0.02f, 0.02f, {0.55f, 0.85f, 1.0f, 0.95f});
+    // (Grey while the dot rests off the chosen row: the trigger acts on the highlighted row; move the dot to choose.)
+    text_.drawPanel(pointDotXf_, 0.02f, 0.02f, pointDotDim_ ? Vec4{0.5f, 0.5f, 0.55f, 0.7f} : Vec4{0.55f, 0.85f, 1.0f, 0.95f});
     text_.drawPanel(pointDotXf_ * Mat4::translation({0, 0, 0.001f}), 0.008f, 0.008f, {1, 1, 1, 1});
 }
 
@@ -91,6 +92,8 @@ void GameApp::openMenu(const InputFrame& in) {
     menuControls_ = false;
     menuRow_ = kRowResume;
     menuTop_ = 0;
+    menuHoldRow_ = -1;
+    stickChose_ = true;  // (RESUME is the choice until the pointer moves onto another row)
     hoverRow_ = -2;
     menuNewGame_ = 0;
     menuCampaign_ = hero_ == Hero::Delphi ? 1 : (hero_ == Hero::Kabuto ? 2 : 0);
@@ -142,14 +145,27 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             else if (vi >= kVisible) scroll = 1;
             else if (menuTop_ + vi < kRowCount) row = menuTop_ + vi;
         }
-        if (hoverRow_ != -2 && row >= 0 && row != hoverRow_) {
+        // (review 2026-10-28) hoverRow_ holds the window slot under the dot, not the row: when the window scrolls
+        // under a still pointer, that is no pointing.
+        const int slot = row >= 0 ? row - menuTop_ : -1;
+        if (hoverRow_ != -2 && row >= 0 && slot != hoverRow_) {
             menuRow_ = row;
+            stickChose_ = false;
             haptics_.push_back({ph, 0.15f, 0.015f});
             sfx2D("ph_selct", 0.3f);
             LOGI("Options: pointing at row %d", row);
         }
-        hoverRow_ = row;
-        if (row >= 0 && row == menuRow_ && row != kRowResume && row != kRowControls && row != kRowMainMenu && lx > 0.0f)
+        hoverRow_ = slot;
+        pointDotDim_ = row != menuRow_;
+        // A fresh press on a row other than the chosen one (the dot adopted at opening, or the stick moved the
+        // choice away): it chooses that row and does nothing else.
+        if (row >= 0 && row != menuRow_ && actRaw && !menuActHeld_ && !stickChose_) {
+            menuRow_ = row;
+            side = 2;
+            sfx2D("ph_selct", 0.3f);
+            LOGI("Options: pointing at row %d (pressed)", row);
+        }
+        if (side == 0 && row >= 0 && row == menuRow_ && row != kRowResume && row != kRowControls && row != kRowMainMenu && lx > 0.0f)
             side = lx < 0.25f * kMenuW ? -1 : 1;
         if (scroll != 0) {
             side = 2;
@@ -163,6 +179,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
     }
     if (dy != 0) {
         menuRow_ = (menuRow_ + dy + kRowCount) % kRowCount;
+        stickChose_ = true;
         haptics_.push_back({kRight, 0.2f, 0.02f});
         sfx2D("ph_selct", 0.4f);
     }
@@ -207,13 +224,18 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
         }
     }
     const bool act = side == 0 && actRaw;
+    // (review 2026-10-28) The held rows (NEW GAME, MAIN MENU) count only a press begun on that row: a trigger still
+    // held from play, or a pointer drifting onto them, never finishes one.
+    if (act && !menuActHeld_) menuHoldRow_ = menuRow_;
+    if (!act || menuHoldRow_ != menuRow_) menuHoldRow_ = -1;
+    const bool held = act && menuHoldRow_ == menuRow_;
     if (menuRow_ == kRowControls && act && !menuActHeld_) {
         menuControls_ = true;
         sfx2D("ph_selct", 0.6f, 1.2f);
         LOGI("Options: controls card shown");
     }
     if (menuRow_ == kRowResume && act && !menuActHeld_) { menuOpen_ = false; LOGI("Options menu closed (resume)"); }
-    if (menuRow_ == kRowNewGame && act) {
+    if (menuRow_ == kRowNewGame && held) {
         menuNewGame_ += dt;
         if (menuNewGame_ > 2.0f) {
             menuOpen_ = false;
@@ -239,7 +261,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
         menuNewGame_ = 0;
     }
     // (2026-10-28) MAIN MENU, held 2 s: back to the title island (the checkpoint stays as saved).
-    if (menuRow_ == kRowMainMenu && act) {
+    if (menuRow_ == kRowMainMenu && held) {
         menuQuit_ += dt;
         if (menuQuit_ > 2.0f) {
             menuQuit_ = 0;

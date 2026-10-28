@@ -153,6 +153,10 @@ void GameApp::initMission() {
     initThrows();
     if (hero_ == Hero::Kabuto) kbAdren_ = kbGrow_ >= 0.999f ? 1.0f : 0.0f;  // at full size he comes in ready
     initSkirmish();  // a multiplayer map (w_M_*): teams and computer players
+    // The mission's ambient music (the world's race and chapter) and the Reaperski (none, or this world's): also
+    // for the main menu's island, which a quit from a ride or another world's music reaches (review 2026-10-28).
+    ambientSet_ = ambientFor(worldName_);
+    initJetski();
     if (title_) return;  // the main menu's scene: no checkpoint
     if (haveRestore_) {  // what he carried at the checkpoint
         if (pendingRestore_.launcher && launcherModel_) {
@@ -178,9 +182,6 @@ void GameApp::initMission() {
     }
     if (practice_) grantPracticeKit();
     else writeCheckpoint();  // (practice: never)
-    // The mission's ambient music (the world's race and chapter).
-    ambientSet_ = ambientFor(worldName_);
-    initJetski();
     if (const char* w = std::getenv("GVR_WEAPON")) weaponSel_ = std::atoi(w);  // test hook: start with this weapon in hand
     if (!weaponOwned(weaponSel_)) weaponSel_ = 0;
     LOGI("Mission %s: %zu objectives, jetpack %s", assetWorld_->missionName().c_str(), objectives_.size(),
@@ -419,6 +420,14 @@ void GameApp::loadMission(const std::string& name) {
     blasts_.clear();
     gibs_.clear();
     playerHealth_ = 100.0f;
+    // (review 2026-10-28) A death in progress ends with the level it happened in (a quit to the main menu, a new
+    // game from the Options in the 5.5 s before the respawn).
+    if (dying_) {
+        dying_ = false;
+        playerGibbed_ = false;
+        firstPerson_ = deathWasFp_;
+    }
+    piranhaAttack_ = false;
     initCharacters(w, w->models());
     initMission();
     needSpawn_ = true;  // to the mission's start marker; its opening cutscene follows

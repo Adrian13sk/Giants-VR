@@ -233,8 +233,13 @@ void XrInput::sync(XrTime time, XrSpace baseSpace, InputFrame& out) {
                 c.handTracked = true;
                 c.aimPose = toPose(aim.aimPose);
                 c.aimPoseValid = true;
-                c.trigger = (aim.status & XR_HAND_TRACKING_AIM_INDEX_PINCHING_BIT_FB) ? 1.0f : std::max(0.0f, std::min(1.0f, aim.pinchStrengthIndex));
-                if (aim.status & XR_HAND_TRACKING_AIM_SYSTEM_GESTURE_BIT_FB) c.trigger = 0;  // (the system's own gesture)
+                // A pinch with hysteresis (on at the runtime's pinch or 0.8, off under 0.4): a strength wavering round the
+                // menus' 0.6 would press several times (review 2026-10-28).
+                const bool bit = (aim.status & XR_HAND_TRACKING_AIM_INDEX_PINCHING_BIT_FB) != 0;
+                if (bit || aim.pinchStrengthIndex > 0.8f) pinchOn_[h] = true;
+                else if (aim.pinchStrengthIndex < 0.4f) pinchOn_[h] = false;
+                if (aim.status & XR_HAND_TRACKING_AIM_SYSTEM_GESTURE_BIT_FB) pinchOn_[h] = false;  // (the system's own gesture)
+                c.trigger = pinchOn_[h] ? 1.0f : 0.0f;
                 c.menu = (aim.status & XR_HAND_TRACKING_AIM_MENU_PRESSED_BIT_FB) != 0;
                 if (!handsSeen_[h]) { handsSeen_[h] = true; LOGI("Hand tracking: %s hand seen", h == kLeft ? "left" : "right"); }
             }

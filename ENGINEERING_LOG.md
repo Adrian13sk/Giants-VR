@@ -2719,3 +2719,17 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Bare hands: Meta's aim extension gives a ready aim ray, index pinch and the menu gesture; the platform layer fills
   ControllerState only for a hand whose controller isn't tracked and strips it outside the menus (the hero's hands
   stay controller-driven). Device-only.
+- Independent review of 80c96d1 + 9cd5b0f (a separate agent, read-only). Fixed: (1) a trigger held from play (or
+  from the last hold) could finish NEW GAME / MAIN MENU once the pointer drifted onto them - a hold now counts only
+  from a press begun on that row; (2) quitting while riding the Reaperski kept its engine loop and the ski drawn,
+  and the jetpack/slide/swim/wind loops and the last world's music played on the main menu - the music set and
+  initJetski now run for the title island too, quitToTitle stops the loops and cutscene voices; (3) a quit inside
+  the 5.5 s death kept dying_ (death song on the menu, third person saved) - loadMission ends a death in progress;
+  (4) the Options window scrolling under a still pointer counted as pointing - hoverRow_ keeps the window slot;
+  (5) a press acted on the chosen row while the dot rested on another: kept by design, but made visible - the dot is
+  grey off the chosen row, and only moving the dot onto a row chooses it (the highlighted row, the menu's own or the
+  stick's, stays the choice until then; the opposite rule made ui_title_newgame pick OPTIONS, where the resting
+  controller pointed). Found on the way: before the main menu's view is placed the panel isn't under the rays, so
+  the first row seen counted as a move - pointing now starts once the view is set; (6) bare-hand pinch got hysteresis (on 0.8 / the runtime's
+  pinch, off 0.4). Checked fine by the review: nothing written in practice, practice_ cleared by every world switch,
+  Kabuto's scale on the title, OpenXR struct chaining and tracker lifetime, hit-test maths, side/scroll zones.

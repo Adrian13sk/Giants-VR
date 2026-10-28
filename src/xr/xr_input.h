@@ -41,6 +41,7 @@ private:
     PFN_xrDestroyHandTrackerEXT pfnDestroyHand_ = nullptr;
     PFN_xrLocateHandJointsEXT pfnLocateHand_ = nullptr;
     bool handsSeen_[2] = {false, false};
+    bool pinchOn_[2] = {false, false};
 
     XrPath path(const char* s);
     bool createAction(XrAction* out, XrActionType type, const char* name, const char* localized,

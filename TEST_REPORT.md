@@ -1098,5 +1098,6 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | game_app.cpp split into 6 system files (no code changed) | every original line in exactly one file; full regression identical |
 | Menus by pointing (dot, hover selects, trigger on a value's halves / a row's ends changes it, scroll bands) | ui/ui_title_point, ui/ui_options_point (72 / 24 Hz) |
 | Bare hands point at the menus (XR_EXT_hand_tracking + XR_FB_hand_tracking_aim) | BUILD only (Android library compiles); DEVICE to check |
+| Fixes from an independent review (held trigger finishing a hold, loops/music/Reaperski after a quit, a death carried to the menu, scroll under a still pointer, press on another row, pinch hysteresis) | by hand in the harness: a trigger held from play no longer quits (10.5 s run: menu opened, no quit), a quit during the death goes to the menu without a respawn; pinch: BUILD only |
 | Existing menu tests after the new rows | ui_title_options / ui_title_skirmish one more step down, ui_ingame_newgame up twice |
 | Regression at 72 and 24 Hz | tests 67 + the 3 known harness-only lines (fx cost, touch binding, storm audio); ui 19/19, npcs 11/11, weapons 18/18, missions 31/31; unit tests pass |

@@ -126,7 +126,8 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
       story; Reapers come in threes. Nothing is saved there. A good place to learn the hands.
 - [ ] **Options -> MAIN MENU** (last row: push up once from RESUME; hold the trigger 2 s): back to the main menu from
       practice or a mission. CONTINUE then starts the mission you were in from its beginning (its checkpoint).
-- [ ] **Pointing at the menus:** the main menu and Options follow the controller's ray - a row under it is chosen,
+- [ ] **Pointing at the menus:** the main menu and Options follow the controller's ray - moving the dot onto a row
+      chooses it (a grey dot: resting off the chosen row, which the trigger would act on),
       the trigger selects; on a row's left / right end (main menu) or its value's left / right half (Options) the
       trigger changes it. Point above / below the Options rows and pull to scroll.
 - [ ] **Bare hands in the menus:** put the controllers down - your hands' rays point, a pinch is the trigger, the
