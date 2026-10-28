@@ -326,8 +326,27 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 float tc = maxD;
                 Vec3 nc;
                 int ic = -1;
-                if (creatures_.raycast(o, d, maxD, tc, nc, ic) && (!he || tc < te)) {
+                const bool hcr = creatures_.raycast(o, d, maxD, tc, nc, ic);
+                if (hcr && (!he || tc < te)) {
                     he = true; te = tc; ne = nc; ie = kCreatureTarget + ic;
+                }
+                static const bool shotTraceC = std::getenv("GVR_SHOT_TRACE") != nullptr;  // (test hook: what each shot meets)
+                if (shotTraceC) {
+                    float nearest = 1e9f;
+                    int ni = -1;
+                    for (size_t k = 0; k < creatures_.creatures.size(); ++k)
+                        if (creatures_.creatures[k].state != CreatureState::Dead && length(creatures_.creatures[k].pos - o) < nearest) { nearest = length(creatures_.creatures[k].pos - o); ni = int(k); }
+                    float off = -1, along = 0;
+                    int st = -1;
+                    float sc = 0, yy = 0;
+                    if (ni >= 0) {
+                        const auto& c = creatures_.creatures[size_t(ni)];
+                        along = dot(c.pos - o, d);
+                        off = length(c.pos - (o + d * along));
+                        st = int(c.state); sc = c.scale; yy = c.pos.y;
+                    }
+                    LOGI("shot trace: from (%.2f %.2f %.2f) dir (%.2f %.2f %.2f): world %d at %.2f, creature %d at %.2f (%d); nearest creature %d %.2f m (state %d, scale %.2f, feet y %.2f, %.2f along, %.2f off the line)",
+                         o.x, o.y, o.z, d.x, d.y, d.z, int(hw), hw ? tw : -1.0f, int(hcr), hcr ? tc : -1.0f, ic, ni, nearest, st, sc, yy, along, off);
                 }
                 // Vimps.
                 {

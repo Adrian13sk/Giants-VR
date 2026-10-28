@@ -708,6 +708,14 @@ bool CreatureDirector::raycast(const Vec3& o, const Vec3& d, float maxDist, floa
                 (axis == 0 ? nl.x : axis == 1 ? nl.y : nl.z) = sign;
                 normal = Quat::fromAxisAngle({0, 1, 0}, c.yaw).rotate(nl);
                 hit = true;
+            } else if (!miss && axis < 0 && t1 > 0.0f) {
+                // The ray starts inside the box (a Ripper's box reaches ~1.1 m in front of it, so a muzzle at
+                // point blank is often inside): a hit at once. Before 2026-10-28 this counted as a miss - a
+                // Ripper at your feet could not be shot (npc_ripper_fight, 72 Hz).
+                best = 0.0f;
+                index = int(i);
+                normal = d * -1.0f;
+                hit = true;
             }
             continue;
         }

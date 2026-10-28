@@ -175,7 +175,11 @@ public:
             if (best > 1e29f) return false;
         } else if (!nearestEnemy(chest)) return false;
         const Pose& rigPose = rig_.worldFromTracking;
-        const Vec3 ctrlWorld = rig_.toWorld(in.hand[hand].aimPose).position;
+        Vec3 ctrlWorld = rig_.toWorld(in.hand[hand].aimPose).position;
+        // (2026-10-28) From the gun's muzzle when there is one (last frame's aim laser start): up close the
+        // muzzle sits well off the controller's own line, and aiming from the controller missed a Ripper
+        // at 1 m every time - the player aims down the laser, from the muzzle.
+        if (laserOn_ && length(laserFrom_ - ctrlWorld) < 1.5f * rig_.comfort.worldScale) ctrlWorld = laserFrom_;
         const Vec3 d = rigPose.orientation.conjugate().rotate(normalize(chest - ctrlWorld));
         static const float missDeg = std::getenv("GVR_AUTOAIM_MISS") ? float(std::atof(std::getenv("GVR_AUTOAIM_MISS"))) : 0.0f;
         const float yaw = std::atan2(-d.x, -d.z) + missDeg * 3.14159265f / 180.0f, pitch = std::asin(std::max(-1.0f, std::min(1.0f, d.y)));

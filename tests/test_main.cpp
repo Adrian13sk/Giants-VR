@@ -964,6 +964,21 @@ static void testBurrows() {
         }
     }
     CHECK(latched && off);
+    // (2026-10-28) A shot fired from inside a creature's hit box (point blank) hits it at once.
+    {
+        CreatureDirector pb;
+        pb.groundHeight = flat;
+        pb.params.hasBox = true;
+        pb.params.boxMin = {-0.8f, 0.0f, -0.94f};
+        pb.params.boxMax = {0.8f, 1.53f, 1.12f};
+        pb.spawn({0, 0, -1.0f}, 0, 1.0f, CreatureSize::Medium, 40.0f, false);
+        float t = -1;
+        Vec3 n;
+        int idx = -1;
+        CHECK(pb.raycast(Vec3{0, 0.9f, 0.0f}, normalize(Vec3{0, -0.6f, -1}), 50.0f, t, n, idx) && idx == 0 && t == 0.0f);
+        CHECK(pb.raycast(Vec3{0, 0.9f, 3.0f}, Vec3{0, 0, -1}, 50.0f, t, n, idx) && idx == 0 && t > 1.0f);  // from outside: at its face
+        CHECK(!pb.raycast(Vec3{3.0f, 0.9f, 3.0f}, Vec3{0, 0, -1}, 50.0f, t, n, idx));                     // beside it: a miss
+    }
     std::printf("burrows ok\n");
 }
 

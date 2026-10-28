@@ -1,4 +1,4 @@
-# A Ripper barracks breeds Rippers (spawn fast); the machine gun kills them, backing off (point-blank shots at Rippers 1-1.5 m away did not land at 72 Hz in the harness - docs/ROADMAP.md 2). (2026-10-27, full test)
+# A Ripper barracks breeds Rippers (spawn fast); the machine gun kills them where they attack, at point blank (a muzzle inside a Ripper's hit box missed before 2026-10-28). (2026-10-27, full test)
 # Log (checked by devtest.ps1): "spawner: a Ripper out of the Ripper barracks" "Creature N dies".
 name npc_ripper_fight
 world Story2
@@ -17,4 +17,3 @@ autoaim r 2 45
 hold trigger_r 8 44
 shot 6 barracks
 shot 20 rippers
-move 0 -0.6 10 44
