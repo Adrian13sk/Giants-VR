@@ -287,7 +287,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
     if (firstPerson_ && swordValid_ && weapon_.raycast && weapon_.onHit) {
         const Vec3 hilt = bladePoint(0.12f), tip = bladePoint(bladeLen);
         // Rework: Reaper bolts meeting the blade are deflected (game_app_parry.cpp).
-        parryShots(hilt, tip, swordTipValid_ && dt > 0 ? (tip - swordTipPrev_) * (1.0f / dt) : Vec3{0, 0, 0}, gh, dt);
+        parryShots(hilt, tip, swordHiltPrev_, swordTipPrev_, swordTipValid_, swordTipValid_ && dt > 0 ? (tip - swordTipPrev_) * (1.0f / dt) : Vec3{0, 0, 0}, gh, dt);
         updateSwordTrail(hilt, tip, dt);
         if (swordTipValid_ && dt > 0) {
             const float speed = length(tip - swordTipPrev_) / dt;
@@ -384,6 +384,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
             }
         }
         swordTipPrev_ = tip;
+        swordHiltPrev_ = hilt;
         swordTipValid_ = true;
     } else {
         swordTipValid_ = false;

@@ -37,7 +37,7 @@ float segSegDistance(const Vec3& p0, const Vec3& p1, const Vec3& q0, const Vec3&
 }
 }  // namespace
 
-int GameApp::parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& tipVel, int hand, float dt) {
+int GameApp::parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& prevHilt, const Vec3& prevTip, bool havePrev, const Vec3& tipVel, int hand, float dt) {
     if (dt <= 0 || !playMode_ || dying_) return 0;
     static const bool trace = std::getenv("GVR_PARRY_TRACE") != nullptr;
     auto& ps = enemyFire_.projectiles();
@@ -58,7 +58,15 @@ int GameApp::parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& tipVel, i
         const Projectile& p = ps[i];
         // The bolt's path around now (it may have moved before or after the blade this frame).
         const Vec3 s0 = p.pos - p.vel * dt, s1 = p.pos + p.vel * (1.5f * dt);
-        if (segSegDistance(hilt, tip, s0, s1) > reach) { ++i; continue; }
+        // The blade swept from last frame's place to this one's (5 steps): a swing that jumps across the bolt's
+        // path between two frames (below ~20 fps) still meets it (2026-10-28).
+        float closest = segSegDistance(hilt, tip, s0, s1);
+        if (havePrev && length(tip - prevTip) < 1.5f * heroScale_)  // (not across a teleport)
+            for (int k = 0; k < 4 && closest > reach; ++k) {
+                const float u = float(k) * 0.25f;
+                closest = std::min(closest, segSegDistance(prevHilt + (hilt - prevHilt) * u, prevTip + (tip - prevTip) * u, s0, s1));
+            }
+        if (closest > reach) { ++i; continue; }
         const Vec3 in = normalize(p.vel);
         Vec3 out;
         int aimed = -1;

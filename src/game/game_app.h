@@ -1194,7 +1194,9 @@ private:  // the mission placed enemies: no test waves
     bool swordValid_ = false, swordTipValid_ = false, swipeTrigWas_ = false, boltTrigWas_ = false, swipeHit_ = false;
     Vec3 swordTipPrev_;
     // Rework: deflect enemy bolts with a blade from hilt to tip (game_app_parry.cpp); returns how many.
-    int parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& tipVel, int hand, float dt);
+    // prevHilt/prevTip: the blade last frame (swept between the two: at a low frame rate a swing jumps).
+    int parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& prevHilt, const Vec3& prevTip, bool havePrev, const Vec3& tipVel, int hand, float dt);
+    Vec3 swordHiltPrev_;
     int parries_ = 0;
     // Delphi's sword trail (game_app_parry.cpp).
     struct SwordTrailPt { Vec3 inner, outer; float age, strength; };

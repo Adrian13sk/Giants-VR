@@ -41,8 +41,10 @@ quality levels chosen per world are logged and stay put.
 
 ## 2. Gameplay bugs and gaps the test suite already shows
 
-- **Parry below 20 fps:** bolts resolve inside the enemy weapon's own update. Move parry into a swept
-  sword-vs-bolt test that runs before the bolts' step. 0.5 session.
+- **Parry below 20 fps:** 2026-10-28: the blade is now swept from last frame's place to this one's, so a swing that
+  jumps across a bolt's path between frames still meets it. Measured in the harness: delphi_parry parries at 12, 15,
+  20, 24, 36 and 72 Hz; at 18 Hz this script's bolts happen to pass 0.14-0.6 m from the blade (the Reapers' aim
+  spread), not a frame-rate fault - the bolts are checked before they move, against their path 1.5 frames ahead.
 - **Shop: taking an item by hand.** DONE 2026-10-28: the test reached for the wrong side (items at positive
   angles stand to the LEFT); the ammo box is taken by hand at 24 and 72 Hz.
 - **Moored Reaperski missions:** DONE for rstory2_jetski_2 (2026-10-28: the autopilot gets on and rides a water
