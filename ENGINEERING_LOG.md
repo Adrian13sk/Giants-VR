@@ -2676,3 +2676,22 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Unlocks: per hero story, up to the first unfinished mission; scripted device runs see every mission.
 - Capacitive touch: if the runtime refuses the bindings with the touch paths, they are suggested again without
   them (a refused suggestion would have left the app with no input at all).
+
+### 2026-10-28 (late) — an independent review of the day's changes, checkpoints, best times, menu scroll
+- A separate agent reviewed dc94e76..HEAD without seeing my reasoning. Real defects it found and that are fixed
+  (18140e9): the microphone stream outlived its object at app exit (callback into a dead stack object), stayed open
+  while paused, had no error callback and was retried every frame on failure; arrows were credited to the bow in
+  hand when they landed (switching bows mid-flight, the power-up bow's 5-arrow fan returning 5 for 1, Reaper spear
+  bolts refilling a bow); seated mode doubled the lift in the third-person camera collision and broke the head
+  gestures (leap never, ground pound always); the wrist display's hold ran at 1/72 s per drawn frame; mission
+  numbers showed on every later loading screen; a slot switch kept the old mission list; blazes and a teleport
+  blink carried into the next mission; fire arrows lit from their own flame's puffs at once.
+- Not changed (judged acceptable): the crash handler calls dladdr/snprintf in the signal handler (not strictly
+  async-signal-safe; a crash inside dlopen could deadlock instead of writing a report); progress.txt (unlocks) is
+  shared by the three save slots; the victory stinger can play before a battle's ending phrase.
+- Reach-walk survey over 49 missions (GVR_REACH_WALK, 420 s each at 24 Hz): the flood fill finds every reach
+  objective reachable but the walk autopilot arrives only in 4 (k1b, r1_clusterspell, story3_borjoyzee_2 and one
+  objective of others) - it gets stuck climbing out of water at shores and on slopes. An autopilot limit (the
+  Meccaryn would jet), not a mission bug found; left as is.
+- Checkpoints: dying returns you to where the last objective was done. Best time per mission in progress.txt.
+- Options menu: 26 rows stood ~1.9 m tall; it now shows 16 around the choice.
