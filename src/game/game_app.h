@@ -1321,6 +1321,21 @@ private:  // the mission placed enemies: no test waves
     void castTornado(const Vec3& dir);
     void castFireWall(const Vec3& dir);
     void updateSpellGestures(float dt, const InputFrame& in, const Vec3& dir);
+    // (2026-10-28) FOLLOW (the data's item 30 IconRSFollow, GText "Follow"; its clips rpman_followspell_caught / _loop: a
+    // Reaper lifted off his feet, hanging limp in the air). Rules ours: the casting hand points at a Reaper (trigger
+    // held) and is pulled back fast toward her - he is caught, floats where her hand points at the distance he was
+    // caught at, and follows it; let go of the trigger and he flies on with the swing (thrown hard, he is hurt where he
+    // lands and bowls over the Reapers he meets); 6 s at most, 12 s between. Rstory5 and practice.
+    uint32_t followUid_ = 0, followCandUid_ = 0;
+    float followT_ = 0, followCool_ = 0, followDist_ = 0, followCandT_ = 0;
+    Vec3 followVel_, followHandPrev_;
+    bool followHandValid_ = false;
+    struct FollowThrown { uint32_t uid; float speed, age; };
+    std::vector<FollowThrown> followThrown_;
+    bool followOwned() const;
+    void updateFollow(float dt, const InputFrame& in, const Vec3& dir);
+    void releaseFollow(const char* why);
+    void stepFollowThrown(float dt);
     bool spellGestureCast_ = false, gestPrevValid_ = false;
     float gestCircle_ = 0, gestSweep_ = 0, gestT_ = 0, gestPrevAng_ = 0;
     Vec3 gestPrev_;

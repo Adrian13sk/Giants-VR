@@ -17,7 +17,7 @@
 namespace gvr {
 
 enum class EnemyClip : int { Idle = 0, Walk, Fire, Hit1, Hit2, Die1, Die2, Die3, Run, Patrol, Alert, Blown, FallCycle, FallLand, Poke,
-                             KneelFire, Punch, DieHead, DieKnees, Throw, Hover, CrouchFire, HitBig, GetUp, BzkaFire, CrouchIdle, RockInto, RockBreathe, TreeHide, TreeBreathe, TreePeek, Count };  // (from KneelFire on: rework)
+                             KneelFire, Punch, DieHead, DieKnees, Throw, Hover, CrouchFire, HitBig, GetUp, BzkaFire, CrouchIdle, RockInto, RockBreathe, TreeHide, TreeBreathe, TreePeek, SpellCaught, SpellFloat, Count };  // (from KneelFire on: rework)
 enum class EnemyState : int { Idle, Advance, Fire, Hit, Dead, Falling };
 
 struct Enemy {

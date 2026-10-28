@@ -143,6 +143,9 @@ void GameApp::endCloak(const char* why) {
 }
 
 void GameApp::resetSpells() {
+    followUid_ = followCandUid_ = 0;
+    followCool_ = followT_ = 0;
+    followThrown_.clear();
     cloakT_ = cloakCool_ = clusterCool_ = gestFaceT_ = 0;
     hailStones_.clear();
     hailStorms_.clear();
