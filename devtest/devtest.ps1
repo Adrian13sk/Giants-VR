@@ -308,4 +308,33 @@ foreach ($d in $Set + $(if ($Sweep) { @('sweep') } else { @() })) {
     $t | Add-Content $summary
 }
 "total time {0:N0} min" -f ((Get-Date) - $startAll).TotalMinutes | Add-Content $summary
-Write-Host "Results: $outRoot"
+# (2026-10-28) report.html beside summary.txt: one row per test (green: done with all its events; amber: done with
+# events missing or focus lost; red: crashed / timed out), its numbers, and its screenshots - open it in a browser.
+try {
+    $html = New-Object System.Text.StringBuilder
+    [void]$html.Append("<!doctype html><html><head><meta charset='utf-8'><title>GiantsVR device run $stamp</title><style>")
+    [void]$html.Append("body{font-family:Segoe UI,Arial,sans-serif;background:#111;color:#ddd;margin:16px}h1{font-size:20px}")
+    [void]$html.Append("table{border-collapse:collapse;width:100%}td{border-bottom:1px solid #333;padding:6px;vertical-align:top;font-size:13px}")
+    [void]$html.Append(".ok{color:#6d6}.warn{color:#ec5}.bad{color:#f66}img{height:110px;margin:2px;border:1px solid #444}a{color:#8cf}</style></head><body>")
+    [void]$html.Append("<h1>GiantsVR device run $stamp</h1><p>")
+    foreach ($l in @(Get-Content $summary | Where-Object { $_ -match ' done with all their events|^total time' })) { [void]$html.Append([System.Net.WebUtility]::HtmlEncode($l) + "<br>") }
+    [void]$html.Append("</p><table>")
+    foreach ($k in ($lastOf.Keys | Sort-Object)) {
+        $l = $lastOf[$k]
+        $cls = 'ok'
+        if ($l -notmatch ': done;') { $cls = 'bad' } elseif ($l -match 'MISSING|FOCUS LOST|OTHER APP') { $cls = 'warn' }
+        $shots = ''
+        $dir = Join-Path $outRoot "$k\autotest_out"
+        if (Test-Path $dir) {
+            foreach ($png in @(Get-ChildItem $dir -Filter *.png -ErrorAction SilentlyContinue)) {
+                $rel = "$k/autotest_out/$($png.Name)"
+                $shots += "<a href='$rel'><img src='$rel' title='$($png.Name)'></a>"
+            }
+        }
+        $detail = [System.Net.WebUtility]::HtmlEncode(($l -replace '^\S+: ', ''))
+        [void]$html.Append("<tr><td class='$cls'><b>$k</b><br><a href='$k/logcat.txt'>log</a></td><td>$detail</td><td>$shots</td></tr>")
+    }
+    [void]$html.Append("</table></body></html>")
+    Set-Content -Path (Join-Path $outRoot 'report.html') -Value $html.ToString() -Encoding UTF8
+} catch { Write-Host "report.html could not be written: $_" -ForegroundColor Yellow }
+Write-Host "Results: $outRoot (open report.html)"
