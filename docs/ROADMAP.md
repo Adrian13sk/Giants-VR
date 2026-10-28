@@ -114,8 +114,8 @@ quality levels chosen per world are logged and stay put.
   `expect3` scripts) as part of `scripts/build_apk.sh --check`. 0.5 session.
 - **Frame-rate-independence tests:** every script also at 36 Hz in the harness. This finds the
   parry-style bugs before the device does. 0.5 session.
-- **Crash reporting:** a native crash handler that writes a minidump and the last 200 log lines to
-  `files/crash/`; devtest pulls it. 1 session.
+- **Crash reporting:** DONE 2026-10-28 (ed4ed9e, BUILD only): signal, backtrace and the last 160 log lines in
+  `files/crash/crash_<time>.txt`; devtest pulls it; `experiments/crash_report` checks it on the headset.
 - **Official toolchain (B2):** rebuild with Google's NDK r27c and build-tools before any public release.
 - **Code health:** split `game_app.cpp` (4,900 lines) by system. There have been three code reviews; make
   them a habit at each milestone.
@@ -131,4 +131,9 @@ quality levels chosen per world are logged and stay put.
 
 1. Read the whole test, then fix every MISSING event and crash it finds (§0, §2).
 2. GPU timer queries per pass, then the terrain far ring and foliage changes (§1.1–1.3), measured on the headset.
-3. Memory eviction per world (§1.9) and a crash handler (§6), then a new whole-test run.
+3. Memory eviction per world (§1.9), then a new whole-test run.
+
+## Added 2026-10-28 (from the brainstorm; harness only until a device run)
+Reaper guns that fire in your hand, Delphi's fire arrows, the wrist display, the injection jabbed into the forearm,
+Kabuto's microphone roar (Options). Still open from the brainstorm: tabletop base building, the Reaper cover test,
+the jetski_3 route.
