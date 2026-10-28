@@ -1,0 +1,10 @@
+# Rework (2026-10-28): 1a - Timmy up on his tower, swinging his jetpack at the Rippers round it.
+# Log (checked by devtest.ps1): "Timmy fends off the Rippers".
+name npc_timmy_tower
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 4
+shot 3 timmy

@@ -261,9 +261,10 @@ bool VillagerDirector::touched(int i, const Vec3& player, bool highFive) {
     return true;
 }
 
-int VillagerDirector::cheer() {
+int VillagerDirector::cheer(const Vec3& near, float radius) {
     int n = 0;
     for (auto& v : villagers) {
+        if (length(Vec3{v.pos.x - near.x, 0, v.pos.z - near.z}) > radius) continue;
         if (v.state == VillagerState::Flee || v.state == VillagerState::Dead || v.state == VillagerState::Held || v.state == VillagerState::Hurt) continue;
         v.state = VillagerState::Act;
         v.stateTime = 0;

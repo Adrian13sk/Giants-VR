@@ -254,7 +254,8 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             continue;
         }
         // Rework: you right up against him - he punches (rpman_punch) instead of firing point blank.
-        if (params.punch && playerAlive && sees && dist < 1.7f && e.punchCool <= 0 && !e.posted &&
+        // (Not at a bush he hasn't seen through yet: the poke is how he finds you - 2026-10-28.)
+        if (params.punch && playerAlive && sees && dist < 1.7f && e.punchCool <= 0 && !e.posted && !(playerHidden && !e.aware) &&
             (e.state == EnemyState::Advance || e.state == EnemyState::Fire || e.state == EnemyState::Idle)) {
             setClip(e, EnemyClip::Punch, false);
             e.clipTime = 0;
@@ -292,7 +293,8 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     // if he is still there when the poke lands.
                     e.poke += dt;
                     if (!playerHidden || !playerAlive) { e.poke = -1; break; }
-                    if (dist > 1.6f && e.poke < 6.0f) {
+                    // (up to 2 m: the bodies keep ~1.6 m apart, so "closer than 1.6" never came and he walked on the spot)
+                    if (dist > 2.0f && e.poke < 6.0f) {
                         setClip(e, EnemyClip::Walk, true);
                         turn(faceYaw);
                         tryMove(e, Vec3{-std::sin(e.yaw), 0, -std::cos(e.yaw)} * (params.patrolSpeed * dt));

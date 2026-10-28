@@ -153,7 +153,7 @@ void GameApp::updateVillagers(float dt) {
         for (const auto& v : villagers_.villagers)
             if (!threatNear && length(Vec3{t.x - v.pos.x, 0, t.z - v.pos.z}) < 45.0f) threatNear = true;
     if (villageThreatWas_ && !threatNear && threats.size() < villageThreats_ && hero_ != Hero::Kabuto && !dying_) {
-        const int n = villagers_.cheer();
+        const int n = villagers_.cheer(player_.position, 90.0f);  // (2026-10-28: was every village on the map)
         if (n > 0) {
             LOGI("The danger is over: %d Smarties cheer", n);
             float best = 1e9f;

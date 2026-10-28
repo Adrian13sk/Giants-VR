@@ -1,0 +1,15 @@
+# Rework (2026-10-28): Reapers near 5a's village fall (a quiet test kill at 6 s) - the Smarties who saw it cheer
+# (only those within 90 m: a village across the map no longer joins in).
+# Log (checked by devtest.ps1): "Smarties cheer".
+name npc_smarties_cheer
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_TEST_KILL quiet
+duration 12
+at 135 -60
+look 135 -107
+reapers 3 14 1 6
+shot 7.5 cheer

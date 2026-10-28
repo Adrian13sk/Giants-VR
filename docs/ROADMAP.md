@@ -53,8 +53,9 @@ quality levels chosen per world are logged and stay put.
   that eats its way from 50 % to the size k1a's gate needs, with timings. 1 session.
 - **Reach objectives on foot:** GVR_REACH_WALK walks the path in four missions. Add the rest (every
   "reach" objective in the campaign) as mission tests. 1 session.
-- **Smarties cheering, Timmy, the bush poke:** behaviours that exist but whose tests didn't fire in the
-  harness (dropped from the NPC set for now). Find the right setups and add them back. 1 session.
+- **Smarties cheering, Timmy, the bush poke:** DONE 2026-10-28 (npcs/npc_smarties_cheer, npc_timmy_tower,
+  npc_bush_poke, 24 and 72 Hz). Two bugs found: every village on the map cheered (now those within 90 m), and a
+  Reaper poking the bush stopped 1.6 m short - walking on the spot - and punched a bush he hadn't seen through.
 - **Point-blank shots at Rippers:** FIXED 2026-10-28 (674b41e): a ray starting inside a Ripper's hit box (it
   reaches ~1.1 m in front) counted as a miss.
 - **A Reaper hiding behind cover:** DONE 2026-10-28: npcs/npc_reaper_cover in 5a's palm meadow - Reapers take

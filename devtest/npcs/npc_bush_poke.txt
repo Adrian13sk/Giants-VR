@@ -1,0 +1,17 @@
+# Rework (2026-10-28): the bush pack. Hidden in it, a Reaper 7 m ahead ignores you while you stand still; shuffle
+# about and he comes to poke the bush - and finds you. (Fixed with this test: he stopped 1.6 m short, walking on
+# the spot, and punched a bush he hadn't seen through.)
+# Log (checked by devtest.ps1): "goes to poke the bush" "poked the bush and found the player".
+name npc_bush_poke
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_ARSENAL 1
+env GVR_WEAPON 2
+view first
+duration 14
+reapers 1 7 2 999
+move 0 1 3 4.2
+shot 6 poke

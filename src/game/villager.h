@@ -62,7 +62,8 @@ public:
     // The player waved at them: the calm ones within `radius` wave back (rework). Returns how many.
     int waveBack(const Vec3& player, float radius);
     // The danger has passed: the calm ones celebrate (sm_celebrate). Returns how many.
-    int cheer();
+    // The Smarties within `radius` of `near` celebrate (the ones who saw it: not a village across the map).
+    int cheer(const Vec3& near, float radius);
     // Rework: touched by the player's open hand - a pat (a laugh) or a high five (a little dance).
     // Only a calm one reacts; returns true if it did.
     bool touched(int i, const Vec3& player, bool highFive);
