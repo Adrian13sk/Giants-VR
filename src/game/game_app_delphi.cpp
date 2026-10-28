@@ -171,6 +171,7 @@ void GameApp::heroBody(Hero h, PlayerController& pc, float& scale, float& lift) 
 }
 
 void GameApp::setHero(Hero h) {
+    resetSpells();
     if (!meccParamsSaved_) {
         meccParams_ = player_.params;
         std::copy(std::begin(clip_), std::end(clip_), std::begin(meccClip_));

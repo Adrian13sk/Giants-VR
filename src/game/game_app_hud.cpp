@@ -278,6 +278,7 @@ void GameApp::buildWheelCells() {
 // The wheel: a ring of icons (radius 11 cm) round where the gun hand was, the one the hand moves toward lit.
 void GameApp::hudWeaponWheel() {
     if (!wheelOpen_ || wheelCells_.empty() || hero_ != Hero::Mecc) return;  // (Delphi's: renderDelphiWheel)
+    wheelToWorld();
     HudFrame f;
     f.o = wheelCentre_;
     f.r = wheelR_;
@@ -285,9 +286,8 @@ void GameApp::hudWeaponWheel() {
     const uint8_t back[4] = {0, 0, 0, 160};
     hudRect(kHudPlate, f, 0, 0, 0.32f, 0.32f, back);
     // A dot where the hand points the choice (its move since the wheel opened, at the wheel's scale).
-    if (lastInput_.hand[rig_.turnHand()].gripPoseValid) {
-        const Vec3 d = rig_.toWorld(lastInput_.hand[rig_.turnHand()].gripPose).position - wheelHand0_;
-        float x = dot(d, wheelR_), y = dot(d, wheelU_);
+    float x = 0, y = 0;
+    if (wheelHandMove(lastInput_.hand[rig_.turnHand()], x, y)) {
         const float len = std::sqrt(x * x + y * y);
         if (len > 0.11f) { x *= 0.11f / len; y *= 0.11f / len; }
         const uint8_t dot_[4] = {200, 230, 255, 220};

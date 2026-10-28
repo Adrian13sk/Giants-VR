@@ -91,6 +91,11 @@ void GameApp::castHail(const Vec3& from, const Vec3& dir) {
         const float g = enemies_.groundHeight ? enemies_.groundHeight(p.x, p.z) : 0.0f;
         if (p.y <= std::max(g, player_.seaLevel)) { at = p; break; }
     }
+    {   // At least 7 m out: not on her own head (nor on the Smarties at her heels).
+        Vec3 flatTo{at.x - player_.position.x, 0, at.z - player_.position.z};
+        const float d = length(flatTo);
+        if (d < 7.0f) at = player_.position + (d > 0.1f ? flatTo * (1.0f / d) : Vec3{-std::sin(player_.yaw), 0, -std::cos(player_.yaw)}) * 7.0f;
+    }
     if (enemies_.groundHeight) at.y = std::max(player_.seaLevel, enemies_.groundHeight(at.x, at.z));
     HailStorm s;
     s.centre = at;
@@ -100,6 +105,18 @@ void GameApp::castHail(const Vec3& from, const Vec3& dir) {
     sfx("sr_spfsh", from, 1.0f, 0.5f);
     addFlash(from + Vec3{0, 0.5f, 0}, {0.8f, 1.1f, 1.6f}, 4.0f, 0.3f);
     LOGI("Delphi casts SUMMON HAIL at (%.1f %.1f %.1f), %.0f m away", at.x, at.y, at.z, length(at - player_.position));
+}
+
+void GameApp::resetSpells() {
+    hailStones_.clear();
+    hailStorms_.clear();
+    slowT_ = hailCool_ = slowCool_ = 0;
+    gestHighT_ = gestTogether_ = 0;
+    gestPrevValid_ = false;
+    fireWalls_.clear();
+    tornadoes_.clear();
+    wheelOpen_ = wheelWasOpen_ = false;
+    stickFwdT_ = 0;
 }
 
 void GameApp::castSlowTime() {
@@ -143,7 +160,11 @@ void GameApp::updateSpellGestures(float dt, const InputFrame& in, const Vec3& di
     const int mh = rig_.moveHand();
     const ControllerState& c = in.hand[mh];
     static const bool trace = std::getenv("GVR_SPELL_TRACE") != nullptr;
-    if (!firstPerson_ || !c.gripPoseValid || !in.headValid || c.trigger < 0.6f || spellGestureCast_ || dt <= 0) {
+    // (review 2026-10-28) Not evaluated last frame (dying, riding, the menu): no motion measured across the gap.
+    if (time_ - gestLastT_ > 0.1) gestPrevValid_ = false, gestHighT_ = 0, gestTogether_ = 0;
+    gestLastT_ = float(time_);
+    // With a bow in the casting hand (first person) its trigger lights fire arrows: no gestures there.
+    if (!firstPerson_ || !c.gripPoseValid || !in.headValid || c.trigger < 0.6f || spellGestureCast_ || dt <= 0 || delphiBow()) {
         gestCircle_ = 0;
         gestSweep_ = 0;
         gestT_ = 0;
@@ -172,12 +193,21 @@ void GameApp::updateSpellGestures(float dt, const InputFrame& in, const Vec3& di
         const float vs = dot(h - gestPrev_, side) / dt;
         if (h.y < head.y - 0.15f && std::fabs(vs) > 2.2f) gestSweep_ += std::fabs(vs) * dt;
         else gestSweep_ = std::max(0.0f, gestSweep_ - 2.0f * dt);
-        // Hail: the hand was raised high in the last 0.7 s and now comes down hard past the head.
+        // Hail: the hand raised high (in the last 0.7 s), then brought down - mostly straight down - at least 0.4 m
+        // from its highest point to below the chin, fast (an overhand fire-bolt throw goes forward, not down).
         const float vy = (h.y - gestPrev_.y) / dt;
-        if (gestHighT_ > 0 && vy < -2.5f && h.y < head.y - 0.05f && hailOwned() && hailCool_ <= 0) {
+        const float drop = gestPeakY_ - h.y;
+        const float across = length(Vec3{h.x - gestPeak_.x, 0, h.z - gestPeak_.z});
+        if (gestHighT_ > 0 && drop > 0.4f && across < 0.6f * drop && vy < -1.5f && h.y < head.y - 0.2f && hailOwned() && hailCool_ <= 0) {
             gestHighT_ = 0;
-            castHail(rig_.toWorld(in.head).position, dir);
-            if (trace) LOGI("spell gesture: raised and brought down (%.1f m/s) -> hail", -vy);
+            // Where she looks (the pitch held between 10 and 35 degrees down), not the chopping hand's aim.
+            const Pose eye = rig_.toWorld(in.head);
+            Vec3 g = eye.orientation.rotate(Vec3{0, 0, -1});
+            Vec3 gh{g.x, 0, g.z};
+            gh = length(gh) > 1e-3f ? normalize(gh) : Vec3{-std::sin(player_.yaw), 0, -std::cos(player_.yaw)};
+            const float pitch = std::max(-0.61f, std::min(-0.17f, std::asin(std::max(-1.0f, std::min(1.0f, g.y)))));
+            castHail(eye.position, gh * std::cos(pitch) + Vec3{0, std::sin(pitch), 0});
+            if (trace) LOGI("spell gesture: raised and brought down (%.2f m, %.1f m/s) -> hail", drop, -vy);
             spellGestureCast_ = true;
             spellCharge_ = 0;
             gestCircle_ = gestSweep_ = 0;
@@ -186,7 +216,12 @@ void GameApp::updateSpellGestures(float dt, const InputFrame& in, const Vec3& di
             return;
         }
     }
-    gestHighT_ = h.y > head.y + 0.15f ? 0.7f : std::max(0.0f, gestHighT_ - dt);
+    if (h.y > head.y + 0.15f) {
+        if (gestHighT_ <= 0 || h.y > gestPeakY_) { gestPeakY_ = h.y; gestPeak_ = h; }
+        gestHighT_ = 0.7f;
+    } else {
+        gestHighT_ = std::max(0.0f, gestHighT_ - dt);
+    }
     // Slow time: both hands together before the chest for half a second.
     {
         const ControllerState& o = in.hand[1 - mh];

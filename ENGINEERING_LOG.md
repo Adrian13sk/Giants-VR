@@ -2752,3 +2752,16 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   angle chooses the cell; a dot shows the hand's move), letting the stick go takes it. First tried at the hand: it
   sat under the gun model and at the edge of the view. A short push still steps on, now on release. Found in
   testing: the hold timer stopped after one frame (the "armed" flag cleared on the push itself).
+- Independent review of the spells / wheel / balance commits (read-only agent). Fixed: (1, high) an overhand
+  fire-bolt throw with the trigger let go late cast SUMMON HAIL - hail now wants a drop of 0.4 m or more from the
+  raised hand's highest point to below the chin, mostly straight down (sideways travel under 0.6x the drop), and aims
+  where she looks (pitch held 10-35 degrees down, at least 7 m out) instead of the chopping hand; tests/
+  delphi_throw_overhand checks the throw stays a bolt; (2) the wheel was anchored in the world - walking, the
+  jetpack or a turn moved the "hand" - it is kept in tracking space now, and turning is off while it is open or the
+  stick is held forward; (3) hail stones, the storm, slow time and the cooldowns carried into the next mission or
+  hero - reset in loadMission and setHero; (4) slow time now also slows bazooka rockets and their cooldown, Reaper
+  grenades, SAM missiles and the bosses; (5) no spell gestures with a bow in the casting hand (first person: its
+  trigger lights fire arrows, and the string hand near the bow looked like "hands together"); (6) gesture motion
+  isn't measured across frames when gestures didn't run (dying, riding, the menu); (7) the wheel closes whenever
+  the weapon update stops (menu, death, ride). Kept: hail and slow time come with the tornado (the battles, a
+  finished base) as intended; GVR_SK_SPECTATE is a harness-only hook.

@@ -428,6 +428,7 @@ void GameApp::loadMission(const std::string& name) {
         firstPerson_ = deathWasFp_;
     }
     piranhaAttack_ = false;
+    resetSpells();  // (review 2026-10-28: hail stones and slow time carried into the next mission)
     initCharacters(w, w->models());
     initMission();
     needSpawn_ = true;  // to the mission's start marker; its opening cutscene follows

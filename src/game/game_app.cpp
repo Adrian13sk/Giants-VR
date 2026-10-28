@@ -780,7 +780,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         LOGI("Camera: %s person", firstPerson_ ? "first" : "third");
     }
     const Quat qOld = Quat::fromAxisAngle({0, 1, 0}, camYaw_);
-    camYaw_ += rig_.turnInput(dt, in);
+    if (!wheelOpen_ && stickFwdT_ <= 0) camYaw_ += rig_.turnInput(dt, in);  // (the stick held forward for the wheel: no turning)
     player_.faceView = firstPerson_;
     if (in.recenterSerial != recenterSerial_) {
         // Recentre moves the tracking origin: do not turn that jump into walking.
@@ -963,7 +963,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     else { GVR_PROF("weapon"); updateHolsters(dt, in); updateWeapon(dt, in); updateMelee(dt, in); }
     { GVR_PROF("feel"); updateFeel(dt, in); }
     { GVR_PROF("rescue"); updateRescue(dt, in); }
-    updateReaperGrenades(dt);
+    updateReaperGrenades(dt * enemyTimeScale());
     updateAmbush(dt);
     updateMotes(dt);
     updateGrass();

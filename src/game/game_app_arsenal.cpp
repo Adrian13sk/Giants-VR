@@ -143,6 +143,8 @@ void GameApp::dropHeldWeaponState() {
     bowValid_ = bowLinesShown_ = bowDrawing_ = false;
     bowDraw_ = 0;
     gunTriggerHeld_ = grenCocked_ = false;
+    wheelOpen_ = wheelWasOpen_ = false;  // (review 2026-10-28: an open wheel outlived the menu / a death / a ride)
+    stickFwdT_ = 0;
 }
 
 void GameApp::giveLauncher(const char* why) {

@@ -312,8 +312,11 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int
     }
 }
 
-void GameApp::updateRockets(float dt) {
+void GameApp::updateRockets(float dtAll) {
+    const float dt = dtAll;
     for (auto& r : rockets_) {
+        // (SLOW TIME: the enemies' missiles, bazooka rockets and grenades fly slow too - review 2026-10-28)
+        const float dt = (r.kind == 2 || r.kind == 3 || r.kind == 6) ? dtAll * enemyTimeScale() : dtAll;
         r.life += dt;
         if (r.kind == 2) {
             // A SAM's homing missile: turns toward the player (limited rate), bursts close to him,
@@ -773,7 +776,7 @@ void GameApp::updateCombat(float dt) {
     GVR_PROF_END(poseEnemies);
     { GVR_PROF("reaper guns"); placeReaperWeapons(); }  // the guns in their hands, from this frame's poses
     // Enemy shots from each Reaper's gun nozzle toward the player's chest, with spread.
-    for (auto& e : enemies_.enemies) e.rocketCool = std::max(0.0f, e.rocketCool - dt);
+    for (auto& e : enemies_.enemies) e.rocketCool = std::max(0.0f, e.rocketCool - dt * enemyTimeScale());
     // Rework: a marksman's gun glows red for the moment before each shot - see it, and move.
     for (const auto& e : enemies_.enemies)
         if (e.role == 1 && e.state == EnemyState::Fire && e.burstLeft > 0 && e.fireCooldown < 0.7f && e.weapon != 1 && embers_.size() < 220) {
@@ -835,8 +838,8 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("fish"); updateFish(dt); updateSeaMonster(dt); }
     { GVR_PROF("ambience"); updateAmbience(dt); updateTreeShake(dt); updateSpeedWind(dt); updatePlankton(dt); }
     { GVR_PROF("npc ragdolls"); updateNpcRagdolls(dt); }
-    { GVR_PROF("bosses"); updateBosses(dt); }
-    { GVR_PROF("sams"); updateSams(dt); }
+    { GVR_PROF("bosses"); updateBosses(dt * enemyTimeScale()); }
+    { GVR_PROF("sams"); updateSams(dt * enemyTimeScale()); }
     { GVR_PROF("fx"); updateFx(dt); }
     { GVR_PROF("spells"); stepSpells(dt); }
     // Sentries killed by their fall.

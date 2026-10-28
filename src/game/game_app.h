@@ -431,7 +431,12 @@ private:
     float stickFwdT_ = 0;
     bool wheelOpen_ = false, wheelWasOpen_ = false;
     int wheelHover_ = -1;
-    Vec3 wheelCentre_, wheelR_, wheelU_, wheelHand0_;
+    Vec3 wheelCentre_, wheelR_, wheelU_;  // in the world, from the tracking-space ones each frame (wheelToWorld)
+    // (review 2026-10-28) Kept in tracking space: walking, the jetpack or a turn while it is open don't move the
+    // hand's choice, and the wheel stays before the eyes.
+    Vec3 wheelCentreT_, wheelRT_, wheelUT_, wheelHand0T_;
+    void wheelToWorld();
+    bool wheelHandMove(const ControllerState& c, float& x, float& y) const;
     struct WheelCell { int sel, layer, count; };
     std::vector<WheelCell> wheelCells_;
     void buildWheelCells();
@@ -1281,6 +1286,9 @@ private:  // the mission placed enemies: no test waves
     const RenderModel* hailModel_ = nullptr;
     const RenderModel* slowModel_ = nullptr;
     float hailCool_ = 0, slowCool_ = 0, slowT_ = 0, gestHighT_ = 0, gestTogether_ = 0;
+    float gestPeakY_ = 0, gestLastT_ = -1;  // hail: the raised hand's highest point; when gestures last ran
+    Vec3 gestPeak_;
+    void resetSpells();  // (a new mission or hero: no stones, slow time or cooldowns carried over)
     bool blastNoFire_ = false;  // (explode: an ice blast - no fireball, no scorch)
     bool hailOwned() const;
     bool slowOwned() const;

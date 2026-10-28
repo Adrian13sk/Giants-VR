@@ -353,25 +353,42 @@ void GameApp::renderBow() {
 // (2026-10-28) The weapon wheel (Baz's and Delphi's): opening it before the eyes, the hand's move choosing, and Delphi's
 // cells drawn as names (her bows have no icon in the data's HUD set).
 void GameApp::openWheel(const InputFrame& in, int gh) {
-    const Pose hp = rig_.toWorld(in.hand[gh].gripPose);
-    const Pose head = rig_.toWorld(in.head);
-    Vec3 fwd = head.orientation.rotate(Vec3{0, 0, -1});
+    // In tracking space (the room): before the eyes, a little low, facing them.
+    Vec3 fwd = in.head.orientation.rotate(Vec3{0, 0, -1});
     fwd.y = 0;
     fwd = length(fwd) > 1e-3f ? normalize(fwd) : Vec3{0, 0, -1};
-    wheelR_ = normalize(cross(fwd, Vec3{0, 1, 0}));
-    wheelU_ = Vec3{0, 1, 0};
-    wheelCentre_ = head.position + fwd * 0.5f + Vec3{0, -0.18f, 0};
-    wheelHand0_ = hp.position;
+    wheelRT_ = normalize(cross(fwd, Vec3{0, 1, 0}));
+    wheelUT_ = Vec3{0, 1, 0};
+    wheelCentreT_ = in.head.position + fwd * 0.5f + Vec3{0, -0.18f, 0};
+    wheelHand0T_ = in.hand[gh].gripPose.position;
     wheelOpen_ = true;
+    wheelToWorld();
     wheelHover_ = -1;
     haptics_.push_back({gh, 0.3f, 0.04f});
     LOGI("Weapon wheel: %zu things", wheelCells_.size());
 }
 
+void GameApp::wheelToWorld() {
+    Pose p;
+    p.position = wheelCentreT_;
+    wheelCentre_ = rig_.toWorld(p).position;
+    wheelR_ = rig_.worldFromTracking.orientation.rotate(wheelRT_);
+    wheelU_ = rig_.worldFromTracking.orientation.rotate(wheelUT_);
+}
+
+// The hand's move since the wheel opened, in the wheel's plane (tracking space).
+bool GameApp::wheelHandMove(const ControllerState& c, float& x, float& y) const {
+    if (!c.gripPoseValid) return false;
+    const Vec3 d = c.gripPose.position - wheelHand0T_;
+    x = dot(d, wheelRT_);
+    y = dot(d, wheelUT_);
+    return true;
+}
+
 void GameApp::updateWheelHover(const InputFrame& in, int gh) {
-    if (!in.hand[gh].gripPoseValid || wheelCells_.empty()) return;
-    const Vec3 d = rig_.toWorld(in.hand[gh].gripPose).position - wheelHand0_;
-    const float x = dot(d, wheelR_), y = dot(d, wheelU_);
+    wheelToWorld();
+    float x = 0, y = 0;
+    if (wheelCells_.empty() || !wheelHandMove(in.hand[gh], x, y)) return;
     int best = -1;
     if (std::sqrt(x * x + y * y) > 0.04f) {  // (moved 4 cm or more: the nearest cell by angle)
         const float a = std::atan2(x, y);
@@ -384,6 +401,7 @@ void GameApp::updateWheelHover(const InputFrame& in, int gh) {
 
 void GameApp::renderDelphiWheel() {
     if (!wheelOpen_ || hero_ != Hero::Delphi || !text_.ready()) return;
+    wheelToWorld();
     const Vec3 n = cross(wheelR_, wheelU_) * -1.0f;  // (toward the eyes)
     Mat4 base = Mat4::identity();
     base.m[0] = wheelR_.x; base.m[1] = wheelR_.y; base.m[2] = wheelR_.z;
@@ -408,10 +426,8 @@ void GameApp::renderDelphiWheel() {
         }
     }
     // The hand's move, as a dot.
-    const ControllerState& c = lastInput_.hand[rig_.turnHand()];
-    if (c.gripPoseValid) {
-        const Vec3 d = rig_.toWorld(c.gripPose).position - wheelHand0_;
-        float x = dot(d, wheelR_), y = dot(d, wheelU_);
+    float x = 0, y = 0;
+    if (wheelHandMove(lastInput_.hand[rig_.turnHand()], x, y)) {
         const float len = std::sqrt(x * x + y * y);
         if (len > 0.11f) { x *= 0.11f / len; y *= 0.11f / len; }
         text_.drawPanel(base * Mat4::translation({x, y, 0.006f}), 0.012f, 0.012f, {0.55f, 0.85f, 1.0f, 0.95f});
