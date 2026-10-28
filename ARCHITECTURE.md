@@ -94,3 +94,12 @@ OpenGL ES 3 (not Vulkan) for the first milestones: the original renderer is fixe
 DX7/8, GLES maps directly, and with no headset available for testing, the smaller API surface
 lowers the risk of device-only failures. The renderer is isolated behind `Renderer` so a Vulkan
 + multiview backend can replace it once on-device profiling exists.
+
+## Diagnostics and comfort additions (2026-10-28)
+- `src/render/gpu_timer.*` — GPU time per offscreen pass from timer-query timestamps (GVR_GPU_PASSES; on in scripted
+  device runs). Marks only at whole-pass edges: on the Quest's tiling GPU a mark inside the eye pass splits nothing.
+- `src/platform/android/crash_handler.*` — native crash reports in `files/crash/` (signal, backtrace, last log lines).
+- `src/platform/android/audio_aaudio.*` `AAudioInput` — microphone loudness for Kabuto's roar (opened only on demand).
+- `src/game/game_app_teleport.cpp` — teleport movement (Options); `UserSettings::seated` lifts the tracking floor in
+  `GameApp::placeCamera`. `applySettingsList` (GVR_SETTINGS) overrides settings in test runs.
+- `src/game/game_app_base.cpp` `renderBaseTable` — the base table map on the Build Pad.
