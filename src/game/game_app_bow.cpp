@@ -12,6 +12,7 @@
 #include "game/game_app.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 
@@ -105,16 +106,46 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
         hookDone = true;
         if (const char* w = std::getenv("GVR_DELPHI_WEAPON")) delphiWeapon_ = std::max(-1, std::min(int(kDelphiMine), std::atoi(w)));
     }
-    // Right stick forward: sword -> each bow she has -> her mines (if she carries any) -> sword.
+    // Right stick forward: sword -> each bow she has -> her mines (if she carries any) -> sword. (2026-10-28) Held
+    // 0.4 s with three or more to choose from: the wheel (as Baz's: move the gun hand toward one, let go).
     const float sy = in.hand[gh].thumbstick.y;
-    if (sy < 0.3f) bowSwitchArmed_ = true;
-    if (bowSwitchArmed_ && sy > 0.75f && !dying_) {
-        bowSwitchArmed_ = false;
-        int next = delphiWeapon_;
-        for (int k = 0; k < kNumBows + 2; ++k) {
-            next = next + 1 > kDelphiMine ? -1 : next + 1;
-            if (next < 0 || (next == kDelphiMine && mines_ > 0 && rpMineModel_) || (next < kNumBows && bows_[next].have && bows_[next].model)) break;
+    auto hasIt = [&](int w) { return w < 0 || (w == kDelphiMine && mines_ > 0 && rpMineModel_) || (w < kNumBows && w >= 0 && bows_[w].have && bows_[w].model); };
+    int pick = -2;  // (-2: none; -1 is the sword)
+    if (sy > 0.75f && (bowSwitchArmed_ || stickFwdT_ > 0) && !dying_) {
+        stickFwdT_ += dt;
+        if (!wheelOpen_ && stickFwdT_ > 0.4f && in.hand[gh].gripPoseValid) {
+            wheelCells_.clear();
+            for (int w = -1; w <= kDelphiMine; ++w)
+                if (hasIt(w)) wheelCells_.push_back({w, -1, w == kDelphiMine ? mines_ : (w >= 0 ? bows_[w].ammo : -1)});
+            if (wheelCells_.size() >= 3) openWheel(in, gh);
         }
+    }
+    if (wheelOpen_) {
+        updateWheelHover(in, gh);
+        if (sy < 0.3f) {
+            wheelOpen_ = false;
+            if (wheelHover_ >= 0 && size_t(wheelHover_) < wheelCells_.size()) pick = wheelCells_[size_t(wheelHover_)].sel;
+            LOGI("Weapon wheel closed (%s)", pick > -2 ? "chosen" : "nothing chosen");
+        }
+    }
+    bool step = false;
+    if (sy < 0.3f) {
+        if (!bowSwitchArmed_ && stickFwdT_ > 0 && pick == -2 && !wheelWasOpen_) step = true;
+        bowSwitchArmed_ = true;
+        stickFwdT_ = 0;
+        wheelWasOpen_ = false;
+    } else if (sy > 0.75f) {
+        bowSwitchArmed_ = false;
+        if (wheelOpen_) wheelWasOpen_ = true;
+    }
+    if ((step || pick > -2) && !dying_) {
+        int next = delphiWeapon_;
+        if (pick > -2) next = hasIt(pick) ? pick : delphiWeapon_;
+        else
+            for (int k = 0; k < kNumBows + 2; ++k) {
+                next = next + 1 > kDelphiMine ? -1 : next + 1;
+                if (hasIt(next)) break;
+            }
         if (next != delphiWeapon_) {
             delphiWeapon_ = next;
             bowDrawing_ = false;
@@ -316,6 +347,74 @@ void GameApp::renderBow() {
         dp.unlit = true;
         dp.doubleSided = true;
         bowLines_.draw(renderer_, dp);
+    }
+}
+
+// (2026-10-28) The weapon wheel (Baz's and Delphi's): opening it before the eyes, the hand's move choosing, and Delphi's
+// cells drawn as names (her bows have no icon in the data's HUD set).
+void GameApp::openWheel(const InputFrame& in, int gh) {
+    const Pose hp = rig_.toWorld(in.hand[gh].gripPose);
+    const Pose head = rig_.toWorld(in.head);
+    Vec3 fwd = head.orientation.rotate(Vec3{0, 0, -1});
+    fwd.y = 0;
+    fwd = length(fwd) > 1e-3f ? normalize(fwd) : Vec3{0, 0, -1};
+    wheelR_ = normalize(cross(fwd, Vec3{0, 1, 0}));
+    wheelU_ = Vec3{0, 1, 0};
+    wheelCentre_ = head.position + fwd * 0.5f + Vec3{0, -0.18f, 0};
+    wheelHand0_ = hp.position;
+    wheelOpen_ = true;
+    wheelHover_ = -1;
+    haptics_.push_back({gh, 0.3f, 0.04f});
+    LOGI("Weapon wheel: %zu things", wheelCells_.size());
+}
+
+void GameApp::updateWheelHover(const InputFrame& in, int gh) {
+    if (!in.hand[gh].gripPoseValid || wheelCells_.empty()) return;
+    const Vec3 d = rig_.toWorld(in.hand[gh].gripPose).position - wheelHand0_;
+    const float x = dot(d, wheelR_), y = dot(d, wheelU_);
+    int best = -1;
+    if (std::sqrt(x * x + y * y) > 0.04f) {  // (moved 4 cm or more: the nearest cell by angle)
+        const float a = std::atan2(x, y);
+        const int n = int(wheelCells_.size());
+        best = int(std::floor((a < 0 ? a + 6.2832f : a) / 6.2832f * float(n) + 0.5f)) % n;
+    }
+    if (best != wheelHover_ && best >= 0) haptics_.push_back({gh, 0.2f, 0.02f});
+    wheelHover_ = best;
+}
+
+void GameApp::renderDelphiWheel() {
+    if (!wheelOpen_ || hero_ != Hero::Delphi || !text_.ready()) return;
+    const Vec3 n = cross(wheelR_, wheelU_) * -1.0f;  // (toward the eyes)
+    Mat4 base = Mat4::identity();
+    base.m[0] = wheelR_.x; base.m[1] = wheelR_.y; base.m[2] = wheelR_.z;
+    base.m[4] = wheelU_.x; base.m[5] = wheelU_.y; base.m[6] = wheelU_.z;
+    base.m[8] = n.x; base.m[9] = n.y; base.m[10] = n.z;
+    base.m[12] = wheelCentre_.x; base.m[13] = wheelCentre_.y; base.m[14] = wheelCentre_.z;
+    text_.drawPanel(base, 0.36f, 0.32f, {0.015f, 0.03f, 0.055f, 0.75f});
+    const int cnt = int(wheelCells_.size());
+    for (int i = 0; i < cnt; ++i) {
+        const float a = 6.2832f * float(i) / float(cnt);
+        const float cx = 0.12f * std::sin(a), cy = 0.11f * std::cos(a);
+        const WheelCell& c = wheelCells_[size_t(i)];
+        const bool hot = i == wheelHover_, cur = c.sel == delphiWeapon_;
+        std::string label = c.sel < 0 ? "SWORD" : (c.sel == kDelphiMine ? "MINES" : bows_[c.sel].name);
+        for (auto& ch : label) ch = char(std::toupper(static_cast<unsigned char>(ch)));
+        if (c.count >= 0) label += " " + std::to_string(c.count);
+        float tw = 0, th = 0;
+        if (const MeshId m = text_.mesh(label, hot ? 0.026f : 0.021f, 0.13f, &tw, &th)) {
+            if (hot || cur) text_.drawPanel(base * Mat4::translation({cx, cy, 0.002f}), tw + 0.02f, th + 0.012f,
+                                            hot ? Vec4{0.75f, 0.5f, 0.15f, 0.7f} : Vec4{0.3f, 0.5f, 0.3f, 0.5f});
+            text_.draw(m, base * Mat4::translation({cx, cy, 0.004f}), hot ? Vec4{1, 1, 0.8f, 1} : Vec4{0.85f, 0.85f, 0.85f, 1});
+        }
+    }
+    // The hand's move, as a dot.
+    const ControllerState& c = lastInput_.hand[rig_.turnHand()];
+    if (c.gripPoseValid) {
+        const Vec3 d = rig_.toWorld(c.gripPose).position - wheelHand0_;
+        float x = dot(d, wheelR_), y = dot(d, wheelU_);
+        const float len = std::sqrt(x * x + y * y);
+        if (len > 0.11f) { x *= 0.11f / len; y *= 0.11f / len; }
+        text_.drawPanel(base * Mat4::translation({x, y, 0.006f}), 0.012f, 0.012f, {0.55f, 0.85f, 1.0f, 0.95f});
     }
 }
 

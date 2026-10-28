@@ -436,6 +436,9 @@ private:
     std::vector<WheelCell> wheelCells_;
     void buildWheelCells();
     void hudWeaponWheel();
+    void openWheel(const InputFrame& in, int gh);
+    void updateWheelHover(const InputFrame& in, int gh);
+    void renderDelphiWheel();
     void selectWeapon(int sel);
     float rocketCooldown_ = 0;
     bool rocketTriggerHeld_ = false;

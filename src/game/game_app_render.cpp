@@ -672,6 +672,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     if (playMode_ && !cut) renderTimmyLine();
     if (playMode_ && !cut && !title_) renderWristPanel();
     if (playMode_ && !cut && !title_) renderGunCounter();
+    if (playMode_ && !cut && !title_) renderDelphiWheel();
     if (playMode_ && !cut && !title_) renderTeleportArc();
     if (playMode_ && !cut) renderSkirmishHud();
     if (playMode_ && !cut) renderRaceHud();

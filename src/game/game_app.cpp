@@ -1859,38 +1859,11 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         stickFwdT_ += dt;
         if (!wheelOpen_ && stickFwdT_ > 0.4f && in.hand[gh].gripPoseValid) {
             buildWheelCells();
-            if (wheelCells_.size() >= 3) {
-                // Before the eyes, a little low, facing them (in view wherever the hand is); the hand picks by
-                // moving from where it was when the wheel opened.
-                const Pose hp = rig_.toWorld(in.hand[gh].gripPose);
-                const Pose head = rig_.toWorld(in.head);
-                Vec3 fwd = head.orientation.rotate(Vec3{0, 0, -1});
-                fwd.y = 0;
-                fwd = length(fwd) > 1e-3f ? normalize(fwd) : Vec3{0, 0, -1};
-                wheelR_ = normalize(cross(fwd, Vec3{0, 1, 0}));
-                wheelU_ = Vec3{0, 1, 0};
-                wheelCentre_ = head.position + fwd * 0.5f + Vec3{0, -0.18f, 0};
-                wheelHand0_ = hp.position;
-                wheelOpen_ = true;
-                wheelHover_ = -1;
-                haptics_.push_back({gh, 0.3f, 0.04f});
-                LOGI("Weapon wheel: %zu things", wheelCells_.size());
-            }
+            if (wheelCells_.size() >= 3) openWheel(in, gh);
         }
     }
     if (wheelOpen_) {
-        if (in.hand[gh].gripPoseValid) {
-            const Vec3 d = rig_.toWorld(in.hand[gh].gripPose).position - wheelHand0_;
-            const float x = dot(d, wheelR_), y = dot(d, wheelU_);
-            int best = -1;
-            if (std::sqrt(x * x + y * y) > 0.04f) {  // (moved 4 cm or more: the nearest cell by angle)
-                const float a = std::atan2(x, y);
-                const int n = int(wheelCells_.size());
-                best = int(std::floor((a < 0 ? a + 6.2832f : a) / 6.2832f * float(n) + 0.5f)) % n;
-            }
-            if (best != wheelHover_ && best >= 0) haptics_.push_back({gh, 0.2f, 0.02f});
-            wheelHover_ = best;
-        }
+        updateWheelHover(in, gh);
         if (sy < 0.3f) {
             wheelOpen_ = false;
             if (wheelHover_ >= 0 && size_t(wheelHover_) < wheelCells_.size()) pick = wheelCells_[size_t(wheelHover_)].sel;

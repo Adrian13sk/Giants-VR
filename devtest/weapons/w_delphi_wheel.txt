@@ -1,0 +1,15 @@
+# (2026-10-28) Delphi's weapon wheel: the right stick held forward 0.4 s opens a ring of her sword, bows and mines
+# (as names) before her; the gun hand moves up and right and the stick is let go - that one is chosen.
+# Log (checked by devtest.ps1): "Weapon wheel: N things" "Weapon wheel closed (chosen)" "Delphi: ".
+name w_delphi_wheel
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BASE 0
+env GVR_BOWS 1
+duration 7
+turn 0 1 2 4
+hand_r 0.11 0.065 0 2.8 3.1
+shot 3.5 wheel

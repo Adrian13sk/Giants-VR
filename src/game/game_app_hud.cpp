@@ -277,7 +277,7 @@ void GameApp::buildWheelCells() {
 
 // The wheel: a ring of icons (radius 11 cm) round where the gun hand was, the one the hand moves toward lit.
 void GameApp::hudWeaponWheel() {
-    if (!wheelOpen_ || wheelCells_.empty()) return;
+    if (!wheelOpen_ || wheelCells_.empty() || hero_ != Hero::Mecc) return;  // (Delphi's: renderDelphiWheel)
     HudFrame f;
     f.o = wheelCentre_;
     f.r = wheelR_;
