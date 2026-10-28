@@ -2,6 +2,8 @@
 # one swoops past his head (GVR_LOBIRD_SWOOP: every 6 s). Hold a hand up in front and squeeze as it passes: caught -
 # it struggles in his fist (buzz). Bring it to the mouth: eaten (+health, feathers). Log: "Kabuto catches a Lobird",
 # "Kabuto eats the Lobird".
+# (2026-10-28) squeezes every 0.3 s from 3 s to 8.4 s - the swoop reaches the hand at 5-6 s, later on the headset than
+# in the harness - then held, the fist to the mouth at 9-10 s.
 name kabuto_lobird
 world Kstory1
 mission k1a_smarties
@@ -10,7 +12,7 @@ env GVR_GOD 1
 env GVR_NO_AMBUSH 1
 env GVR_LOBIRD_SWOOP 1
 env GVR_BIRD_TRACE 1
-duration 11
+duration 14
 at -1563 -2820
 look -1563 -2845
 hand_r 0 0.35 -0.25 0.5 1.5
@@ -22,5 +24,15 @@ hold grip_r 4.20 4.44
 hold grip_r 4.50 4.74
 hold grip_r 4.80 5.04
 hold grip_r 5.10 5.34
-hold grip_r 5.40 9.00
-hand_r -0.2 0.0 0.32 6.0 7.0
+hold grip_r 5.40 5.64
+hold grip_r 5.70 5.94
+hold grip_r 6.00 6.24
+hold grip_r 6.30 6.54
+hold grip_r 6.60 6.84
+hold grip_r 6.90 7.14
+hold grip_r 7.20 7.44
+hold grip_r 7.50 7.74
+hold grip_r 7.80 8.04
+hold grip_r 8.10 8.34
+hold grip_r 8.40 12.00
+hand_r -0.2 0.0 0.32 9.0 10.0
