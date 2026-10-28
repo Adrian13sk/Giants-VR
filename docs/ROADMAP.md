@@ -81,7 +81,9 @@ quality levels chosen per world are logged and stay put.
 - **Delphi's spells by gesture:** the circle and sweep exist; 2026-10-28: SUMMON HAIL (hand raised high, brought
   down hard) and SLOW TIME (both hands together before the chest), with the original's EFX_hail_missile /
   EFX_slow_spell models, on the CONTROLS card (harness). The data names more Reaper spells (GText iconrs*: Cloak,
-  Cluster, Fire Circle, Follow, Repair, Sea Monster, Shadow, Shrink, Teleport) - candidates.
+  Cluster, Fire Circle, Follow, Repair, Sea Monster, Shadow, Shrink, Teleport) - candidates. 2026-10-28: CLOAK and CLUSTER
+  (r4a hands them to her in the data). Baz's Repair Gun (item 19, weapon 19 "-50 every 1.5 s") is in the data but no
+  mission gives it - a Shop item candidate.
 - **Kabuto at scale:** a "giant's view" setting (true eye height vs a lowered, comfortable one), and his
   hands reaching the ground without stooping (the reach assist exists; tune it on the device).
 

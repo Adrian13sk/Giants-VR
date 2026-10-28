@@ -1,0 +1,17 @@
+# (2026-10-28) Delphi's CLOAK (r4a hands it to her): the left hand held over the eyes, the trigger held, 0.6 s - she
+# turns see-through and the Reapers lose her (as Baz in his bush) for 12 s.
+# Log (checked by devtest.ps1): "Delphi casts CLOAK" "Cloak ends (time)".
+name delphi_cloak
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_SPELL_TRACE 1
+duration 16
+reapers 3 18 0.5 99
+hand_l 0.2 0.45 0.25 0.6 0.9
+hold trigger_l 1.2 2.2
+hand_l -0.2 -0.45 -0.25 2.4 2.7
+shot 2.8 cloaked

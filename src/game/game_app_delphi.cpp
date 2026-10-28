@@ -488,7 +488,30 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
             boltSpeed = 40.0f;
         }
     }
+    // (2026-10-28) CLUSTER: the bolt let go while the hand flicks up - six bolts in a spread along the aim.
+    if (!consumed && !boltTrig && boltTrigWas_ && ok && firstPerson_ && castHandVel_.y > 2.2f && clusterOwned() && clusterCool_ <= 0 &&
+        !heldReaperGun(mh)) {
+        const Vec3 side = normalize(cross(dir, Vec3{0, 1, 0}) + Vec3{1e-4f, 0, 0});
+        for (int k = 0; k < 6; ++k) {
+            const float a = (float(k) - 2.5f) * 0.09f;
+            Rocket r;
+            r.pos = from;
+            r.vel = normalize(dir + side * a + Vec3{0, 0.03f * float(k % 2), 0}) * 32.0f;
+            r.life = 0;
+            r.kind = 1;
+            rockets_.push_back(r);
+        }
+        clusterCool_ = 4.0f;
+        boltCooldown_ = 1.0f;
+        endCloak("she shot");
+        sfx("sr_spfsh", from, 1.0f, 0.8f);
+        haptics_.push_back({mh, 1.0f, 0.15f});
+        LOGI("Delphi casts CLUSTER (hand up %.1f m/s)", castHandVel_.y);
+        boltTrigWas_ = boltTrig;
+        return;
+    }
     if (!consumed && !boltTrig && boltTrigWas_ && boltCooldown_ <= 0 && ok && !heldReaperGun(mh)) {  // (that hand's trigger fires a held Reaper gun)
+        endCloak("she shot");
         if (!firstPerson_ && player_.onGround && swipeT_ < 0) player_.startAction(PlayerAnim::Cast, std::max(0.3f, player_.oneShot[int(PlayerAnim::Cast)] * 0.6f));
         Rocket r;
         r.pos = from;

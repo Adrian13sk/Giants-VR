@@ -107,7 +107,30 @@ void GameApp::castHail(const Vec3& from, const Vec3& dir) {
     LOGI("Delphi casts SUMMON HAIL at (%.1f %.1f %.1f), %.0f m away", at.x, at.y, at.z, length(at - player_.position));
 }
 
+bool GameApp::cloakOwned() const {
+    if (hero_ != Hero::Delphi || !assetWorld_) return false;
+    const std::string w = toLower(worldName_);
+    return practice_ || w == "rstory4" || w == "rstory5";
+}
+
+void GameApp::castCloak() {
+    cloakT_ = 12.0f;
+    cloakCool_ = 30.0f;
+    cloakShots0_ = uint32_t(weapon_.shotsFired());
+    for (auto& e : enemies_.enemies) e.aware = false;  // (gone from their sight)
+    sfx2D("sr_spfsh", 0.9f, 1.6f);
+    LOGI("Delphi casts CLOAK (12 s)");
+}
+
+void GameApp::endCloak(const char* why) {
+    if (cloakT_ <= 0) return;
+    cloakT_ = 0;
+    sfx2D("sr_spfsh", 0.6f, 0.7f);
+    LOGI("Cloak ends (%s)", why);
+}
+
 void GameApp::resetSpells() {
+    cloakT_ = cloakCool_ = clusterCool_ = gestFaceT_ = 0;
     hailStones_.clear();
     hailStorms_.clear();
     slowT_ = hailCool_ = slowCool_ = 0;
@@ -222,6 +245,24 @@ void GameApp::updateSpellGestures(float dt, const InputFrame& in, const Vec3& di
     } else {
         gestHighT_ = std::max(0.0f, gestHighT_ - dt);
     }
+    // Cloak: the casting hand held over the eyes (just before the face) for 0.6 s.
+    {
+        const Vec3 f = in.head.orientation.rotate(Vec3{0, 0, -1});
+        const Vec3 rel = h - in.head.position;
+        const bool face = length(rel) < 0.2f && dot(rel, f) > 0.02f && std::fabs(rel.y) < 0.12f;
+        gestFaceT_ = face ? gestFaceT_ + dt : 0.0f;
+        if (gestFaceT_ > 0.6f && cloakOwned() && cloakCool_ <= 0) {
+            castCloak();
+            if (trace) LOGI("spell gesture: hand over the eyes -> cloak");
+            gestFaceT_ = 0;
+            spellGestureCast_ = true;
+            spellCharge_ = 0;
+            gestCircle_ = gestSweep_ = 0;
+            gestPrev_ = h;
+            haptics_.push_back({mh, 0.5f, 0.3f});
+            return;
+        }
+    }
     // Slow time: both hands together before the chest for half a second.
     {
         const ControllerState& o = in.hand[1 - mh];
@@ -311,6 +352,13 @@ bool GameApp::updateSpells(float dt, bool trig, const Vec3& from, const Vec3& di
 void GameApp::stepSpells(float dt) {
     const float t = float(time_);
     hailCool_ = std::max(0.0f, hailCool_ - dt);
+    cloakCool_ = std::max(0.0f, cloakCool_ - dt);
+    clusterCool_ = std::max(0.0f, clusterCool_ - dt);
+    if (cloakT_ > 0) {
+        if (cloakT_ - dt <= 0) endCloak("time");
+        else if (uint32_t(weapon_.shotsFired()) != cloakShots0_) endCloak("she shot");
+        else cloakT_ -= dt;
+    }
     slowCool_ = std::max(0.0f, slowCool_ - dt);
     if (slowT_ > 0) {
         slowT_ -= dt;

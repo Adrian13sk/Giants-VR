@@ -1,0 +1,14 @@
+# (2026-10-28) Delphi's CLUSTER (r4a): a fire bolt let go while the left hand flicks up - six bolts in a spread.
+# Log (checked by devtest.ps1): "Delphi casts CLUSTER".
+name delphi_cluster
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+duration 5
+reapers 3 14 0.5 99
+hold trigger_l 1.0 1.3
+hand_l 0 0.65 -0.05 1.15 1.4
+shot 1.5 cluster

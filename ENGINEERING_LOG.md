@@ -2765,3 +2765,10 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   isn't measured across frames when gestures didn't run (dying, riding, the menu); (7) the wheel closes whenever
   the weapon update stops (menu, death, ride). Kept: hail and slow time come with the tornado (the battles, a
   finished base) as intended; GVR_SK_SPECTATE is a harness-only hook.
+- Delphi's CLOAK and CLUSTER: r4a_buildbase's item list (decoded earlier, 23 22 25 44 45 46) hands her IconRSCloak and
+  IconRSCluster along with the fire wall and her bows - the only story mission that gives spells beyond the bubble
+  and fire wall. Rules ours: CLOAK - the casting hand held over the eyes 0.6 s, trigger held: 12 s unseen (the bush
+  pack's hidden-player rules: unaware Reapers notice only a dash nearby; aware ones lose her), see-through body
+  (renderGhost), ends when she shoots; 30 s between. CLUSTER - a fire bolt let go while the hand flicks up
+  (> 2.2 m/s): six bolts in a 50-degree spread, 4 s between. From Rstory4 on and in practice. Found in testing: the
+  cloak's timeout never logged (endCloak returned early once the timer was already at zero).

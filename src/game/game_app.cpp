@@ -888,6 +888,10 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     pi.stroke = updateSwimStrokes(dt, in);
     updateDive(dt, in, pi);
     updateBush(dt, pi);
+    if (cloakT_ > 0) {  // (Delphi's cloak: unseen as in the bush; only a quick dash catches an eye nearby)
+        enemies_.playerHidden = true;
+        enemies_.playerMoving = player_.horizontalSpeed() > 4.0f;
+    }
     { GVR_PROF("player"); player_.update(dt, pi); }
     if (const char* t = std::getenv("GVR_PLAYER_TURN")) player_.yaw = camYaw_ + std::atof(t) * kPi / 180.0f;  // test hook: side views
     // Hard landings hurt (the original: damage and a 2 s stun; a rocket under him prevents it).

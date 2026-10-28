@@ -350,7 +350,8 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
         // Delphi's shoulder and face into view).
         const bool cutNear = firstPerson_ && !dying_ && !renderer_.inReflectionPass();
         if (cutNear) renderer_.setNearCut(renderer_.currentView().eyePosition, 0.14f * player_.height);
-        playerModel_->render(renderer_, bodyXf_);
+        if (cloakT_ > 0) playerModel_->renderGhost(renderer_, bodyXf_, Vec3{0.35f, 0.55f, 0.8f});  // (cloaked: see-through)
+        else playerModel_->render(renderer_, bodyXf_);
         if (cutNear) renderer_.setNearCut(Vec3{0, 0, 0}, 0.0f);
     }
     if (playMode_ && !cut && !dying_) renderJetFx(firstPerson_);

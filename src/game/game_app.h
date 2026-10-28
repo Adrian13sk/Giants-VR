@@ -1289,6 +1289,15 @@ private:  // the mission placed enemies: no test waves
     float gestPeakY_ = 0, gestLastT_ = -1;  // hail: the raised hand's highest point; when gestures last ran
     Vec3 gestPeak_;
     void resetSpells();  // (a new mission or hero: no stones, slow time or cooldowns carried over)
+    // (2026-10-28) The two spells r4a hands her (items 22 IconRSCluster, 23 IconRSCloak; rules ours): CLUSTER - a fire
+    // bolt let go while the hand flicks up: six bolts in a spread; CLOAK - the casting hand held over the eyes, trigger
+    // held, 0.6 s: unseen (as in Baz's bush) for 12 s, until she shoots.
+    float cloakT_ = 0, cloakCool_ = 0, clusterCool_ = 0, gestFaceT_ = 0;
+    uint32_t cloakShots0_ = 0;
+    bool cloakOwned() const;
+    bool clusterOwned() const { return cloakOwned(); }
+    void castCloak();
+    void endCloak(const char* why);
     bool blastNoFire_ = false;  // (explode: an ice blast - no fireball, no scorch)
     bool hailOwned() const;
     bool slowOwned() const;
