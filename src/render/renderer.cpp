@@ -246,7 +246,10 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
     float sandW = (1.0 - smoothstep(0.8, 2.6 + nzp * 2.0, hs)) * (1.0 - smoothstep(0.32, 0.52, slope));
     vec3 col = grass;
     if (uTerrDetail > 0.5) {
-        float gW = smoothstep(0.56, 0.74, nzp * 0.65 + nz.x * 0.55) * 0.85;  // noise sum averages ~0.6: about a third covered
+        // (2026-10-28, the far ring: past ~90 m the second grass, the second rock and the extra rock projections fade
+        // out - under the haze they don't show, and their texture fetches are skipped there)
+        float nearW = 1.0 - smoothstep(70.0, 95.0, d);
+        float gW = smoothstep(0.56, 0.74, nzp * 0.65 + nz.x * 0.55) * 0.85 * nearW;  // noise sum averages ~0.6: about a third covered
         if (gW > 0.01) col = mix(col, texture(uTerrGrass2, xz * 0.085).rgb * vec3(1.06, 1.0, 0.86), gW);
         // Lusher / drier tint over the large patches.
         col *= mix(vec3(0.84, 1.08, 0.84), vec3(1.14, 1.03, 0.78), smoothstep(0.25, 0.75, nz.y));
@@ -276,6 +279,11 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
             vec3 w = an * an;
             w = w * w;
             w /= (w.x + w.y + w.z);
+            if (d > 90.0) {  // far: the dominant projection only (one fetch)
+                float m = max(w.x, max(w.y, w.z));
+                w = step(vec3(m), w);
+                w /= (w.x + w.y + w.z);
+            }
             highp vec3 q = wp * 0.11;
             // Only the projections that show (on the headset all three plus three more for the anti-tiling
             // cost 9 ms a frame in Kabuto's rocky worlds): most of a cliff is one or two of them.
@@ -291,7 +299,8 @@ vec3 terrainColor(highp vec3 wp, vec3 n, vec2 uv, highp float d, float bias) {
             vec3 rockB = texture(uTerrRock, ruv * 0.027 + vec2(0.37, 0.61)).rgb;
             float mB = clamp(0.25 + 0.5 * smoothstep(0.3, 0.7, nz.x + 0.3 * (nzp - 0.5)) + 0.4 * smoothstep(25.0, 120.0, d), 0.0, 0.85);
             rock = mix(rock, rockB, mB);
-            if (uTerrDetail > 0.5) rock = mix(rock, texture(uTerrRock2, ruv * 0.07).rgb * 1.1, smoothstep(0.42, 0.62, nz.x) * 0.6);
+            float r2 = smoothstep(0.42, 0.62, nz.x) * 0.6 * (1.0 - smoothstep(70.0, 95.0, d));
+            if (uTerrDetail > 0.5 && r2 > 0.01) rock = mix(rock, texture(uTerrRock2, ruv * 0.07).rgb * 1.1, r2);
             // Strata: gently tilted layers (~9 m), warmer and cooler, lighter and darker.
             float band = sin(wp.y * 0.7 + nz.y * 5.0 + wp.x * 0.03) * 0.5 + 0.5;
             band = band * band * (3.0 - 2.0 * band);
