@@ -1021,3 +1021,13 @@ with the current scripts. kabuto_lobird missed: the swoop reached the hand at ~5
 ended (5.34 s; harness 5.43 s, on the last edge). Its pulses now run to 8.4 s (a427765; harness 24/72 Hz: caught
 and eaten). The race had the system shell drawing for 214 s (Guardian visible?): its GPU figures are not the game's.
 
+## 2026-10-28 — fixes from the whole test (harness verified; APK dc94e76 not yet on the headset)
+| Change | Harness check |
+|---|---|
+| Rippers at point blank can be shot (a ray starting inside a creature's hit box was a miss) | npc_ripper_fight without backing off: 4 kills at 24 and 72 Hz (was 0 of 324 rounds at 72); unit test |
+| Smoke/dust blending budget by quality level (stable thinning, denser survivors) | GVR_FX_COST: pop-up bomb worst frame 69 -> 11 screens; side-by-side frames look alike |
+| Shot splashes merged per patch, crowns/rings capped, none at the viewer's feet, spray faded sooner, Ripper burst flash faded near the eye | water fight 12 -> 4 screens; the blue sheets over the view are gone |
+| Getting on a moored Reaperski put Delphi at the world origin (mountJetski read its args after resetting) | m_ski_rstory2_jetski_2 24/72 Hz: rides, objective done |
+| Jet-ski no longer climbs hillsides (steep faces over 8 m above the sea stop it) | races 1/2/3 and rstory5 won at 24 and 72 Hz |
+| ui_shop reaches the real item spot | "Shop: took ammo" 24/72 Hz |
+| Regression | tests/missions/weapons/npcs/ui at 72 Hz: all pass except weather_storm's ambience line (harness has no audio; passes on the headset); sweep 56/56 |

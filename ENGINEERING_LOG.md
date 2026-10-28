@@ -2613,3 +2613,17 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - devtest.ps1: "FOCUS LOST" (session left FOCUSED before the script finished) flags and reruns a test; the
   per-set totals count each test once; the other-app check needs 6+ s (the shell draws 2-5 s round every
   test's start and end - 54 false flags).
+
+### 2026-10-28 — after the whole test: point-blank Rippers, effect cost, the moored Reaperski
+- Point blank: CreatureDirector::raycast's slab test treated a ray starting inside the box as a miss; a Ripper's box
+  reaches 1.1 m in front of it, so the muzzle was often inside. Found with GVR_SHOT_TRACE (what each shot meets).
+- Effect cost, measured: GVR_FX_COST sums each blended effect's screen cover (size/distance squared over the view)
+  per kind. The headset's slow moments were smoke/dust (pop-up bombs: ~70 screens in one frame) and water
+  (splash crowns, rings and spray at the player's feet: ~12). Smoke now has a budget (5/4/3/2.5 screens by quality
+  level): over it, big puffs are thinned by a stable per-particle seed and the survivors' alpha raised to
+  1-(1-a)^(1/keep) so the cloud keeps its density. The Ripper fight's 22-25 ms on the headset was the water case
+  (the old script backed into the sea), not the fight.
+- Reaperski: mountJetski(const Vec3& pos, ..) was called with ski_.pos and reset ski_ before reading it - getting
+  on a moored ski put Delphi at (0, 0). Found by the new moored-ski autopilot test.
+- Jet-ski "hop" rule: at speed it climbed any face in small steps (a hill to 38 m); now only up to 8 m above the
+  sea (race 3's line crosses a 5.7 m islet).
