@@ -2919,6 +2919,7 @@ void GameApp::loadMission(const std::string& name) {
     nests_.clear();
     objectives_.clear();
     objectivesDone_ = 0;
+    haveCheckpoint_ = false;
     missionComplete_ = false;
     missionHostiles_ = false;
     advanceDone_ = false;
@@ -2953,6 +2954,14 @@ void GameApp::completeObjective(int index) {
     ++objectivesDone_;
     haptics_.push_back({kLeft, 0.4f, 0.08f});
     LOGI("Objective %d done (%zu/%zu)", index, objectivesDone_, objectives_.size());
+    // (2026-10-28) A checkpoint: dying after this brings you back here, not to the mission's start - where you
+    // stood on firm ground, out of deep water.
+    if (playMode_ && !dying_ && player_.onGround && player_.position.y > player_.seaLevel - 0.3f * player_.height) {
+        checkpointAt_ = player_.position;
+        checkpointYaw_ = player_.yaw;
+        haveCheckpoint_ = true;
+        LOGI("Checkpoint: objective %d at (%.1f %.1f %.1f)", index, checkpointAt_.x, checkpointAt_.y, checkpointAt_.z);
+    }
     if (objectivesDone_ < objectives_.size() || missionComplete_) return;
     missionComplete_ = true;
     LOGI("Mission %s complete", assetWorld_->missionName().c_str());
@@ -3529,9 +3538,10 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
         piranhaAttack_ = false;
         waterTime_ = 0;
         if (skirmish_) teleportPlayer(sk_.spawnPoint(skLocal_), player_.yaw);  // at his team's base
+        else if (haveCheckpoint_) teleportPlayer(clearSpawn(checkpointAt_, checkpointYaw_), checkpointYaw_);  // (the last objective's spot)
         else teleportPlayer(clearSpawn(assetWorld_->spawnPoint(), assetWorld_->spawnYaw()), assetWorld_->spawnYaw());
         respawnFade_ = 1.0f;
-        LOGI("Player respawned");
+        LOGI("Player respawned%s", haveCheckpoint_ && !skirmish_ ? " at the checkpoint" : "");
     }
 }
 
@@ -4045,6 +4055,25 @@ void GameApp::updateCombat(float dt) {
     sinceDamage_ += dt;
     if (sinceDamage_ > 4.0f && !dying_) playerHealth_ = std::min(100.0f, playerHealth_ + 12.0f * dt);
     respawnFade_ = std::max(0.0f, respawnFade_ - dt * 1.2f);
+    // Test hook GVR_OBJECTIVE_AT=<s of play>,<index>: that objective counts as done then.
+    if (static const char* oa = std::getenv("GVR_OBJECTIVE_AT"); oa && playMode_) {
+        static float played = 0;
+        float at = 0;
+        int idx = 0;
+        played += dt;
+        if (std::sscanf(oa, "%f,%d", &at, &idx) == 2 && played >= at && played - dt < at) completeObjective(idx);
+    }
+    // Test hook GVR_DIE_AT=<s of play>: the player dies then (god mode or not) - the respawn's own test.
+    if (static const char* da = std::getenv("GVR_DIE_AT"); da && !dying_ && playMode_) {
+        static float played = 0;
+        played += dt;
+        if (played >= float(std::atof(da)) && played - dt < float(std::atof(da))) {
+            LOGI("Test: the player dies (GVR_DIE_AT)");
+            playerHealth_ = 0;
+            lastHurt_ = DeathCause::Shot;
+            startDeath();
+        }
+    }
     damageFlash_ = std::max(0.0f, damageFlash_ - dt * 3.0f);
 
     enemies_.params.punch = hero_ != Hero::Kabuto;

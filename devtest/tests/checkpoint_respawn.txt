@@ -1,0 +1,14 @@
+# Rework (2026-10-28): a checkpoint at each objective done. In r1_clusterspell (4 objectives) Delphi walks a little,
+# objective 0 is marked done there (GVR_OBJECTIVE_AT), then she dies (GVR_DIE_AT): she comes back at that spot.
+# Log (checked by devtest.ps1): "Checkpoint: objective 0" "Player respawned at the checkpoint".
+name checkpoint_respawn
+world Rstory1
+mission r1_clusterspell
+env GVR_CUTSCENE none
+env GVR_NO_AMBUSH 1
+env GVR_OBJECTIVE_AT 5,0
+env GVR_DIE_AT 7
+view third
+duration 16
+move 0 1 1 4.5
+shot 14 respawned

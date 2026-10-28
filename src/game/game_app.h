@@ -1412,6 +1412,9 @@ private:  // the mission placed enemies: no test waves
     double statStartT_ = 0;
     size_t statShots0_ = 0, statHits0_ = 0;
     int statDeaths_ = 0;
+    Vec3 checkpointAt_;
+    float checkpointYaw_ = 0;
+    bool haveCheckpoint_ = false;  // (2026-10-28) respawn at the last objective's spot
     void recordMissionStats();
     // Save slots (2026-10-28): slot 1 is the original save file, 2 and 3 save2.txt / save3.txt beside it.
     std::string baseSavePath_;
