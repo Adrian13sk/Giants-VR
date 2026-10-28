@@ -83,6 +83,7 @@ add_library(gvr_core STATIC
   src/game/game_app_base.cpp
   src/game/game_app_turret.cpp
   src/game/game_app_follow.cpp
+  src/game/game_app_shield.cpp
   src/game/game_app_basecrew.cpp
   src/game/game_app_popup.cpp
   src/game/game_app_rpweapons.cpp

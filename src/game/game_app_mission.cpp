@@ -144,6 +144,11 @@ void GameApp::initMission() {
         hasTurret_ = hero_ == Hero::Mecc && turretModel_ && turretHeldModel_ && (later || practice_ || std::getenv("GVR_TURRET"));  // (test hook)
         if (const char* r = std::getenv("GVR_TURRET_ROUNDS")) turretRounds_ = std::max(1, std::atoi(r));  // test hook
         if (hasTurret_) LOGI("Arsenal: the portable turret");
+        // The shield (ours: see game_app.h): from Story 4 on, and in practice.
+        const bool story4 = mn.rfind("4", 0) == 0 || mn.rfind("5", 0) == 0;
+        hasShield_ = hero_ == Hero::Mecc && shieldSphere_ && (story4 || practice_ || std::getenv("GVR_SHIELD"));  // (test hook)
+        shieldT_ = shieldCool_ = shieldTaken_ = 0;
+        if (hasShield_) LOGI("Arsenal: the shield");
     }
     initPopup();
     // A level's Shop also sells ammo for the guns he carries / her bows' arrows (ours).

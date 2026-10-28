@@ -57,6 +57,8 @@ void GameApp::spawnWave() {
 void GameApp::damagePlayer(float amount, DeathCause cause) {
     if (playerHealth_ <= 0 || dying_) return;
     if (cloakT_ > 0) ++cloakHits_;  // (counted even in god mode: devtest delphi_cloak_fight)
+    amount = shieldAbsorb(amount, cause);  // (Baz's shield takes what it can - before god mode, so a test can see it)
+    if (amount <= 0) return;
     static const bool god = std::getenv("GVR_GOD") != nullptr;  // test hook: the player can't be hurt (perf runs)
     if (god) return;
     if (hero_ == Hero::Kabuto) amount *= 0.3f;  // a giant's hide: Reaper bolts and bites sting
@@ -95,6 +97,7 @@ void GameApp::startDeath() {
     playerHealth_ = 0;
     dying_ = true;
     endCloak("she fell");
+    if (shieldT_ > 0) { shieldT_ = 0; shieldCool_ = 40.0f; }
     enemies_.playerHidden = enemies_.playerMoving = false;
     repairOn_ = false;
     ++statDeaths_;

@@ -1,6 +1,6 @@
 // (2026-10-28) Baz's portable turret: weapondefs item 11 (IconTurret1, object 60 mc_turret: "max 1", a gadget).
 // The data has the item, its model (a gun head on a spike: MC_turret.gbs, nodes center / Turret / gun /
-// Ref_handle / Ref_nozzle01) and its icon (i_mecc_turret), but no mission hands it out and nothing says how it
+// Ref_handle / Ref_nozzle01) and its icons (st_mec_turret1, i_mecc_turret), but no mission hands it out and nothing says how it
 // behaves - all of that is ours: carried in the hand by its Ref_handle, planted with the trigger, it turns to the
 // nearest Reaper it can see within 40 m and fires (60 rounds, 12 damage, one every 0.45 s). Spent, it folds away and
 // is back in the pack 20 s later, its rounds refilled. A squeeze of the grip with a hand on it takes it back.

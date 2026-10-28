@@ -26,9 +26,10 @@ void GameApp::initHud(ModelCache* mc) {
                                      "st_rp_sword",    "st_rp_firewall", "st_mec_syringe",  "st_vimpmeat",     "st_mec_flare",   "st_mec_bush",    "st_mec_numbers", nullptr,
                                      "st_mec_pop",   // the pop-up bomb (w_menus.gzp)
                                      "st_mec_shotgun", "st_mec_machine", "st_mec_sniper", "st_mec_mortar", "st_mec_grenade", "st_mec_mine",
-                                     "i_repair",        // (the Repair Gun's inventory icon: no st_ art for it)
-                                     "i_mecc_turret"};  // (the portable turret's)
-    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 64, 48, 4, 4, 4, 4, 4, 4, 4, 4, 4};
+                                     "st_mec_repair",    // (the Repair Gun's; 2026-10-28: the st_ art exists after all)
+                                     "st_mec_turret1",   // (the portable turret's: IconTurret1)
+                                     "st_mec_shield"};
+    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 64, 48, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4};
     for (int k = 0; k < kHudLayers; ++k) {
         hudTex_[k] = names[k] ? mc->texture(names[k]) : whiteTex_;
         if (!hudTex_[k]) hudTex_[k] = whiteTex_;
@@ -243,6 +244,7 @@ void GameApp::hudWeaponStrip() {
     if (hasRepairGun_ && repairModel_) add(kHudRepair, weaponSel_ == 10, -1);
     if (weaponOwned(11)) add(kHudTurret, weaponSel_ == 11, turretRounds_);
     else if (hasTurret_ && turretModel_ && hero_ == Hero::Mecc && n < kNumSel + 1) cells[n++] = {kHudTurret, false, -1, true};  // (planted / recharging: dim)
+    if (hasShield_ && shieldSphere_ && hero_ == Hero::Mecc && n < kNumSel + 1) cells[n++] = {kHudShield, shieldT_ > 0, -1, !weaponOwned(12) && shieldT_ <= 0};  // (lit while up, dim while recharging)
     if (syringes_ > 0) add(kHudSyringe, false, syringes_);
     if (hasBush()) add(kHudBush, weaponSel_ == 2, -1);
     if (popupBombs_ > 0) add(kHudPop, weaponSel_ == 3, popupBombs_);
@@ -286,6 +288,7 @@ int GameApp::selHudLayer(int sel) const {
         case 9: return kHudMine;
         case 10: return kHudRepair;
         case 11: return kHudTurret;
+        case 12: return kHudShield;
         default: return kHudGun;
     }
 }

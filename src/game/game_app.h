@@ -362,8 +362,9 @@ private:
     bool weaponOwned(int sel) const;
     // The switching order (stick push / wheel): handgun, shotgun, machine gun, sniper gun, mortar, grenades, mines,
     // launcher, Repair Gun, turret, bush pack, pop-up bomb.
-    static constexpr int kNumSel = 12;
-    static constexpr int kWeaponOrder[kNumSel] = {0, 4, 5, 6, 7, 8, 9, 1, 10, 11, 2, 3};
+    // (12: the shield - not a weapon: chosen on the wheel it is raised and the gun stays; the stick's steps skip it)
+    static constexpr int kNumSel = 13;
+    static constexpr int kWeaponOrder[kNumSel] = {0, 4, 5, 6, 7, 8, 9, 1, 10, 11, 12, 2, 3};
     int selHudLayer(int sel) const;  // the HUD icon of a weapon slot
     int selCount(int sel) const;     // its count under the icon (-1: none)
     int lastWeaponSel_ = 0;          // the last slot in hand other than the turret (taken up again once it's planted)
@@ -1037,6 +1038,17 @@ private:
     void plantTurret(const Vec3& muzzle, const Vec3& fwd);
     void updatePortTurret(float dt, const InputFrame& in);
     void renderPortTurret();
+    // (2026-10-28) Baz's shield (weapondefs item 17 IconShield, mc_shield; game_app_shield.cpp): weapon-wheel slot 12,
+    // chosen it raises a bubble for 12 s taking up to 150 of the hits meant for him; 40 s between. Story 4 on, practice.
+    bool hasShield_ = false;
+    float shieldT_ = 0, shieldCool_ = 0, shieldHp_ = 0, shieldHitT_ = 0, shieldTaken_ = 0, shieldScale_ = 1;
+    const RenderModel* shieldSphere_ = nullptr;
+    TextureId shieldTex_ = 0;
+    void initShield(ModelCache* mc);
+    void raiseShield();
+    float shieldAbsorb(float amount, DeathCause cause);
+    void updateShield(float dt);
+    void renderShield();
     void stepTurretShots(std::vector<Base::TurretShot>& shots, float dt, const char* who);
     void drawTurretShots(const std::vector<Base::TurretShot>& shots, const Vec4& tint);
     void initBase();
@@ -1898,7 +1910,7 @@ private:  // the mission placed enemies: no test waves
     // (FP: over the move-hand wrist; TP: head-locked, lower left); the weapon strip that pops up on
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
-                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudMine, kHudRepair, kHudTurret, kHudLayers };
+                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudMine, kHudRepair, kHudTurret, kHudShield, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     float digitU_[11] = {}, digitU0_[10] = {}, digitU1_[10] = {};

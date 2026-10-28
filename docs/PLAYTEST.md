@@ -142,6 +142,8 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
       and pull the trigger: it is planted there (spike into the ground), turns to Reapers within 40 m and fires. Does
       its head turn the right way and do its rounds come out of the barrel? Grab its head (grip) to take it back.
       When it runs dry it sinks away; 20 s later "TURRET READY". Too strong? Is 1.1 m tall readable?
+- [ ] **Baz's shield** (Story 4 on, PRACTICE): on the weapon wheel; choose it: "SHIELD UP", a faint blue-violet web
+      round you that flares where shots land. Is it visible enough without being in the way?
 - [ ] **Delphi's new spells** (Reaper story 3 on, the battles, or PRACTICE as Delphi), left trigger held:
       SUMMON HAIL - raise the hand above your head and bring it down hard: ice falls where you aim.
       SLOW TIME - both hands together in front of your chest for half a second: Reapers slow to a third for 8 s.

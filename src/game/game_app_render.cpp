@@ -360,6 +360,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     if (!cut) renderBow();
     if (playMode_ && !cut && !dying_) renderRepairBeam();
     if (playMode_ && !cut) renderPortTurret();
+    if (playMode_ && !cut && !dying_) renderShield();
     // Timmy on the back: seen in third person (and in reflections and shadows). In first person he
     // sits right behind your head and the body turns with it, so he'd only ever flicker at the edge
     // of view: not drawn there.

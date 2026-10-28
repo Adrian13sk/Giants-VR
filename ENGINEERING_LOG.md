@@ -2837,3 +2837,11 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   crossing its wall burn up, grenades and bazooka rockets burst in it (not hurting her), whatever stands in the wall
   takes 40 a second; 20 s between; with slow time (story 4 on, the battles, practice). Checked in a frame from
   inside (drawn at 0.45 additive: 0.8 washed the view out). The test run: 14-15 bolts / grenades stopped in 8 s.
+- Baz's shield: weapondefs item 17 (IconShield, object 902 mc_shield: a back pack with an antenna, Ref_back /
+  Ref_shield), st_mec_shield and textures EFX_shield / 1 / 2; no mission hands it out. EFX_shield.tga turned out
+  to be an artist's placeholder (plain red with a scrawled note) - it tinted the whole first-person view magenta in
+  the first test frame; EFX_shield1 (a blue-violet energy web) is used instead, on EFX_prx_sphere (a 5.4 m sphere,
+  drawn 2.5 m across). Ours: weapon-wheel slot 12, a gadget - chosen, it is raised and the gun stays (the stick's
+  steps skip it); 12 s, takes up to 150 of shots / bites / blasts (not falls or drowning), flares where hits land,
+  40 s between; Story 4 on and practice. Also: the HUD now uses the original st_mec_repair / st_mec_turret1 icons
+  for the Repair Gun and the turret (the st_ art exists; the i_ icons were the inventory screen's).

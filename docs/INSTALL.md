@@ -243,6 +243,8 @@ blue fire round you for 8 s that burns up bolts and grenades and burns Reapers w
 - **Portable turret** (Baz, Story 3 on): in hand, point at the ground within 6 m and pull the trigger to plant it;
   it shoots the Reapers it can see (60 rounds), folds away when empty and is back 20 s later. Put a hand on its
   head and squeeze the grip to take it back.
+- **Shield** (Baz, Story 4 on): choose it on the weapon wheel - a bubble takes up to 150 of the hits meant for you for
+  12 s (not falls or water); 40 s before it can be raised again. The gun in hand stays.
 
 ## Main menu
 - **PRACTICE** < BAZ | DELPHI | KABUTO >: the menu's island with every weapon of that hero's story, Reaper waves and

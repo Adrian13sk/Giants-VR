@@ -290,6 +290,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             if (repairModel_ && repairRing_)
                 LOGI("Repair gun: model ok, ring %.2f m across", length(repairRing_->boundsMax - repairRing_->boundsMin));
             initPortTurret(mc);
+            initShield(mc);
             arsenalReady_ = false;  // this world's model cache: the guns are fetched again (kept: what he carries)
             initArsenal();
             rocketModel_ = mc->get("mc_rocket.gbs", "mc_rocket.anm", /*dynamicLit=*/true);
@@ -927,6 +928,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     updateGrenades(dt, in);
     updateMines(dt, in);
     updatePortTurret(dt, in);  // (planted: it fights on whatever is in hand)
+    updateShield(dt);
     { GVR_PROF("map"); updateMap(dt, in); }
     updateFlares(dt, in);
     { GVR_PROF("camera"); placeCamera(dt, false, &in); }
@@ -1911,7 +1913,9 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     if (step || pick >= 0) {
         // The weapon strip drops in either way (showing what is carried); with only the gun
         // there is nothing to switch to.
-        if (pick >= 0) {
+        if (pick == 12) {
+            raiseShield();  // (a gadget: the gun in hand stays)
+        } else if (pick >= 0) {
             if (weaponOwned(pick)) weaponSel_ = pick;
         } else {
             // Handgun -> shotgun -> machine gun -> sniper gun -> mortar -> grenades -> launcher -> bush pack ->
@@ -1920,7 +1924,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             while (at < kNumSel && kWeaponOrder[at] != weaponSel_) ++at;
             for (int k = 1; k <= kNumSel; ++k) {
                 const int next = kWeaponOrder[(at + k) % kNumSel];
-                if (weaponOwned(next)) { weaponSel_ = next; break; }
+                if (next != 12 && weaponOwned(next)) { weaponSel_ = next; break; }
             }
         }
         if (weaponSel_ == 9) {

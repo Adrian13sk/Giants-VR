@@ -166,6 +166,8 @@ void GameApp::resetArsenal() {
     hasRepairGun_ = false;
     hasTurret_ = false;
     resetPortTurret();
+    hasShield_ = false;
+    shieldT_ = shieldCool_ = 0;
     weaponSel_ = 0;
 }
 
@@ -211,6 +213,7 @@ bool GameApp::weaponOwned(int sel) const {
         case 8: return grenades_ > 0 && grenadeModel_;
         case 9: return mines_ > 0 && mineModel_;
         case 10: return hasRepairGun_ && repairModel_;
+        case 12: return hasShield_ && shieldSphere_ && shieldT_ <= 0 && shieldCool_ <= 0;
         case 11: return hasTurret_ && turretHeldModel_ && turretModel_ && !turret_.up && turretReadyT_ <= 0;
         default: {
             const int g = gunOfSel(sel);
