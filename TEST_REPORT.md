@@ -1102,3 +1102,4 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Existing menu tests after the new rows | ui_title_options / ui_title_skirmish one more step down, ui_ingame_newgame up twice |
 | Regression at 72 and 24 Hz | tests 67 + the 3 known harness-only lines (fx cost, touch binding, storm audio); ui 19/19, npcs 11/11, weapons 18/18, missions 31/31; unit tests pass |
 | Delphi: SUMMON HAIL and SLOW TIME by gesture | tests/delphi_hail (2 of 3 Reapers killed by the hail), tests/delphi_slow_time, 72 / 24 Hz; frames checked (ice blocks, the slow dome) |
+| Skirmish balance (kill limit 20, Kabuto fumbles / slows with a flag) | bot-only survey, 12 maps x 20 min at 24 Hz: rounds finished 13 (was 6 in 15 min); 3-way winners Blue 1 / Green 1 / Red 1 (was Red 4 of 4); experiments/x_skirmish_bots_3way_l3; DEVICE: a human's games unverified |

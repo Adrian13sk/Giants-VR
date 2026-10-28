@@ -315,8 +315,12 @@ void GameApp::initSkirmish() {
     skBodies_.resize(size_t(skLocal_) + 1);
     // The computer players: a full side each (Kabuto plays alone), the player's side one fewer.
     // A joiner has none: the host's come with its snapshots.
+    // Test hook GVR_SK_SPECTATE=1 (balance surveys): the player only watches - his side gets a full set of
+    // computer players and he is out of the game (nobody's target, no score).
+    static const bool spectate = std::getenv("GVR_SK_SPECTATE") != nullptr;
     for (size_t t = 0; t < heroes.size() && skNet_ != SkNetMode::Join; ++t) {
-        const int n = heroes[t] == SkHero::Kabuto ? (int(t) == myTeam ? 0 : 1) : (int(t) == myTeam ? perTeam - 1 : perTeam);
+        int n = heroes[t] == SkHero::Kabuto ? (int(t) == myTeam ? 0 : 1) : (int(t) == myTeam ? perTeam - 1 : perTeam);
+        if (spectate && int(t) == myTeam) n = heroes[t] == SkHero::Kabuto ? 1 : perTeam;
         for (int k = 0; k < n; ++k) {
             const Hero h = heroOf(heroes[t]);
             PlayerController pc;
@@ -345,6 +349,7 @@ void GameApp::initSkirmish() {
         const std::string flag = "sm_flag" + std::to_string(t + 1) + ".gbs";
         skFlag_[t] = w->models()->get(flag, "sm_flag.anm", /*dynamicLit=*/true);
     }
+    if (spectate) sk_.removePlayer(skLocal_);
     skBow_ = w->models()->get("rp_bow.gbs", "", /*dynamicLit=*/true);
     const Vec3 at = sk_.spawnPoint(skLocal_);
     const Vec3 mid = (basePos[0] + basePos[1]) * 0.5f;
@@ -494,8 +499,12 @@ void GameApp::skHandleEvent(const SkEvent& e) {
             dustBurst(e.at, 6.0f, 18);
             sfx("ka_stomp", e.at, 1.0f, 0.9f + 0.15f * frand());
             break;
-        case SkEvent::Win:
+        case SkEvent::Win: {
             say(std::string(teamUpper(e.team)) + " TEAM WINS!", 10.0f);
+            std::string sc;
+            for (const auto& t : sk_.teams) sc += " " + t.name + " " + std::to_string(t.captures) + "c/" + std::to_string(t.kills) + "k";
+            LOGI("Skirmish round %.0f s:%s", sk_.time, sc.c_str());
+        }
             sfx2D("pu_hlth", 1.0f, 0.6f);
             skRoundT_ = 0;
             break;

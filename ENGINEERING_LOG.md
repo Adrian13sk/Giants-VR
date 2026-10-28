@@ -2740,3 +2740,10 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   or scorch - explode() gained a no-fire flag), 10 s between casts. SLOW TIME - both grips within 0.2 m before the
   chest for 0.5 s, trigger held: Reapers, creatures and the Reapers' shots update at 0.35x for 8 s, 25 s between.
   Owned from Rstory3 / Rstory4, in the battles and in practice.
+- Skirmish balance survey (harness, computer players only - GVR_SK_SPECTATE takes the player out and gives his side
+  a full set): 12 maps x 15 min. Kabuto's side won every 3-way round by captures (his side has no flag to guard,
+  so a capture never waits for its own flag to come home - 14 of 28 captures with one bot against three a side);
+  most 2-side rounds didn't finish (kill limit 30; ~15-60 kills per 15 min on the big maps). Changes (ours): kill
+  limit 20; Kabuto drops a flag after 60 damage since he took it (4 s before he can take one again) and carries it
+  without sprinting at 80 % speed (bots). After: 12 maps x 20 min, 13 rounds finished (was 6); 3-way rounds Blue 1,
+  Green 1, Red 1, one map unfinished. The large maps (L3, Lw1) stay slow with bots alone: they rarely meet.

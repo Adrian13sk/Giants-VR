@@ -91,6 +91,9 @@ struct SkPlayer {
     float deadT = 0;             // seconds since death (respawn after rules.respawnSeconds)
     int kills = 0, deaths = 0, captures = 0;
     int carrying = -1;           // the team whose flag this player has
+    // (2026-10-28 balance) Kabuto fumbles a flag after this much damage since he took it, and can't take one again
+    // for noGrabT s: with no flag of his own to guard, he won every 3-way round in a bot survey (ours).
+    float carryHurt = 0, noGrabT = 0;
     int lastAttacker = -1;
     float lastHurtAt = -1e9f;    // game time of its last damage (a fall long after a hit is nobody's kill)
     bool gone = false;           // left the game (a joiner): its slot can be taken by the next to join
@@ -130,7 +133,7 @@ struct SkEvent {
 
 struct SkRules {
     int captureLimit = 3;        // a team with this many captures wins
-    int killLimit = 30;          // ...or with this many kills (0: off)
+    int killLimit = 20;          // ...or with this many kills (0: off; 30 left most bot rounds unfinished after 15 min)
     float respawnSeconds = 5.0f;
     bool friendlyFire = false;   // the original's "Damage Teammates?" option
     float flagReturnSeconds = 30.0f;

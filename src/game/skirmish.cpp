@@ -10,6 +10,11 @@
 namespace gvr {
 
 namespace {
+constexpr float kKabutoFumble = 60.0f;  // damage that makes Kabuto drop a flag he carries (ours, 2026-10-28)
+}
+
+
+namespace {
 const char* kTeamNames[3] = {"Blue", "Green", "Red"};  // GTextEnglish commteamno1..3
 float yawTo(const Vec3& d) { return std::atan2(-d.x, -d.z); }  // 0 = facing -Z
 Vec3 flat(const Vec3& v) { return Vec3{v.x, 0, v.z}; }
@@ -398,7 +403,7 @@ float Skirmish::touchRadius(const SkPlayer& p) const { return std::max(2.5f, 0.1
 
 void Skirmish::setLocal(int id, const Vec3& pos, float yaw, float hp, bool alive) {
     SkPlayer* p = player(id);
-    if (!p) return;
+    if (!p || p->gone) return;  // (a spectator, GVR_SK_SPECTATE)
     p->body.position = pos;
     p->body.yaw = yaw;
     p->hp = hp;
@@ -450,6 +455,13 @@ void Skirmish::damage(int victim, float amount, int attacker, const Vec3& from) 
     if (a && a->id != v->id && a->team == v->team && !rules.friendlyFire) return;
     v->lastAttacker = attacker;
     v->lastHurtAt = time;
+    if (v->carrying >= 0 && teams[size_t(v->team)].hero == SkHero::Kabuto) {
+        v->carryHurt += amount;
+        if (v->carryHurt >= kKabutoFumble) {
+            dropFlag(*v);
+            v->noGrabT = 4.0f;
+        }
+    }
     if (v->local || v->remote) {  // its own game applies it (a remote player's: sent over the network)
         SkEvent e;
         e.kind = SkEvent::HurtLocal;
@@ -705,6 +717,10 @@ void Skirmish::moveBot(SkPlayer& p, float dt) {
         if (toGoal > 60.0f && hurry && p.jetT <= 0 && p.body.onGround && p.body.fuel() > 0.7f) p.jetT = 1.6f;
     }
     in.sprint = toGoal > 30.0f && hurry;
+    if (teams[size_t(p.team)].hero == SkHero::Kabuto && p.carrying >= 0) {  // (balance: a flag slows the giant down)
+        in.sprint = false;
+        in.move = Vec2{in.move.x * 0.8f, in.move.y * 0.8f};
+    }
     p.body.update(dt, in);
     static const int dbgId = std::getenv("GVR_SK_DEBUG") ? std::atoi(std::getenv("GVR_SK_DEBUG")) : -1;  // test hook
     if (p.id == dbgId && std::floor(time * 2.0f) != std::floor((time - dt) * 2.0f))
@@ -768,6 +784,7 @@ void Skirmish::updateFlags(float dt) {
             }
         }
     }
+    for (auto& p : players) p.noGrabT = std::max(0.0f, p.noGrabT - dt);
     if (time < rules.captureDelay) return;
     for (auto& p : players) {
         if (!p.alive) continue;
@@ -788,8 +805,9 @@ void Skirmish::updateFlags(float dt) {
                     e.at = f.home;
                     events.push_back(e);
                 }
-            } else if (touch && f.carrier < 0 && p.carrying < 0) {
+            } else if (touch && f.carrier < 0 && p.carrying < 0 && p.noGrabT <= 0) {
                 f.carrier = p.id;
+                p.carryHurt = 0;
                 f.atHome = false;
                 p.carrying = int(i);
                 SkEvent e;

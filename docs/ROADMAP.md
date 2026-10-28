@@ -44,9 +44,6 @@ quality levels chosen per world are logged and stay put.
   jumps across a bolt's path between frames still meets it. Measured in the harness: delphi_parry parries at 12, 15,
   20, 24, 36 and 72 Hz; at 18 Hz this script's bolts happen to pass 0.14-0.6 m from the blade (the Reapers' aim
   spread), not a frame-rate fault - the bolts are checked before they move, against their path 1.5 frames ahead.
-  jumps across a bolt's path between frames still meets it. Measured in the harness: delphi_parry parries at 12, 15,
-  20, 24, 36 and 72 Hz; at 18 Hz this script's bolts happen to pass 0.14-0.6 m from the blade (the Reapers' aim
-  spread), not a frame-rate fault - the bolts are checked before they move, against their path 1.5 frames ahead.
 - **Shop: taking an item by hand.** DONE 2026-10-28: the test reached for the wrong side (items at positive
   angles stand to the LEFT); the ammo box is taken by hand at 24 and 72 Hz.
 - **Moored Reaperski missions:** DONE for rstory2_jetski_2 (2026-10-28: the autopilot gets on and rides a water
@@ -113,10 +110,12 @@ quality levels chosen per world are logged and stay put.
 
 - **Multiplayer (branch `next`):** two-headset LAN test with the user (needs a second Quest or a PC
   build). Merge `next` into `rework` once the rework's device run is clean. Voice chat is out of scope.
-- **Skirmish vs bots on all 12 maps:** a balance pass from the logged capture counts.
+- **Skirmish vs bots on all 12 maps:** a balance pass from the logged capture counts. 2026-10-28: first pass (kill
+  limit 20, Kabuto fumbles and slows with a flag) from a bot-only survey; the big maps stay slow with bots alone.
 - **A PC "spectator" build** (the harness with a window, mouse and keyboard). It's a cheap second player
   for multiplayer tests and lets the user watch a test without the headset. 1–2 sessions.
-- **Save slots:** DONE 2026-10-28 (three, on the CONTINUE row). Checkpoints within a mission: not done.
+- **Save slots:** DONE 2026-10-28 (three, on the CONTINUE row). Checkpoints within a mission: DONE 2026-10-28 (the
+  last objective's spot; in memory, not in the save file).
 - **Difficulty levels:** DONE 2026-10-28 (damage taken and Reaper aim).
 - **Mission select unlocks:** DONE 2026-10-28 (progress.txt; each hero's story up to its first unfinished mission).
 

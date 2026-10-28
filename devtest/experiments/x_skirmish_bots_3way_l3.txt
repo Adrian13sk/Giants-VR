@@ -1,0 +1,12 @@
+# Balance survey (2026-10-28): computer players only on 3-way map 3 (the player watches, GVR_SK_SPECTATE),
+# 20 minutes; the log's "Skirmish round" lines give each finished round's captures and kills per team.
+# Harness before the balance change: Kabuto's side won 3 of 3 rounds; after: 1 of 1 (Kabuto fumbles a flag after
+# 60 damage and carries it slower). Long; not for the regular run.
+name x_skirmish_bots_3way_l3
+world M_3WAY_L3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_SKIRMISH 0,3
+env GVR_SK_SPECTATE 1
+env GVR_SK_TRACE 9999
+duration 1200
