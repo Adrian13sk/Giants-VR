@@ -1,0 +1,54 @@
+# Kabuto at 60 % punches k1a's wooden gate: too small to break it - he is told to eat more Smarties (2026-10-28).
+# Log (checked by devtest.ps1): "can't break this gate yet".
+name kabuto_gate_too_small
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_KABUTO_GROW 0.6
+view third
+duration 12
+at -36 -734
+look -96 -734
+move 0 0.25 1 45
+hold trigger_l 21 21.1
+hold trigger_r 1.00 1.14
+hold trigger_r 1.28 1.42
+hold trigger_r 1.56 1.70
+hold trigger_r 1.84 1.98
+hold trigger_r 2.12 2.26
+hold trigger_r 2.40 2.54
+hold trigger_r 2.68 2.82
+hold trigger_r 2.96 3.10
+hold trigger_r 3.24 3.38
+hold trigger_r 3.52 3.66
+hold trigger_r 3.80 3.94
+hold trigger_r 4.08 4.22
+hold trigger_r 4.36 4.50
+hold trigger_r 4.64 4.78
+hold trigger_r 4.92 5.06
+hold trigger_r 5.20 5.34
+hold trigger_r 5.48 5.62
+hold trigger_r 5.76 5.90
+hold trigger_r 6.04 6.18
+hold trigger_r 6.32 6.46
+hold trigger_r 6.60 6.74
+hold trigger_r 6.88 7.02
+hold trigger_r 7.16 7.30
+hold trigger_r 7.44 7.58
+hold trigger_r 7.72 7.86
+hold trigger_r 8.00 8.14
+hold trigger_r 8.28 8.42
+hold trigger_r 8.56 8.70
+hold trigger_r 8.84 8.98
+hold trigger_r 9.12 9.26
+hold trigger_r 9.40 9.54
+hold trigger_r 9.68 9.82
+hold trigger_r 9.96 10.10
+hold trigger_r 10.24 10.38
+hold trigger_r 10.52 10.66
+hold trigger_r 10.80 10.94
+hold trigger_r 11.08 11.22
+hold trigger_r 11.36 11.50
+hold trigger_r 11.64 11.78
+hold trigger_r 11.92 12.06

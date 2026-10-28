@@ -1342,6 +1342,13 @@ private:  // the mission placed enemies: no test waves
     void checkReachObjectives();  // test hook GVR_REACH_CHECK (game_app_reach.cpp)
     bool planReach(int objective, bool log);
     bool reachWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt);  // GVR_REACH_WALK: steers along reachPath_
+    // Test hook GVR_KABUTO_FEED=<size>: Kabuto walks to the nearest Smartie or Vimp and eats it (X) until he
+    // has grown to that size - his growth in real play, with its timing (game_app_kabuto.cpp).
+    bool kabutoFeedInput(Vec2& move, float& viewYaw, float dt);
+    bool kbFeedX_ = false, kbFeedDone_ = false;
+    float kbFeedT_ = 0, kbFeedStuckT_ = 0;
+    Vec3 kbFeedLast_;
+    std::vector<Vec3> kbFeedSkip_;  // meals he couldn't get to (a house in the way): passed over
     std::vector<Vec3> reachPath_;
     std::vector<uint8_t> reachBlocked_;
     std::vector<float> reachHgt_;

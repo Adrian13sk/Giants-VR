@@ -825,6 +825,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     if (hero_ == Hero::Kabuto && kbGrabHand_ == mh) pi.sprint = false;  // that grip holds something
     if (heldBody_.hand == mh || (heldVillager_ != 0 && heldVillagerHand_ == mh) || stoneInHand(mh)) pi.sprint = false;  // (a body, a Smartie, a stone)
     if (!reachPath_.empty()) reachWalkInput(pi.move, pi.viewYaw, pi.jet, dt);  // test hook GVR_REACH_WALK
+    kabutoFeedInput(pi.move, pi.viewYaw, dt);                                   // test hook GVR_KABUTO_FEED
     // Rework: Kabuto leaps when you jump - a quick rise of your real head from standing (first person)
     // springs him up half as high again as the button's jump.
     kbLeapCool_ = std::max(0.0f, kbLeapCool_ - dt);

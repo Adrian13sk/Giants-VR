@@ -134,6 +134,60 @@ void GameApp::applyKabutoGrowth(float g) {
     player_.floatDepth = 0.7f * H;
 }
 
+bool GameApp::kabutoFeedInput(Vec2& move, float& viewYaw, float dt) {
+    kbFeedX_ = false;
+    static const char* feed = std::getenv("GVR_KABUTO_FEED");
+    if (!feed || hero_ != Hero::Kabuto || !playMode_ || dying_) return false;
+    const float want = float(std::atof(feed));
+    kbFeedT_ += dt;
+    if (kbGrow_ >= want - 1e-3f) {
+        if (!kbFeedDone_) {
+            kbFeedDone_ = true;
+            LOGI("Kabuto feed: grown to %.0f%% in %.1f s", kbGrow_ * 100.0f, kbFeedT_);
+        }
+        return false;
+    }
+    // The nearest Smartie or Vimp he can eat (not one already in his hand).
+    const Vec3 me = player_.position;
+    float best = 1e9f;
+    Vec3 to;
+    auto flatDist = [&](const Vec3& p) { return std::sqrt((p.x - me.x) * (p.x - me.x) + (p.z - me.z) * (p.z - me.z)); };
+    auto skipped = [&](const Vec3& p) {
+        for (const auto& s : kbFeedSkip_)
+            if (length(Vec3{p.x - s.x, 0, p.z - s.z}) < 3.0f) return true;
+        return false;
+    };
+    for (const auto& v : villagers_.villagers)
+        if (v.state != VillagerState::Dead && v.state != VillagerState::Held && flatDist(v.pos) < best && !skipped(v.pos)) { best = flatDist(v.pos); to = v.pos; }
+    for (const auto& v : vimps_.vimps)
+        if (VimpDirector::killable(v) && flatDist(v.pos) < best && !skipped(v.pos)) { best = flatDist(v.pos); to = v.pos; }
+    static bool said = false;
+    if (best > 1e8f) {
+        if (!said) { said = true; LOGI("Kabuto feed: nothing left to eat"); }
+        return false;
+    }
+    const float H = player_.height;
+    if (int(kbFeedT_ / 3.0f) != int((kbFeedT_ - dt) / 3.0f))
+        LOGI("Kabuto feed: %.1f s, size %.0f%%, next meal %.1f m away (reach %.1f), at (%.1f %.1f)", kbFeedT_, kbGrow_ * 100.0f, best, 0.38f * H, me.x, me.z);
+    viewYaw = std::atan2(-(to.x - me.x), -(to.z - me.z));
+    if (best > 0.38f * H) {
+        move = Vec2{0, 1};
+        // No headway for 2 s (a house, a cliff): that meal is passed over.
+        kbFeedStuckT_ += dt;
+        if (length(me - kbFeedLast_) > 0.8f) { kbFeedLast_ = me; kbFeedStuckT_ = 0; }
+        if (kbFeedStuckT_ > 2.0f) {
+            kbFeedSkip_.push_back(to);
+            kbFeedStuckT_ = 0;
+            LOGI("Kabuto feed: can't get to the meal at (%.1f %.1f) - another", to.x, to.z);
+        }
+    } else {
+        move = Vec2{0, 0};
+        player_.yaw = viewYaw;                         // (face it: X takes what's in front)
+        kbFeedX_ = std::fmod(kbFeedT_, 0.6f) < 0.12f;  // a tap now and then
+    }
+    return true;
+}
+
 void GameApp::kabutoAte(int what) {
     if (hero_ != Hero::Kabuto || kbGrow_ >= 1.0f) return;
     // A Smartie, a Vimp, anything else (Reapers, creatures): quicker growth than before (rework).
@@ -391,7 +445,7 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
 
     // --- X: grab and eat the nearest Smartie, Vimp or creature in front (heals him). A Reaper or a
     // boulder is grabbed and carried instead (updateThrows): tapped, a Reaper is eaten; held, thrown.
-    const bool x = in.hand[mh].primary;
+    const bool x = in.hand[mh].primary || kbFeedX_;
     if (x && !k.xWas && !busy && player_.onGround && !boulderInReach()) {
         int best = -1;
         float bestD = 0.6f * H;

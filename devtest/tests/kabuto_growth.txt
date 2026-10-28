@@ -1,0 +1,12 @@
+# Rework (2026-10-28): Kabuto's growth in real play. k1a starts him at 50 %; GVR_KABUTO_FEED walks him to the nearest
+# Smartie or Vimp and eats it (X) until he reaches 70 % - the size k1a's wooden gate needs. Logs the time it took.
+# Log (checked by devtest.ps1): "Kabuto grows to 70%" "Kabuto feed: grown to 70%".
+name kabuto_growth
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_KABUTO_FEED 0.7
+view third
+duration 90
+shot 20 grown

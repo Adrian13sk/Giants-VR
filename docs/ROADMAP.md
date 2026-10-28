@@ -49,8 +49,9 @@ quality levels chosen per world are logged and stay put.
   route; it found that getting on the moored ski put Delphi at the world's origin - fixed). rstory2_jetski_3: no
   water route to its objective even over 1.2 m sandbars (ice walls or a closed lake?) - not yet tested by its
   mechanic. 0.5 session.
-- **Kabuto's growth in real play:** the gate tests start him at full size (GVR_KABUTO_GROW). Add a test
-  that eats its way from 50 % to the size k1a's gate needs, with timings. 1 session.
+- **Kabuto's growth in real play:** DONE 2026-10-28: tests/kabuto_growth (GVR_KABUTO_FEED walks him to the nearest
+  Smartie or Vimp and eats it): 50 -> 70 % in ~15 s in the harness, passing over two meals a house kept him from;
+  missions/m_gate_k1a_grown70 (70 % breaks the wooden gate) and tests/kabuto_gate_too_small (60 % can't), 24/72 Hz.
 - **Reach objectives on foot:** GVR_REACH_WALK walks the path in four missions. Add the rest (every
   "reach" objective in the campaign) as mission tests. 1 session.
 - **Smarties cheering, Timmy, the bush poke:** DONE 2026-10-28 (npcs/npc_smarties_cheer, npc_timmy_tower,
