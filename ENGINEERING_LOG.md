@@ -2784,3 +2784,17 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   Reaper or creature within 60 degrees of its flight and 100 m, then bursts as a rocket. Control run: with plain
   rockets the 35-degree-off Reaper survives, with homing it dies (72 and 24 Hz). The Shop's counter gained a
   sixth item, so ui_shop's reach was moved (the ammo box now stands at 17 degrees).
+- Review of 8442401 / 8e9fb9c / 846b3c8 (a read-only reviewer agent; fixed in 5db4e40): (1) HIGH - the cloak only
+  cleared `aware`: Reapers already advancing or firing kept seeing her (in range, line of sight still set) and kept
+  shooting - the new tests/delphi_cloak_fight measured 21 hits in 12 s before, 0 after. castCloak now drops every
+  fighting Reaper back to idle (alert, poke, lost, los cleared) and enemy.cpp never lets an unaware Reaper "see" a
+  hidden player (cloak or bush); (2) RPG / homing arrows, sword strikes, hail / tornado / fire-wall casts, riding
+  the Reaperski and dying now end the cloak (and riding / dying clear the hidden flag); a Reaper groping for her
+  doesn't play the bush sounds and finding her ends it; (3) the repair beam stayed drawn after switching to the bush
+  or bombs, riding or a new mission; (4) the Repair Gun stayed in the cycle after the first base mission - now set
+  per mission; (5) the base Giftshop didn't sell homing rockets; (6) the cluster flew along the upward flick (60+
+  degrees up) - it uses the aim from before the throw blend, and waits for the bolt cooldown; low: homing rockets
+  are saved at checkpoints, counted on the HUD counters and the wrist line (which also names the Repair Gun, bush
+  and pop-up bomb), get the original FX_homing trail without a doubled smoke puff; a 7-item shop counter closes up
+  (at most 3 rad across) instead of wrapping behind him. Not changed: creatures, Vimps, SAMs and bosses ignore the
+  cloak; the repair ray has no line-of-sight check (cosmetic).
