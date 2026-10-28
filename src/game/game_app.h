@@ -1402,6 +1402,13 @@ private:  // the mission placed enemies: no test waves
     // (2026-10-28) Missions finished in this install (progress.txt beside the save): the mission select offers
     // each hero's story up to its first unfinished mission. GVR_PROGRESS=<m,m,...> overrides; GVR_ALL_MISSIONS=1 offers all.
     std::set<std::string> missionsDone_;
+    // (2026-10-28) The last finished mission's numbers, on the next loading screen: time, kills, hits, deaths.
+    struct MissionStats { std::string title; float seconds = 0; int kills = 0; size_t shots = 0, hits = 0; int deaths = 0; bool valid = false; };
+    MissionStats lastStats_;
+    double statStartT_ = 0;
+    size_t statShots0_ = 0, statHits0_ = 0;
+    int statDeaths_ = 0;
+    void recordMissionStats();
     // Save slots (2026-10-28): slot 1 is the original save file, 2 and 3 save2.txt / save3.txt beside it.
     std::string baseSavePath_;
     std::string slotPath(int slot) const;

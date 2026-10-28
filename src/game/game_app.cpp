@@ -2876,9 +2876,35 @@ void GameApp::renderLoading() {
     }
     if (!load_.brief.empty())
         if (const MeshId b = text_.mesh(load_.brief, art ? 0.05f : 0.055f, wrap, &w, &h)) text_.draw(b, place(textX, y - 0.5f * h), {0.9f, 0.9f, 0.85f, 1.0f});
+    if (lastStats_.valid && !title_) {  // (2026-10-28) the mission just finished, in numbers
+        const int m = int(lastStats_.seconds) / 60, sec = int(lastStats_.seconds) % 60;
+        char s[200];
+        const std::string acc = lastStats_.shots > 0 ? std::to_string(int(100.0 * double(lastStats_.hits) / double(lastStats_.shots) + 0.5)) + "% HITS" : "NO SHOTS";
+        std::snprintf(s, sizeof s, "DONE: %s  -  %d:%02d   %d KILLS   %s   %d %s", lastStats_.title.c_str(), m, sec, lastStats_.kills, acc.c_str(),
+                      lastStats_.deaths, lastStats_.deaths == 1 ? "DEATH" : "DEATHS");
+        if (const MeshId st = text_.mesh(s, 0.045f, 2.6f, &w, &h)) text_.draw(st, place(0.0f, -0.555f), {0.7f, 1.0f, 0.75f, 0.9f});
+    }
     const float pulse = 0.55f + 0.45f * std::sin(load_.t * 4.0f);
     const char* label = load_.phase == LoadPhase::Show ? "LOADING..." : "GET READY";
-    if (const MeshId l = text_.mesh(label, 0.07f, 1.5f, &w, &h)) text_.draw(l, place(0.0f, -0.62f), {1, 1, 1, pulse});
+    if (const MeshId l = text_.mesh(label, 0.07f, 1.5f, &w, &h)) text_.draw(l, place(0.0f, lastStats_.valid ? -0.65f : -0.62f), {1, 1, 1, pulse});
+}
+
+void GameApp::recordMissionStats() {
+    if (!assetWorld_) return;
+    MissionStats st;
+    std::string t, b;
+    missionText(assetWorld_->missionName(), t, b);
+    st.title = t.empty() ? assetWorld_->missionName() : t;
+    for (char& c : st.title) c = char(std::toupper(static_cast<unsigned char>(c)));
+    st.seconds = float(time_ - statStartT_);
+    for (const auto& e : enemies_.enemies) st.kills += e.state == EnemyState::Dead ? 1 : 0;
+    for (const auto& c : creatures_.creatures) st.kills += c.state == CreatureState::Dead ? 1 : 0;
+    st.shots = weapon_.shotsFired() - statShots0_;
+    st.hits = weapon_.hits() - statHits0_;
+    st.deaths = statDeaths_;
+    st.valid = true;
+    lastStats_ = st;
+    LOGI("Mission stats: %s, %.0f s, %d kills, %zu shots %zu hits, %d deaths", st.title.c_str(), st.seconds, st.kills, st.shots, st.hits, st.deaths);
 }
 
 void GameApp::loadMission(const std::string& name) {
@@ -2914,6 +2940,10 @@ void GameApp::loadMission(const std::string& name) {
             std::fclose(f);
         }
         LOGI("Mission %s loaded (resident memory %ld MB)", name.c_str(), rssKb >= 0 ? rssKb / 1024 : -1L);
+        statStartT_ = time_;
+        statShots0_ = weapon_.shotsFired();
+        statHits0_ = weapon_.hits();
+        statDeaths_ = 0;
     }
 }
 
@@ -2927,6 +2957,7 @@ void GameApp::completeObjective(int index) {
     missionComplete_ = true;
     LOGI("Mission %s complete", assetWorld_->missionName().c_str());
     markMissionDone(assetWorld_->missionName());
+    recordMissionStats();
     haptics_.push_back({kLeft, 0.9f, 0.3f});
     haptics_.push_back({kRight, 0.9f, 0.3f});
     // The outro cutscene (op 0x19); where it can't be played, its soundtrack still carries the
@@ -2959,6 +2990,7 @@ void GameApp::updateMission(float dt) {
                 missionComplete_ = true;
                 LOGI("Mission %s complete", assetWorld_->missionName().c_str());
                 markMissionDone(assetWorld_->missionName());
+                recordMissionStats();
             }
             return;
         }
@@ -3421,6 +3453,7 @@ void GameApp::damagePlayer(float amount, DeathCause cause) {
 void GameApp::startDeath() {
     playerHealth_ = 0;
     dying_ = true;
+    ++statDeaths_;
     deathTime_ = 0;
     deathCause_ = player_.swimming() ? DeathCause::Drowned : lastHurt_;
     deathWasFp_ = firstPerson_;
