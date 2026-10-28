@@ -125,7 +125,9 @@ quality levels chosen per world are logged and stay put.
 - **Crash reporting:** DONE 2026-10-28 (ed4ed9e, BUILD only): signal, backtrace and the last 160 log lines in
   `files/crash/crash_<time>.txt`; devtest pulls it; `experiments/crash_report` checks it on the headset.
 - **Official toolchain (B2):** rebuild with Google's NDK r27c and build-tools before any public release.
-- **Code health:** split `game_app.cpp` (4,900 lines) by system. There have been three code reviews; make
+- **Code health:** DONE 2026-10-28 for the first pass: `game_app.cpp` (5,200 lines) split by system into
+  `game_app_{audio,gore,mission,cutscene,combat,render}.cpp` (whole functions moved, 2,300 lines left: init, play
+  mode, characters, the update). There have been three code reviews; make
   them a habit at each milestone.
 
 ## 7. Release readiness (only when the user decides)

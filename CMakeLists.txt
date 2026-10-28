@@ -120,6 +120,12 @@ add_library(gvr_core STATIC
   src/audio/ambience.cpp
   src/audio/music.cpp
   src/game/game_app.cpp
+  src/game/game_app_audio.cpp
+  src/game/game_app_gore.cpp
+  src/game/game_app_mission.cpp
+  src/game/game_app_cutscene.cpp
+  src/game/game_app_combat.cpp
+  src/game/game_app_render.cpp
 )
 target_include_directories(gvr_core PUBLIC src third_party)
 target_compile_options(gvr_core PRIVATE -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers)

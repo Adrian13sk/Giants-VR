@@ -30,6 +30,14 @@ android_main (NativeActivity, EGL pbuffer context)          src/platform/android
        └─ Renderer: GLES 3.0 forward renderer (unlit/lit, alpha test/blend, linear fog)
 ```
 
+### GameApp's files (2026-10-28)
+GameApp is one class spread over `src/game/game_app*.cpp`, one file per system. `game_app.cpp` keeps init, play
+mode and the camera, characters and the per-frame update; `game_app_mission.cpp` (mission setup, objectives,
+checkpoints, loading screen), `game_app_combat.cpp` (waves, the player's damage and death, blasts, rockets),
+`game_app_render.cpp` (sun, shadows, reflections, the eye views and world pass), `game_app_audio.cpp` (effects,
+mix, music, streams), `game_app_cutscene.cpp`, `game_app_gore.cpp`, `game_app_title.cpp` (main menu, practice),
+`game_app_menu.cpp` (Options) and ~50 smaller ones named after what they do.
+
 ### Multiplayer (2026-10-25)
 ```
 GameApp (game_app_skirmish.cpp): the multiplayer maps (w_M_*), bodies, hits, HUD, menu
