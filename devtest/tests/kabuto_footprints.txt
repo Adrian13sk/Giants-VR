@@ -1,4 +1,5 @@
 # Rework (2026-10-26): Kabuto walks 4 s (third person) - his footprints stay on the ground behind him.
+# Log (checked by devtest.ps1): "footfalls felt in the hands" (2026-10-28: each step in the controllers).
 name kabuto_footprints
 world Kstory1
 mission k1a_smarties

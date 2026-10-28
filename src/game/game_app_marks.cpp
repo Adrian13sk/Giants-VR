@@ -49,6 +49,15 @@ void GameApp::updateGroundMarks(float dt) {
         if (half != footPhase_) {
             footPhase_ = half;
             const bool wade = player_.position.y < player_.seaLevel - 0.05f;
+            // (2026-10-28) Each footfall in the hands, heavier the bigger he is; the stepping side's hand most.
+            {
+                const int sideHand = (int(half) & 1) ? kRight : kLeft;
+                const float a = (0.2f + 0.35f * kbGrow_) * (wade ? 0.6f : 1.0f);
+                haptics_.push_back({sideHand, a, 0.07f});
+                haptics_.push_back({1 - sideHand, 0.6f * a, 0.05f});
+                static int n = 0;
+                if (++n == 4) LOGI("Kabuto's footfalls felt in the hands (%.2f)", a);
+            }
             if (!wade && !player_.onObject()) {
                 const float side = (int(half) & 1) ? 1.0f : -1.0f;
                 const Quat r = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);

@@ -1788,6 +1788,11 @@ private:  // the mission placed enemies: no test waves
     // it aims along the line between your hands.
     float gunKick_ = 0, gunKickV_ = 0;
     bool twoHand_ = false;
+    // A gun's kick in the hand that holds it, and (2026-10-28) in the hand steadying it, a little less.
+    void gunHaptic(int hand, float amplitude, float seconds) {
+        haptics_.push_back({hand, amplitude, seconds});
+        if (twoHand_) haptics_.push_back({1 - hand, 0.7f * amplitude, seconds});
+    }
     void gunKick(float strength);
     // Light flashes (rework): muzzle flashes and explosions light their surroundings for a moment
     // (the renderer's one point light goes to the brightest; the jetpack keeps it otherwise).

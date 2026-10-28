@@ -239,7 +239,7 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
     gunTriggerHeld_ = trigger;
     if (pull && gun.ammo <= 0) {
         sfx2D("me_outam", 0.8f);  // out of ammo (name read as OUT AMmo)
-        haptics_.push_back({gh, 0.2f, 0.03f});
+        gunHaptic(gh, 0.2f, 0.03f);
     }
     if (g == kGunMortar) {
         // The Millenium mortar lobs a bomb (mc_lbomb, weapon 1: every 3 s, range 200 units = 40 m): it
@@ -250,7 +250,7 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
             rockets_.push_back(r);
             --gun.ammo;
             gun.cool = gun.interval;
-            haptics_.push_back({gh, 1.0f, 0.15f});
+            gunHaptic(gh, 1.0f, 0.15f);
             gunKick(0.35f);
             addFlash(muzzle, {2.0f, 1.3f, 0.6f}, 8.0f, 0.15f);
             sfx("me_mtrsh", muzzle, 1.0f, 0.95f + 0.1f * frand());
@@ -268,7 +268,7 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
             rockets_.push_back(r);
             --gun.ammo;
             gun.cool = gun.interval;
-            haptics_.push_back({gh, 0.8f, 0.1f});
+            gunHaptic(gh, 0.8f, 0.1f);
             gunKick(0.40f);
             ejectCasing(muzzle, fwd, 2.2f);  // (rework: the spent shell)
             addFlash(muzzle, {2.4f, 1.5f, 0.6f}, 9.0f, 0.12f);
@@ -296,12 +296,12 @@ bool GameApp::fireGun(float dt, bool trigger, bool valid, const Vec3& muzzle, co
         --gun.ammo;
         ejectCasing(muzzle, fwd, g == kGunSniper ? 1.8f : 1.0f);  // (rework: the spent casing)
         if (g == kGunSniper) {
-            haptics_.push_back({gh, 0.9f, 0.1f});
+            gunHaptic(gh, 0.9f, 0.1f);
             gunKick(0.30f);
             addFlash(muzzle, {2.0f, 1.6f, 1.0f}, 8.0f, 0.10f);
             sfx("me_sprsh", muzzle, 1.0f, 0.97f + 0.06f * frand());
         } else {
-            haptics_.push_back({gh, 0.3f, 0.03f});
+            gunHaptic(gh, 0.3f, 0.03f);
             gunKick(0.06f);
             addFlash(muzzle, {2.0f, 1.2f, 0.5f}, 6.0f, 0.06f);
             if (!mgLoop_ && audio_) {
