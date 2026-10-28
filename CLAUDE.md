@@ -37,6 +37,6 @@ source exists; this is a **native reimplementation that loads the user's origina
 - Delivering an APK to the user's PC: stage it under a UNIQUE name (e.g. `GiantsVR-dev-<commit>.apk`).
   Re-sending the same staged path can silently deliver stale content. Then stage the PC copy back
   and compare its sha256 against the build before telling the user to install.
-- With every delivered APK keep its unstripped library: `cp build/android/libgiantsvr.so build/symbols/<commit>.so`
-  (crash reports from the headset: `tools/py/symbolize_crash.py <report> build/symbols/<commit>.so`).
+- `scripts/build_apk.sh` keeps each build's unstripped library as `build/symbols/<commit>.so` (build from a clean
+  commit before delivering); crash reports from the headset: `tools/py/symbolize_crash.py <report> build/symbols/<commit>.so`.
 - Keep docs current: PROJECT_STATUS.md, ENGINEERING_LOG.md, BLOCKERS.md, TEST_REPORT.md.

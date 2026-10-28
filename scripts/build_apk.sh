@@ -17,6 +17,13 @@ for f in "$NDK/build/cmake/android.toolchain.cmake" "$AAPT2" "$FRAMEWORK" "$SIGN
   [[ -e "$f" ]] || { echo "missing: $f (run scripts/fetch_deps.sh)"; exit 1; }
 done
 
+# --check: the host unit tests first (2026-10-28).
+if [[ "${1:-}" == "--check" ]]; then
+  echo "== host unit tests"
+  cmake -S "$here" -B "$here/build/host" -G Ninja >/dev/null && ninja -C "$here/build/host" gvr_tests >/dev/null
+  "$here/build/host/gvr_tests" | tail -1
+fi
+
 echo "== native build ($BUILD_TYPE)"
 cmake -S "$here" -B "$here/build/android" -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
@@ -31,6 +38,12 @@ rm -rf "$OUT" && mkdir -p "$OUT/stage/lib/arm64-v8a"
 STRIP="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
 cp "$here/build/android/libgiantsvr.so" "$OUT/stage/lib/arm64-v8a/"
 cp "$here/build/android/libgiantsvr.so" "$OUT/libgiantsvr.unstripped.so"   # for ndk-stack symbolication
+# (2026-10-28) ...and kept per commit: a crash report from a headset names this build's offsets
+# (tools/py/symbolize_crash.py <report> build/symbols/<commit>.so).
+mkdir -p "$here/build/symbols"
+rev="$(git -C "$here" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+git -C "$here" diff --quiet HEAD -- src 2>/dev/null || rev="$rev-dirty"
+cp "$here/build/android/libgiantsvr.so" "$here/build/symbols/$rev.so"
 "$STRIP" --strip-unneeded "$OUT/stage/lib/arm64-v8a/libgiantsvr.so"
 cp "$LOADER" "$OUT/stage/lib/arm64-v8a/"
 python3 -I - "$OUT/base.apk" "$OUT/unsigned.apk" "$OUT/stage" <<'PY'
