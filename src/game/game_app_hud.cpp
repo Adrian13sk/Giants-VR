@@ -28,8 +28,10 @@ void GameApp::initHud(ModelCache* mc) {
                                      "st_mec_shotgun", "st_mec_machine", "st_mec_sniper", "st_mec_mortar", "st_mec_grenade", "st_mec_mine",
                                      "st_mec_repair",    // (the Repair Gun's; 2026-10-28: the st_ art exists after all)
                                      "st_mec_turret1",   // (the portable turret's: IconTurret1)
-                                     "st_mec_shield"};
-    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 64, 48, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4};
+                                     "st_mec_shield",
+                                     // (2026-10-29) Delphi's spells: the data's own spell icons, a row under her weapon
+                                     "st_rp_hail", "st_rp_slowtime", "st_rp_cloak", "st_rp_cluster", "st_rp_follow", "st_rp_circle", "st_rp_tornado"};
+    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 64, 48, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2, 2};
     for (int k = 0; k < kHudLayers; ++k) {
         hudTex_[k] = names[k] ? mc->texture(names[k]) : whiteTex_;
         if (!hudTex_[k]) hudTex_[k] = whiteTex_;
@@ -191,6 +193,25 @@ void GameApp::hudStatus(const HudFrame& f) {
         const float ready = boltCooldown_ <= 0 ? 1.0f : 0.0f;
         const uint8_t fire[4] = {255, 255, 255, uint8_t(ready > 0 ? 255 : 90)};
         hudRect(kHudFire, f, -0.002f, 0.0f, 0.03f, 0.03f, fire);
+        // (2026-10-29) The spells she has, in a row under the weapon: lit when ready, faint while recharging,
+        // pulsing while one is working (slow time, the cloak, the fire circle, a Reaper held by FOLLOW).
+        struct Sp { int layer; bool owned; float cool, active; };
+        const Sp sp[] = {{kHudRpHail, hailOwned(), hailCool_, 0},
+                         {kHudRpSlow, slowOwned(), slowCool_, slowT_},
+                         {kHudRpCloak, cloakOwned(), cloakCool_, cloakT_},
+                         {kHudRpCluster, clusterOwned(), clusterCool_, 0},
+                         {kHudRpFollow, followOwned(), followCool_, followUid_ ? 1.0f : 0.0f},
+                         {kHudRpCircle, slowOwned(), circleCool_, circleT_},
+                         {kHudRpTornado, tornadoOwned(), 0, 0}};
+        float sx = -0.002f;
+        const float pulse = 0.6f + 0.4f * std::sin(float(time_) * 6.0f);
+        for (const auto& s : sp) {
+            if (!s.owned) continue;
+            const uint8_t a = uint8_t(s.active > 0 ? 255 * pulse : (s.cool > 0 ? 70 : 230));
+            const uint8_t col[4] = {255, 255, 255, a};
+            hudRect(s.layer, f, sx, -0.062f, 0.022f, 0.022f, col);
+            sx += 0.025f;
+        }
     } else {
         const bool launcher = weaponSel_ == 1 && launcherModel_;
         const int g = gunOfSel(weaponSel_);
