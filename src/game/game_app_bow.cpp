@@ -272,6 +272,7 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
     const Vec3 dir = bowByHand_ ? normalize(bowGrip_ - nockAt) : bowFwd_;
     const Vec3 from = bowGrip_ + dir * 0.15f;
     const float power = 0.35f + 0.65f * draw;
+    endCloak("she shot");  // (every arrow: the RPG and homing ones never pass through weapon_)
     if (delphiWeapon_ == kBowRpg) {
         Rocket r{from, dir * (25.0f + 35.0f * draw), 0.0f, 7, 0, bow.damage * power};
         rockets_.push_back(r);

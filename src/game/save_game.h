@@ -16,8 +16,9 @@ struct SaveGame {
     bool guns[4] = {false, false, false, false};
     int ammo[4] = {0, 0, 0, 0};
     int grenades = 0;
-    int rockets = -1;
-    int mines = 0;  // the launcher's rockets (-1: not saved - a save from before they were counted)
+    int rockets = -1;  // the launcher's rockets (-1: not saved - a save from before they were counted)
+    int homing = 0;    // its homing rockets (item 15)
+    int mines = 0;
     // Delphi's bows (items 44 bow, 45 RPG bow, 46 sniper bow) and their arrows (-1: unlimited).
     bool bows[5] = {false, false, false, false, false};
     int arrows[5] = {-1, -1, -1, -1, -1};

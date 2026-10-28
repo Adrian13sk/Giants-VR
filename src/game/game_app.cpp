@@ -829,6 +829,9 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     { GVR_PROF("jetski world"); updateJetskiWorld(dt, in); }
     if (riding_) {  // on the Reaperski: its own handling (game_app_jetski.cpp)
         swordValid_ = gunValid_ = false;
+        repairOn_ = false;
+        endCloak("she rides");  // (updateBush is skipped here: nothing else clears her hiding)
+        enemies_.playerHidden = enemies_.playerMoving = false;
         updateRiding(dt, in);
         { GVR_PROF("feel"); updateFeel(dt, in); }
         updateCombat(dt);
@@ -1860,6 +1863,7 @@ Mat4 GameApp::gunDrawXf() const {
 
 void GameApp::updateWeapon(float dt, const InputFrame& in) {
     const int gh = rig_.turnHand();
+    if (weaponSel_ != 10) repairOn_ = false;  // (2026-10-28 review: the beam stayed drawn after a switch to the bush or bombs)
     updateGunKick(dt);
     // Right stick forward: next weapon (released to neutral before it switches again).
     const float sy = in.hand[gh].thumbstick.y;

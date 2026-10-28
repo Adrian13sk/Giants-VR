@@ -194,7 +194,7 @@ void GameApp::hudStatus(const HudFrame& f) {
         const int g = gunOfSel(weaponSel_);
         const int layer = g >= 0 ? guns_[g].hudLayer : weaponSel_ == 10 ? kHudRepair : weaponSel_ == 9 ? kHudMine : weaponSel_ == 8 ? kHudGrenade : weaponSel_ == 3 ? kHudPop : weaponSel_ == 2 ? kHudBush : (launcher ? kHudLauncher : kHudGun);
         hudRect(layer, f, 0.040f, -0.024f, 0.036f, 0.036f, on);
-        const int rounds = g >= 0 ? guns_[g].ammo : (launcher ? launcherAmmo_ : weaponSel_ == 8 ? grenades_ : weaponSel_ == 9 ? mines_ : -1);
+        const int rounds = g >= 0 ? guns_[g].ammo : (launcher ? launcherAmmo_ + launcherHoming_ : weaponSel_ == 8 ? grenades_ : weaponSel_ == 9 ? mines_ : -1);
         if (rounds >= 0) {  // rounds left, under the weapon
             const uint8_t nc[4] = {255, uint8_t(rounds > 0 ? 255 : 80), uint8_t(rounds > 0 ? 255 : 80), 255};
             hudDigits(f, 0.026f, -0.046f, 0.012f, rounds, nc);
@@ -237,7 +237,7 @@ void GameApp::hudWeaponStrip() {
         if (guns_[g].have && guns_[g].model) add(guns_[g].hudLayer, weaponSel_ == guns_[g].sel, guns_[g].ammo);
     if (grenades_ > 0) add(kHudGrenade, weaponSel_ == 8, grenades_);
     if (mines_ > 0) add(kHudMine, weaponSel_ == 9, mines_);
-    if (hasLauncher_ && launcherModel_) add(kHudLauncher, weaponSel_ == 1, launcherAmmo_);
+    if (hasLauncher_ && launcherModel_) add(kHudLauncher, weaponSel_ == 1, launcherAmmo_ + launcherHoming_);
     if (hasRepairGun_ && repairModel_) add(kHudRepair, weaponSel_ == 10, -1);
     if (syringes_ > 0) add(kHudSyringe, false, syringes_);
     if (hasBush()) add(kHudBush, weaponSel_ == 2, -1);
@@ -666,7 +666,7 @@ void GameApp::renderGunCounter() {
     if (!gunCounterValid_ || !firstPerson_ || hero_ != Hero::Mecc || !gunValid_ || menuOpen_ || !text_.ready() || !lastInput_.headValid) return;
     const bool launcher = weaponSel_ == 1 && launcherModel_;
     const int g = gunOfSel(weaponSel_);
-    const int rounds = g >= 0 ? guns_[g].ammo : (launcher ? launcherAmmo_ : -1);
+    const int rounds = g >= 0 ? guns_[g].ammo : (launcher ? launcherAmmo_ + launcherHoming_ : -1);
     if (rounds < 0) return;  // (the handgun: no count)
     // On top of the gun model, over the hand that holds it (its handle), a little forward (model -Z is the muzzle).
     const RenderModel* gm = g >= 0 ? guns_[g].model : (launcher ? launcherModel_ : nullptr);
@@ -738,9 +738,12 @@ void GameApp::renderWristPanel() {
     if (hero_ == Hero::Mecc) {
         const int g = gunOfSel(weaponSel_);
         if (g >= 0) ammo = std::string(guns_[g].name) + " " + std::to_string(guns_[g].ammo);
-        else if (weaponSel_ == 1) ammo = "LAUNCHER " + std::to_string(launcherAmmo_);
+        else if (weaponSel_ == 1) ammo = "LAUNCHER " + std::to_string(launcherAmmo_) + (launcherHoming_ > 0 ? " +" + std::to_string(launcherHoming_) + " HOMING" : "");
         else if (weaponSel_ == 8) ammo = "GRENADES " + std::to_string(grenades_);
         else if (weaponSel_ == 9) ammo = "MINES " + std::to_string(mines_);
+        else if (weaponSel_ == 10) ammo = "REPAIR GUN";
+        else if (weaponSel_ == 2) ammo = "BUSH PACK";
+        else if (weaponSel_ == 3) ammo = "POP-UP BOMB " + std::to_string(popupBombs_);
         else ammo = "HANDGUN";
     } else if (hero_ == Hero::Delphi) {
         if (delphiBow()) ammo = std::string(bows_[delphiWeapon_].name) + (bows_[delphiWeapon_].ammo >= 0 ? " " + std::to_string(bows_[delphiWeapon_].ammo) : "");

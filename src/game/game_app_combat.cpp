@@ -56,6 +56,7 @@ void GameApp::spawnWave() {
 
 void GameApp::damagePlayer(float amount, DeathCause cause) {
     if (playerHealth_ <= 0 || dying_) return;
+    if (cloakT_ > 0) ++cloakHits_;  // (counted even in god mode: devtest delphi_cloak_fight)
     static const bool god = std::getenv("GVR_GOD") != nullptr;  // test hook: the player can't be hurt (perf runs)
     if (god) return;
     if (hero_ == Hero::Kabuto) amount *= 0.3f;  // a giant's hide: Reaper bolts and bites sting
@@ -93,6 +94,9 @@ void GameApp::damagePlayer(float amount, DeathCause cause) {
 void GameApp::startDeath() {
     playerHealth_ = 0;
     dying_ = true;
+    endCloak("she fell");
+    enemies_.playerHidden = enemies_.playerMoving = false;
+    repairOn_ = false;
     ++statDeaths_;
     deathTime_ = 0;
     deathCause_ = player_.swimming() ? DeathCause::Drowned : lastHurt_;
@@ -313,7 +317,6 @@ void GameApp::explode(const Vec3& at, float radius, float damage, bool fire, int
 }
 
 void GameApp::updateRockets(float dtAll) {
-    const float dt = dtAll;
     for (auto& r : rockets_) {
         // (SLOW TIME: the enemies' missiles, bazooka rockets and grenades fly slow too - review 2026-10-28)
         const float dt = (r.kind == 2 || r.kind == 3 || r.kind == 6) ? dtAll * enemyTimeScale() : dtAll;
@@ -453,7 +456,7 @@ void GameApp::updateRockets(float dtAll) {
                 f = normalize(f + (normalize(best - r.pos) - f) * std::min(1.0f, 7.0f * dt));
                 r.vel = f * sp;
             }
-            if (!rocketTrail(r) && frand() < dt * 25.0f) smokePuff(FxTex::Smoke, r.pos, Vec3{0, 0.3f, 0}, 0.3f, 1.4f, 1.2f, 0.45f, 0.1f);
+            // (its trail: FX_homing with the original effects, else updateFx's flame and smoke as on any rocket)
         }
         if (r.kind == 3) {
             // A Reaper's bazooka rocket: smoke trail; bursts near the player as well as on what it hits.

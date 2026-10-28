@@ -1,0 +1,18 @@
+# (2026-10-28 review) CLOAK in the middle of a fight: three Reapers 14 m off have seen Delphi and are shooting; she
+# casts the cloak (left hand over the eyes, trigger held 0.6 s) and they lose her - no more shots land until it ends.
+# (Before the fix only idle Reapers were fooled: ones already advancing or firing kept at it.)
+# Log (checked by devtest.ps1): "Delphi casts CLOAK (12 s): N Reapers lose her, N of them in a fight" "Cloak ends (time): hit 0 times while cloaked".
+name delphi_cloak_fight
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_SPELL_TRACE 1
+duration 19
+reapers 3 14 0.5 99
+hand_l 0.2 0.45 0.25 3.6 4.3
+hold trigger_l 4.6 5.6
+hand_l -0.2 -0.45 -0.25 5.8 6.1
+shot 9 cloaked_fight

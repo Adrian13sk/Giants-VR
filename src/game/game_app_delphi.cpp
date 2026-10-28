@@ -313,6 +313,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
                         const bool slash = !thrust && speed > 8.0f;
                         const bool reaper = target < kCreatureTargetD;
                         const uint32_t uid = reaper && size_t(target) < enemies_.enemies.size() ? enemies_.enemies[size_t(target)].uid : 0;
+                        endCloak("she struck");
                         strike(target, at, mv, std::min(2.5f, 0.6f + speed / 5.0f) * (thrust ? 4.0f : 1.0f));  // (a thrust is deadly)
                         if (reaper && uid) {
                             const int ei = enemyOfUid(uid);
@@ -481,6 +482,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
     updateSpellGestures(dt, in, dir);
     const bool consumed = updateSpells(dt, boltTrig, from, dir, ok);
     float boltSpeed = 28.0f;
+    const Vec3 aimDir = dir;  // (the cluster flies along the aim, not the upward flick that casts it)
     if (firstPerson_ && length(castHandVel_) > 1.8f) {
         const Vec3 throwDir = normalize(rig_.worldFromTracking.orientation.rotate(castHandVel_));
         if (dot(throwDir, dir) > 0.3f) {
@@ -490,7 +492,8 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
     }
     // (2026-10-28) CLUSTER: the bolt let go while the hand flicks up - six bolts in a spread along the aim.
     if (!consumed && !boltTrig && boltTrigWas_ && ok && firstPerson_ && castHandVel_.y > 2.2f && clusterOwned() && clusterCool_ <= 0 &&
-        !heldReaperGun(mh)) {
+        boltCooldown_ <= 0 && !heldReaperGun(mh)) {
+        const Vec3 dir = aimDir;
         const Vec3 side = normalize(cross(dir, Vec3{0, 1, 0}) + Vec3{1e-4f, 0, 0});
         for (int k = 0; k < 6; ++k) {
             const float a = (float(k) - 2.5f) * 0.09f;

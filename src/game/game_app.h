@@ -1309,6 +1309,7 @@ private:  // the mission placed enemies: no test waves
     // held, 0.6 s: unseen (as in Baz's bush) for 12 s, until she shoots.
     float cloakT_ = 0, cloakCool_ = 0, clusterCool_ = 0, gestFaceT_ = 0;
     uint32_t cloakShots0_ = 0;
+    int cloakHits_ = 0;  // hurt while cloaked (logged when it ends)
     bool cloakOwned() const;
     bool clusterOwned() const { return cloakOwned(); }
     void castCloak();

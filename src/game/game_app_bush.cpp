@@ -99,17 +99,20 @@ void GameApp::bushEvents() {
                 LOGI("bush trace: reaper %.1f m, state %d aware %d poke %.1f hidden %d moving %d", length(e.pos - player_.position), int(e.state),
                      int(e.aware), e.poke, int(enemies_.playerHidden), int(enemies_.playerMoving));
     // Called after the Reapers' update: their reactions to the bush.
+    const bool cloak = cloakT_ > 0;  // (Delphi's cloak: there is no bush - he gropes for what he heard)
     if (enemies_.pokeStarted) {
-        for (const auto& e : enemies_.enemies)
-            if (e.poke >= 0 && e.poke < 0.05f) sfx("rpman_bush", e.pos, 1.0f);
-        LOGI("A Reaper goes to poke the bush");
+        if (!cloak)
+            for (const auto& e : enemies_.enemies)
+                if (e.poke >= 0 && e.poke < 0.05f) sfx("rpman_bush", e.pos, 1.0f);
+        LOGI("%s", cloak ? "A Reaper gropes for the cloaked Delphi" : "A Reaper goes to poke the bush");
     }
     if (enemies_.pokeFound) {
         sfx2D("rpman_hit1", 0.6f, 1.2f);
         timmyLine_ = "FOUND!";
         timmyLineT_ = 1.5f;
         for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.7f, 0.15f});
-        LOGI("A Reaper poked the bush and found the player");
+        LOGI("%s", cloak ? "A Reaper found the cloaked Delphi" : "A Reaper poked the bush and found the player");
+        endCloak("found");
     }
 }
 

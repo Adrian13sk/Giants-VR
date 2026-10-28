@@ -130,10 +130,12 @@ void GameApp::initMission() {
     setHero(practice_ ? practiceHero_ : (race == 1 ? Hero::Kabuto : (race == 2 ? Hero::Mecc : (race == 3 ? Hero::Delphi : heroForWorld(worldName_)))));
     if (hero_ != Hero::Mecc) player_.jetpackAvailable = false;
     initBase();   // both depend on the hero just chosen (initCharacters may have run them with the last one)
-    if (hero_ == Hero::Mecc && (base_.on || practice_) && repairModel_) {  // the Repair Gun (ours: see game_app.h)
-        hasRepairGun_ = true;
-        LOGI("Arsenal: the Repair Gun (base mission)");
-    }
+    // The Repair Gun (ours: see game_app.h): carried in the base missions and in practice only (2026-10-28 review: it
+    // stayed in the cycle for every later mission, where there is nothing to mend).
+    hasRepairGun_ = hero_ == Hero::Mecc && (base_.on || practice_) && repairModel_;
+    repairOn_ = false;
+    repairTarget_ = -1;
+    if (hasRepairGun_) LOGI("Arsenal: the Repair Gun (base mission)");
     initPopup();
     // A level's Shop also sells ammo for the guns he carries / her bows' arrows (ours).
     if (shopOn_ && hero_ != Hero::Kabuto && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 4; }))
@@ -169,6 +171,7 @@ void GameApp::initMission() {
         if (pendingRestore_.launcher && launcherModel_) {
             hasLauncher_ = true;
             launcherAmmo_ = std::max(launcherAmmo_, std::min(launcherMax_, pendingRestore_.rockets < 0 ? launcherGive_ : pendingRestore_.rockets));
+            launcherHoming_ = std::max(launcherHoming_, std::min(launcherHomingMax_, pendingRestore_.homing));
         }
         grenades_ = std::max(grenades_, std::min(grenadeMax_, pendingRestore_.grenades));
         mines_ = std::max(mines_, std::min(minesMax_, pendingRestore_.mines));
@@ -203,6 +206,7 @@ void GameApp::writeCheckpoint() {
     g.syringes = syringes_;
     g.launcher = hasLauncher_;
     g.rockets = launcherAmmo_;
+    g.homing = launcherHoming_;
     for (int k = 0; k < kNumGuns; ++k) { g.guns[k] = guns_[k].have; g.ammo[k] = guns_[k].ammo; }
     g.grenades = grenades_;
     g.mines = mines_;

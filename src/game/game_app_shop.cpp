@@ -74,6 +74,7 @@ void GameApp::openShopAt(const Vec3& centre) {
         for (int i = 0; i < 3; ++i) shopItems_.push_back({kinds[i], shopAt_, false});
         if (hero_ != Hero::Kabuto) shopItems_.push_back({4, shopAt_, false});
         if (hero_ == Hero::Mecc) shopItems_.push_back({5, shopAt_, false});
+        if (hero_ == Hero::Mecc && hasLauncher_) shopItems_.push_back({8, shopAt_, false});  // homing rockets (as in a level's Shop)
     }
     LOGI("Shop opened at (%.1f %.1f %.1f)", centre.x, centre.y, centre.z);
     addPartyGoods();  // (a Party House that stood before the shop opened)
@@ -94,7 +95,7 @@ void GameApp::updateShop(float dt, const InputFrame& in) {
         shopAt_ = Vec3{player_.position.x, player_.position.y, player_.position.z};
         const float yaw = in.headValid ? yawOf(rig_.toWorld(in.head).orientation) : player_.yaw;  // where he looks
         for (size_t i = 0; i < shopItems_.size(); ++i) {
-            const float a = yaw + (float(i) - 0.5f * float(shopItems_.size() - 1)) * (shopItems_.size() > 3 ? 0.6f : 0.75f);
+            const float a = yaw + (float(i) - 0.5f * float(shopItems_.size() - 1)) * (shopItems_.size() > 3 ? std::min(0.6f, 3.0f / float(shopItems_.size() - 1)) : 0.75f);  // (7+: closer, kept in front)
             shopItems_[i].pos = shopAt_ + Vec3{-std::sin(a) * 1.5f, 1.1f, -std::cos(a) * 1.5f};
             LOGI("Shop item %zu (kind %d) at %.0f deg from your view", i, shopItems_[i].kind, double((a - yaw) * 57.2958f));
         }

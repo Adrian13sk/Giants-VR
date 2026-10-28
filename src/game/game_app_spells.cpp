@@ -84,6 +84,7 @@ bool GameApp::slowOwned() const {
 }
 
 void GameApp::castHail(const Vec3& from, const Vec3& dir) {
+    endCloak("she cast");  // (an attack gives her away)
     // Where she aims: the first ground along the aim within 60 m, else 40 m out.
     Vec3 at = from + dir * 40.0f;
     for (float t = 2.0f; t <= 60.0f; t += 1.0f) {
@@ -117,16 +118,28 @@ void GameApp::castCloak() {
     cloakT_ = 12.0f;
     cloakCool_ = 30.0f;
     cloakShots0_ = uint32_t(weapon_.shotsFired());
-    for (auto& e : enemies_.enemies) e.aware = false;  // (gone from their sight)
+    cloakHits_ = 0;
+    int fighting = 0, lost = 0;
+    for (auto& e : enemies_.enemies) {  // gone from their sight: even a Reaper in the middle of a fight loses her
+        if (e.state == EnemyState::Dead) continue;
+        fighting += e.state == EnemyState::Advance || e.state == EnemyState::Fire;
+        lost += e.aware;
+        e.aware = false;
+        e.alert = 0;
+        e.poke = -1;
+        e.lost = 0;
+        e.los = false;
+        if (e.state == EnemyState::Advance || e.state == EnemyState::Fire) { e.state = EnemyState::Idle; e.stateTime = 0; }
+    }
     sfx2D("sr_spfsh", 0.9f, 1.6f);
-    LOGI("Delphi casts CLOAK (12 s)");
+    LOGI("Delphi casts CLOAK (12 s): %d Reapers lose her, %d of them in a fight", lost, fighting);
 }
 
 void GameApp::endCloak(const char* why) {
     if (cloakT_ <= 0) return;
     cloakT_ = 0;
     sfx2D("sr_spfsh", 0.6f, 0.7f);
-    LOGI("Cloak ends (%s)", why);
+    LOGI("Cloak ends (%s): hit %d times while cloaked", why, cloakHits_);
 }
 
 void GameApp::resetSpells() {
@@ -151,6 +164,7 @@ void GameApp::castSlowTime() {
 }
 
 void GameApp::castTornado(const Vec3& dir) {
+    endCloak("she cast");  // (an attack gives her away)
     Tornado t;
     t.pos = player_.position + Vec3{dir.x, 0, dir.z} * 4.0f;
     Vec3 d{dir.x, 0, dir.z};
@@ -163,6 +177,7 @@ void GameApp::castTornado(const Vec3& dir) {
 }
 
 void GameApp::castFireWall(const Vec3& dir) {
+    endCloak("she cast");  // (an attack gives her away)
     // A wall of rolling fire across her aim, sweeping forward.
     Vec3 d{dir.x, 0, dir.z};
     d = length(d) > 1e-3f ? normalize(d) : Vec3{0, 0, -1};

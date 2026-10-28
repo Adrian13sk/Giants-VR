@@ -199,6 +199,9 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             }
             sees = sees && dist <= 8.0f;
         }
+        // (2026-10-28 review) Hidden from one that hasn't found him (Delphi's cloak, the bush): not seen, however
+        // close or in line of sight - only the poke or a dash nearby gives the player away.
+        if (playerHidden && !e.aware) sees = false;
         // (test hook GVR_PASSIVE_REAPERS: they never notice the player - targets that stand still)
         static const bool passive = std::getenv("GVR_PASSIVE_REAPERS") != nullptr;
         if (passive) { sees = false; e.aware = false; }

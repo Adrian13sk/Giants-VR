@@ -1411,7 +1411,7 @@ void GameApp::updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const 
 }
 
 void GameApp::renderRepairBeam() {
-    if (!repairOn_ || !repairRing_) return;
+    if (!repairOn_ || !repairRing_ || hero_ != Hero::Mecc || weaponSel_ != 10) return;
     const float t = float(time_);
     const Vec3 eye = renderer_.currentView().eyePosition;
     const Vec3 d = eye - repairTo_;
