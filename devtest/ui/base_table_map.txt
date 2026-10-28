@@ -1,0 +1,19 @@
+# Rework (2026-10-28): the table map on the Build Pad - the base in miniature, waist high to your left; touch a free
+# site to build there. GVR_BASE_TABLE puts the right hand on the Pub's site (the reach is the player's own; this
+# checks the map and the order). Screenshot: turned left to look down at the table.
+# Log (checked by devtest.ps1): "PUB touched on the table map" "ordered PUB".
+name base_table_map
+world Story5
+mission 5c_securebase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BASE_FOOD 40
+env GVR_BASE_TABLE PUB
+view first
+duration 7
+at -1358 -1574
+look -1358 -1675
+pitch -45
+turn -1 0 3 3.9
+shot 5.5 table

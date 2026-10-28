@@ -13,7 +13,8 @@
 // times, which template slot holds the Pub and the Party House (Repair01/02 - the template has no
 // slot by those names), the fixed workforce, the base centre at Borjoyzee's start, and the VR
 // menu - a ring of the buildings you can order, floating round you on the Build Pad; touch one
-// (hand or walk into it) to start it. Vimp meat you carry is stored when you walk past the meat
+// (hand or walk into it) to start it - or touch its site on the table map, the base in miniature
+// to your left on the pad (2026-10-28). Vimp meat you carry is stored when you walk past the meat
 // drop-off. Not yet: building collision, enemies attacking the base, upgrades to stone, and the
 // POP-UP BOMB the Smarties make once the base is complete.
 #include "game/game_app.h"
@@ -682,12 +683,47 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         const float a = base_.menuYaw + (float(col) - 0.5f * (inRow - 1.0f)) * 0.55f;
         base_.items.push_back({offers[i], base_.menuAt + Vec3{-std::sin(a) * 0.8f, 1.35f - 0.33f * float(row), -std::cos(a) * 0.8f}});
     }
+    // The table map, to the left of the signs: the base's sites within 0.28 m of its middle.
+    {
+        const float ta = base_.menuYaw + 1.25f;
+        base_.tableAt = base_.menuAt + Vec3{-std::sin(ta) * 0.62f, 0.92f, -std::cos(ta) * 0.62f};
+        float reach = 12.0f;
+        for (const auto& b : base_.bldgs) reach = std::max(reach, flat(Vec3{b.xf.m[12], 0, b.xf.m[14]}, base_.centre) + 6.0f);
+        base_.tableScale = 0.28f / reach;
+
+    }
     base_.touchCool = std::max(0.0f, base_.touchCool - dt);
     if (base_.touchCool > 0) return;
     Vec3 hands[2];
     int nh = 0;
     for (int h = 0; h < 2; ++h)
         if (in.hand[h].gripPoseValid) hands[nh++] = rig_.toWorld(in.hand[h].gripPose).position;
+    // Test hook GVR_BASE_TABLE=<label>: from 2 s on the pad, the right hand is put on that kind's first free
+    // site on the table (the reach itself is the player's; this checks the map and the order).
+    if (static const char* tt = std::getenv("GVR_BASE_TABLE"); tt) {
+        static float onPadT = 0;
+        onPadT += dt;
+        if (onPadT > 2.0f)
+            for (const auto& b : base_.bldgs)
+                if (b.state == 0 && b.def > 0 && std::string(kDefs[b.def].label) == tt) {
+                    hands[0] = baseTablePoint(Vec3{b.xf.m[12], b.xf.m[13], b.xf.m[14]});
+                    if (nh == 0) nh = 1;
+                    break;
+                }
+    }
+    // A free site touched on the table: that building ordered (all of a kind's sites go up together).
+    for (const auto& b : base_.bldgs) {
+        if (b.state != 0 || b.def == 0) continue;
+        const Vec3 at = baseTablePoint(Vec3{b.xf.m[12], b.xf.m[13], b.xf.m[14]});
+        bool touch = false;
+        for (int k = 0; k < nh; ++k)
+            touch = touch || (flat(hands[k], at) < 0.035f && hands[k].y > at.y - 0.03f && hands[k].y < at.y + 0.07f);
+        if (!touch) continue;
+        base_.touchCool = 0.8f;
+        LOGI("Base: %s touched on the table map", kDefs[b.def].label);
+        orderBuilding(b.def);
+        return;
+    }
     for (const auto& it : base_.items) {
         bool touch = false;
         for (int k = 0; k < nh; ++k) touch = touch || length(hands[k] - it.pos) < 0.16f;
@@ -1242,12 +1278,63 @@ void GameApp::renderBase(const Vec3& eye) {
         const float bob = 0.03f * std::sin(float(time_) * 2.0f + it.pos.x);
         label(it.pos + Vec3{0, bob, 0}, s, afford ? Vec4{0.6f, 1.0f, 0.6f, 1.0f} : Vec4{0.75f, 0.75f, 0.75f, 1.0f}, 0.045f, 0.3f);
     }
+    if (base_.onPad) renderBaseTable();
     if (base_.onPad) {
         char s[64];
         std::snprintf(s, sizeof s, "%s STORE %d   SMARTIES %d   TOUCH A SIGN TO BUILD", kRes, base_.food, crewCount());
         label(base_.menuAt + Vec3{-std::sin(base_.menuYaw) * 1.2f, 1.8f, -std::cos(base_.menuYaw) * 1.2f}, s, {0.6f, 0.9f, 1.0f, 1.0f},
               0.05f);
     }
+}
+
+// The table map (2026-10-28, ours - the original directs building from the pad by its menu only): the base in
+// miniature on a dark glass disc. The buildings standing or going up are the real models drawn small (in their
+// current pose: a site under construction shows its scaffold growing); a free site is a small square - green if
+// the store can pay for it - with its name; touching it orders it (updateBase). Dots: you (blue), the Smarties'
+// leader (gold), Reapers about (red).
+void GameApp::renderBaseTable() {
+    if (base_.tableScale <= 0 || !text_.ready()) return;
+    const float s = base_.tableScale;
+    auto flat = [](const Vec3& a, const Vec3& b) { return std::sqrt((a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z)); };
+    const Quat flatUp = Quat::fromAxisAngle({1, 0, 0}, -1.5707963f);
+    // (the rim first: the panels don't write depth, so the later one lies on top)
+    text_.drawPanel(Mat4::translation(base_.tableAt + Vec3{0, -0.002f, 0}) * Mat4::rotation(flatUp), 0.67f, 0.67f, {0.4f, 0.75f, 1.0f, 0.5f}, true);
+    text_.drawPanel(Mat4::translation(base_.tableAt) * Mat4::rotation(flatUp), 0.64f, 0.64f, {0.02f, 0.06f, 0.1f, 0.92f}, true);
+    const Mat4 toTable = Mat4::translation(base_.tableAt + Vec3{0, 0.006f, 0}) * Mat4::scale({s, s, s}) * Mat4::translation(base_.centre * -1.0f);
+    const Pose head = rig_.toWorld(lastInput_.head);
+    const Quat face = Quat::fromAxisAngle({0, 1, 0}, yawOf(head.orientation));
+    auto tag = [&](const Vec3& at, const char* str, const Vec4& col) {
+        float w = 0, h = 0;
+        const MeshId tm = text_.mesh(str, 0.014f, 0.2f, &w, &h);
+        if (!tm) return;
+        text_.draw(tm, Mat4::translation(at) * Mat4::rotation(face), col, true);
+    };
+    auto dot = [&](const Vec3& world, float size, const Vec4& col) {
+        text_.drawPanel(Mat4::translation(baseTablePoint(world) + Vec3{0, 0.004f, 0}) * Mat4::rotation(flatUp), size, size, col, true);
+    };
+    for (const auto& b : base_.bldgs) {
+        const Vec3 site{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
+        if (b.state == 0) {
+            if (b.def == 0) continue;
+            const bool afford = base_.food >= kDefs[b.def].meat;
+            dot(site, 0.03f, afford ? Vec4{0.45f, 1.0f, 0.5f, 0.9f} : Vec4{0.6f, 0.6f, 0.6f, 0.7f});
+            tag(baseTablePoint(site) + Vec3{0, 0.03f, 0}, kDefs[b.def].label, afford ? Vec4{0.6f, 1.0f, 0.6f, 1.0f} : Vec4{0.75f, 0.75f, 0.75f, 1.0f});
+            continue;
+        }
+        const Mat4 xf = toTable * b.xf;
+        if (b.still) drawModel(b.still, xf, false);
+        if (b.model) {
+            if (b.state == 1) b.model->renderGhost(renderer_, xf, {0.5f, 0.8f, 1.0f});
+            else b.model->render(renderer_, xf);
+        }
+        if (b.state == 3 && float(time_) - b.hitT < 6.0f) dot(site, 0.04f, {1.0f, 0.3f, 0.2f, 0.6f});  // under attack
+    }
+    for (const auto& e : enemies_.enemies)
+        if (e.state != EnemyState::Dead && flat(e.pos, base_.centre) * s < 0.31f) dot(e.pos, 0.014f, {1.0f, 0.2f, 0.15f, 1.0f});
+    if (base_.leader && flat(base_.leaderPos, base_.centre) * s < 0.31f) dot(base_.leaderPos, 0.016f, {1.0f, 0.85f, 0.2f, 1.0f});
+    dot(player_.position, 0.016f, {0.3f, 0.7f, 1.0f, 1.0f});
+    static bool logged = false;
+    if (!logged) { logged = true; LOGI("Base: table map shown (%.4f m of table per m, %zu sites)", s, base_.bldgs.size()); }
 }
 
 }  // namespace gvr

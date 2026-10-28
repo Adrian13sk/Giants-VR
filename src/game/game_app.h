@@ -873,6 +873,11 @@ private:
         float soulT = 0;                // the Persuader's appetite (one soul every 30 s while it works)
         float blockSayT = 0;
         Vec3 centre, padAt, dropAt, menuAt;
+        // (2026-10-28) The table map on the Build Pad: the base in miniature, waist high to your left -
+        // the buildings as they stand, a marker on every free site (touch it to build there), the
+        // Smarties' leader, you and the raiders. tableScale: metres of table per metre of base.
+        Vec3 tableAt;
+        float tableScale = 0;
         float menuYaw = 0, touchCool = 0, traceT = 0, speed = 1.0f;
         // Raids (ours): Reapers sent from the enemy barracks' side to wreck the buildings.
         float raidT = -1;         // s until the next raid (< 0: not started)
@@ -954,6 +959,8 @@ private:
     void initBase();
     void updateBase(float dt, const InputFrame& in);
     void renderBase(const Vec3& eye);
+    void renderBaseTable();
+    Vec3 baseTablePoint(const Vec3& world) const { return base_.tableAt + (world - base_.centre) * base_.tableScale + Vec3{0, 0.006f, 0}; }
     std::vector<int> baseOffers() const;
     int baseKindState(int def) const;
     int baseKindLevel(int def) const;
