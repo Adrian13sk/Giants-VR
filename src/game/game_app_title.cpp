@@ -390,6 +390,10 @@ void GameApp::renderTitle() {
     }
     if (const MeshId m = text_.mesh("STICK: CHOOSE    TRIGGER: SELECT", 0.03f, 1.0f, &tw, &th))
         text_.draw(m, panel * Mat4::translation({0, -0.5f * h + 0.04f, 0.004f}), {0.7f, 0.7f, 0.7f, 1});
+    // (2026-10-28, release readiness) Under the panel: what this is.
+    if (const MeshId m = text_.mesh("UNOFFICIAL FAN PROJECT - NOT AFFILIATED WITH OR ENDORSED BY THE GAME'S MAKERS OR OWNERS. "
+                                    "PLAYS YOUR OWN COPY OF GIANTS: CITIZEN KABUTO.", 0.024f, 1.0f, &tw, &th))
+        text_.draw(m, panel * Mat4::translation({0, -0.5f * h - 0.05f, 0.004f}), {0.6f, 0.6f, 0.6f, 0.9f});
     // The chosen story's loading art beside the menu.
     const Hero h2 = titleRow_ == kTitleContinue && !titleWorld_.empty() ? heroForWorld(titleWorld_)
                                                                          : (titleCampaign_ == 1 ? Hero::Delphi : (titleCampaign_ == 2 ? Hero::Kabuto : Hero::Mecc));
