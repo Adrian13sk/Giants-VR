@@ -1788,6 +1788,8 @@ private:  // the mission placed enemies: no test waves
     // it aims along the line between your hands.
     float gunKick_ = 0, gunKickV_ = 0;
     bool twoHand_ = false;
+    uint32_t shadowFrame_ = 0;
+    bool shadowFresh_ = false;  // a shadow map from an earlier frame may be reused
     // Teleport movement (Options; game_app_teleport.cpp).
     bool teleportMode() const;
     void updateTeleport(float dt, PlayerInput& pi, const InputFrame& in);

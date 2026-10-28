@@ -2374,7 +2374,13 @@ void GameApp::renderShadows(const EyeRenderInfo& left, const EyeRenderInfo& righ
 
 void GameApp::renderShadowMap() {
     if (quality_ >= 3) { renderer_.setShadowsActive(false); return; }
-    if (!shadowsOn_ || !assetWorld_ || !assetWorld_->loaded()) { renderer_.setShadowsActive(false); return; }
+    if (!shadowsOn_ || !assetWorld_ || !assetWorld_->loaded()) { renderer_.setShadowsActive(false); shadowFresh_ = false; return; }
+    // (2026-10-28) At the reduced levels the map is drawn every other frame and reused in between (sampled
+    // with the matrix it was drawn with, so it stays put; moving shadows lag one frame). GVR_SHADOW_EVERY=n.
+    static const int every = std::getenv("GVR_SHADOW_EVERY") ? std::max(1, std::atoi(std::getenv("GVR_SHADOW_EVERY"))) : 0;
+    const int n = every > 0 ? every : (quality_ >= 1 ? 2 : 1);
+    if (++shadowFrame_ % uint32_t(n) != 0 && shadowFresh_ && !cutsceneActive()) return;
+    shadowFresh_ = true;
     const Vec3 centre = playMode_ ? player_.position : rig_.worldFromTracking.position;
     // 48 m square around the Meccaryn (~2.3 cm texels at 2048); wider for a bigger hero (Kabuto:
     // ~140 m, so the trees a few of his steps away still cast shadows; texel size cost nothing on the Quest).
