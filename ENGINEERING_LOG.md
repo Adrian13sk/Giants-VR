@@ -2878,3 +2878,11 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   a gesture recharges". The jetpack upgrade (weapondefs item 18 IconJetpack2, "Jetpack Upgrade", object 892
   mc_jetpack_2; no mission hands it out - ours: Story 5 on and practice): an 11 s tank (8) and 14.5 m/s flight (12),
   set every mission; "Jetpack burnt dry" now logs the tank size (devtest weapons/w_mecc_jetpack2, 72 / 24 Hz).
+- Proximity rockets (weapondefs item 16 IconProximity "Proximity Missile Launcher": 25 carried, 15 a pickup; model
+  mc_rocket_proximity, 624 tris; no mission hands them out - ours: the Shops from Story 4 on, the base Giftshop,
+  practice): rocket kind 10, bursts (as a rocket: 4 m, 120) when its step passes within 3 m of a live Reaper or
+  creature - tested over the frame's whole step (at 24 Hz a single-point test missed). With three loads the launcher
+  no longer fires homing rockets first by itself: the load is chosen on the weapon wheel (cells 1 / 13 / 14 - plain,
+  homing tinted green, proximity orange; the stick's steps skip 13 / 14), bought rockets are loaded at once, an empty
+  load falls to the next with any ("NOW FIRING ..."). Saved at checkpoints. Devtest weapons/w_mecc_prox (the same shot
+  with a plain rocket flies on and bursts ~50 m beyond).

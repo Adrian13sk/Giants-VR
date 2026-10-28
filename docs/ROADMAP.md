@@ -85,7 +85,8 @@ quality levels chosen per world are logged and stay put.
   (r4a hands them to her in the data). 2026-10-28: FOLLOW (point, pull back, swing, throw; the followspell clips) and FIRE CIRCLE (arms out; EFX_circle_spell). Baz's Repair Gun (item 19, weapon 19 "-50 every 1.5 s") is in the data but no
   mission gives it - done 2026-10-28 (base missions), with homing rockets (item 15) and the portable turret (item 11,
   mc_turret: planted, turns and fires; from Story 3 on). Still in the table and unused: proximity rockets (16), the
-  motion mine (13); the shield (17) done 2026-10-28 (on the wheel), the jetpack upgrade (18) 2026-10-29 (Story 5 on).
+  motion mine (13); the shield (17) done 2026-10-28 (on the wheel), the jetpack upgrade (18) and proximity rockets
+  (16, with a choice of the launcher's load on the wheel) 2026-10-29.
 - **Kabuto at scale:** a "giant's view" setting (true eye height vs a lowered, comfortable one), and his
   hands reaching the ground without stooping (the reach assist exists; tune it on the device).
 

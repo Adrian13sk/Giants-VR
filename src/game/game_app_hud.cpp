@@ -218,7 +218,7 @@ void GameApp::hudStatus(const HudFrame& f) {
         (void)launcher;
         (void)g;
         hudRect(selHudLayer(weaponSel_), f, 0.040f, -0.024f, 0.036f, 0.036f, on);
-        const int rounds = weaponSel_ == 3 || weaponSel_ == 11 ? -1 : selCount(weaponSel_);
+        const int rounds = weaponSel_ == 3 || weaponSel_ == 11 ? -1 : weaponSel_ == 1 ? launcherRounds(launcherMode_) : selCount(weaponSel_);
         if (rounds >= 0) {  // rounds left, under the weapon
             const uint8_t nc[4] = {255, uint8_t(rounds > 0 ? 255 : 80), uint8_t(rounds > 0 ? 255 : 80), 255};
             hudDigits(f, 0.026f, -0.046f, 0.012f, rounds, nc);
@@ -261,7 +261,7 @@ void GameApp::hudWeaponStrip() {
         if (guns_[g].have && guns_[g].model) add(guns_[g].hudLayer, weaponSel_ == guns_[g].sel, guns_[g].ammo);
     if (grenades_ > 0) add(kHudGrenade, weaponSel_ == 8, grenades_);
     if (mines_ > 0) add(kHudMine, weaponSel_ == 9, mines_);
-    if (hasLauncher_ && launcherModel_) add(kHudLauncher, weaponSel_ == 1, launcherAmmo_ + launcherHoming_);
+    if (hasLauncher_ && launcherModel_) add(kHudLauncher, weaponSel_ == 1, launcherAmmo_ + launcherHoming_ + launcherProx_);
     if (hasRepairGun_ && repairModel_) add(kHudRepair, weaponSel_ == 10, -1);
     if (weaponOwned(11)) add(kHudTurret, weaponSel_ == 11, turretRounds_);
     else if (hasTurret_ && turretModel_ && hero_ == Hero::Mecc && n < kNumSel + 1) cells[n++] = {kHudTurret, false, -1, true};  // (planted / recharging: dim)
@@ -302,7 +302,7 @@ int GameApp::selHudLayer(int sel) const {
     const int g = gunOfSel(sel);
     if (g >= 0) return guns_[g].hudLayer;
     switch (sel) {
-        case 1: return kHudLauncher;
+        case 1: case 13: case 14: return kHudLauncher;
         case 2: return kHudBush;
         case 3: return kHudPop;
         case 8: return kHudGrenade;
@@ -318,7 +318,9 @@ int GameApp::selCount(int sel) const {
     const int g = gunOfSel(sel);
     if (g >= 0) return guns_[g].ammo;
     switch (sel) {
-        case 1: return launcherAmmo_ + launcherHoming_;
+        case 1: return launcherAmmo_;
+        case 13: return launcherHoming_;
+        case 14: return launcherProx_;
         case 3: return popupBombs_;
         case 8: return grenades_;
         case 9: return mines_;
@@ -350,13 +352,15 @@ void GameApp::hudWeaponWheel() {
         const float a = 6.2832f * float(i) / float(n);
         const float cx = 0.11f * std::sin(a), cy = 0.11f * std::cos(a);
         const WheelCell& c = wheelCells_[size_t(i)];
-        const bool hot = i == wheelHover_, cur = c.sel == weaponSel_;
+        const int curSel = weaponSel_ == 1 ? (launcherMode_ == 1 ? 13 : launcherMode_ == 2 ? 14 : 1) : weaponSel_;
+        const bool hot = i == wheelHover_, cur = c.sel == curSel;
         if (hot || cur) {
             const uint8_t glow[4] = {uint8_t(hot ? 140 : 90), 255, uint8_t(hot ? 140 : 90), uint8_t(hot ? 170 : 70)};
             hudRect(kHudMarks, f, cx, cy, 0.062f, 0.062f, glow);
         }
         const float sz = hot ? 0.058f : 0.046f;
-        const uint8_t col[4] = {255, 255, 255, uint8_t(hot ? 255 : 190)};
+        // (the launcher's loads tell apart by tint: homing green, proximity orange)
+        const uint8_t col[4] = {uint8_t(c.sel == 13 ? 150 : 255), uint8_t(c.sel == 14 ? 170 : 255), uint8_t(c.sel == 13 || c.sel == 14 ? 120 : 255), uint8_t(hot ? 255 : 190)};
         hudRect(c.layer, f, cx, cy, sz, sz, col);
         if (c.count >= 0) {
             const uint8_t nc[4] = {255, uint8_t(c.count > 0 ? 255 : 80), uint8_t(c.count > 0 ? 255 : 80), 230};
@@ -716,7 +720,7 @@ void GameApp::renderGunCounter() {
     if (!gunCounterValid_ || !firstPerson_ || hero_ != Hero::Mecc || !gunValid_ || menuOpen_ || !text_.ready() || !lastInput_.headValid) return;
     const bool launcher = weaponSel_ == 1 && launcherModel_;
     const int g = gunOfSel(weaponSel_);
-    const int rounds = g >= 0 ? guns_[g].ammo : (launcher ? launcherAmmo_ + launcherHoming_ : -1);
+    const int rounds = g >= 0 ? guns_[g].ammo : (launcher ? launcherRounds(launcherMode_) : -1);
     if (rounds < 0) return;  // (the handgun: no count)
     // On top of the gun model, over the hand that holds it (its handle), a little forward (model -Z is the muzzle).
     const RenderModel* gm = g >= 0 ? guns_[g].model : (launcher ? launcherModel_ : nullptr);

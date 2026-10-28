@@ -27,6 +27,7 @@ bool loadSaveGame(const std::string& path, SaveGame& out) {
         else if (k == "grenades") s.grenades = std::max(0, std::atoi(v.c_str()));
         else if (k == "rockets") s.rockets = std::max(0, std::atoi(v.c_str()));
         else if (k == "homing") s.homing = std::max(0, std::atoi(v.c_str()));
+        else if (k == "prox") s.prox = std::max(0, std::atoi(v.c_str()));
         else if (k == "mines") s.mines = std::max(0, std::atoi(v.c_str()));
         else if (k.size() == 4 && k.compare(0, 3, "bow") == 0 && k[3] >= '0' && k[3] <= '4') {
             const int b = k[3] - '0';
@@ -55,6 +56,7 @@ bool writeSaveGame(const std::string& path, const SaveGame& s) {
         if (s.grenades > 0) f << "grenades=" << s.grenades << "\n";
         if (s.launcher && s.rockets >= 0) f << "rockets=" << s.rockets << "\n";
         if (s.launcher && s.homing > 0) f << "homing=" << s.homing << "\n";
+        if (s.launcher && s.prox > 0) f << "prox=" << s.prox << "\n";
         if (s.mines > 0) f << "mines=" << s.mines << "\n";
         for (int b = 0; b < 5; ++b)
             if (s.bows[b]) f << "bow" << b << "=" << std::max(-1, s.arrows[b]) << "\n";

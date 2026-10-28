@@ -1,0 +1,21 @@
+# (2026-10-29) Proximity rockets for Baz's launcher (the data's item 16 "Proximity Missile Launcher"; sold in the Shops
+# from Story 4 on - ours): a Reaper stands 20 m out; the rocket, fired a little high, passes over him and bursts
+# beside him (the same shot with a plain rocket flies on and bursts ~50 m beyond).
+# Log (checked by devtest.ps1): "Proximity rocket fired" "Proximity rocket bursts by a foe".
+name w_mecc_prox
+world Story4
+mission 4a_gainaccess
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_LAUNCHER 1
+env GVR_PROX_ROCKETS 4
+env GVR_WEAPON 1
+env GVR_PASSIVE_REAPERS 1
+view first
+duration 8
+yaw_r -7 0.2 0.5
+pitch_r 16 0.2 0.5
+reapers 1 20 0.3 99
+hold trigger_r 2 2.2
+shot 3 prox

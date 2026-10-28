@@ -471,6 +471,34 @@ void GameApp::updateRockets(float dtAll) {
             }
             // (its trail: FX_homing with the original effects, else updateFx's flame and smoke as on any rocket)
         }
+        if (r.kind == 10) {
+            // Baz's proximity rocket: bursts as it passes within 3 m of a living foe (after its first 4 m of flight).
+            bool near = false;
+            if (r.life > 0.12f) {
+                // (over this frame's whole step: at a low frame rate it moves 1-2 m a frame)
+                const Vec3 a = r.pos, seg = r.vel * dt;
+                const float sl = std::max(1e-6f, dot(seg, seg));
+                auto dist = [&](const Vec3& c) { const float u = std::max(0.0f, std::min(1.0f, dot(c - a, seg) / sl)); return length(a + seg * u - c); };
+                for (const auto& e : enemies_.enemies)
+                    if (e.state != EnemyState::Dead && dist(e.pos + Vec3{0, 1.1f, 0}) < 3.0f) { near = true; break; }
+                for (const auto& c : creatures_.creatures)
+                    if (!near && c.state != CreatureState::Dead && !CreatureDirector::underground(c) && dist(c.pos + Vec3{0, 0.5f * c.scale, 0}) < 3.0f + 0.5f * c.scale) near = true;
+            }
+            static const bool ptrace = std::getenv("GVR_PROX_TRACE") != nullptr;  // test hook: its closest foe
+            if (ptrace && int(r.life * 10) != int((r.life - dt) * 10)) {
+                float best = 1e9f;
+                for (const auto& e : enemies_.enemies)
+                    if (e.state != EnemyState::Dead) best = std::min(best, length(e.pos + Vec3{0, 1.1f, 0} - r.pos));
+                LOGI("prox trace: %.1f s, nearest foe %.1f m", double(r.life), double(best));
+            }
+            if (near) {
+                blastFx_ = "FX_EXPLOSION_ROCKET";
+                explode(r.pos, 4.0f, 120.0f);
+                LOGI("Proximity rocket bursts by a foe");
+                r.life = 1e9f;
+                continue;
+            }
+        }
         if (r.kind == 3) {
             // A Reaper's bazooka rocket: smoke trail; bursts near the player as well as on what it hits.
             if (!rocketTrail(r) && frand() < dt * 25.0f) smokePuff(FxTex::SmokeGrey, r.pos, Vec3{0, 0.3f, 0}, 0.25f, 1.2f, 1.0f, 0.45f, 0.1f);

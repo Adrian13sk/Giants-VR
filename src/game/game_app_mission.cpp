@@ -122,7 +122,8 @@ void GameApp::initMission() {
     // (flk_story1_get_rpg*) is animated with "shotgun" / "Ref_shotgun" nodes.
     grantMissionItems(m.items, "mission start");  // (Reaper missions: her bows, items 44-46)
     if (std::getenv("GVR_LAUNCHER") && launcherModel_) { hasLauncher_ = true; launcherAmmo_ = launcherMax_; }  // test hook
-    if (const char* h = std::getenv("GVR_HOMING_ROCKETS")) launcherHoming_ = std::max(0, std::min(launcherHomingMax_, std::atoi(h)));  // test hook
+    if (const char* h = std::getenv("GVR_HOMING_ROCKETS")) { launcherHoming_ = std::max(0, std::min(launcherHomingMax_, std::atoi(h))); launcherMode_ = 1; }  // test hook
+    if (const char* p = std::getenv("GVR_PROX_ROCKETS")) { launcherProx_ = std::max(0, std::min(launcherProxMax_, std::atoi(p))); launcherMode_ = 2; }  // test hook
     // The world decides the hero (Reaper story: Delphi); she has no jetpack.
     // The mission's race (setup op 0x0B: 1 Kabuto, 2 Mecc, 3 Reaper) picks the hero - kstory5_5 is
     // played as the Meccaryn; the world name decides where the data gives none.
@@ -165,6 +166,13 @@ void GameApp::initMission() {
         shopItems_.push_back({5, shopAt_, false});  // mines (no mission hands them out; ours)
     if (shopOn_ && hero_ == Hero::Mecc && hasLauncher_ && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 8; }))
         shopItems_.push_back({8, shopAt_, false});  // homing rockets (item 15; ours, once he has the launcher)
+    {
+        // Proximity rockets (item 16; ours: from Story 4 on, once he has the launcher).
+        const std::string mn4 = toLower(assetWorld_->missionName());
+        if (shopOn_ && hero_ == Hero::Mecc && hasLauncher_ && (mn4.rfind("4", 0) == 0 || mn4.rfind("5", 0) == 0) &&
+            std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 9; }))
+            shopItems_.push_back({9, shopAt_, false});
+    }
     if (hero_ == Hero::Kabuto) {
         // He comes out of the sea weakened at the start of his story (k1a) and of 2a ("Eat 5
         // Smarties to reach full strength and size"); full size elsewhere. Our reading.
@@ -193,6 +201,7 @@ void GameApp::initMission() {
             hasLauncher_ = true;
             launcherAmmo_ = std::max(launcherAmmo_, std::min(launcherMax_, pendingRestore_.rockets < 0 ? launcherGive_ : pendingRestore_.rockets));
             launcherHoming_ = std::max(launcherHoming_, std::min(launcherHomingMax_, pendingRestore_.homing));
+            launcherProx_ = std::max(launcherProx_, std::min(launcherProxMax_, pendingRestore_.prox));
         }
         grenades_ = std::max(grenades_, std::min(grenadeMax_, pendingRestore_.grenades));
         mines_ = std::max(mines_, std::min(minesMax_, pendingRestore_.mines));
@@ -228,6 +237,7 @@ void GameApp::writeCheckpoint() {
     g.launcher = hasLauncher_;
     g.rockets = launcherAmmo_;
     g.homing = launcherHoming_;
+    g.prox = launcherProx_;
     for (int k = 0; k < kNumGuns; ++k) { g.guns[k] = guns_[k].have; g.ammo[k] = guns_[k].ammo; }
     g.grenades = grenades_;
     g.mines = mines_;

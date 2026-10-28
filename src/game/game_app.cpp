@@ -285,6 +285,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                      launcherHandle_.z, launcherMuzzle_.x, launcherMuzzle_.y, launcherMuzzle_.z);
             }
             launcherModel_ = mc->get("mc_launcher_l0.gbs", "", /*dynamicLit=*/true);
+            proxRocketModel_ = mc->get("mc_rocket_proximity.gbs", "", /*dynamicLit=*/true);
             repairModel_ = mc->get("MC_repairgun.gbs", "", /*dynamicLit=*/true);
             repairRing_ = mc->get("EFX_repair_ring.gbs");
             if (repairModel_ && repairRing_)
@@ -1916,6 +1917,10 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         weaponHudT_ = 0;
         pick = -1;
     }
+    if (pick == 1 || pick == 13 || pick == 14) {  // the launcher, with the load chosen
+        launcherMode_ = pick == 13 ? 1 : pick == 14 ? 2 : 0;
+        pick = 1;
+    }
     if (step || pick >= 0) {
         // The weapon strip drops in either way (showing what is carried); with only the gun
         // there is nothing to switch to.
@@ -1928,7 +1933,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             while (at < kNumSel && kWeaponOrder[at] != weaponSel_) ++at;
             for (int k = 1; k <= kNumSel; ++k) {
                 const int next = kWeaponOrder[(at + k) % kNumSel];
-                if (next != 12 && weaponOwned(next)) { weaponSel_ = next; break; }
+                if (next != 12 && next != 13 && next != 14 && weaponOwned(next)) { weaponSel_ = next; break; }
             }
         }
         if (weaponSel_ == 9) {
@@ -1953,7 +1958,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             timmyLineT_ = 2.0f;
         }
         if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
-        static const char* kSelNames[kNumSel] = {"gun", "rocket launcher", "bush pack", "pop-up bomb", "", "", "", "", "grenades", "mines", "repair gun", "turret", "shield"};
+        static const char* kSelNames[kNumSel] = {"gun", "rocket launcher", "bush pack", "pop-up bomb", "", "", "", "", "grenades", "mines", "repair gun", "turret", "shield", "rocket launcher", "rocket launcher"};
         LOGI("Weapon: %s", gs >= 0 ? guns_[gs].name : kSelNames[std::max(0, std::min(kNumSel - 1, weaponSel_))]);
         if (weaponSel_ == 11) {
             timmyLine_ = "TURRET (" + std::to_string(turretRounds_) + " ROUNDS) - POINT AT THE GROUND, TRIGGER TO PLANT IT";
@@ -1963,8 +1968,10 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             timmyLine_ = "REPAIR GUN - AIM AT A DAMAGED BUILDING, HOLD THE TRIGGER";
             timmyLineT_ = 3.0f;
         }
-        if (weaponSel_ == 1 && launcherHoming_ > 0) {
-            timmyLine_ = "ROCKET LAUNCHER (" + std::to_string(launcherAmmo_) + ") + " + std::to_string(launcherHoming_) + " HOMING - FIRED FIRST";
+        if (weaponSel_ == 1) {
+            static const char* kLoad[3] = {"ROCKETS", "HOMING ROCKETS", "PROXIMITY ROCKETS"};
+            timmyLine_ = std::string("ROCKET LAUNCHER - ") + kLoad[launcherMode_] + " (" + std::to_string(launcherRounds(launcherMode_)) + ")";
+            if (launcherHoming_ + launcherProx_ > 0) timmyLine_ += " - THE WHEEL CHANGES THE LOAD";
             timmyLineT_ = 3.0f;
         }
     }
@@ -2137,16 +2144,27 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     if (launcher) {
         // One rocket per pull, 1 s to reload. The gun's bolts still fly (update with no trigger).
         weapon_.update(dt, false, muzzle, fwd);
-        if (trigger && !rocketTriggerHeld_ && launcherAmmo_ <= 0 && launcherHoming_ <= 0) {
+        const int total = launcherAmmo_ + launcherHoming_ + launcherProx_;
+        if (trigger && !rocketTriggerHeld_ && total <= 0) {
             sfx2D("me_outam", 0.8f);  // no rockets left
             haptics_.push_back({gh, 0.2f, 0.03f});
         }
-        if (trigger && gunValid_ && rocketCooldown_ <= 0 && !rocketTriggerHeld_ && (launcherAmmo_ > 0 || launcherHoming_ > 0)) {
-            const bool homing = launcherHoming_ > 0;
-            if (homing) --launcherHoming_;
+        if (trigger && gunValid_ && rocketCooldown_ <= 0 && !rocketTriggerHeld_ && total > 0) {
+            // The chosen load; empty, the next that has any.
+            int mode = launcherMode_;
+            for (int k = 0; k < 3 && launcherRounds(mode) <= 0; ++k) mode = (mode + 1) % 3;
+            if (mode != launcherMode_) {
+                launcherMode_ = mode;
+                static const char* kLoad[3] = {"ROCKETS", "HOMING ROCKETS", "PROXIMITY ROCKETS"};
+                timmyLine_ = std::string("NOW FIRING ") + kLoad[mode];
+                timmyLineT_ = 2.0f;
+            }
+            const bool homing = mode == 1;
+            if (mode == 1) --launcherHoming_;
+            else if (mode == 2) --launcherProx_;
             else --launcherAmmo_;
             Rocket rk{muzzle, fwd * 32.0f, 0.0f};
-            rk.kind = homing ? 9 : 0;
+            rk.kind = mode == 1 ? 9 : mode == 2 ? 10 : 0;
             rockets_.push_back(rk);
             rocketCooldown_ = 1.0f;
             haptics_.push_back({gh, 0.9f, 0.12f});
@@ -2154,6 +2172,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             addFlash(muzzle, {2.2f, 1.4f, 0.6f}, 9.0f, 0.18f);
             sfx("me_msls1", muzzle, 1.0f, 0.95f + 0.1f * frand());
             if (homing) LOGI("Homing rocket fired (%d left)", launcherHoming_);
+            else if (mode == 2) LOGI("Proximity rocket fired (%d left)", launcherProx_);
             else LOGI("Rocket fired (%d left)", launcherAmmo_);
         }
         rocketTriggerHeld_ = trigger;

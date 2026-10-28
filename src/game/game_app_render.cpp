@@ -410,7 +410,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
             const Vec3 f = normalize(r.vel);
             const Quat yawQ = Quat::fromAxisAngle({0, 1, 0}, std::atan2(-f.x, -f.z));
             const Quat look = yawQ * Quat::fromAxisAngle({1, 0, 0}, std::asin(std::max(-1.0f, std::min(1.0f, f.y))));
-            drawModel(rocketModel_, Mat4::translation(r.pos) * Mat4::rotation(look) * Mat4::scale({0.6f, 0.6f, 0.6f}), false);
+            drawModel(r.kind == 10 && proxRocketModel_ ? proxRocketModel_ : rocketModel_, Mat4::translation(r.pos) * Mat4::rotation(look) * Mat4::scale({0.6f, 0.6f, 0.6f}), false);
         }
     for (const auto& c : chars_) {
         if (!c.visible || length(c.pos - v.eyePosition) > 160.0f || (c.rider && firstPerson_)) continue;

@@ -46,6 +46,7 @@ const char* rocketFxName(int kind) {
     switch (kind) {
         case 0: case 3: return "FX_rocket";
         case 2: case 9: return "FX_homing";  // (9: Baz's homing rocket)
+        case 10: return "FX_rocket";          // (Baz's proximity rocket)
         case 4: return "FX_shotgun_trail";
         case 5: return "FX_Lbomb";
         case 7: return "FXB_bow_RPG";

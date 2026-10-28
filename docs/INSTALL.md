@@ -239,7 +239,9 @@ blue fire round you for 8 s that burns up bolts and grenades and burns Reapers w
 - **Hold the right stick forward**: a ring of what you carry appears before you; move the gun hand toward one and
   let the stick go (Baz and Delphi). A short push still steps to the next.
 - **Repair Gun** (Baz, base missions): aim at a damaged building and hold the trigger.
-- **Homing rockets** (a level's Shop, once Baz has the launcher): fired before plain rockets, they turn onto a foe.
+- **Homing rockets** (a level's Shop, once Baz has the launcher): they turn onto a foe. **Proximity rockets** (Shops,
+  Story 4 on): they burst as they pass a foe. Bought rockets are loaded at once; the weapon wheel shows a launcher
+  cell per load (homing tinted green, proximity orange) to change it.
 - **Portable turret** (Baz, Story 3 on): in hand, point at the ground within 6 m and pull the trigger to plant it;
   it shoots the Reapers it can see (60 rounds), folds away when empty and is back 20 s later. Put a hand on its
   head and squeeze the grip to take it back.

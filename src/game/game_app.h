@@ -325,6 +325,14 @@ private:
     // (2026-10-28) Homing rockets for the launcher (weapondefs item 15 IconHoming: 10 carried, 6 a pickup), sold in the
     // Shops once he has the launcher (ours). Fired first while he has any; they turn toward the nearest foe ahead.
     int launcherHoming_ = 0, launcherHomingMax_ = 10, launcherHomingGive_ = 6;
+    // (2026-10-29) Proximity rockets (weapondefs item 16 IconProximity "Proximity Missile Launcher": 25 carried, 15 a
+    // pickup; mc_rocket_proximity): burst as they pass within 3 m of a foe. Sold in the Shops from Story 4 on (ours).
+    // The launcher's load is chosen on the weapon wheel (a cell each: ROCKETS, HOMING, PROXIMITY - slots 1, 13, 14);
+    // an empty load falls back to the next that has any.
+    int launcherProx_ = 0, launcherProxMax_ = 25, launcherProxGive_ = 15;
+    int launcherMode_ = 0;  // 0 plain, 1 homing, 2 proximity
+    const RenderModel* proxRocketModel_ = nullptr;
+    int launcherRounds(int mode) const { return mode == 1 ? launcherHoming_ : mode == 2 ? launcherProx_ : launcherAmmo_; }
     void giveLauncher(const char* why);
     // weaponSel_: 0 handgun, 1 launcher, 2 bush pack, 3 pop-up bomb, 4 shotgun, 5 machine gun, 6 sniper,
     // 7 Millenium mortar, 8 grenades, 9 mines.
@@ -363,8 +371,9 @@ private:
     // The switching order (stick push / wheel): handgun, shotgun, machine gun, sniper gun, mortar, grenades, mines,
     // launcher, Repair Gun, turret, bush pack, pop-up bomb.
     // (12: the shield - not a weapon: chosen on the wheel it is raised and the gun stays; the stick's steps skip it)
-    static constexpr int kNumSel = 13;
-    static constexpr int kWeaponOrder[kNumSel] = {0, 4, 5, 6, 7, 8, 9, 1, 10, 11, 12, 2, 3};
+    // (13 / 14: the launcher loaded with homing / proximity rockets - wheel cells only: chosen, slot 1 in hand)
+    static constexpr int kNumSel = 15;
+    static constexpr int kWeaponOrder[kNumSel] = {0, 4, 5, 6, 7, 8, 9, 1, 13, 14, 10, 11, 12, 2, 3};
     int selHudLayer(int sel) const;  // the HUD icon of a weapon slot
     int selCount(int sel) const;     // its count under the icon (-1: none)
     int lastWeaponSel_ = 0;          // the last slot in hand other than the turret (taken up again once it's planted)

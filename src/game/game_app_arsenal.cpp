@@ -157,6 +157,8 @@ void GameApp::giveLauncher(const char* why) {
 void GameApp::resetArsenal() {
     launcherAmmo_ = 0;
     launcherHoming_ = 0;
+    launcherProx_ = 0;
+    launcherMode_ = 0;
     for (auto& g : guns_) { g.have = false; g.ammo = 0; }
     for (auto& b : bows_) { b.have = false; b.ammo = b.maxAmmo < 0 ? -1 : 0; }
     delphiWeapon_ = -1;
@@ -213,6 +215,8 @@ bool GameApp::weaponOwned(int sel) const {
         case 8: return grenades_ > 0 && grenadeModel_;
         case 9: return mines_ > 0 && mineModel_;
         case 10: return hasRepairGun_ && repairModel_;
+        case 13: return hasLauncher_ && launcherModel_ && launcherHoming_ > 0;
+        case 14: return hasLauncher_ && launcherModel_ && launcherProx_ > 0;
         case 12: return hasShield_ && shieldSphere_ && shieldT_ <= 0 && shieldCool_ <= 0;
         case 11: return hasTurret_ && turretHeldModel_ && turretModel_ && !turret_.up && turretReadyT_ <= 0;
         default: {
