@@ -586,6 +586,29 @@ void GameApp::renderPickups() {
 }
 
 void GameApp::renderGunCounter() {
+    // Delphi: the arrows left by the bow's grip (bows with a count; the plain bow's arrows are endless).
+    if (hero_ == Hero::Delphi && firstPerson_ && bowValid_ && delphiBow() && bows_[delphiWeapon_].ammo >= 0 && !menuOpen_ && text_.ready() &&
+        lastInput_.headValid) {
+        const int n = bows_[delphiWeapon_].ammo;
+        const Vec3 eye = rig_.toWorld(lastInput_.head).position;
+        const Vec3 at = bowGrip_ + Vec3{0, 0.07f, 0} - bowFwd_ * 0.04f;
+        const Vec3 d = eye - at;
+        if (length(d) < 1.2f && length(d) > 0.08f) {
+            const Quat face = Quat::fromAxisAngle({0, 1, 0}, std::atan2(d.x, d.z)) *
+                              Quat::fromAxisAngle({1, 0, 0}, std::asin(std::max(-1.0f, std::min(1.0f, d.y / length(d)))));
+            char s[16];
+            std::snprintf(s, sizeof s, "%d", n);
+            float w = 0, h = 0;
+            if (const MeshId tm = text_.mesh(s, 0.02f, 0.2f, &w, &h)) {
+                const Mat4 xf = Mat4::translation(at) * Mat4::rotation(face);
+                text_.drawPanel(xf, w + 0.012f, h + 0.006f, {0, 0, 0, 0.45f}, true);
+                text_.draw(tm, xf * Mat4::translation({0, 0, 0.001f}), n == 0 ? Vec4{1.0f, 0.3f, 0.25f, 1.0f} : Vec4{0.75f, 1.0f, 0.85f, 1.0f}, true);
+                static bool said = false;
+                if (!said) { said = true; LOGI("Bow counter shown: %d arrows", n); }
+            }
+        }
+        return;
+    }
     if (!gunCounterValid_ || !firstPerson_ || hero_ != Hero::Mecc || !gunValid_ || menuOpen_ || !text_.ready() || !lastInput_.headValid) return;
     const bool launcher = weaponSel_ == 1 && launcherModel_;
     const int g = gunOfSel(weaponSel_);

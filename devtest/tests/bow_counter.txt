@@ -1,0 +1,12 @@
+# Rework (2026-10-28): Delphi's arrows left shown by the bow's grip (bows with a count; first person).
+# Log (checked by devtest.ps1): "Bow counter shown".
+name bow_counter
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BOWS 1
+env GVR_DELPHI_WEAPON 1
+view first
+duration 3
