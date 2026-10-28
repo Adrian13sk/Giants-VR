@@ -585,6 +585,40 @@ void GameApp::renderPickups() {
     renderAmmoPickups();
 }
 
+void GameApp::renderGunCounter() {
+    if (!gunCounterValid_ || !firstPerson_ || hero_ != Hero::Mecc || !gunValid_ || menuOpen_ || !text_.ready() || !lastInput_.headValid) return;
+    const bool launcher = weaponSel_ == 1 && launcherModel_;
+    const int g = gunOfSel(weaponSel_);
+    const int rounds = g >= 0 ? guns_[g].ammo : (launcher ? launcherAmmo_ : -1);
+    if (rounds < 0) return;  // (the handgun: no count)
+    // On top of the gun model, over the hand that holds it (its handle), a little forward (model -Z is the muzzle).
+    const RenderModel* gm = g >= 0 ? guns_[g].model : (launcher ? launcherModel_ : nullptr);
+    Vec3 at = gunCounterAt_;
+    if (gm) {
+        const Vec3 lp{gunHandleLocal_.x, gm->boundsMax.y, gunHandleLocal_.z - 0.08f * (gm->boundsMax.z - gm->boundsMin.z)};
+        const float* m = gunXf_.m;
+        at = Vec3{m[0] * lp.x + m[4] * lp.y + m[8] * lp.z + m[12], m[1] * lp.x + m[5] * lp.y + m[9] * lp.z + m[13],
+                  m[2] * lp.x + m[6] * lp.y + m[10] * lp.z + m[14]};
+        at = at + Vec3{0, 0.025f, 0};
+    }
+    const Vec3 eye = rig_.toWorld(lastInput_.head).position;
+    const Vec3 d = eye - at;
+    if (length(d) > 1.2f || length(d) < 0.08f) return;
+    // Facing the eye, upright.
+    const Quat face = Quat::fromAxisAngle({0, 1, 0}, std::atan2(d.x, d.z)) * Quat::fromAxisAngle({1, 0, 0}, std::asin(std::max(-1.0f, std::min(1.0f, d.y / length(d)))));
+    char s[16];
+    std::snprintf(s, sizeof s, "%d", rounds);
+    float w = 0, h = 0;
+    const MeshId tm = text_.mesh(s, 0.02f, 0.2f, &w, &h);
+    if (!tm) return;
+    const Mat4 xf = Mat4::translation(at) * Mat4::rotation(face);
+    text_.drawPanel(xf, w + 0.012f, h + 0.006f, {0, 0, 0, 0.45f}, true);
+    const Vec4 col = rounds == 0 ? Vec4{1.0f, 0.3f, 0.25f, 1.0f} : (rounds <= 5 ? Vec4{1.0f, 0.8f, 0.3f, 1.0f} : Vec4{0.75f, 1.0f, 0.85f, 1.0f});
+    text_.draw(tm, xf * Mat4::translation({0, 0, 0.001f}), col, true);
+    static bool said = false;
+    if (!said) { said = true; LOGI("Gun counter shown: %d rounds", rounds); }
+}
+
 void GameApp::renderWristPanel() {
     const int mh = rig_.moveHand();
     const InputFrame& in = lastInput_;

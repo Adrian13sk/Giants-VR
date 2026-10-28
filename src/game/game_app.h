@@ -1861,6 +1861,10 @@ private:
     // (2026-10-28) The wrist display: hold the move hand's forearm across in front of your face (as to read a
     // watch) for a moment and a small panel over the wrist shows health, ammo, items and the objective.
     float wristT_ = 0;
+    // (2026-10-28) The rounds left, shown small over the back of the gun in your hand (first person, the Meccaryn).
+    Vec3 gunCounterAt_, gunHandleLocal_;
+    bool gunCounterValid_ = false;
+    void renderGunCounter();
     bool wristShown_ = false;
     void renderWristPanel();
     Vec3 lastShotSplash_;

@@ -4292,6 +4292,9 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             const Vec3 handle = giantsToRuntime(handleGame.x, handleGame.y, handleGame.z);
             gunXf_ = Mat4::translation(grip.position) * Mat4::rotation(aim.orientation) * Mat4::scale({k, k, k}) *
                      Mat4::translation(handle * -1.0f);
+            gunCounterAt_ = grip.position + aim.orientation.rotate(Vec3{0, 0.085f, 0.05f} * bodyScale);  // (fallback: over the hand)
+            gunHandleLocal_ = handle;
+            gunCounterValid_ = true;
         }
     } else {
         // Third person: gun in the hand (skeleton's Ref_Rhand position), pointing at the
@@ -4475,6 +4478,7 @@ void GameApp::update(float dt, const InputFrame& in) {
     logFxCost(dt);
     fxCostView_ = true;  // (the first view this frame counts the effects drawn in the views)
     warmedThisFrame_ = false;
+    gunCounterValid_ = false;  // (placed again with the gun, if it is in the hand)
     GVR_PROF("update (all)");
     time_ += dt;
     if (dt > 1e-4f) fpsSmooth_ += (1.0f / dt - fpsSmooth_) * std::min(1.0f, dt * 2.0f);
@@ -4988,6 +4992,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     if (playMode_ && !cut && !title_) renderObjectiveMarker();
     if (playMode_ && !cut) renderTimmyLine();
     if (playMode_ && !cut && !title_) renderWristPanel();
+    if (playMode_ && !cut && !title_) renderGunCounter();
     if (playMode_ && !cut) renderSkirmishHud();
     if (playMode_ && !cut) renderRaceHud();
     if (briefHeld_ && !cut && playMode_) renderBriefOverlay();
