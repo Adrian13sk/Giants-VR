@@ -1088,3 +1088,15 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Thumb from capacitive touch | frame rendered; which digit is the thumb: device to confirm |
 | Crash handler without dladdr; symbolize_crash.py | BUILD; symbolizer checked on a made-up report against the built library |
 | Unit tests | progress helpers, projectile tag: pass |
+
+## 2026-10-28 (late evening) — practice, main menu, pointing, hands (harness verified; device-only parts marked)
+| Change | Harness check |
+|---|---|
+| Main menu PRACTICE (Baz / Delphi / Kabuto on the title island, full kit, Reaper waves, nothing saved) | ui/ui_title_practice (Delphi: 3 bows; Baz: every gun + launcher; Kabuto at full size, no guns) |
+| Options -> MAIN MENU (held 2 s) | ui/ui_practice_quit; by hand with --save: 1a -> main menu -> CONTINUE reloads 1a from the checkpoint, kit dropped |
+| Options -> FOVEATED RENDERING: AUTO (dynamic, up to high) | unit test (setting 4 kept, clamped); the runtime's dynamic level: DEVICE only |
+| game_app.cpp split into 6 system files (no code changed) | every original line in exactly one file; full regression identical |
+| Menus by pointing (dot, hover selects, trigger on a value's halves / a row's ends changes it, scroll bands) | ui/ui_title_point, ui/ui_options_point (72 / 24 Hz) |
+| Bare hands point at the menus (XR_EXT_hand_tracking + XR_FB_hand_tracking_aim) | BUILD only (Android library compiles); DEVICE to check |
+| Existing menu tests after the new rows | ui_title_options / ui_title_skirmish one more step down, ui_ingame_newgame up twice |
+| Regression at 72 and 24 Hz | tests 67 + the 3 known harness-only lines (fx cost, touch binding, storm audio); ui 19/19, npcs 11/11, weapons 18/18, missions 31/31; unit tests pass |

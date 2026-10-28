@@ -1,3 +1,4 @@
+#include <cctype>
 // Command-line tool for the original data: list/extract GZP archives and validate every asset
 // the runtime understands.
 //   gzptool list <archive.gzp>
@@ -236,6 +237,18 @@ static int cmdFlick(const char* dir, int n, char** names) {
                             w[k].m[14], nd.posKeys.size());
             }
         }
+        if (const char* g = std::getenv("FLICK_GREP")) {  // (2026-10-28) director nodes whose name holds this
+            for (const auto& nd : f.director.nodes) {
+                const std::string l = toLower(nd.name);
+                if (l.find(g) == std::string::npos) continue;
+                float maxAng = 0;
+                for (const auto& k : nd.rotKeys) {
+                    const Quat d = nd.rotKeys.front().value.conjugate() * k.value;
+                    maxAng = std::max(maxAng, 2.0f * std::acos(std::min(1.0f, std::fabs(d.w))) * 57.2958f);
+                }
+                std::printf("   grep %-14s table %d rot keys %3zu (turns up to %.1f deg)\n", nd.name.c_str(), nd.table, nd.rotKeys.size(), maxAng);
+            }
+        }
         if (const char* kn = std::getenv("FLICK_KEYS")) {
             auto it = f.director.byName.find(toLower(kn));
             if (it != f.director.byName.end()) {
@@ -321,6 +334,20 @@ static int cmdAnmInfo(const char* dir, int n, char** anims) {
         if (!fs.read(anims[i], d) || !parseAnm(d.data(), d.size(), an, &err)) { std::printf("%s: %s\n", anims[i], err.c_str()); continue; }
         std::printf("%s: %.2f s, %zu nodes, ticks %d..%d tpf %u fps %u\n", anims[i], an.durationSeconds(), an.nodes.size(),
                     an.startTick, an.endTick, an.ticksPerFrame, an.fps);
+        if (const char* g = std::getenv("ANM_GREP")) {  // (2026-10-28) nodes whose name holds this: their key counts
+            for (const auto& nd : an.nodes) {
+                std::string l = nd.name;
+                for (auto& ch : l) ch = char(std::tolower(static_cast<unsigned char>(ch)));
+                if (l.find(g) == std::string::npos) continue;
+                float maxAng = 0;
+                for (const auto& k : nd.rotKeys) {
+                    const Quat d = nd.rotKeys.front().value.conjugate() * k.value;
+                    maxAng = std::max(maxAng, 2.0f * std::acos(std::min(1.0f, std::fabs(d.w))) * 57.2958f);
+                }
+                std::printf("   %-14s parent %2d pos keys %3zu rot keys %3zu (turns up to %.1f deg)\n", nd.name.c_str(), nd.parent,
+                            nd.posKeys.size(), nd.rotKeys.size(), maxAng);
+            }
+        }
         if (std::getenv("ANM_NODES")) {
             std::vector<Mat4> w;
             an.evaluate(0.0f, w);

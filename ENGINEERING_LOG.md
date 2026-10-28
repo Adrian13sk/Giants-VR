@@ -2695,3 +2695,27 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   Meccaryn would jet), not a mission bug found; left as is.
 - Checkpoints: dying returns you to where the last objective was done. Best time per mission in progress.txt.
 - Options menu: 26 rows stood ~1.9 m tall; it now shows 16 around the choice.
+
+### 2026-10-28 (late evening) — practice, back to the main menu, pointing, bare hands, the split
+- PRACTICE reuses what was there: intro_island (the title's world) has one mission with no objectives, so the
+  existing test waves (three Reapers ~35 m out whenever none are alive) already make a range. The hero is forced
+  in loadMission (practiceHero_), the kit is every item the hero's story missions hand out (Kabuto: none - kstory5_5's
+  guns are the Meccaryn's), the opening cutscene is skipped, and writeCheckpoint / markMissionDone /
+  recordMissionStats return early. practice_ follows load_.practice at every world switch, so any later world
+  (new game, continue, skirmish, quit) clears it.
+- Options -> MAIN MENU: the title is a world like any other - the loading state switches to intro_island with
+  title_ set before loadMission (whose title_ early-out skips the checkpoint), then enterTitle. CONTINUE reads the
+  checkpoint back from disk (the in-memory kit is dropped: CONTINUE hands out the checkpoint's).
+- Dynamic foveation: XR_FB_foveation's dynamic flag makes the given level a ceiling the runtime moves under with GPU
+  load. Offered as a fifth FOVEATED RENDERING value; the default stays MEDIUM (measured).
+- game_app.cpp (5,200 lines) split mechanically into audio, gore, mission, cutscene, combat and render files by a
+  script that moves whole function blocks with the comments above them; a multiset comparison of lines confirmed
+  nothing was lost or duplicated, and the full regression is identical.
+- Pointing: one ray-panel test (panelRay) for both menus; the main hand wins when both rays are on the panel and
+  neither trigger is pulled. hoverRow_ == -2 on opening adopts the row under the pointer without selecting it (the
+  harness's resting controllers already point at the main menu's OPTIONS row - selecting it would have broken every
+  stick-driven menu test, and on the headset a resting hand would do the same). Found in testing: the rays of both
+  hands were on the panel and the left one won; after closing Options the title saw a "new" row under the pointer.
+- Bare hands: Meta's aim extension gives a ready aim ray, index pinch and the menu gesture; the platform layer fills
+  ControllerState only for a hand whose controller isn't tracked and strips it outside the menus (the hero's hands
+  stay controller-driven). Device-only.

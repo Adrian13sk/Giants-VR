@@ -27,7 +27,8 @@ the meadow, k1a and r1; level 2 is needed in 1a's village; level 3 in Kstory5's 
    far palms, and fewer grass layers at level 1+. 1–2 sessions.
 4. **Shadows:** 2026-10-28: the map is drawn every other frame at quality 1+ (one map, no cascades to split).
 5. **Water reflection:** 2026-10-28: half size at quality 1 (already skipped at 2+ and when looking up).
-6. **Fixed foveation per level:** done earlier (one step stronger at quality 1+). Dynamic foveation: not tried.
+6. **Fixed foveation per level:** done earlier (one step stronger at quality 1+). Dynamic foveation: 2026-10-28,
+   Options -> FOVEATED RENDERING: AUTO (the runtime's dynamic level up to high); device numbers pending.
 7. **Quest 2 at 90 Hz?** No: 72 Hz stays the target. Offer 90 Hz only for the classic look, as an option.
 8. **CPU side:** the frame-time spikes found by the soak (world switches, cutscene loads). Move texture
    decoding to a loader thread with a time budget per frame. 2 sessions.
@@ -73,8 +74,9 @@ quality levels chosen per world are logged and stay put.
 - **Seated mode:** DONE 2026-10-28 (harness): Options -> PLAY SEATED raises the view and hands 0.45 m. No crouch
   button (the ground reach assist covers pickups).
 - **Hand presence:** 2026-10-28: the index finger from the trigger's capacitive touch (pointing). Thumb: not
-  done (which of the 4 digits is the thumb is not verified). Hand tracking for menus: not done.
-  Quest 2's hand tracking for menus only. 1–2 sessions.
+  done (which of the 4 digits is the thumb is not verified). Hand tracking for menus: DONE 2026-10-28 (BUILD
+  only): with the controllers down, the hands' aim rays point at the main menu and Options, a pinch selects, the
+  left hand's menu gesture opens Options. The menus also follow the controllers' rays now (harness).
 - **Haptics everywhere:** per-weapon kicks were already there; 2026-10-28: Kabuto's footfalls by size, the gun's
   kick in the steadying hand too. The bow string tension already rises with the draw.
 - **Weapons in the hand:** 2026-10-28: the rounds left on top of the gun, the arrows by the bow's grip (harness).
@@ -98,8 +100,11 @@ quality levels chosen per world are logged and stay put.
   closes on its ending phrase, dying plays the death song (device to hear).
   transitions should be beat-aligned where the tracks allow. 1 session.
 - **`.abx` object sets (B4):** decode them and check whether missions use objects we don't place yet.
-- **Cutscenes:** lip-sync the dialogue (jaw nodes, from the audio's loudness), and set the actors'
-  idle loops between lines. 1–2 sessions.
+- **Cutscenes:** lip-sync: 2026-10-28 survey (`gzptool flick` with FLICK_GREP): the original's shots already animate
+  the mouths - 384 "mouth" tracks (Smarties, Vimps, Timmy...), 139 "Lip_bottom" (Reaper women), 71 "jaw_lower"
+  (Reaper men), 84 "Jaw" (Kabuto) move in the director data, which our playback applies by bone name. So no
+  loudness-driven jaw (it would fight the animators' keys); to check: that those bones deform the meshes in a close
+  shot. Actors' idle loops between lines: not done.
 - **Subtitles:** the original's text for every voiced line (the data has the strings), timed to the audio. 1 session.
 
 ## 5. Content and modes
@@ -145,5 +150,6 @@ quality levels chosen per world are logged and stay put.
 
 ## Added 2026-10-28 (from the brainstorm; harness only until a device run)
 Reaper guns that fire in your hand, Delphi's fire arrows, the wrist display, the injection jabbed into the forearm,
-Kabuto's microphone roar (Options). Still open from the brainstorm: tabletop base building, the Reaper cover test,
+Kabuto's microphone roar (Options); later the same day: a PRACTICE range on the main menu, Options -> MAIN MENU.
+Still open from the brainstorm: tabletop base building, the Reaper cover test,
 the jetski_3 route.
