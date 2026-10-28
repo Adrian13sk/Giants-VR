@@ -118,6 +118,10 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
 - [ ] **Delphi's fire arrows:** hold an arrow to a flame (or the bow hand's trigger 0.4 s), shoot into grass.
 - [ ] **Wrist display:** hold your forearm across in front of your face, as to read a watch.
 - [ ] **Injection:** jab the syringe into your other forearm.
+- [ ] **Checkpoints:** finish an objective, then get killed - do you come back there rather than at the start?
+- [ ] **Mission numbers:** the loading screen after a mission shows its time, kills, hit rate and deaths.
+- [ ] **Delphi's arrows:** walk over arrows stuck in the ground (or pick one up) - the bow's count goes up.
+- [ ] **Options menu** now scrolls (16 rows at a time) - is it easier to read than the tall panel?
 
 ## Reporting
 Anything odd: the mission number and what you did just before. If the Quest is plugged in, the automated runner
