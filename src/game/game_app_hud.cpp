@@ -272,7 +272,7 @@ void GameApp::buildWheelCells() {
         if (!weaponOwned(sel)) continue;
         const int g = gunOfSel(sel);
         const int layer = g >= 0 ? guns_[g].hudLayer : sel == 10 ? kHudRepair : sel == 9 ? kHudMine : sel == 8 ? kHudGrenade : sel == 3 ? kHudPop : sel == 2 ? kHudBush : (sel == 1 ? kHudLauncher : kHudGun);
-        const int count = g >= 0 ? guns_[g].ammo : (sel == 1 ? launcherAmmo_ : sel == 8 ? grenades_ : sel == 9 ? mines_ : sel == 3 ? popupBombs_ : -1);
+        const int count = g >= 0 ? guns_[g].ammo : (sel == 1 ? launcherAmmo_ + launcherHoming_ : sel == 8 ? grenades_ : sel == 9 ? mines_ : sel == 3 ? popupBombs_ : -1);
         wheelCells_.push_back({sel, layer, count});
     }
 }

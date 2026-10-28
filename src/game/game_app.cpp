@@ -1934,6 +1934,10 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             timmyLine_ = "REPAIR GUN - AIM AT A DAMAGED BUILDING, HOLD THE TRIGGER";
             timmyLineT_ = 3.0f;
         }
+        if (weaponSel_ == 1 && launcherHoming_ > 0) {
+            timmyLine_ = "ROCKET LAUNCHER (" + std::to_string(launcherAmmo_) + ") + " + std::to_string(launcherHoming_) + " HOMING - FIRED FIRST";
+            timmyLineT_ = 3.0f;
+        }
     }
     weaponsTicked_ = true;
     scopeWanted_ = false;
@@ -2103,19 +2107,24 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     if (launcher) {
         // One rocket per pull, 1 s to reload. The gun's bolts still fly (update with no trigger).
         weapon_.update(dt, false, muzzle, fwd);
-        if (trigger && !rocketTriggerHeld_ && launcherAmmo_ <= 0) {
+        if (trigger && !rocketTriggerHeld_ && launcherAmmo_ <= 0 && launcherHoming_ <= 0) {
             sfx2D("me_outam", 0.8f);  // no rockets left
             haptics_.push_back({gh, 0.2f, 0.03f});
         }
-        if (trigger && gunValid_ && rocketCooldown_ <= 0 && !rocketTriggerHeld_ && launcherAmmo_ > 0) {
-            --launcherAmmo_;
-            rockets_.push_back({muzzle, fwd * 32.0f, 0.0f});
+        if (trigger && gunValid_ && rocketCooldown_ <= 0 && !rocketTriggerHeld_ && (launcherAmmo_ > 0 || launcherHoming_ > 0)) {
+            const bool homing = launcherHoming_ > 0;
+            if (homing) --launcherHoming_;
+            else --launcherAmmo_;
+            Rocket rk{muzzle, fwd * 32.0f, 0.0f};
+            rk.kind = homing ? 9 : 0;
+            rockets_.push_back(rk);
             rocketCooldown_ = 1.0f;
             haptics_.push_back({gh, 0.9f, 0.12f});
             gunKick(0.30f);
             addFlash(muzzle, {2.2f, 1.4f, 0.6f}, 9.0f, 0.18f);
             sfx("me_msls1", muzzle, 1.0f, 0.95f + 0.1f * frand());
-            LOGI("Rocket fired (%d left)", launcherAmmo_);
+            if (homing) LOGI("Homing rocket fired (%d left)", launcherHoming_);
+            else LOGI("Rocket fired (%d left)", launcherAmmo_);
         }
         rocketTriggerHeld_ = trigger;
         return;

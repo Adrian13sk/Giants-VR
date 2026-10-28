@@ -2779,3 +2779,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   the beam (green fire along it, the ring at the hit) mends a standing building it points at within 50 m, +50 every
   1.5 s; a building still going up gets the game's own line. Not saved with the checkpoint (handed out per mission).
   "Repair yourself" (the second fx) left out - it would make the injections pointless.
+- Homing rockets for Baz's launcher (weapondefs item 15 IconHoming: 10 carried, 6 a pickup; sold in a level's Shop
+  once he has the launcher - ours): fired before plain rockets; each turns (7 rad/s blend) toward the nearest live
+  Reaper or creature within 60 degrees of its flight and 100 m, then bursts as a rocket. Control run: with plain
+  rockets the 35-degree-off Reaper survives, with homing it dies (72 and 24 Hz). The Shop's counter gained a
+  sixth item, so ui_shop's reach was moved (the ammo box now stands at 17 degrees).

@@ -1,4 +1,4 @@
-# Walking into the shop: the counter opens; the left hand reaches the ammo box (34 deg left, 1.5 m out, 1.1 m up) and takes it. (2026-10-27, full test; reach fixed 2026-10-28 - the items stand to the LEFT of the view for positive angles.)
+# Walking into the shop: the counter opens; the left hand reaches the ammo box (17 deg left, 1.5 m out, 1.1 m up) and takes it. (2026-10-27, full test; reach fixed 2026-10-28 - the items stand to the LEFT of the view for positive angles; later that day homing rockets joined the counter, so the box moved from 34 to 17 deg.)
 # Log (checked by devtest.ps1): "Entered the shop" "Shop item N" "Shop: took ammo".
 name ui_shop
 world Story3
@@ -12,5 +12,5 @@ duration 15
 at -1434 -1748
 look -1434 -1848
 hand_r -0.2 -0.1 -1.15 3 4.5
-hand_l -0.69 -0.53 -1.34 6 7.5
+hand_l -0.29 -0.53 -1.53 6 7.5
 shot 2.5 shop

@@ -432,6 +432,29 @@ void GameApp::updateRockets(float dtAll) {
             }
             if (!rocketTrail(r) && frand() < dt * 20.0f) smokePuff(FxTex::FireGreen, r.pos, Vec3{0, 0.1f, 0}, 0.12f, 0.3f, 0.4f, 0.6f, 0.0f);
         }
+        if (r.kind == 9) {
+            // Baz's homing rocket: turns (limited rate) toward the nearest living foe within 60 degrees of its flight
+            // and 100 m, then bursts as a rocket does.
+            const float sp = length(r.vel);
+            Vec3 f = r.vel * (1.0f / std::max(1e-3f, sp));
+            Vec3 best;
+            float bestD = 100.0f;
+            auto consider = [&](const Vec3& p) {
+                const Vec3 to = p - r.pos;
+                const float d = length(to);
+                if (d < bestD && dot(to * (1.0f / std::max(1e-3f, d)), f) > 0.5f) { bestD = d; best = p; }
+            };
+            for (const auto& e : enemies_.enemies)
+                if (e.state != EnemyState::Dead) consider(e.pos + Vec3{0, 1.1f, 0});
+            for (const auto& c : creatures_.creatures)
+                if (c.state != CreatureState::Dead && !CreatureDirector::underground(c)) consider(c.pos + Vec3{0, 0.5f * c.scale, 0});
+            if (bestD < 100.0f) {
+                if (r.bounces == 0) { r.bounces = 1; LOGI("Homing rocket locked on a foe %.0f m away", bestD); }
+                f = normalize(f + (normalize(best - r.pos) - f) * std::min(1.0f, 7.0f * dt));
+                r.vel = f * sp;
+            }
+            if (!rocketTrail(r) && frand() < dt * 25.0f) smokePuff(FxTex::Smoke, r.pos, Vec3{0, 0.3f, 0}, 0.3f, 1.4f, 1.2f, 0.45f, 0.1f);
+        }
         if (r.kind == 3) {
             // A Reaper's bazooka rocket: smoke trail; bursts near the player as well as on what it hits.
             if (!rocketTrail(r) && frand() < dt * 25.0f) smokePuff(FxTex::SmokeGrey, r.pos, Vec3{0, 0.3f, 0}, 0.25f, 1.2f, 1.0f, 0.45f, 0.1f);

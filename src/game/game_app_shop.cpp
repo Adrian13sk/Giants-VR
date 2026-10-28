@@ -127,7 +127,12 @@ void GameApp::updateShop(float dt, const InputFrame& in) {
         bool touch = f.x * f.x + f.z * f.z < 0.8f * 0.8f;
         for (int k = 0; k < nh; ++k) touch = touch || length(hands[k] - it.pos) < 0.45f;
         if (!touch) continue;
-        if (it.kind == 5) {  // mines (item 9: 5 at a time, 5 carried)
+        if (it.kind == 8) {  // homing rockets (item 15: 6 at a time, 10 carried)
+            if (launcherHoming_ >= launcherHomingMax_) continue;
+            launcherHoming_ = std::min(launcherHomingMax_, launcherHoming_ + launcherHomingGive_);
+            weaponHudT_ = 0;
+            LOGI("Shop: took homing rockets (%d)", launcherHoming_);
+        } else if (it.kind == 5) {  // mines (item 9: 5 at a time, 5 carried)
             if (mines_ >= minesMax_) continue;
             mines_ = std::min(minesMax_, mines_ + minesGive_);
             weaponHudT_ = 0;
@@ -220,12 +225,12 @@ void GameApp::renderShop() {
             popupModel_->render(renderer_, Mat4::translation(it.pos + Vec3{0, 0.06f * std::sin(t * 2.0f + it.pos.x) - 0.3f, 0}) *
                                                Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.8f)) * Mat4::scale(Vec3{0.6f, 0.6f, 0.6f}));
         }
-        const RenderModel* m = it.kind == 0 ? launcherModel_ : it.kind == 4 ? shellsModel_ : it.kind == 5 ? (hero_ == Hero::Delphi ? rpMineModel_ : mineModel_)
+        const RenderModel* m = it.kind == 0 ? launcherModel_ : it.kind == 8 ? rocketModel_ : it.kind == 4 ? shellsModel_ : it.kind == 5 ? (hero_ == Hero::Delphi ? rpMineModel_ : mineModel_)
                                : it.kind == 6 ? bows_[kBowHoming].model : it.kind == 7 ? bows_[kBowPowerup].model
                                : (it.kind == 2 || it.kind == 3 ? nullptr : syringeModel_);
         const float bob = 0.06f * std::sin(t * 2.0f + it.pos.x);
         float s = it.kind == 0 ? 1.0f : 2.0f;  // the syringe is small
-        if ((it.kind >= 4 && it.kind <= 7) && m) {  // the shells box, a mine, a bow: at about 40 cm (bows 80 cm)
+        if (((it.kind >= 4 && it.kind <= 7) || it.kind == 8) && m) {  // the shells box, a mine, a bow: at about 40 cm (bows 80 cm)
             const Vec3 e = m->boundsMax - m->boundsMin;
             s = (it.kind >= 6 ? 0.8f : 0.4f) / std::max(0.05f, std::max(e.x, std::max(e.y, e.z)));
         }
@@ -238,7 +243,8 @@ void GameApp::renderShop() {
         for (const auto& g : guns_) ammoFull = ammoFull && (!g.have || g.ammo >= g.maxAmmo);
         ammoFull = ammoFull && (!hasLauncher_ || launcherAmmo_ >= launcherMax_);
         for (const auto& b : bows_) ammoFull = ammoFull && (!b.have || b.maxAmmo < 0 || b.ammo >= b.maxAmmo);
-        const std::string label = it.kind == 5 ? (mines_ >= minesMax_ ? "MINES (FULL)" : "MINES") : it.kind == 6 ? "HOMING BOW"
+        const std::string label = it.kind == 8 ? (launcherHoming_ >= launcherHomingMax_ ? "HOMING ROCKETS (FULL)" : "HOMING ROCKETS")
+                                  : it.kind == 5 ? (mines_ >= minesMax_ ? "MINES (FULL)" : "MINES") : it.kind == 6 ? "HOMING BOW"
                                   : it.kind == 7 ? "POWER-UP BOW" : it.kind == 4 ? (ammoFull ? "AMMO (FULL)" : "AMMO") : it.kind == 3 ? "POP-UP BOMB" : it.kind == 0 ? "ROCKET LAUNCHER"
                                   : it.kind == 2 ? (flares_ >= kMaxFlares ? "FLARES (FULL)" : "3 FLARES")
                                                  : (syringes_ >= kMaxSyringes ? "INJECTION (FULL)" : "HEALTH INJECTION");

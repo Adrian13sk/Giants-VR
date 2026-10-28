@@ -1,0 +1,18 @@
+# (2026-10-28) Homing rockets for Baz's launcher (weapondefs item 15; sold in the Shops once he has the launcher - ours):
+# a Reaper stands 20 m out and 35 degrees to the left; the rocket fired straight ahead turns onto him.
+# Log (checked by devtest.ps1): "Homing rocket fired" "Homing rocket locked on a foe".
+name w_mecc_homing
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_LAUNCHER 1
+env GVR_HOMING_ROCKETS 4
+env GVR_WEAPON 1
+env GVR_PASSIVE_REAPERS 1
+view first
+duration 8
+yaw_r -35 0.2 0.5
+reapers 1 20 0.3 99
+hold trigger_r 2 2.2
+shot 3 homing

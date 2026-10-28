@@ -156,6 +156,7 @@ void GameApp::giveLauncher(const char* why) {
 
 void GameApp::resetArsenal() {
     launcherAmmo_ = 0;
+    launcherHoming_ = 0;
     for (auto& g : guns_) { g.have = false; g.ammo = 0; }
     for (auto& b : bows_) { b.have = false; b.ammo = b.maxAmmo < 0 ? -1 : 0; }
     delphiWeapon_ = -1;
@@ -202,7 +203,7 @@ bool GameApp::weaponOwned(int sel) const {
     if (hero_ != Hero::Mecc) return sel == 0;  // Delphi and Kabuto fight their own way
     switch (sel) {
         case 0: return true;
-        case 1: return hasLauncher_ && launcherModel_;
+        case 1: return hasLauncher_ && launcherModel_;  // (with homing rockets or none left: still in hand)
         case 2: return hasBush();
         case 3: return popupBombs_ > 0;
         case 8: return grenades_ > 0 && grenadeModel_;

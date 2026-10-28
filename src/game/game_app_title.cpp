@@ -151,7 +151,7 @@ void GameApp::grantPracticeKit() {
         if (g.have && g.maxAmmo > 0) g.ammo = g.maxAmmo;
     for (auto& b : bows_)
         if (b.have && b.maxAmmo > 0) b.ammo = b.maxAmmo;
-    if (hasLauncher_) launcherAmmo_ = launcherMax_;
+    if (hasLauncher_) { launcherAmmo_ = launcherMax_; launcherHoming_ = launcherHomingMax_; }
     if (hero_ == Hero::Mecc && mineModel_) mines_ = minesMax_;
     syringes_ = kMaxSyringes;
     flares_ = kMaxFlares;

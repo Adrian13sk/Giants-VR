@@ -322,6 +322,9 @@ private:
     bool hasLauncher_ = false;
     // Its rockets (weapondefs item 14: 12 carried, 8 with it; ammo item 40, 3 per mc_pickup_rockets).
     int launcherAmmo_ = 0, launcherMax_ = 12, launcherGive_ = 8, launcherPickup_ = 3;
+    // (2026-10-28) Homing rockets for the launcher (weapondefs item 15 IconHoming: 10 carried, 6 a pickup), sold in the
+    // Shops once he has the launcher (ours). Fired first while he has any; they turn toward the nearest foe ahead.
+    int launcherHoming_ = 0, launcherHomingMax_ = 10, launcherHomingGive_ = 6;
     void giveLauncher(const char* why);
     // weaponSel_: 0 handgun, 1 launcher, 2 bush pack, 3 pop-up bomb, 4 shotgun, 5 machine gun, 6 sniper,
     // 7 Millenium mortar, 8 grenades, 9 mines.
@@ -885,7 +888,7 @@ private:
     void updateSmartieLines(float dt);
     void renderTags();
     // The Shop (game_app_shop.cpp).
-    struct ShopItem { int kind; Vec3 pos; bool taken; };  // kind 0 rocket launcher, 1 health injection, 2 flares, 3 pop-up bomb, 4 ammo, 5 mines, 6 homing bow, 7 power-up bow
+    struct ShopItem { int kind; Vec3 pos; bool taken; };  // kind 0 rocket launcher, 1 health injection, 2 flares, 3 pop-up bomb, 4 ammo, 5 mines, 6 homing bow, 7 power-up bow, 8 homing rockets
     std::vector<ShopItem> shopItems_;
     Vec3 shopAt_, shopCentre_;
     bool shopOn_ = false, shopInside_ = false, shopAnchored_ = false;

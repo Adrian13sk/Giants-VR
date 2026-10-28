@@ -122,6 +122,7 @@ void GameApp::initMission() {
     // (flk_story1_get_rpg*) is animated with "shotgun" / "Ref_shotgun" nodes.
     grantMissionItems(m.items, "mission start");  // (Reaper missions: her bows, items 44-46)
     if (std::getenv("GVR_LAUNCHER") && launcherModel_) { hasLauncher_ = true; launcherAmmo_ = launcherMax_; }  // test hook
+    if (const char* h = std::getenv("GVR_HOMING_ROCKETS")) launcherHoming_ = std::max(0, std::min(launcherHomingMax_, std::atoi(h)));  // test hook
     // The world decides the hero (Reaper story: Delphi); she has no jetpack.
     // The mission's race (setup op 0x0B: 1 Kabuto, 2 Mecc, 3 Reaper) picks the hero - kstory5_5 is
     // played as the Meccaryn; the world name decides where the data gives none.
@@ -139,6 +140,8 @@ void GameApp::initMission() {
         shopItems_.push_back({4, shopAt_, false});
     if (shopOn_ && hero_ == Hero::Mecc && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 5; }))
         shopItems_.push_back({5, shopAt_, false});  // mines (no mission hands them out; ours)
+    if (shopOn_ && hero_ == Hero::Mecc && hasLauncher_ && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 8; }))
+        shopItems_.push_back({8, shopAt_, false});  // homing rockets (item 15; ours, once he has the launcher)
     if (hero_ == Hero::Kabuto) {
         // He comes out of the sea weakened at the start of his story (k1a) and of 2a ("Eat 5
         // Smarties to reach full strength and size"); full size elsewhere. Our reading.
