@@ -1,0 +1,18 @@
+# Rework (2026-10-28): Options -> MOVEMENT: TELEPORT. Move stick up: an arc from the move hand lands ahead (green: you
+# may stand there); let go: a blink there. Twice, ~6 m each, in 5a's meadow. Set here by GVR_SETTINGS.
+# Log (checked by devtest.ps1): "Teleport: N m".
+name teleport_move
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_SETTINGS teleport=1
+view first
+duration 6
+at 150 -135
+look 150 -160
+pitch_l 25 0.2 0.5
+move 0 1 1 1.6
+move 0 1 3 3.6
+shot 1.4 arc

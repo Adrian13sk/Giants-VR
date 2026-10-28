@@ -828,6 +828,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     if (heldBody_.hand == mh || (heldVillager_ != 0 && heldVillagerHand_ == mh) || stoneInHand(mh)) pi.sprint = false;  // (a body, a Smartie, a stone)
     if (!reachPath_.empty()) reachWalkInput(pi.move, pi.viewYaw, pi.jet, dt);  // test hook GVR_REACH_WALK
     kabutoFeedInput(pi.move, pi.viewYaw, dt);                                   // test hook GVR_KABUTO_FEED
+    updateTeleport(dt, pi, in);                                                 // Options -> MOVEMENT: TELEPORT
     // Rework: Kabuto leaps when you jump - a quick rise of your real head from standing (first person)
     // springs him up half as high again as the button's jump.
     kbLeapCool_ = std::max(0.0f, kbLeapCool_ - dt);
@@ -4993,6 +4994,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     if (playMode_ && !cut) renderTimmyLine();
     if (playMode_ && !cut && !title_) renderWristPanel();
     if (playMode_ && !cut && !title_) renderGunCounter();
+    if (playMode_ && !cut && !title_) renderTeleportArc();
     if (playMode_ && !cut) renderSkirmishHud();
     if (playMode_ && !cut) renderRaceHud();
     if (briefHeld_ && !cut && playMode_) renderBriefOverlay();
@@ -5004,7 +5006,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     endUiFrame();
     fxCostView_ = false;
     // Death: fade to black before the respawn, and back in after it.
-    const float black = dying_ ? std::min(1.0f, std::max(0.0f, (deathTime_ - 4.3f) / 1.0f)) : respawnFade_;
+    const float black = std::max(telFade_, dying_ ? std::min(1.0f, std::max(0.0f, (deathTime_ - 4.3f) / 1.0f)) : respawnFade_);
     if (black > 0.01f && text_.ready()) {
         const Vec3 fwd = headWorldRot_.rotate(Vec3{0, 0, -1});
         text_.drawPanel(Mat4::translation(v.eyePosition + fwd * 0.1f) * Mat4::rotation(headWorldRot_), 1.0f, 1.0f, {0, 0, 0, black});

@@ -24,7 +24,7 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 }
 
 namespace {
-enum MenuRow { kRowResume, kRowControls, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowSeated, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowControls, kRowTurn, kRowMove, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowSeated, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -93,6 +93,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
     if (dx != 0) {
         switch (menuRow_) {
             case kRowTurn: s.turn = (s.turn + dx + 4) % 4; changed = true; break;
+            case kRowMove: s.teleport = !s.teleport; changed = true; break;
             case kRowVignette: s.vignette = (s.vignette + dx + 3) % 3; changed = true; break;
             case kRowAmbush: s.ambushes = !s.ambushes; changed = true; break;
             case kRowLaser: s.aimLaser = !s.aimLaser; changed = true; break;
@@ -116,7 +117,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             default: break;
         }
         if (changed) {
-            static const char* kRowNames[kRowCount] = {"resume", "controls", "turn", "vignette", "ambushes", "aim laser", "reach assist", "seated", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "mic roar", "new game"};
+            static const char* kRowNames[kRowCount] = {"resume", "controls", "turn", "movement", "vignette", "ambushes", "aim laser", "reach assist", "seated", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "mic roar", "new game"};
             LOGI("Options: %s changed", kRowNames[menuRow_]);
             applySettings();
             saveSettings();
@@ -178,6 +179,7 @@ void GameApp::renderMenu() {
         {"RESUME", ""},
         {"CONTROLS", hero_ == Hero::Delphi ? "DELPHI" : (hero_ == Hero::Kabuto ? "KABUTO" : "MECCARYN")},
         {"TURNING", turns[s.turn]},
+        {"MOVEMENT", s.teleport ? "TELEPORT (STICK UP, LET GO)" : "SMOOTH"},
         {"COMFORT VIGNETTE", s.vignette == 0 ? "OFF" : (s.vignette == 1 ? "LOW" : "HIGH")},
         {"AMBUSHES", s.ambushes ? "ON" : "OFF"},
         {"AIM LASER", s.aimLaser ? "ON" : "OFF"},

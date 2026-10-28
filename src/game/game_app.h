@@ -1788,6 +1788,15 @@ private:  // the mission placed enemies: no test waves
     // it aims along the line between your hands.
     float gunKick_ = 0, gunKickV_ = 0;
     bool twoHand_ = false;
+    // Teleport movement (Options; game_app_teleport.cpp).
+    bool teleportMode() const;
+    void updateTeleport(float dt, PlayerInput& pi, const InputFrame& in);
+    void renderTeleportArc();
+    std::vector<Vec3> telArc_;
+    Vec3 telTarget_, telPending_;
+    bool telAiming_ = false, telValid_ = false;
+    int telPhase_ = 0;      // 1 going dark, 2 coming back
+    float telFade_ = 0;
     // A gun's kick in the hand that holds it, and (2026-10-28) in the hand steadying it, a little less.
     void gunHaptic(int hand, float amplitude, float seconds) {
         haptics_.push_back({hand, amplitude, seconds});
