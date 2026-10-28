@@ -289,6 +289,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
             repairRing_ = mc->get("EFX_repair_ring.gbs");
             if (repairModel_ && repairRing_)
                 LOGI("Repair gun: model ok, ring %.2f m across", length(repairRing_->boundsMax - repairRing_->boundsMin));
+            initPortTurret(mc);
             arsenalReady_ = false;  // this world's model cache: the guns are fetched again (kept: what he carries)
             initArsenal();
             rocketModel_ = mc->get("mc_rocket.gbs", "mc_rocket.anm", /*dynamicLit=*/true);
@@ -1864,6 +1865,8 @@ Mat4 GameApp::gunDrawXf() const {
 void GameApp::updateWeapon(float dt, const InputFrame& in) {
     const int gh = rig_.turnHand();
     if (weaponSel_ != 10) repairOn_ = false;  // (2026-10-28 review: the beam stayed drawn after a switch to the bush or bombs)
+    if (weaponSel_ != 11) lastWeaponSel_ = weaponSel_;
+    updatePortTurret(dt, in);  // (planted: it fights on whatever is in hand)
     updateGunKick(dt);
     // Right stick forward: next weapon (released to neutral before it switches again).
     const float sy = in.hand[gh].thumbstick.y;
@@ -1902,11 +1905,10 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         } else {
             // Handgun -> shotgun -> machine gun -> sniper gun -> mortar -> grenades -> launcher -> bush pack ->
             // pop-up bomb, skipping what he doesn't carry.
-            static const int kOrder[11] = {0, 4, 5, 6, 7, 8, 9, 1, 10, 2, 3};
             int at = 0;
-            while (at < 11 && kOrder[at] != weaponSel_) ++at;
-            for (int k = 1; k <= 11; ++k) {
-                const int next = kOrder[(at + k) % 11];
+            while (at < kNumSel && kWeaponOrder[at] != weaponSel_) ++at;
+            for (int k = 1; k <= kNumSel; ++k) {
+                const int next = kWeaponOrder[(at + k) % kNumSel];
                 if (weaponOwned(next)) { weaponSel_ = next; break; }
             }
         }
@@ -1932,8 +1934,12 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             timmyLineT_ = 2.0f;
         }
         if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
-        static const char* kSelNames[11] = {"gun", "rocket launcher", "bush pack", "pop-up bomb", "", "", "", "", "grenades", "mines", "repair gun"};
-        LOGI("Weapon: %s", gs >= 0 ? guns_[gs].name : kSelNames[std::max(0, std::min(10, weaponSel_))]);
+        static const char* kSelNames[kNumSel] = {"gun", "rocket launcher", "bush pack", "pop-up bomb", "", "", "", "", "grenades", "mines", "repair gun", "turret"};
+        LOGI("Weapon: %s", gs >= 0 ? guns_[gs].name : kSelNames[std::max(0, std::min(kNumSel - 1, weaponSel_))]);
+        if (weaponSel_ == 11) {
+            timmyLine_ = "TURRET (" + std::to_string(turretRounds_) + " ROUNDS) - POINT AT THE GROUND, TRIGGER TO PLANT IT";
+            timmyLineT_ = 3.0f;
+        }
         if (weaponSel_ == 10) {
             timmyLine_ = "REPAIR GUN - AIM AT A DAMAGED BUILDING, HOLD THE TRIGGER";
             timmyLineT_ = 3.0f;
@@ -2106,7 +2112,11 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     } else {
         laserOn_ = false;
     }
-    const bool trigger = in.hand[gh].trigger > 0.6f;
+    bool trigger = in.hand[gh].trigger > 0.6f;
+    if (turretTrigBlock_) {  // (the pull that planted the turret doesn't also fire what comes back into the hand)
+        if (!trigger) turretTrigBlock_ = false;
+        trigger = false;
+    }
     rocketCooldown_ -= dt;
     if (launcher) {
         // One rocket per pull, 1 s to reload. The gun's bolts still fly (update with no trigger).
@@ -2134,6 +2144,13 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
         return;
     }
     rocketTriggerHeld_ = trigger;
+    if (weaponSel_ == 11) {  // the turret in hand: the trigger plants it where the hand points
+        weapon_.update(dt, false, muzzle, fwd);
+        if (trigger && !turretTrigHeld_ && gunValid_) plantTurret(muzzle, fwd);
+        turretTrigHeld_ = trigger;
+        return;
+    }
+    turretTrigHeld_ = trigger;
     if (weaponSel_ == 10) {  // the Repair Gun: a beam, no shots (the gun's bolts already in flight fly on)
         weapon_.update(dt, false, muzzle, fwd);
         updateRepairGun(dt, trigger && gunValid_, muzzle, fwd);

@@ -360,6 +360,13 @@ private:
     void resetArsenal();
     int gunOfSel(int sel) const;  // kGun* for a weaponSel_, -1 for the others
     bool weaponOwned(int sel) const;
+    // The switching order (stick push / wheel): handgun, shotgun, machine gun, sniper gun, mortar, grenades, mines,
+    // launcher, Repair Gun, turret, bush pack, pop-up bomb.
+    static constexpr int kNumSel = 12;
+    static constexpr int kWeaponOrder[kNumSel] = {0, 4, 5, 6, 7, 8, 9, 1, 10, 11, 2, 3};
+    int selHudLayer(int sel) const;  // the HUD icon of a weapon slot
+    int selCount(int sel) const;     // its count under the icon (-1: none)
+    int lastWeaponSel_ = 0;          // the last slot in hand other than the turret (taken up again once it's planted)
     const RenderModel* heldModel() const;
     void heldRefs(Vec3& handle, Vec3& muzzle) const;
     // Fires the selected gun (shotgun / machine gun / sniper); false if it is not one of them.
@@ -992,7 +999,7 @@ private:
             uint32_t target = 0;
         };
         std::vector<Bldg> bldgs;
-        struct TurretShot { Vec3 pos, vel; float life; uint32_t target; };
+        struct TurretShot { Vec3 pos, vel; float life; uint32_t target; float damage; };
         std::vector<TurretShot> turretShots;
         struct Item { int def; Vec3 pos; };
         std::vector<Item> items;
@@ -1002,6 +1009,34 @@ private:
         std::unordered_map<int, int> rewarded;  // per kind: the highest level whose reward was given (a rebuild gives none)
     };
     Base base_;
+    // (2026-10-28) The portable turret (weapondefs item 11 IconTurret1: object 60 mc_turret, "max 1", a gadget; no
+    // mission hands it out - ours: Baz carries one from Story 3 on and in practice). Weapon slot 11: carried in the
+    // hand by its Ref_handle, the trigger plants it (its spike into the ground where you point, within 6 m). Planted,
+    // its head turns to the nearest foe it can see within 40 m and fires (60 rounds, 12 damage, one every 0.45 s);
+    // spent, it folds away and is back in the pack 20 s later. Reach for it and squeeze the grip to take it back.
+    const RenderModel* turretHeldModel_ = nullptr;
+    std::unique_ptr<SkinnedModel> turretModel_;  // planted (its head turns: pose modifier)
+    Vec3 turretHandle_{0, 0, 2.0f}, turretMuzzle_{0, -3.0f, 4.5f};
+    bool hasTurret_ = false;
+    struct PortTurret {
+        bool up = false, folding = false;
+        Mat4 xf = Mat4::identity();
+        Vec3 pos;
+        float rise = 0, aimYaw = 0, posedYaw = 1e9f, fireT = 0;
+        uint32_t target = 0;
+        Vec3 muzzle;  // world, from Ref_nozzle01 in the last pose
+    } turret_;
+    int turretRounds_ = 60;
+    bool turretTrigHeld_ = false, turretTrigBlock_ = false, turretGripWas_[2] = {false, false};
+    float turretReadyT_ = 0;
+    std::vector<Base::TurretShot> turretShots_;
+    void initPortTurret(ModelCache* mc);
+    void resetPortTurret();
+    void plantTurret(const Vec3& muzzle, const Vec3& fwd);
+    void updatePortTurret(float dt, const InputFrame& in);
+    void renderPortTurret();
+    void stepTurretShots(std::vector<Base::TurretShot>& shots, float dt, const char* who);
+    void drawTurretShots(const std::vector<Base::TurretShot>& shots, const Vec4& tint);
     void initBase();
     void updateBase(float dt, const InputFrame& in);
     void renderBase(const Vec3& eye);
@@ -1837,7 +1872,7 @@ private:  // the mission placed enemies: no test waves
     // (FP: over the move-hand wrist; TP: head-locked, lower left); the weapon strip that pops up on
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
-                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudMine, kHudRepair, kHudLayers };
+                    kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudMine, kHudRepair, kHudTurret, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     float digitU_[11] = {}, digitU0_[10] = {}, digitU1_[10] = {};

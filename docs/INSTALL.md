@@ -233,11 +233,14 @@ you look (Reaper story 3 on); both hands together before your chest - **slow tim
 eyes - **cloak**, unseen until you shoot (story 4 on); let a fire bolt go as the hand flicks up - **cluster**, six
 bolts (story 4 on).
 
-## Weapon wheel, Repair Gun, homing rockets
+## Weapon wheel, Repair Gun, homing rockets, turret
 - **Hold the right stick forward**: a ring of what you carry appears before you; move the gun hand toward one and
   let the stick go (Baz and Delphi). A short push still steps to the next.
 - **Repair Gun** (Baz, base missions): aim at a damaged building and hold the trigger.
 - **Homing rockets** (a level's Shop, once Baz has the launcher): fired before plain rockets, they turn onto a foe.
+- **Portable turret** (Baz, Story 3 on): in hand, point at the ground within 6 m and pull the trigger to plant it;
+  it shoots the Reapers it can see (60 rounds), folds away when empty and is back 20 s later. Put a hand on its
+  head and squeeze the grip to take it back.
 
 ## Main menu
 - **PRACTICE** < BAZ | DELPHI | KABUTO >: the menu's island with every weapon of that hero's story, Reaper waves and

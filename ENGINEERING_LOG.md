@@ -2798,3 +2798,16 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   and pop-up bomb), get the original FX_homing trail without a doubled smoke puff; a 7-item shop counter closes up
   (at most 3 rad across) instead of wrapping behind him. Not changed: creatures, Vimps, SAMs and bosses ignore the
   cloak; the repair ray has no line-of-sight check (cosmetic).
+- Baz's portable turret: weapondefs item 11 (IconTurret1, object 60 mc_turret, "max 1", category 3 gadget; item 12
+  IconTurret2 the same object) - no mission's item list (dumped all 56) hands it out. The art: MC_turret.gbs (a gun
+  head on a spike, 1.1 m tall at 0.2 m/unit; nodes center / Turret / gun / Ref_handle / Ref_nozzle01, the clip
+  static) and i_mecc_turret. Ours: weapon slot 11 (between the Repair Gun and the bush in the switching order, now
+  one table kWeaponOrder with selHudLayer / selCount instead of four copies), carried from Story 3 on and in
+  practice. In hand by Ref_handle; the trigger plants it where the hand's ray meets the ground (within 6 m, never
+  in water), and the hand goes back to the weapon held before (that trigger pull doesn't fire it). Planted, the head
+  turns (pose modifier on "center", game-Z) to the nearest Reaper it can see within 40 m (the one it is on keeps it
+  unless another is 20 % nearer) and fires 12-damage rounds every 0.45 s from its nozzle (the shot code shared with
+  the base turrets: stepTurretShots / drawTurretShots). 60 rounds, then it sinks away and is back in the pack 20 s
+  later; a grip squeeze with the hand on its head takes it back at once. Checked: the drawn nozzle (the posed skin's
+  Ref_nozzle01) is 0.00 m from where its rounds leave; devtests w_mecc_turret (plant, take back, replant, kills)
+  and w_mecc_turret_spent (runs dry, folds, recharges) at 72 and 24 Hz. Reapers don't target it (it can't be hurt).

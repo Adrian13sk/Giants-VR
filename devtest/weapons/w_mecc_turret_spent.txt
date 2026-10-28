@@ -1,0 +1,17 @@
+# (2026-10-28) The portable turret runs dry: started with 8 rounds (GVR_TURRET_ROUNDS), it shoots at three Reapers
+# until it is empty, folds away into the ground, and 20 s later it is back in the pack with its 60 rounds.
+# Log (checked by devtest.ps1): "Turret planted" "Turret: out of rounds - it folds away" "Turret: folded away" "Turret: back in the pack (60 rounds)".
+name w_mecc_turret_spent
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_WEAPON 11
+env GVR_TURRET_ROUNDS 8
+view first
+duration 36
+pitch_r -25 0.5 1.0
+hold trigger_r 1.5 1.7
+reapers 3 18 2 99
+shot 10 turret_folding

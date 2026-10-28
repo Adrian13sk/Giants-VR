@@ -136,6 +136,15 @@ void GameApp::initMission() {
     repairOn_ = false;
     repairTarget_ = -1;
     if (hasRepairGun_) LOGI("Arsenal: the Repair Gun (base mission)");
+    // The portable turret (ours: see game_app.h): Baz carries it from Story 3 on, and in practice.
+    {
+        const std::string mn = toLower(assetWorld_->missionName());
+        const bool later = mn.rfind("story3", 0) == 0 || mn.rfind("4", 0) == 0 || mn.rfind("5", 0) == 0 || mn.rfind("kstory5_5", 0) == 0;
+        resetPortTurret();
+        hasTurret_ = hero_ == Hero::Mecc && turretModel_ && turretHeldModel_ && (later || practice_ || std::getenv("GVR_TURRET"));  // (test hook)
+        if (const char* r = std::getenv("GVR_TURRET_ROUNDS")) turretRounds_ = std::max(1, std::atoi(r));  // test hook
+        if (hasTurret_) LOGI("Arsenal: the portable turret");
+    }
     initPopup();
     // A level's Shop also sells ammo for the guns he carries / her bows' arrows (ours).
     if (shopOn_ && hero_ != Hero::Kabuto && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 4; }))

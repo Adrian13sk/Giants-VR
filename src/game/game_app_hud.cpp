@@ -26,8 +26,9 @@ void GameApp::initHud(ModelCache* mc) {
                                      "st_rp_sword",    "st_rp_firewall", "st_mec_syringe",  "st_vimpmeat",     "st_mec_flare",   "st_mec_bush",    "st_mec_numbers", nullptr,
                                      "st_mec_pop",   // the pop-up bomb (w_menus.gzp)
                                      "st_mec_shotgun", "st_mec_machine", "st_mec_sniper", "st_mec_mortar", "st_mec_grenade", "st_mec_mine",
-                                     "i_repair"};  // (the Repair Gun's inventory icon: no st_ art for it)
-    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 64, 48, 4, 4, 4, 4, 4, 4, 4, 4};
+                                     "i_repair",        // (the Repair Gun's inventory icon: no st_ art for it)
+                                     "i_mecc_turret"};  // (the portable turret's)
+    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 64, 48, 4, 4, 4, 4, 4, 4, 4, 4, 4};
     for (int k = 0; k < kHudLayers; ++k) {
         hudTex_[k] = names[k] ? mc->texture(names[k]) : whiteTex_;
         if (!hudTex_[k]) hudTex_[k] = whiteTex_;
@@ -192,9 +193,10 @@ void GameApp::hudStatus(const HudFrame& f) {
     } else {
         const bool launcher = weaponSel_ == 1 && launcherModel_;
         const int g = gunOfSel(weaponSel_);
-        const int layer = g >= 0 ? guns_[g].hudLayer : weaponSel_ == 10 ? kHudRepair : weaponSel_ == 9 ? kHudMine : weaponSel_ == 8 ? kHudGrenade : weaponSel_ == 3 ? kHudPop : weaponSel_ == 2 ? kHudBush : (launcher ? kHudLauncher : kHudGun);
-        hudRect(layer, f, 0.040f, -0.024f, 0.036f, 0.036f, on);
-        const int rounds = g >= 0 ? guns_[g].ammo : (launcher ? launcherAmmo_ + launcherHoming_ : weaponSel_ == 8 ? grenades_ : weaponSel_ == 9 ? mines_ : -1);
+        (void)launcher;
+        (void)g;
+        hudRect(selHudLayer(weaponSel_), f, 0.040f, -0.024f, 0.036f, 0.036f, on);
+        const int rounds = weaponSel_ == 3 || weaponSel_ == 11 ? -1 : selCount(weaponSel_);
         if (rounds >= 0) {  // rounds left, under the weapon
             const uint8_t nc[4] = {255, uint8_t(rounds > 0 ? 255 : 80), uint8_t(rounds > 0 ? 255 : 80), 255};
             hudDigits(f, 0.026f, -0.046f, 0.012f, rounds, nc);
@@ -229,9 +231,9 @@ void GameApp::hudWeaponStrip() {
     // guns); a count under those that run out. The first four sit on the original strip art
     // (st_mec_wpslot, four slots), more continue on plates.
     struct Cell { int layer; bool chosen; int count; };
-    Cell cells[12];
+    Cell cells[kNumSel + 1];  // (every slot and the injections)
     int n = 0;
-    auto add = [&](int layer, bool chosen, int count) { if (n < 12) cells[n++] = {layer, chosen, count}; };
+    auto add = [&](int layer, bool chosen, int count) { if (n < kNumSel + 1) cells[n++] = {layer, chosen, count}; };
     add(kHudGun, weaponSel_ == 0, -1);
     for (int g = 0; g < kNumGuns; ++g)
         if (guns_[g].have && guns_[g].model) add(guns_[g].hudLayer, weaponSel_ == guns_[g].sel, guns_[g].ammo);
@@ -239,6 +241,7 @@ void GameApp::hudWeaponStrip() {
     if (mines_ > 0) add(kHudMine, weaponSel_ == 9, mines_);
     if (hasLauncher_ && launcherModel_) add(kHudLauncher, weaponSel_ == 1, launcherAmmo_ + launcherHoming_);
     if (hasRepairGun_ && repairModel_) add(kHudRepair, weaponSel_ == 10, -1);
+    if (weaponOwned(11)) add(kHudTurret, weaponSel_ == 11, turretRounds_);
     if (syringes_ > 0) add(kHudSyringe, false, syringes_);
     if (hasBush()) add(kHudBush, weaponSel_ == 2, -1);
     if (popupBombs_ > 0) add(kHudPop, weaponSel_ == 3, popupBombs_);
@@ -267,13 +270,35 @@ void GameApp::hudWeaponStrip() {
 // The weapon wheel's cells: what he carries, in the switching order.
 void GameApp::buildWheelCells() {
     wheelCells_.clear();
-    static const int kOrder[11] = {0, 4, 5, 6, 7, 8, 9, 1, 10, 2, 3};
-    for (int sel : kOrder) {
-        if (!weaponOwned(sel)) continue;
-        const int g = gunOfSel(sel);
-        const int layer = g >= 0 ? guns_[g].hudLayer : sel == 10 ? kHudRepair : sel == 9 ? kHudMine : sel == 8 ? kHudGrenade : sel == 3 ? kHudPop : sel == 2 ? kHudBush : (sel == 1 ? kHudLauncher : kHudGun);
-        const int count = g >= 0 ? guns_[g].ammo : (sel == 1 ? launcherAmmo_ + launcherHoming_ : sel == 8 ? grenades_ : sel == 9 ? mines_ : sel == 3 ? popupBombs_ : -1);
-        wheelCells_.push_back({sel, layer, count});
+    for (int sel : kWeaponOrder)
+        if (weaponOwned(sel)) wheelCells_.push_back({sel, selHudLayer(sel), selCount(sel)});
+}
+
+int GameApp::selHudLayer(int sel) const {
+    const int g = gunOfSel(sel);
+    if (g >= 0) return guns_[g].hudLayer;
+    switch (sel) {
+        case 1: return kHudLauncher;
+        case 2: return kHudBush;
+        case 3: return kHudPop;
+        case 8: return kHudGrenade;
+        case 9: return kHudMine;
+        case 10: return kHudRepair;
+        case 11: return kHudTurret;
+        default: return kHudGun;
+    }
+}
+
+int GameApp::selCount(int sel) const {
+    const int g = gunOfSel(sel);
+    if (g >= 0) return guns_[g].ammo;
+    switch (sel) {
+        case 1: return launcherAmmo_ + launcherHoming_;
+        case 3: return popupBombs_;
+        case 8: return grenades_;
+        case 9: return mines_;
+        case 11: return turretRounds_;
+        default: return -1;
     }
 }
 

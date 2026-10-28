@@ -1146,13 +1146,17 @@ void GameApp::updateTurrets(float dt) {
             b.fireT = 0.7f;
             const Vec3 aim = tgt->pos + Vec3{0, 1.1f, 0} + Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} * 0.4f;
             const Vec3 dv = normalize(aim - muzzle);
-            base_.turretShots.push_back({muzzle + dv * 1.5f, dv * 70.0f, 1.0f, tgt->uid});
+            base_.turretShots.push_back({muzzle + dv * 1.5f, dv * 70.0f, 1.0f, tgt->uid, 18.0f});
             sfx(base_.reaper ? "me_rtfr1" : "me_gtfr1", muzzle, 0.8f, 0.95f + 0.1f * frand());
         }
     }
-    // The rounds: a hit within 0.8 m of the target's body.
-    for (size_t i = 0; i < base_.turretShots.size();) {
-        auto& t = base_.turretShots[i];
+    stepTurretShots(base_.turretShots, dt, "Base: a turret");
+}
+
+// Turret rounds (a base turret's or Baz's own): a hit within 0.8 m of the target's body.
+void GameApp::stepTurretShots(std::vector<Base::TurretShot>& shots, float dt, const char* who) {
+    for (size_t i = 0; i < shots.size();) {
+        auto& t = shots[i];
         const Vec3 from = t.pos;
         t.pos = t.pos + t.vel * dt;
         t.life -= dt;
@@ -1167,16 +1171,33 @@ void GameApp::updateTurrets(float dt) {
             const float u = std::max(0.0f, std::min(1.0f, dot(c - from, seg) / sl));
             if (length(from + seg * u - c) > 0.8f) break;
             const Vec3 hit = from + seg * u;
-            const bool killed = enemies_.damage(int(k), 18.0f);
+            const bool killed = enemies_.damage(int(k), t.damage);
             if (killed && e.objective >= 0) completeObjective(e.objective);
-            if (killed) LOGI("Base: a turret shot Reaper %u", e.uid);
+            if (killed) LOGI("%s shot Reaper %u", who, e.uid);
             bleed(hit, normalize(t.vel), killed, 1.0f);
             if (killed) blood_.pool(e.pos, 1.3f);
             sfx(killed ? "rpman_die2" : "ex_bdys1", hit, killed ? 1.0f : 0.35f);
             done = true;
         }
-        if (done) { base_.turretShots[i] = base_.turretShots.back(); base_.turretShots.pop_back(); }
+        if (done) { shots[i] = shots.back(); shots.pop_back(); }
         else ++i;
+    }
+}
+
+void GameApp::drawTurretShots(const std::vector<Base::TurretShot>& shots, const Vec4& tint) {
+    if (!boltModel_) return;
+    for (const auto& t : shots) {
+        const Quat r = rotationBetween({0, 0, -1}, t.vel);
+        for (const auto& part : boltModel_->parts) {
+            DrawParams dp;
+            dp.texture = part.texture;
+            dp.blend = BlendMode::Additive;
+            dp.unlit = true;
+            dp.depthWrite = false;
+            dp.doubleSided = true;
+            dp.tint = tint;
+            renderer_.draw(part.mesh, Mat4::translation(t.pos) * Mat4::rotation(r) * Mat4::scale({0.35f, 0.35f, 1.2f}), dp);
+        }
     }
 }
 
@@ -1210,19 +1231,7 @@ void GameApp::renderBase(const Vec3& eye) {
         m->render(renderer_, b.xf);
     }
     // Turret rounds: hot streaks (the Bulldog's orange, the Hellfire's red).
-    for (const auto& t : base_.turretShots) {
-        const Quat r = rotationBetween({0, 0, -1}, t.vel);
-        for (const auto& part : boltModel_ ? boltModel_->parts : std::vector<RenderModel::Part>{}) {
-            DrawParams dp;
-            dp.texture = part.texture;
-            dp.blend = BlendMode::Additive;
-            dp.unlit = true;
-            dp.depthWrite = false;
-            dp.doubleSided = true;
-            dp.tint = base_.reaper ? Vec4{2.6f, 0.6f, 0.3f, 1.0f} : Vec4{2.4f, 1.5f, 0.5f, 1.0f};
-            renderer_.draw(part.mesh, Mat4::translation(t.pos) * Mat4::rotation(r) * Mat4::scale({0.35f, 0.35f, 1.2f}), dp);
-        }
-    }
+    drawTurretShots(base_.turretShots, base_.reaper ? Vec4{2.6f, 0.6f, 0.3f, 1.0f} : Vec4{2.4f, 1.5f, 0.5f, 1.0f});
     if (base_.firepit) {
         const float d = base_.firepit->animDuration(0);
         base_.firepit->pose(renderer_, d > 0 ? std::fmod(float(time_), d) : 0.0f);
