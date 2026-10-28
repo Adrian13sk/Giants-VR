@@ -2830,3 +2830,10 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   letting go throws him on with the swing: he bowls over Reapers he meets (3 x speed) and takes 6 x speed where he
   lands. 6 s at most, 12 s between; Rstory5 and practice; a blue thread of fire from the hand. Found in testing: the
   default left-hand aim in the harness points 17 degrees under a Reaper's middle at 10 m (the script pitches it up).
+- Delphi's SUMMON FIRE CIRCLE: weapondefs item 31 (IconRSFireCircle), its effect model EFX_circle_spell (a flared
+  column, ~1.1 m round at the foot, 2.9 m at the top, 6.5 m tall, textured with her blue fire; the clip static); no
+  mission hands it out. Ours: trigger held, both arms stretched out to the sides (hands over 1.1 m apart, between
+  chest and hip) 0.4 s: the column (scaled 1.8 across: a 2 m ring) stands where she is for 8 s, turning; Reaper bolts
+  crossing its wall burn up, grenades and bazooka rockets burst in it (not hurting her), whatever stands in the wall
+  takes 40 a second; 20 s between; with slow time (story 4 on, the battles, practice). Checked in a frame from
+  inside (drawn at 0.45 additive: 0.8 washed the view out). The test run: 14-15 bolts / grenades stopped in 8 s.

@@ -82,7 +82,7 @@ quality levels chosen per world are logged and stay put.
   down hard) and SLOW TIME (both hands together before the chest), with the original's EFX_hail_missile /
   EFX_slow_spell models, on the CONTROLS card (harness). The data names more Reaper spells (GText iconrs*: Cloak,
   Cluster, Fire Circle, Follow, Repair, Sea Monster, Shadow, Shrink, Teleport) - candidates. 2026-10-28: CLOAK and CLUSTER
-  (r4a hands them to her in the data). 2026-10-28: FOLLOW (point, pull back, swing, throw; the followspell clips). Baz's Repair Gun (item 19, weapon 19 "-50 every 1.5 s") is in the data but no
+  (r4a hands them to her in the data). 2026-10-28: FOLLOW (point, pull back, swing, throw; the followspell clips) and FIRE CIRCLE (arms out; EFX_circle_spell). Baz's Repair Gun (item 19, weapon 19 "-50 every 1.5 s") is in the data but no
   mission gives it - done 2026-10-28 (base missions), with homing rockets (item 15) and the portable turret (item 11,
   mc_turret: planted, turns and fires; from Story 3 on). Still in the table and unused: proximity rockets (16), the
   motion mine (13), the shield (17), jetpack 2 (18).

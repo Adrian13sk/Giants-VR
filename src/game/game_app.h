@@ -1352,6 +1352,15 @@ private:  // the mission placed enemies: no test waves
     std::vector<HailStorm> hailStorms_;
     const RenderModel* hailModel_ = nullptr;
     const RenderModel* slowModel_ = nullptr;
+    // (2026-10-28) SUMMON FIRE CIRCLE (weapondefs item 31 IconRSFireCircle; its effect model EFX_circle_spell: a flared
+    // column of her blue fire). Rules ours: trigger held, both arms stretched out to the sides (hands over 1.1 m apart,
+    // between chest and hip) for 0.4 s - a ring of fire 2 m round where she stands, for 8 s: whatever is in its wall
+    // burns (40 a second), Reaper bolts that cross it burn up. 20 s between; with slow time (story 4 on, practice).
+    const RenderModel* circleModel_ = nullptr;
+    Vec3 circleAt_;
+    float circleT_ = 0, circleCool_ = 0, gestArmsT_ = 0;
+    int circleBurnt_ = 0;  // bolts burnt this circle (logged)
+    void castFireCircle();
     float hailCool_ = 0, slowCool_ = 0, slowT_ = 0, gestHighT_ = 0, gestTogether_ = 0;
     float gestPeakY_ = 0, gestLastT_ = -1;  // hail: the raised hand's highest point; when gestures last ran
     Vec3 gestPeak_;

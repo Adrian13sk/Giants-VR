@@ -44,6 +44,7 @@ void GameApp::initSpells() {
     if (b->load(assetWorld_->fs(), *mc, renderer_, "EFX_bubble_reflection", "EFX_bubble_reflection.anm")) bubbleModel_ = std::move(b);
     hailModel_ = mc->get("EFX_hail_missile.gbs", "", false);
     slowModel_ = mc->get("EFX_slow_spell.gbs", "", false);
+    circleModel_ = mc->get("EFX_circle_spell.gbs", "", false);
     spellReady_ = true;
     LOGI("Spells: fire roll %d, swirl %d, bubble %d, hail %d, slow %d", fireRoll_ != nullptr, swirl_ != nullptr, bubbleModel_ != nullptr,
          hailModel_ != nullptr, slowModel_ != nullptr);
@@ -143,6 +144,7 @@ void GameApp::endCloak(const char* why) {
 }
 
 void GameApp::resetSpells() {
+    circleT_ = circleCool_ = gestArmsT_ = 0;
     followUid_ = followCandUid_ = 0;
     followCool_ = followT_ = 0;
     followThrown_.clear();
@@ -156,6 +158,23 @@ void GameApp::resetSpells() {
     tornadoes_.clear();
     wheelOpen_ = wheelWasOpen_ = false;
     stickFwdT_ = 0;
+}
+
+namespace {
+constexpr float kCircleR = 2.0f;      // m: the wall's radius at the ground (the model's foot, scaled)
+constexpr float kCircleTime = 8.0f;   // s
+}  // namespace
+
+void GameApp::castFireCircle() {
+    endCloak("she cast");
+    circleAt_ = player_.position;
+    circleT_ = kCircleTime;
+    circleCool_ = 20.0f;
+    circleBurnt_ = 0;
+    sfx("sr_spfsh", circleAt_, 1.0f, 0.7f);
+    sfx("sr_spfsh", circleAt_, 0.8f, 1.2f);
+    addFlash(circleAt_ + Vec3{0, 1.0f, 0}, {0.6f, 0.9f, 2.0f}, 8.0f, 0.4f);
+    LOGI("Delphi casts FIRE CIRCLE (%.0f m round, %.0f s)", double(kCircleR), double(kCircleTime));
 }
 
 void GameApp::castSlowTime() {
@@ -299,6 +318,26 @@ void GameApp::updateSpellGestures(float dt, const InputFrame& in, const Vec3& di
             return;
         }
     }
+    // Fire circle: both arms stretched out to the sides, between the chest and the hips, for 0.4 s.
+    {
+        const ControllerState& o = in.hand[1 - mh];
+        const Vec3 oh = o.gripPose.position;
+        const float apart = length(Vec3{h.x - oh.x, 0, h.z - oh.z});
+        const bool spread = o.gripPoseValid && apart > 1.1f && h.y < head.y - 0.2f && oh.y < head.y - 0.2f && h.y > head.y - 1.0f && oh.y > head.y - 1.0f;
+        gestArmsT_ = spread ? gestArmsT_ + dt : 0.0f;
+        if (gestArmsT_ > 0.4f && slowOwned() && circleCool_ <= 0) {
+            castFireCircle();
+            if (trace) LOGI("spell gesture: arms out (%.2f m apart) -> fire circle", apart);
+            gestArmsT_ = 0;
+            spellGestureCast_ = true;
+            spellCharge_ = 0;
+            gestCircle_ = gestSweep_ = 0;
+            gestPrev_ = h;
+            haptics_.push_back({kLeft, 0.9f, 0.25f});
+            haptics_.push_back({kRight, 0.9f, 0.25f});
+            return;
+        }
+    }
     gestPrev_ = h;
     gestPrevAng_ = ang;
     gestPrevValid_ = true;
@@ -369,6 +408,67 @@ bool GameApp::updateSpells(float dt, bool trig, const Vec3& from, const Vec3& di
 
 void GameApp::stepSpells(float dt) {
     const float t = float(time_);
+    circleCool_ = std::max(0.0f, circleCool_ - dt);
+    if (circleT_ > 0) {
+        const float was = circleT_;
+        circleT_ = std::max(0.0f, circleT_ - dt);
+        // Its wall: blue flames licking up round the ring.
+        for (int k = 0; k < 3; ++k) {
+            const float a = frand() * 6.2832f;
+            smokePuff(FxTex::FireBlue, circleAt_ + Vec3{std::sin(a) * kCircleR, 0.2f + frand() * 1.5f, std::cos(a) * kCircleR}, Vec3{0, 2.0f, 0}, 0.6f, 0.4f, 0.5f, 0.9f, 0.3f);
+        }
+        // Bolts that cross it burn up.
+        auto& ps = enemyFire_.projectiles();
+        for (size_t i = 0; i < ps.size();) {
+            const Vec3 d{ps[i].pos.x - circleAt_.x, 0, ps[i].pos.z - circleAt_.z};
+            const float r = length(d), y = ps[i].pos.y - circleAt_.y;
+            if (std::fabs(r - kCircleR) < 0.6f && y > -0.5f && y < 6.0f) {
+                smokePuff(FxTex::FireBlue, ps[i].pos, Vec3{0, 1.0f, 0}, 0.5f, 0.3f, 0.4f, 1.0f, 0.0f);
+                ++circleBurnt_;
+                ps[i] = ps.back();
+                ps.pop_back();
+                continue;
+            }
+            ++i;
+        }
+        // A Reaper's grenade or bazooka rocket meeting the wall bursts there (not on her).
+        for (auto& r : rockets_) {
+            if ((r.kind != 3 && r.kind != 6) || r.life >= 1e9f) continue;
+            const float rr = length(Vec3{r.pos.x - circleAt_.x, 0, r.pos.z - circleAt_.z}), y = r.pos.y - circleAt_.y;
+            if (std::fabs(rr - kCircleR) < 0.6f && y > -0.5f && y < 6.0f) {
+                explode(r.pos, 2.5f, 40.0f, false, 0);
+                r.life = 1e9f;
+                ++circleBurnt_;
+                LOGI("Fire circle: a %s bursts in its wall", r.kind == 6 ? "grenade" : "rocket");
+            }
+        }
+        // What stands in the wall burns (half-second ticks: 20 each).
+        if (int(circleT_ * 2) != int(was * 2) && weapon_.onHit) {
+            for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
+                const Enemy& e = enemies_.enemies[i];
+                if (e.state == EnemyState::Dead) continue;
+                const float r = length(Vec3{e.pos.x - circleAt_.x, 0, e.pos.z - circleAt_.z});
+                if (std::fabs(r - kCircleR) < 0.9f && std::fabs(e.pos.y - circleAt_.y) < 3.0f) {
+                    hitMul_ = 0.8f;
+                    weapon_.onHit(int(i), e.pos + Vec3{0, 1.0f, 0}, normalize(Vec3{e.pos.x - circleAt_.x, 0.1f, e.pos.z - circleAt_.z}));
+                    hitMul_ = 1.0f;
+                }
+            }
+            for (size_t i = 0; i < creatures_.creatures.size(); ++i) {
+                const Creature& c = creatures_.creatures[i];
+                if (c.state == CreatureState::Dead || CreatureDirector::underground(c)) continue;
+                const float r = length(Vec3{c.pos.x - circleAt_.x, 0, c.pos.z - circleAt_.z});
+                if (std::fabs(r - kCircleR) < 0.9f + 0.4f * c.scale) {
+                    hitMul_ = 0.8f;
+                    weapon_.onHit(kCreatureTargetS + int(i), c.pos + Vec3{0, 0.5f, 0}, Vec3{0, 1, 0});
+                    hitMul_ = 1.0f;
+                }
+            }
+        }
+        static const bool ctrace = std::getenv("GVR_SPELL_TRACE") != nullptr;
+        if (ctrace && int(circleT_) != int(was)) LOGI("spell trace: fire circle, Delphi %.1f m from its middle", double(length(Vec3{player_.position.x - circleAt_.x, 0, player_.position.z - circleAt_.z})));
+        if (circleT_ <= 0) LOGI("Fire circle dies down (%d bolts burnt up)", circleBurnt_);
+    }
     hailCool_ = std::max(0.0f, hailCool_ - dt);
     cloakCool_ = std::max(0.0f, cloakCool_ - dt);
     clusterCool_ = std::max(0.0f, clusterCool_ - dt);
@@ -582,6 +682,12 @@ void GameApp::renderSpells() {
         const float k = std::min(1.0f, std::min((8.0f - slowT_) / 0.4f, slowT_ / 0.8f));
         drawModel(slowModel_, Mat4::translation(player_.position + Vec3{0, 0.1f, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.4f)) *
                                   Mat4::scale(Vec3{3.0f, 3.0f, 3.0f}), true, (0.16f + 0.29f * std::max(0.0f, std::min(1.0f, (slowT_ - 6.3f) / 0.5f))) * k);  // (bright as it is cast, faint after)
+    }
+    if (circleModel_ && circleT_ > 0) {
+        // The flared column of blue fire, turning, fading in and out (its foot ~1.1 m round, scaled to the ring).
+        const float k = std::min(1.0f, std::min((kCircleTime - circleT_) / 0.4f, circleT_ / 0.8f));
+        drawModel(circleModel_, Mat4::translation(circleAt_) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.8f)) * Mat4::scale(Vec3{1.8f, 1.0f, 1.8f}),
+                  true, 0.45f * k);
     }
     if (bubbleModel_)
         for (const auto& b : bubbles_) {

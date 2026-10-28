@@ -150,6 +150,8 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
 - [ ] **Delphi's FOLLOW** (Reaper story 5, or PRACTICE as Delphi): left trigger held, point at a Reaper and pull the
       hand back sharply: he is lifted and hangs where you point. Swing the hand and let go of the trigger: he flies.
       Is the pull easy to do on purpose and hard to do by accident? Does a hard throw feel right?
+- [ ] **Delphi's FIRE CIRCLE** (Reaper story 4 on, the battles, PRACTICE): left trigger held, both arms out to the
+      sides: a column of blue fire 2 m round you for 8 s. Do bolts and grenades stop in it? Too bright inside?
       Easy to do on purpose? Ever by accident (e.g. while fighting with the sword)?
 - [ ] **Options -> FOVEATED RENDERING: AUTO (UP TO HIGH):** the headset itself sharpens the edges when there is time
       to spare. Compare with MEDIUM in 1a's village: sharper? smoother? Note the FRAME RATE either way.

@@ -232,7 +232,8 @@ low across you - fire wall; circle it over your head - tornado; raise it high an
 you look (Reaper story 3 on); both hands together before your chest - **slow time** (story 4 on); hand over your
 eyes - **cloak**, unseen until you shoot (story 4 on); let a fire bolt go as the hand flicks up - **cluster**, six
 bolts (story 4 on); point at a Reaper and pull the hand back - **follow**: he hangs in the air where you point;
-swing and let go to throw him (story 5 on).
+swing and let go to throw him (story 5 on); both arms stretched out to the sides - **fire circle**: a ring of
+blue fire round you for 8 s that burns up bolts and grenades and burns Reapers walking into it (story 4 on).
 
 ## Weapon wheel, Repair Gun, homing rockets, turret
 - **Hold the right stick forward**: a ring of what you carry appears before you; move the gun hand toward one and
