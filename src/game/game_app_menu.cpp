@@ -24,7 +24,7 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 }
 
 namespace {
-enum MenuRow { kRowResume, kRowControls, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowControls, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -109,11 +109,12 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowFov: s.foveation = std::max(0, std::min(3, s.foveation + dx)); changed = true; break;
             case kRowDay: s.dayNight = !s.dayNight; changed = true; break;
             case kRowFx: s.originalFx = !s.originalFx; changed = true; break;
+            case kRowMic: s.micRoar = !s.micRoar; changed = true; break;
             case kRowNewGame: menuCampaign_ = (menuCampaign_ + dx + 3) % 3; haptics_.push_back({kRight, 0.3f, 0.03f}); break;
             default: break;
         }
         if (changed) {
-            static const char* kRowNames[kRowCount] = {"resume", "controls", "turn", "vignette", "ambushes", "aim laser", "reach assist", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "new game"};
+            static const char* kRowNames[kRowCount] = {"resume", "controls", "turn", "vignette", "ambushes", "aim laser", "reach assist", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "mic roar", "new game"};
             LOGI("Options: %s changed", kRowNames[menuRow_]);
             applySettings();
             saveSettings();
@@ -192,6 +193,7 @@ void GameApp::renderMenu() {
         {"FOVEATED RENDERING", fovs[s.foveation]},
         {"DAY AND NIGHT", s.dayNight ? "CYCLE" : "ALWAYS DAY"},
         {"EFFECTS", s.originalFx ? "ORIGINAL (TEST)" : "SIMPLE"},
+        {"KABUTO MIC ROAR", s.micRoar ? (micAllowed_ ? "ON - MIC READY" : "ON") : "OFF"},
         {"NEW GAME", newGame},
     };
     const float rowH = 0.066f, w = 1.15f, h = rowH * float(kRowCount + 2) + 0.1f;
@@ -268,6 +270,7 @@ void GameApp::renderControlsCard(const Mat4& base) {
         {"X", "GRAB AND EAT THE NEAREST"},
         {"LEFT TRIGGER", "STOMP"},
         {"Y / CHEST BEAT", "ROAR (Y HELD: LAY AN EGG)"},
+        {"SHOUT (MIC ROAR ON)", "ROAR"},
         {"BOTH GRIPS", "ADRENALINE (WHEN THE GAUGE IS FULL)"},
         {"CLIMB", "GRIP A CLIFF, PULL DOWN"},
         {"RIGHT TRIGGER", "MAGNIFYING GLASS (WHEN YOU HAVE IT)"},

@@ -1,0 +1,11 @@
+# Rework (2026-10-28): Options -> KABUTO MIC ROAR - shout into the headset's microphone for a quarter second
+# and Kabuto roars (Reapers knocked back). GVR_MIC_TEST stands in for the microphone (level 0.3 from 2 s to 3 s);
+# the device's real microphone is never opened in a scripted run.
+# Log (checked by devtest.ps1): "Kabuto roars into the microphone" "Kabuto roars".
+name kabuto_mic_roar
+world Kstory1
+mission k1a_smarties
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_MIC_TEST 0.3,2,3
+duration 5

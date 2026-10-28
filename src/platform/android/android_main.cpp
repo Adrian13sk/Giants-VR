@@ -135,6 +135,33 @@ std::string dataDirectory(android_app* app) {
 
 }  // namespace
 
+// (2026-10-28) RECORD_AUDIO for Kabuto's mic roar: checked, and asked for once when the option is turned on.
+bool hasPermission(JNIEnv* env, jobject activity, const char* perm) {
+    jclass cls = env->GetObjectClass(activity);
+    jmethodID m = env->GetMethodID(cls, "checkSelfPermission", "(Ljava/lang/String;)I");
+    jstring s = env->NewStringUTF(perm);
+    const jint r = m ? env->CallIntMethod(activity, m, s) : -1;
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    env->DeleteLocalRef(s);
+    env->DeleteLocalRef(cls);
+    return r == 0;
+}
+
+void requestPermission(JNIEnv* env, jobject activity, const char* perm) {
+    jclass cls = env->GetObjectClass(activity);
+    jmethodID m = env->GetMethodID(cls, "requestPermissions", "([Ljava/lang/String;I)V");
+    jclass strCls = env->FindClass("java/lang/String");
+    jstring s = env->NewStringUTF(perm);
+    jobjectArray arr = env->NewObjectArray(1, strCls, s);
+    if (m) env->CallVoidMethod(activity, m, arr, 7);
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    env->DeleteLocalRef(arr);
+    env->DeleteLocalRef(s);
+    env->DeleteLocalRef(strCls);
+    env->DeleteLocalRef(cls);
+    LOGI("Microphone: asked for the RECORD_AUDIO permission");
+}
+
 void android_main(android_app* app) {
     LOGI("GiantsVR starting (build %s %s)", __DATE__, __TIME__);
     JNIEnv* env = nullptr;
@@ -192,6 +219,7 @@ void android_main(android_app* app) {
         }
     }
     bool audioRunning = false;
+    gvr::AAudioInput micIn;  // (Kabuto's mic roar; opened on demand)
 
     bool exitRequested = !ok;
     bool finishRequested = false;
@@ -250,6 +278,22 @@ void android_main(android_app* app) {
         }
         if (autotest.active()) autotest.beginFrame(game, xr, frame, now);
         const double u0 = nowSeconds();
+        // Kabuto's mic roar: the microphone open only while the option wants it (and never in a scripted test).
+        if (!scripted) {
+            static bool asked = false, granted = false;
+            static double lastCheck = 0;
+            if (game.micWanted()) {
+                if (!granted && now - lastCheck > 1.0) {
+                    lastCheck = now;
+                    granted = hasPermission(env, app->activity->clazz, "android.permission.RECORD_AUDIO");
+                    if (!granted && !asked) { asked = true; requestPermission(env, app->activity->clazz, "android.permission.RECORD_AUDIO"); }
+                }
+                if (granted && !micIn.isOpen()) micIn.open();
+            } else if (micIn.isOpen()) {
+                micIn.close();
+            }
+            game.setMicLevel(micIn.level(), granted);
+        }
         game.update(dt, frame.input);
         if (autotest.active()) autotest.updateDone((nowSeconds() - u0) * 1000.0);
         for (const auto& hr : game.hapticRequests()) xr.input().vibrate(hr.hand, hr.amplitude, hr.seconds);

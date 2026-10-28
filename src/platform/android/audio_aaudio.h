@@ -33,4 +33,19 @@ private:
     bool running_ = false;
 };
 
+// (2026-10-28) The headset's microphone, for Kabuto's roar: a mono float input stream whose callback keeps the
+// loudness (RMS of the last burst, decaying). Opened only while wanted, with RECORD_AUDIO granted.
+class AAudioInput {
+public:
+    bool open();
+    void close();
+    bool isOpen() const { return stream_ != nullptr; }
+    float level() const { return level_.load(); }
+
+private:
+    static aaudio_data_callback_result_t onData(AAudioStream* s, void* user, void* data, int32_t frames);
+    AAudioStream* stream_ = nullptr;
+    std::atomic<float> level_{0.0f};
+};
+
 }  // namespace gvr

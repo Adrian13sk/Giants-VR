@@ -24,6 +24,8 @@
 
     <!-- Multiplayer over the local Wi-Fi (game/sk_net.h): UDP, and the multicast lock that lets the
          games' broadcast beacons in. All are normal (install-time) permissions. -->
+    <!-- (2026-10-28) Options -> KABUTO MIC ROAR only: asked for at run time when that is turned on. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

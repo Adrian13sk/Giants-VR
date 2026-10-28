@@ -4,6 +4,7 @@
 #include "game/game_app.h"
 #include "game/hero_clips.h"
 
+#include <cstdio>
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -522,6 +523,22 @@ void GameApp::updateKabuto(float dt, const InputFrame& in) {
         }
     }
     if (!y) { kbYHold_ = 0; kbYLaid_ = false; }
+    // (2026-10-28) Roar into the microphone (Options -> KABUTO MIC ROAR): loud for a quarter second = his roar,
+    // the louder the wider it reaches. Test hook GVR_MIC_TEST=<level>,<from s>,<to s> stands in for the mic.
+    {
+        float level = (settings_.micRoar && micAllowed_) ? micLevel_ : 0.0f;
+        static const char* mt = std::getenv("GVR_MIC_TEST");
+        if (mt) {
+            float lv = 0, a = 0, b = 0;
+            if (std::sscanf(mt, "%f,%f,%f", &lv, &a, &b) == 3) level = (float(time_) >= a && float(time_) < b) ? lv : 0.0f;
+        }
+        micLoudT_ = level > 0.12f ? micLoudT_ + dt : 0.0f;
+        if (micLoudT_ > 0.25f && k.roarCool <= 0) {
+            roarNow = true;
+            micLoudT_ = 0;
+            LOGI("Kabuto roars into the microphone (level %.2f)", level);
+        }
+    }
     if (roarNow && k.roarCool <= 0 && !busy && player_.onGround) {
         player_.startAction(PlayerAnim::Cast, std::min(3.0f, std::max(0.5f, player_.oneShot[int(PlayerAnim::Cast)])));
         static const char* roars[] = {"ka_roar1", "ka_roar2", "ka_roar3", "ka_roar4"};

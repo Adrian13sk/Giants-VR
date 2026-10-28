@@ -1832,6 +1832,14 @@ private:  // the mission placed enemies: no test waves
     float fxCover_[kCostCount] = {}, fxCoverMax_[kCostCount] = {}, fxCoverT_ = 0;
     static float coverOf(float size, float dist) { const float a = size / std::max(0.05f, dist); return std::min(1.0f, a * a / 5.7f); }
     void logFxCost(float dt);
+    // (2026-10-28) The microphone roar: the platform reads the headset's microphone (only while this is true)
+    // and passes its loudness (RMS, 0..1) every frame; a loud enough shout makes Kabuto roar.
+public:
+    bool micWanted() const { return settings_.micRoar && hero_ == Hero::Kabuto && playMode_; }
+    void setMicLevel(float rms, bool allowed) { micLevel_ = rms; micAllowed_ = allowed; }
+private:
+    float micLevel_ = 0, micLoudT_ = 0;
+    bool micAllowed_ = false;
     // (2026-10-28) The wrist display: hold the move hand's forearm across in front of your face (as to read a
     // watch) for a moment and a small panel over the wrist shows health, ammo, items and the objective.
     float wristT_ = 0;
