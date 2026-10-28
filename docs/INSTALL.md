@@ -227,6 +227,23 @@ it and floats it to you. **Hold and release** after about a second: a **fire wal
 its path. In the battles (from Sappho's Fleet on), hold longer (the glow in your hand turns blue): a **tornado** - the
 only thing that brings down an army barracks.
 
+**Spells by gesture** (first person, the move-hand trigger held; Options → CONTROLS lists them): sweep the hand
+low across you - fire wall; circle it over your head - tornado; raise it high and chop straight down - **hail** where
+you look (Reaper story 3 on); both hands together before your chest - **slow time** (story 4 on); hand over your
+eyes - **cloak**, unseen until you shoot (story 4 on); let a fire bolt go as the hand flicks up - **cluster**, six
+bolts (story 4 on).
+
+## Weapon wheel, Repair Gun, homing rockets
+- **Hold the right stick forward**: a ring of what you carry appears before you; move the gun hand toward one and
+  let the stick go (Baz and Delphi). A short push still steps to the next.
+- **Repair Gun** (Baz, base missions): aim at a damaged building and hold the trigger.
+- **Homing rockets** (a level's Shop, once Baz has the launcher): fired before plain rockets, they turn onto a foe.
+
+## Main menu
+- **PRACTICE** < BAZ | DELPHI | KABUTO >: the menu's island with every weapon of that hero's story, Reaper waves and
+  Vimp herds; nothing is saved. **Options → MAIN MENU** (hold the trigger 2 s) leaves practice or a mission.
+- The menus follow your controller's ray (and bare hands: point, pinch; the left hand's menu gesture opens Options).
+
 ## Kabuto (Kabuto story)
 Options → NEW GAME: choose **KABUTO STORY** with the stick, hold the trigger 2 s. You are the giant: the world is
 scaled so your eyes are at his height (about 13 m). The HUD and menu stay their normal size.
