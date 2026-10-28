@@ -28,6 +28,9 @@ struct ControllerState {
     bool touchValid = false;
     bool triggerTouch = true;
     bool thumbTouch = true;
+    // (2026-10-28) A bare hand, not a controller (hand tracking): only the aim ray, the index pinch as `trigger`
+    // and the left hand's menu gesture as `menu` are filled; the platform passes them on only for the menus.
+    bool handTracked = false;
 };
 
 struct InputFrame {

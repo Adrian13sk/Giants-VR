@@ -274,6 +274,12 @@ void android_main(android_app* app) {
             // Not focused (system menu / guardian): keep rendering, ignore gameplay input.
             for (auto& h : frame.input.hand) { h.thumbstick = {}; h.trigger = h.squeeze = 0; }
         }
+        for (auto& h : frame.input.hand)
+            if (h.handTracked && !game.wantsHandPointers()) {
+                const bool m = h.menu;
+                h = gvr::ControllerState{};
+                h.menu = m;
+            }
         if (game.foveationWanted() != foveationApplied || game.foveationDynamicWanted() != foveationDynamic) {  // changed in the menu (or first frame)
             foveationApplied = game.foveationWanted();
             foveationDynamic = game.foveationDynamicWanted();

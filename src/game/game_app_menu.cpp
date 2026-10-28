@@ -25,6 +25,45 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 
 namespace {
 enum MenuRow { kRowResume, kRowControls, kRowDifficulty, kRowTurn, kRowMove, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowSeated, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowNewGame, kRowMainMenu, kRowCount };
+// (2026-10-28) A window of 16 rows that scrolls with the choice: with 26 rows the panel stood ~1.9 m tall.
+constexpr int kVisible = 16;
+constexpr float kRowH = 0.066f, kMenuW = 1.15f, kMenuH = kRowH * float(kVisible + 2) + 0.1f;
+}
+
+bool GameApp::panelRay(const Mat4& panel, float w, float h, const InputFrame& in, float& lx, float& ly, int& hand) {
+    const Vec3 c{panel.m[12], panel.m[13], panel.m[14]};
+    const Vec3 ax{panel.m[0], panel.m[1], panel.m[2]}, ay{panel.m[4], panel.m[5], panel.m[6]}, n{panel.m[8], panel.m[9], panel.m[10]};
+    bool hit = false;
+    float best = -1;
+    const int main = settings_.leftHanded ? kLeft : kRight;
+    for (int pass = 0; pass < 2; ++pass) {
+        const int k = pass == 0 ? main : 1 - main;  // (both on it, neither pulling: the main hand's)
+        const ControllerState& cs = in.hand[k];
+        if (!cs.aimPoseValid) continue;
+        const Pose a = rig_.toWorld(cs.aimPose);
+        const Vec3 d = a.orientation.rotate(Vec3{0, 0, -1});
+        const float dn = dot(d, n);
+        if (dn > -1e-3f) continue;  // (pointing away from its face)
+        const float t = dot(c - a.position, n) / dn;
+        if (t <= 0 || t > 6.0f) continue;
+        const Vec3 p = a.position + d * t - c;
+        const float x = dot(p, ax), y = dot(p, ay);
+        if (std::fabs(x) > 0.5f * w || std::fabs(y) > 0.5f * h) continue;
+        if (hit && cs.trigger <= best) continue;  // (both on it: the one pulling its trigger)
+        hit = true;
+        best = cs.trigger;
+        lx = x;
+        ly = y;
+        hand = k;
+        pointDotXf_ = panel * Mat4::translation({x, y, 0.006f});
+    }
+    return hit;
+}
+
+void GameApp::renderPointDot() {
+    if (!pointDotOn_ || !text_.ready()) return;
+    text_.drawPanel(pointDotXf_, 0.02f, 0.02f, {0.55f, 0.85f, 1.0f, 0.95f});
+    text_.drawPanel(pointDotXf_ * Mat4::translation({0, 0, 0.001f}), 0.008f, 0.008f, {1, 1, 1, 1});
 }
 
 void GameApp::applySettings() {
@@ -51,6 +90,8 @@ void GameApp::openMenu(const InputFrame& in) {
     menuOpen_ = true;
     menuControls_ = false;
     menuRow_ = kRowResume;
+    menuTop_ = 0;
+    hoverRow_ = -2;
     menuNewGame_ = 0;
     menuCampaign_ = hero_ == Hero::Delphi ? 1 : (hero_ == Hero::Kabuto ? 2 : 0);
     settings_.thirdPerson = !firstPerson_;
@@ -83,13 +124,50 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
         const bool act = in.hand[1].primary || in.hand[0].trigger > 0.6f || in.hand[1].trigger > 0.6f;
         if ((act && !menuActHeld_) || in.hand[1].secondary || dx != 0 || dy != 0) menuControls_ = false;
         menuActHeld_ = act;
+        pointDotOn_ = false;
         return;
+    }
+    // A / either trigger: activate (Resume; New game must be held 2 s) - unless the pointer turns it into a change.
+    const bool actRaw = in.hand[1].primary || in.hand[0].trigger > 0.6f || in.hand[1].trigger > 0.6f;
+    int side = 0;  // the pointer on a row's value: -1 / +1 (left / right part); 2: on the scroll bands
+    {
+        float lx = 0, ly = 0;
+        int ph = kRight;
+        const Mat4 base = Mat4::translation(menuPos_) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, menuYaw_));
+        pointDotOn_ = panelRay(base, kMenuW, kMenuH, in, lx, ly, ph);
+        int row = -1, scroll = 0;
+        if (pointDotOn_) {
+            const int vi = int(std::floor((0.5f * kMenuH - 0.17f - ly) / kRowH + 0.5f));
+            if (vi < 0) scroll = -1;
+            else if (vi >= kVisible) scroll = 1;
+            else if (menuTop_ + vi < kRowCount) row = menuTop_ + vi;
+        }
+        if (hoverRow_ != -2 && row >= 0 && row != hoverRow_) {
+            menuRow_ = row;
+            haptics_.push_back({ph, 0.15f, 0.015f});
+            sfx2D("ph_selct", 0.3f);
+            LOGI("Options: pointing at row %d", row);
+        }
+        hoverRow_ = row;
+        if (row >= 0 && row == menuRow_ && row != kRowResume && row != kRowControls && row != kRowMainMenu && lx > 0.0f)
+            side = lx < 0.25f * kMenuW ? -1 : 1;
+        if (scroll != 0) {
+            side = 2;
+            if (actRaw && !menuActHeld_) {
+                menuTop_ = std::max(0, std::min(int(kRowCount) - kVisible, menuTop_ + 4 * scroll));
+                menuRow_ = std::max(menuTop_, std::min(menuTop_ + kVisible - 1, menuRow_));
+                sfx2D("ph_selct", 0.4f, 0.9f);
+            }
+        }
+        if ((side == 1 || side == -1) && actRaw && !menuActHeld_) dx = side;
     }
     if (dy != 0) {
         menuRow_ = (menuRow_ + dy + kRowCount) % kRowCount;
         haptics_.push_back({kRight, 0.2f, 0.02f});
         sfx2D("ph_selct", 0.4f);
     }
+    if (menuRow_ < menuTop_) menuTop_ = menuRow_;
+    if (menuRow_ >= menuTop_ + kVisible) menuTop_ = menuRow_ - kVisible + 1;
     bool changed = false;
     UserSettings& s = settings_;
     if (dx != 0) {
@@ -128,8 +206,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             sfx2D("ph_selct", 0.6f, 1.2f);
         }
     }
-    // A / either trigger: activate (Resume; New game must be held 2 s).
-    const bool act = in.hand[1].primary || in.hand[0].trigger > 0.6f || in.hand[1].trigger > 0.6f;
+    const bool act = side == 0 && actRaw;
     if (menuRow_ == kRowControls && act && !menuActHeld_) {
         menuControls_ = true;
         sfx2D("ph_selct", 0.6f, 1.2f);
@@ -174,7 +251,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
     } else {
         menuQuit_ = 0;
     }
-    menuActHeld_ = act;
+    menuActHeld_ = actRaw;
 }
 
 void GameApp::renderMenu() {
@@ -220,10 +297,8 @@ void GameApp::renderMenu() {
         {"MAIN MENU", menuQuit_ > 0.05f ? "HOLD... " + std::to_string(int(std::ceil(2.0f - menuQuit_)))
                                          : std::string(practice_ ? "LEAVE PRACTICE" : (title_ ? "" : "LAST CHECKPOINT KEPT"))},
     };
-    // (2026-10-28) A window of 16 rows that scrolls with the choice: with 26 rows the panel stood ~1.9 m tall.
-    constexpr int kVisible = 16;
-    const int first = std::max(0, std::min(int(kRowCount) - kVisible, menuRow_ - kVisible / 2));
-    const float rowH = 0.066f, w = 1.15f, h = rowH * float(kVisible + 2) + 0.1f;
+    const int first = std::max(0, std::min(int(kRowCount) - kVisible, menuTop_));
+    const float rowH = kRowH, w = kMenuW, h = kMenuH;
     text_.drawPanel(base, w, h, {0.015f, 0.03f, 0.055f, 0.9f});
     drawPanelEdge(base, w, h);
     float tw, th;
@@ -247,8 +322,9 @@ void GameApp::renderMenu() {
                 text_.draw(m, base * Mat4::translation({0.5f * w - 0.06f - 0.5f * tw, y, 0.004f}), col);
         }
     }
-    if (const MeshId m = text_.mesh("STICK: CHOOSE / CHANGE    NEW GAME, MAIN MENU: HOLD TRIGGER 2 S    MENU: CLOSE", 0.032f, 1.1f, &tw, &th))
+    if (const MeshId m = text_.mesh("POINT/STICK: CHOOSE    NEW GAME, MAIN MENU: HOLD 2 S    MENU: CLOSE", 0.032f, 1.1f, &tw, &th))
         text_.draw(m, base * Mat4::translation({0, -0.5f * h + 0.045f, 0.004f}), {0.7f, 0.7f, 0.7f, 1});
+    renderPointDot();
 }
 
 // The controls of the hero you play, on one card (Options -> CONTROLS). The rework's hand mechanics are

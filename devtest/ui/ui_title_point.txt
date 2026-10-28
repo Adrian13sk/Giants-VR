@@ -1,0 +1,14 @@
+# The main menu by pointing (2026-10-28): the right controller raised onto PRACTICE (it is chosen), turned onto the
+# row's right end and the trigger pulled (the hero changes, as the stick right would), back to the middle, trigger.
+# Log (checked by devtest.ps1): "Main menu: pointing at row 3" "Main menu: practice as Delphi".
+name ui_title_point
+world Story1
+title
+duration 30
+pitch_r 15 4 5
+yaw_r -10 6 6.5
+hold trigger_r 7 7.3
+yaw_r 10 8 8.5
+hold trigger_r 9 9.3
+shot 6.8 point
+shot 28 practice

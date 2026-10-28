@@ -92,6 +92,7 @@ private:
     };
 
     bool hasExtension(const char* name) const;
+    bool handTracking_ = false;  // XR_EXT_hand_tracking + XR_FB_hand_tracking_aim, and the system tracks hands
     bool createSwapchains();
     bool createMultiviewSwapchain();
     EyeBindResult acquire(Swapchain& sc, int eye);

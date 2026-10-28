@@ -1,5 +1,6 @@
 #include "xr/xr_input.h"
 
+#include <algorithm>
 #include <cstring>
 #include <vector>
 
@@ -218,7 +219,45 @@ void XrInput::sync(XrTime time, XrSpace baseSpace, InputFrame& out) {
             c.aimPoseValid = true;
         }
         c.active = c.gripPoseValid || c.aimPoseValid;
+        if (!c.active && tracker_[h] && pfnLocateHand_) {
+            XrHandJointsLocateInfoEXT li{XR_TYPE_HAND_JOINTS_LOCATE_INFO_EXT};
+            li.baseSpace = baseSpace;
+            li.time = time;
+            XrHandJointLocationEXT joints[XR_HAND_JOINT_COUNT_EXT];
+            XrHandTrackingAimStateFB aim{XR_TYPE_HAND_TRACKING_AIM_STATE_FB};
+            XrHandJointLocationsEXT locs{XR_TYPE_HAND_JOINT_LOCATIONS_EXT};
+            locs.next = &aim;
+            locs.jointCount = XR_HAND_JOINT_COUNT_EXT;
+            locs.jointLocations = joints;
+            if (XR_SUCCEEDED(pfnLocateHand_(tracker_[h], &li, &locs)) && locs.isActive && (aim.status & XR_HAND_TRACKING_AIM_VALID_BIT_FB)) {
+                c.handTracked = true;
+                c.aimPose = toPose(aim.aimPose);
+                c.aimPoseValid = true;
+                c.trigger = (aim.status & XR_HAND_TRACKING_AIM_INDEX_PINCHING_BIT_FB) ? 1.0f : std::max(0.0f, std::min(1.0f, aim.pinchStrengthIndex));
+                if (aim.status & XR_HAND_TRACKING_AIM_SYSTEM_GESTURE_BIT_FB) c.trigger = 0;  // (the system's own gesture)
+                c.menu = (aim.status & XR_HAND_TRACKING_AIM_MENU_PRESSED_BIT_FB) != 0;
+                if (!handsSeen_[h]) { handsSeen_[h] = true; LOGI("Hand tracking: %s hand seen", h == kLeft ? "left" : "right"); }
+            }
+        }
     }
+}
+
+bool XrInput::initHands() {
+    xrGetInstanceProcAddr(instance_, "xrCreateHandTrackerEXT", reinterpret_cast<PFN_xrVoidFunction*>(&pfnCreateHand_));
+    xrGetInstanceProcAddr(instance_, "xrDestroyHandTrackerEXT", reinterpret_cast<PFN_xrVoidFunction*>(&pfnDestroyHand_));
+    xrGetInstanceProcAddr(instance_, "xrLocateHandJointsEXT", reinterpret_cast<PFN_xrVoidFunction*>(&pfnLocateHand_));
+    if (!pfnCreateHand_ || !pfnLocateHand_) return false;
+    for (int h = 0; h < 2; ++h) {
+        XrHandTrackerCreateInfoEXT ci{XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT};
+        ci.hand = h == kLeft ? XR_HAND_LEFT_EXT : XR_HAND_RIGHT_EXT;
+        ci.handJointSet = XR_HAND_JOINT_SET_DEFAULT_EXT;
+        const XrResult r = pfnCreateHand_(session_, &ci, &tracker_[h]);
+        if (XR_FAILED(r)) {
+            LOGW("xrCreateHandTrackerEXT failed: %s", xrResultName(instance_, r));
+            tracker_[h] = XR_NULL_HANDLE;
+        }
+    }
+    return tracker_[0] || tracker_[1];
 }
 
 void XrInput::vibrate(int hand, float amplitude, float seconds, float frequencyHz) {
@@ -251,6 +290,10 @@ void XrInput::refreshInteractionProfiles() {
 }
 
 void XrInput::destroy() {
+    for (auto& t : tracker_) {
+        if (t && pfnDestroyHand_) pfnDestroyHand_(t);
+        t = XR_NULL_HANDLE;
+    }
     for (int h = 0; h < 2; ++h) {
         if (gripSpace_[h]) xrDestroySpace(gripSpace_[h]);
         if (aimSpace_[h]) xrDestroySpace(aimSpace_[h]);

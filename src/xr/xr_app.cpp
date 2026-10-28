@@ -82,6 +82,8 @@ bool XrApp::createInstance(void* vm, void* activity, const Config& cfg) {
         XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME,
         XR_FB_FOVEATION_EXTENSION_NAME,
         XR_FB_FOVEATION_CONFIGURATION_EXTENSION_NAME,
+        XR_EXT_HAND_TRACKING_EXTENSION_NAME,      // (2026-10-28) pointing at the menus with bare hands
+        XR_FB_HAND_TRACKING_AIM_EXTENSION_NAME,
     };
     for (const char* e : optional)
         if (hasExtension(e)) enabledExtensions_.push_back(e);
@@ -116,7 +118,11 @@ bool XrApp::createInstance(void* vm, void* activity, const Config& cfg) {
     si.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
     XR_CHECK_RET(xrGetSystem(instance_, &si, &systemId_), false);
     XrSystemProperties sp{XR_TYPE_SYSTEM_PROPERTIES};
+    XrSystemHandTrackingPropertiesEXT htp{XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT};
+    if (hasExtension(XR_EXT_HAND_TRACKING_EXTENSION_NAME)) sp.next = &htp;
     if (XR_SUCCEEDED(xrGetSystemProperties(instance_, systemId_, &sp))) {
+        handTracking_ = htp.supportsHandTracking == XR_TRUE && hasExtension(XR_FB_HAND_TRACKING_AIM_EXTENSION_NAME);
+        LOGI("Hand tracking: %s", handTracking_ ? "supported (menus by pointing and pinching)" : "not available");
         LOGI("System: %s, maxLayers %u, maxSwapchain %ux%u, orientTracking %d posTracking %d",
              sp.systemName, sp.graphicsProperties.maxLayerCount,
              sp.graphicsProperties.maxSwapchainImageWidth,
@@ -177,6 +183,7 @@ bool XrApp::createSession(EGLDisplay display, EGLConfig config, EGLContext conte
     if (!createReferenceSpace()) return false;
     if (!createSwapchains()) return false;
     if (!input_.init(instance_, session_)) return false;
+    if (handTracking_) input_.initHands();
 
     if (hasExtension(XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME)) {
         xrGetInstanceProcAddr(instance_, "xrRequestDisplayRefreshRateFB",

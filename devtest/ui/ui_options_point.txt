@@ -1,0 +1,12 @@
+# The Options by pointing (2026-10-28): in 1a, the menu opened, the right controller raised onto DIFFICULTY (row 2),
+# the trigger pulled on the left part of its value: one step down (NORMAL -> EASY).
+# Log (checked by devtest.ps1): "Options: pointing at row 2" "Options: difficulty changed" "Difficulty: EASY".
+name ui_options_point
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE none
+duration 14
+hold menu 3 3.2
+pitch_r 53 4 5
+hold trigger_r 6 6.3
+shot 7 options

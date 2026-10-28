@@ -110,6 +110,8 @@ public:
     bool foveationDynamicWanted() const { return foveationOverride_ < 0 && settings_.foveation >= 4; }
     void setFoveationOverride(int level) { foveationOverride_ = level; }
     bool playMode() const { return playMode_; }
+    // (2026-10-28) Bare hands point at the menus only (the main menu, Options); in play they bring just the menu gesture.
+    bool wantsHandPointers() const { return title_ || menuOpen_; }
     void setPlayMode(bool on, const InputFrame& in);
     bool firstPerson() const { return firstPerson_; }
     void setFirstPerson(bool on) { firstPerson_ = on; }
@@ -1441,6 +1443,7 @@ private:  // the mission placed enemies: no test waves
     void enterTitle();
     void updateTitle(float dt, const InputFrame& in);
     void renderTitle();
+    Mat4 titlePanel() const;
     void startFromTitle(const std::string& world, const std::string& mission, bool restore, const InputFrame& in);
     // (2026-10-28) PRACTICE (main menu): the title's own island with the hero chosen, every weapon of
     // that hero's story, Reaper waves; never touches the save, the progress or the best times.
@@ -1475,6 +1478,15 @@ private:  // the mission placed enemies: no test waves
     bool menuControls_ = false;  // rework: the controls card over the options (game_app_menu.cpp)
     void renderControlsCard(const Mat4& base);
     int menuRow_ = 0, menuCampaign_ = 0;
+    int menuTop_ = 0;  // the Options window's first row (moves only when the choice leaves it)
+    // (2026-10-28) Pointing at the menus: either controller's aim ray on a panel (local x right, y up, metres);
+    // the hand whose trigger is pulled furthest wins. A change of the row under the pointer selects it; the
+    // trigger then acts (or, on a row's left / right part, changes its value).
+    bool panelRay(const Mat4& panel, float w, float h, const InputFrame& in, float& lx, float& ly, int& hand);
+    bool pointDotOn_ = false;
+    Mat4 pointDotXf_ = Mat4::identity();
+    int hoverRow_ = -2;  // the row last under the pointer (-1 none, -2 not looked yet: the first doesn't select)
+    void renderPointDot();
     float menuRepeat_ = 0, menuNewGame_ = 0, menuQuit_ = 0, menuYaw_ = 0;
     Vec3 menuPos_;
     ButtonEdge menuEdge_;

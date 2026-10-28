@@ -63,6 +63,8 @@ void GameApp::enterTitle() {
     titleT_ = 0;
     titleHold_ = 0;
     titleActHeld_ = true;  // a trigger still held from the app start doesn't select
+    hoverRow_ = -2;
+    pointDotOn_ = false;
     playMode_ = false;
     titleRow_ = titleWorld_.empty() ? kTitleNewGame : kTitleContinue;
     const Hero h = titleWorld_.empty() ? Hero::Mecc : heroForWorld(titleWorld_);
@@ -209,6 +211,7 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
     if (menuOpen_) {
         if (menuEdge_.pressed(in.hand[kLeft].menu)) menuOpen_ = false;
         else updateMenu(dt, in);
+        if (!menuOpen_) hoverRow_ = -2;  // (back on the main menu: the row under the pointer now isn't a choice)
         if (load_.phase != LoadPhase::Idle) title_ = false;
         titleActHeld_ = true;
         return;
@@ -226,6 +229,38 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
     }
     // (The CONTINUE row is also the save slot's: reachable when the slot is empty, to switch slots.)
     const int first = baseSavePath_.empty() && titleWorld_.empty() ? kTitleNewGame : kTitleContinue;
+    // (2026-10-28) Pointing: the row under either controller's ray is chosen; the trigger on its left or right
+    // part changes it as the stick would, in the middle selects.
+    const bool actRaw = in.hand[1].primary || in.hand[0].trigger > 0.6f || in.hand[1].trigger > 0.6f;
+    int side = 0;
+    {
+        float lx = 0, ly = 0;
+        int ph = kRight;
+        const float w = 1.05f, rowH = 0.11f, h = rowH * float(kTitleRowCount) + 0.16f;
+        pointDotOn_ = panelRay(titlePanel(), w, h, in, lx, ly, ph);
+        int row = -1;
+        if (pointDotOn_) {
+            const int vi = int(std::floor((0.5f * h - 0.08f - ly) / rowH));
+            for (int i = 0, k = 0; i < kTitleRowCount; ++i) {
+                if (i == kTitleSkAddr && skNetWant_ != 2) continue;
+                if (k++ == vi) row = i;
+            }
+            if (row >= 0 && row < first) row = -1;
+        }
+        if (hoverRow_ != -2 && row >= 0 && row != hoverRow_) {
+            titleRow_ = row;
+            titleHold_ = 0;
+            haptics_.push_back({ph, 0.15f, 0.015f});
+            sfx2D("ph_selct", 0.3f);
+            LOGI("Main menu: pointing at row %d", row);
+        }
+        static const bool trace = std::getenv("GVR_POINT_TRACE") != nullptr;
+        if (trace && int(titleT_ * 4) != int((titleT_ - dt) * 4)) LOGI("point: on %d at (%.2f %.2f) row %d", int(pointDotOn_), lx, ly, row);
+        hoverRow_ = row;
+        const bool changes = row != kTitleOptions && (row != kTitleContinue || !baseSavePath_.empty());
+        if (row >= 0 && row == titleRow_ && changes && std::fabs(lx) > 0.3f * w) side = lx > 0 ? 1 : -1;
+        if (side != 0 && actRaw && !titleActHeld_ && dx == 0) dx = side;
+    }
     if (dy != 0) {
         titleRow_ = std::max(first, std::min(int(kTitleRowCount) - 1, titleRow_ + dy));
         if (titleRow_ == kTitleSkAddr && skNetWant_ != 2) titleRow_ = std::max(first, std::min(int(kTitleRowCount) - 1, titleRow_ + dy));  // (only when joining)
@@ -323,7 +358,7 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
         titleHold_ = 0;
     }
     // A or either trigger: select. A new game over an existing checkpoint is held 1.5 s.
-    const bool act = in.hand[1].primary || in.hand[0].trigger > 0.6f || in.hand[1].trigger > 0.6f;
+    const bool act = side == 0 && actRaw;
     const bool missionRow = titleRow_ == kTitleMission && !titleMissions_.empty();
     if ((titleRow_ == kTitleNewGame || missionRow) && act && !titleWorld_.empty()) {
         titleHold_ += dt;
@@ -374,7 +409,14 @@ void GameApp::updateTitle(float dt, const InputFrame& in) {
             else if (titleRow_ == kTitleOptions) openMenu(in);
         }
     }
-    titleActHeld_ = act;
+    titleActHeld_ = actRaw;
+}
+
+// The menu panel: world-fixed in front of the start view, a little below eye level, tipped back toward the eyes.
+Mat4 GameApp::titlePanel() const {
+    const Quat r = Quat::fromAxisAngle({0, 1, 0}, titleYaw_);
+    const Vec3 base = titleEye_ + r.rotate(Vec3{0, -0.55f, -1.5f});
+    return Mat4::translation(base) * Mat4::rotation(r * Quat::fromAxisAngle({1, 0, 0}, 0.32f));
 }
 
 void GameApp::renderTitle() {
@@ -403,9 +445,7 @@ void GameApp::renderTitle() {
     if (!text_.ready() || menuOpen_) return;
     // The menu: world-fixed in front of the start view, a little below eye level.
     const Quat r = Quat::fromAxisAngle({0, 1, 0}, titleYaw_);
-    const Vec3 base = titleEye_ + r.rotate(Vec3{0, -0.55f, -1.5f});
-    const Quat tilt = r * Quat::fromAxisAngle({1, 0, 0}, 0.32f);  // tipped back toward the eyes
-    const Mat4 panel = Mat4::translation(base) * Mat4::rotation(tilt);
+    const Mat4 panel = titlePanel();
     const float w = 1.05f, rowH = 0.11f, h = rowH * float(kTitleRowCount) + 0.16f;
     // Rework: a dark glass panel with a thin gold edge.
     text_.drawPanel(panel, w, h, {0.015f, 0.03f, 0.055f, 0.86f});
@@ -469,7 +509,8 @@ void GameApp::renderTitle() {
         const float size = rows[i].size() > 34 ? std::max(0.038f, 0.055f * 34.0f / float(rows[i].size())) : 0.055f;  // (long rows: smaller, on one line)
         if (const MeshId m = text_.mesh(rows[i], size, w - 0.1f, &tw, &th)) text_.draw(m, panel * Mat4::translation({0, y, 0.004f}), col);
     }
-    if (const MeshId m = text_.mesh("STICK: CHOOSE    TRIGGER: SELECT", 0.03f, 1.0f, &tw, &th))
+    renderPointDot();
+    if (const MeshId m = text_.mesh("POINT OR STICK: CHOOSE    TRIGGER: SELECT (ON A ROW'S ENDS: CHANGE)", 0.03f, 1.0f, &tw, &th))
         text_.draw(m, panel * Mat4::translation({0, -0.5f * h + 0.04f, 0.004f}), {0.7f, 0.7f, 0.7f, 1});
     // (2026-10-28, release readiness) Under the panel: what this is.
     if (const MeshId m = text_.mesh("UNOFFICIAL FAN PROJECT - NOT AFFILIATED WITH OR ENDORSED BY THE GAME'S MAKERS OR OWNERS. "
