@@ -4290,6 +4290,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     if (weaponSel_ == 2 || weaponSel_ == 3 || weaponSel_ == 8 || weaponSel_ == 9 || (firstPerson_ && heldReaperGun(gh))) {
         // In the bush / holding a bomb or grenade (or a Reaper's gun picked up): no gun in hand (its bolts still fly).
         gunValid_ = false;
+        laserOn_ = false;  // (2026-10-28: else the aim laser stayed drawn where it last was - found by a 36 Hz run)
         weapon_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
         if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
         return;

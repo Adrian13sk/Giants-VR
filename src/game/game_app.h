@@ -181,6 +181,10 @@ public:
         // muzzle sits well off the controller's own line, and aiming from the controller missed a Ripper
         // at 1 m every time - the player aims down the laser, from the muzzle.
         if (laserOn_ && length(laserFrom_ - ctrlWorld) < 1.5f * rig_.comfort.worldScale) ctrlWorld = laserFrom_;
+        // ...and a Reaper gun picked up: from where the hand holds it (beyond the arm's reach the drawn hand, and the
+        // gun in it, stop short of the controller - aiming from the controller missed by a few degrees).
+        for (const auto& g : gibs_)
+            if (g.hand == hand && g.rpKind >= 0) ctrlWorld = g.pos;
         const Vec3 d = rigPose.orientation.conjugate().rotate(normalize(chest - ctrlWorld));
         static const float missDeg = std::getenv("GVR_AUTOAIM_MISS") ? float(std::atof(std::getenv("GVR_AUTOAIM_MISS"))) : 0.0f;
         const float yaw = std::atan2(-d.x, -d.z) + missDeg * 3.14159265f / 180.0f, pitch = std::asin(std::max(-1.0f, std::min(1.0f, d.y)));
