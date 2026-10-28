@@ -1060,3 +1060,20 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Options -> MOVEMENT: TELEPORT | ui/teleport_move: two 6 m blinks, 24/72 Hz; arc frame looked at |
 | rstory2_jetski_3 (B21) | water map: the ski's lagoon is enclosed (lowest crossing 27 m); on foot reachable by flood fill, the walk autopilot didn't arrive in 10 min |
 | Regression at 72 Hz | tests 59 ok + the 3 render/audio-side lines; missions 31/31, weapons 18/18, npcs 11/11, ui 13/13 (ui_title_options fixed for the two new menu rows); sweep 56/56; unit tests pass |
+
+## 2026-10-28 (night) — options, speed, hands (harness verified; APK 070917d on the PC, not yet on the headset)
+| Change | Harness check |
+|---|---|
+| Water reflection at half size at quality 1 | sea_monster: reflection pass 2.92 -> 1.33 ms (Mesa), frames look the same |
+| Shadow map every other frame at quality 1+ | kabuto_k1a frames identical |
+| Terrain far ring (no 2nd grass/rock, one rock projection past ~90 m) | 1a village at full quality: 9 pixels differ by <= 2 |
+| Options -> DIFFICULTY | tests/difficulty_easy (a bolt hurts 2.5), difficulty_hard (7.5) |
+| Mission select unlocks + progress.txt | ui/ui_mission_unlocks: 6 of 55 with 3 finished |
+| Three save slots on the CONTINUE row | harness with --save: empty slot 2, Story3 checkpoint in slot 3 listed; (scripted device runs have no save file: by hand) |
+| Music: battle ending phrase, death song | BUILD only (no audio in the harness) |
+| Index finger from capacitive touch | frames: fist vs pointing differ as intended; tests/hand_point's binding line is device-only |
+| Mission numbers on the next loading screen | tests/mission_stats |
+| Delphi takes arrows back | tests/arrows_back 24/72 Hz |
+| devtest.ps1 report.html | not run (no PowerShell here); bracket balance checked |
+| 36 Hz run of every script (first time) | all pass as at 72 Hz except reaper_gun_fire, which found the stale aim laser (fixed) and an autoaim offset in the test |
+| Regression at 72 Hz | tests 62 + 4 render/audio/device-only lines; missions 31/31, weapons 18/18, npcs 11/11, ui 14/14; sweep 56/56 |

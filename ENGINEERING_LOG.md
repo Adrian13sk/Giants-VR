@@ -2662,3 +2662,17 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   search over the map puts the lowest land crossing at 27 m.
 - Memory eviction (B15) not done: the headset's campaign run stayed flat at ~350 MB; evicting the shared cache risks
   pointers kept across worlds for little gain.
+
+### 2026-10-28 (night) — difficulty, slots, unlocks, hands, speed; the first 36 Hz run
+- The first run of every script at 36 Hz (frame-rate independence) found one real bug: switching from the gun to
+  the bush pack, a grenade or a picked-up Reaper gun left the aim laser drawn where it last was (laserOn_ was only
+  updated on the gun's path). The same test's autoaim aimed from the controller, but past the arm's reach the drawn
+  hand - and the Reaper gun in it - stops short of the controller: it now aims from the held gun.
+- Water reflection: a second, half-size target used at quality 1 (sampling is by projected UV, size-independent).
+- Shadow map reuse: the sampling matrix is the one it was drawn with, so a reused map stays put.
+- The terrain far-ring change made no visible difference at full quality (9 pixels, <= 2 levels).
+  Note: harness renders of 1a's village start at quality 2 (the per-world table): GVR_QUALITY=0 to see level 0.
+- Save slots: slot 1 is the old save.txt (old checkpoints keep working); NEW GAME clears only the chosen slot.
+- Unlocks: per hero story, up to the first unfinished mission; scripted device runs see every mission.
+- Capacitive touch: if the runtime refuses the bindings with the touch paths, they are suggested again without
+  them (a refused suggestion would have left the app with no input at all).
