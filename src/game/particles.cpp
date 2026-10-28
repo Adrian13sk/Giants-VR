@@ -20,6 +20,7 @@ float Particle::opacity() const {
 void ParticleSystem::emit(const Particle& p) {
     if (parts.size() >= maxParticles) parts.erase(parts.begin());  // the oldest goes
     parts.push_back(p);
+    parts.back().seed = (nextSeed++) * 2654435761u;  // (Knuth's multiplicative hash: evenly spread)
 }
 
 void ParticleSystem::update(float dt) {

@@ -3,6 +3,7 @@
 // EFX_smoke_Mgrey, b_smoke, b_dust, EFX_fire_trail / Bfire / Gfire).
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include "core/math.h"
@@ -21,6 +22,7 @@ struct Particle {
     float rise = 0;                    // m/s^2 buoyancy (smoke) or negative for gravity
     FxTex tex = FxTex::Smoke;
     bool additive = false;             // fire glows; smoke and dust blend
+    uint32_t seed = 0;                 // (set by emit: stable per particle - which ones a crowded frame leaves out)
     float size() const;
     float opacity() const;             // fades in quickly, out over the second half
 };
@@ -28,6 +30,7 @@ struct Particle {
 class ParticleSystem {
 public:
     size_t maxParticles = 600;
+    uint32_t nextSeed = 1;
     std::vector<Particle> parts;
     void emit(const Particle& p);
     void update(float dt);

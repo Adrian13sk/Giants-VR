@@ -532,6 +532,26 @@ void GameApp::buildBatches() {
         const uint8_t col[4] = {110, 80, 50, uint8_t(a * 255.0f)};
         holeBatch_.add(q, col);
     }
+    // (2026-10-28) A budget for the blended smoke and dust: on the headset a pop-up bomb's cloud round the player
+    // came to ~70 screens of blending in one frame (estimate) and the GPU took 23-34 ms. Big puffs over the budget
+    // are left out - the same ones every frame (each particle's seed) - and the rest drawn denser to keep the
+    // cloud's look: n layers of alpha a cover like n*s layers of 1-(1-a)^(1/s).
+    static const float kBudget[4] = {5.0f, 4.0f, 3.0f, 2.5f};
+    static const char* budgetEnv = std::getenv("GVR_SMOKE_BUDGET");  // (test hook: screens; 0 = no budget)
+    const float budget = budgetEnv ? float(std::atof(budgetEnv)) : kBudget[std::max(0, std::min(3, quality_))];
+    float bigCover = 0, smallCover = 0;
+    for (const auto& p : fx_.parts) {
+        const float dd = length(p.pos - eye);
+        if (dd > 200.0f || p.size() / std::max(0.1f, dd) > (p.tex == FxTex::Spray ? 0.6f : 1.3f) || p.opacity() <= 0.01f) continue;
+        const float c = coverOf(p.size(), dd);
+        (c > 0.02f ? bigCover : smallCover) += c;
+    }
+    const float keep = budget <= 0.0f || bigCover <= 0.0f ? 1.0f : std::max(0.15f, std::min(1.0f, (budget - smallCover) / bigCover));
+    static const bool costTrace = std::getenv("GVR_FX_COST") != nullptr;
+    if (costTrace && keep < 1.0f) {
+        static float lastLog = -1;
+        if (float(time_) - lastLog > 0.5f) { lastLog = float(time_); LOGI("smoke budget: %.1f screens wanted, %.1f allowed: %.0f%% of the big puffs drawn", bigCover + smallCover, budget, keep * 100.0f); }
+    }
     for (const auto& p : fx_.parts) {
         const float dd = length(p.pos - eye);
         if (dd > 200.0f) continue;
@@ -539,10 +559,19 @@ void GameApp::buildBatches() {
         // collapsing building stacked dozens deep and the frame rate fell): those that would cover
         // most of the view fade out as the eye gets into them, and are skipped inside.
         const float ang = p.size() / std::max(0.1f, dd);
-        if (ang > 1.3f) continue;
-        const float near = ang > 0.65f ? (1.3f - ang) / 0.65f : 1.0f;
-        const float a = p.opacity() * near;
+        // (2026-10-28) Water spray sooner: its streaky texture up close read as blue sheets over the view when
+        // wading or with piranhas at the legs.
+        const float far = p.tex == FxTex::Spray ? 0.6f : 1.3f;
+        if (ang > far) continue;
+        const float near = ang > 0.5f * far ? (far - ang) / (0.5f * far) : 1.0f;
+        float a = p.opacity() * near;
         if (a <= 0.01f) continue;
+        const float cov = coverOf(p.size(), dd);
+        if (keep < 1.0f && cov > 0.02f) {
+            if (float((p.seed >> 8) % 1000u) * 0.001f >= keep) continue;
+            a = 1.0f - std::pow(1.0f - std::min(0.99f, a), 1.0f / keep);
+        }
+        fxCover_[kCostSmoke] += cov;
         uint8_t c[4] = {255, 255, 255, uint8_t(std::min(1.0f, a) * 255.0f)};
         if (p.additive) { const uint8_t g = c[3]; c[0] = c[1] = c[2] = g; c[3] = 255; }  // additive: fade by colour
         fxBatch_[int(p.tex)].addBillboard(p.pos, p.size(), right, up, p.angle, c);
@@ -568,6 +597,7 @@ void GameApp::buildBatches() {
     for (const auto& dr : blood_.drops) {
         const float ang = dr.size / std::max(0.05f, length(dr.pos - eye));
         if (ang > 0.25f) continue;  // (opaque: no fading; a drop this big on screen is a red disc)
+        fxCover_[kCostBlood] += coverOf(dr.size, length(dr.pos - eye));
         bloodBatch_[3].addBillboard(dr.pos, dr.size, right, up, 0.0f, opaque);
     }
     for (const auto& sp : blood_.sprays) {
@@ -578,6 +608,7 @@ void GameApp::buildBatches() {
         const float near = ang > 0.5f ? (1.0f - ang) / 0.5f : 1.0f;
         const uint8_t col[4] = {255, 255, 255, uint8_t((1.0f - f) * near * 255.0f)};
         bloodBatch_[4].addBillboard(sp.pos, size, right, up, sp.age * 2.0f, col);
+        fxCover_[kCostBlood] += coverOf(size, length(sp.pos - eye));
     }
     for (auto& b : fxBatch_) b.upload(renderer_);
     for (auto& b : bloodBatch_) b.upload(renderer_);

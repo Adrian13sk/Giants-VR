@@ -1810,6 +1810,15 @@ private:  // the mission placed enemies: no test waves
     void addFireball(const Vec3& at, float radius);
     void updateFireballs(float dt);
     void renderFireballs();
+    // (2026-10-28) Blended effects' screen cover, per kind, this frame (in screens: 1 = one eye's whole view
+    // once) - what the GPU pays for in explosions and fights. GVR_FX_COST logs it twice a second.
+    enum FxCostKind { kCostSmoke, kCostBlood, kCostFireball, kCostEmbers, kCostStreaks, kCostFlash, kCostSpell, kCostCount };
+    float fxCover_[kCostCount] = {}, fxCoverMax_[kCostCount] = {}, fxCoverT_ = 0;
+    static float coverOf(float size, float dist) { const float a = size / std::max(0.05f, dist); return std::min(1.0f, a * a / 5.7f); }
+    void logFxCost(float dt);
+    Vec3 lastShotSplash_;
+    float lastShotSplashT_ = -10.0f;
+    bool fxCostView_ = false;
     TextureId glowTexture();
     void renderMotes();
     // Grass tufts near the player (game_app_grass.cpp).

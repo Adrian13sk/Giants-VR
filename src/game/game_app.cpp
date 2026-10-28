@@ -4467,6 +4467,8 @@ void GameApp::poseFirstPersonBody(const InputFrame& in) {
 bool GameApp::hasOriginalAssets() const { return assetWorld_ && assetWorld_->loaded(); }
 
 void GameApp::update(float dt, const InputFrame& in) {
+    logFxCost(dt);
+    fxCostView_ = true;  // (the first view this frame counts the effects drawn in the views)
     warmedThisFrame_ = false;
     GVR_PROF("update (all)");
     time_ += dt;
@@ -4746,13 +4748,21 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
         const float f = b.age / 0.6f;
         const int k = b.size <= 2 ? b.size : 0;  // 3 = a Ripper bursting: flash only, no spit splash ring
         const float big = b.size >= 2 ? 1.5f : 1.0f;
-        if (impactModel_)
-            drawModel(impactModel_, Mat4::translation(b.pos) * Mat4::rotation(headWorldRot_) *
-                                        Mat4::scale(Vec3{1, 1, 1} * big * (4.0f + 8.0f * f)), true, 1.0f - f);
+        if (impactModel_) {
+            // (2026-10-28) Faded out as it would surround the viewer (a Ripper bursting at your feet), as the fireballs.
+            const float size = 0.3f * big * (4.0f + 8.0f * f), eyeD = length(b.pos - v.eyePosition);
+            const float near = std::min(1.0f, std::max(0.0f, (eyeD - 0.5f * size) / (0.7f * size)));
+            if (near > 0.01f) {
+                drawModel(impactModel_, Mat4::translation(b.pos) * Mat4::rotation(headWorldRot_) *
+                                            Mat4::scale(Vec3{1, 1, 1} * big * (4.0f + 8.0f * f)), true, (1.0f - f) * near);
+                if (fxCostView_) fxCover_[kCostFlash] += coverOf(size, eyeD);
+            }
+        }
         if (k > 0 && spitRing_[k])
             drawModel(spitRing_[k], Mat4::translation(b.pos + Vec3{0, 0.1f, 0}) * Mat4::scale(Vec3{1, 1, 1} * (2.0f + 10.0f * f) * big),
                       true, 1.0f - f);
     }
+    float waterCover = 0;  // (2026-10-28) at most ~2.5 screens of crowns and rings a frame: newest left out first
     for (const auto& f : waterFx_) {
         SkinnedModel* m = f.kind == 0 ? splashFx_.get() : ringFx_.get();
         if (!m) continue;
@@ -4765,7 +4775,14 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
             if (tall < 0.01f) continue;
             // Not with the eye inside the crown (a full view of translucent sheets: the jet-ski spray).
             if (length(Vec3{f.pos.x - v.eyePosition.x, 0, f.pos.z - v.eyePosition.z}) < wide * 1.3f && v.eyePosition.y < f.pos.y + tall * 1.5f) continue;
+            // (2026-10-28) Nor right at the viewer's feet (piranhas at your legs, rounds into the water beside you):
+            // seen from above, its sheets filled the view in blue streaks; the drops and spray still show it.
+            if (length(Vec3{f.pos.x - v.eyePosition.x, 0, f.pos.z - v.eyePosition.z}) < 1.6f * rig_.comfort.worldScale + wide) continue;
+            const float cw = coverOf(2.0f * std::max(wide, tall), length(f.pos - v.eyePosition));
+            if (waterCover + cw > 2.5f && cw > 0.05f) continue;
+            waterCover += cw;
             m->pose(renderer_, 0.0f);
+            if (fxCostView_) fxCover_[kCostSpell] += cw;
             const float spin = std::fmod(f.pos.x * 7.3f + f.pos.z * 3.1f, 6.28f);
             m->render(renderer_, Mat4::translation(f.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, spin + k * 0.6f)) *
                                      Mat4::scale(Vec3{wide, tall, wide}));
@@ -4773,6 +4790,10 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
         }
         m->pose(renderer_, std::min(f.age, m->animDuration() * 0.999f));
         if (length(f.pos - v.eyePosition) < 0.6f * f.scale) continue;  // (a ring seen from inside its own spray)
+        const float cr = coverOf(1.5f * f.scale, length(f.pos - v.eyePosition));
+        if (waterCover + cr > 2.5f && cr > 0.05f) continue;
+        waterCover += cr;
+        if (fxCostView_) fxCover_[kCostSpell] += cr;
         m->render(renderer_, Mat4::translation(f.pos) * Mat4::scale(Vec3{1, 1, 1} * f.scale));
     }
     // (the swimming piranhas: drawn under the sea, AssetWorld::underwater -> renderPiranhas)
@@ -4868,6 +4889,8 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     }
     for (const auto& e : weapon_.effects()) {
         const float k = e.progress();
+        if (fxCostView_ && (e.kind == WeaponEffect::Muzzle || renderer_.look() != 1))
+            fxCover_[kCostFlash] += coverOf(e.kind == WeaponEffect::Muzzle ? 0.6f * (0.25f + 0.15f * k) : 1.2f * (3.0f + 4.0f * k), length(e.pos - v.eyePosition));
         if (e.kind == WeaponEffect::Muzzle && e.style == 2 && sniperFlashModel_)
             drawModel(sniperFlashModel_, Mat4::translation(e.pos) * Mat4::rotation(rotationBetween({0, 0, -1}, e.dir)) *
                                              Mat4::scale(Vec3{1, 1, 1} * (0.5f + 0.4f * k)), true, 1.0f - k);
@@ -4891,6 +4914,21 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
 
 // n = 1: one eye into the bound framebuffer; n = 2: both eyes at once into a two-layer (multiview)
 // framebuffer. The game's own distance checks then use the point between the eyes.
+void GameApp::logFxCost(float dt) {
+    // Called once a frame after the views: keeps the interval's worst frame per kind, then starts over.
+    static const bool on = std::getenv("GVR_FX_COST") != nullptr;
+    for (int k = 0; k < kCostCount; ++k) { fxCoverMax_[k] = std::max(fxCoverMax_[k], fxCover_[k]); fxCover_[k] = 0; }
+    fxCoverT_ += dt;
+    if (fxCoverT_ < 0.5f) return;
+    fxCoverT_ = 0;
+    float tot = 0;
+    for (float c : fxCoverMax_) tot += c;
+    if (on && tot > 0.05f)
+        LOGI("fx cost (screens, worst frame of 0.5 s): smoke %.2f blood %.2f fireball %.2f embers %.2f streaks %.2f flash %.2f water %.2f, total %.2f",
+             fxCoverMax_[0], fxCoverMax_[1], fxCoverMax_[2], fxCoverMax_[3], fxCoverMax_[4], fxCoverMax_[5], fxCoverMax_[6], tot);
+    for (float& c : fxCoverMax_) c = 0;
+}
+
 void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     for (int i = 0; i < n; ++i) {
         // Remember the eyes' fields of view (the reflection camera covers both).
@@ -4953,6 +4991,7 @@ void GameApp::renderViews(const EyeRenderInfo* eyes, int n) {
     if (load_.phase == LoadPhase::FadeOut) renderLoading();
     renderVignette();
     endUiFrame();
+    fxCostView_ = false;
     // Death: fade to black before the respawn, and back in after it.
     const float black = dying_ ? std::min(1.0f, std::max(0.0f, (deathTime_ - 4.3f) / 1.0f)) : respawnFade_;
     if (black > 0.01f && text_.ready()) {

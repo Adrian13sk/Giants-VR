@@ -49,7 +49,29 @@ bool GameApp::shotIntoWater(const Vec3& p, const Vec3& dir) {
     if (p.y > sea + 0.05f || dir.y > -0.01f) return false;
     const float back = (p.y - sea) / dir.y;  // >= 0: distance back along the shot to the surface
     if (back > 60.0f) return false;
-    waterSplash(p - dir * back, 0.45f, 1);
+    const Vec3 at = p - dir * back;
+    // (2026-10-28) A burst of rounds into one patch of water: one splash crown and ring for the patch while it
+    // stands (0.3 s), then a few drops for each round - the machine gun into the shallows at your feet raised
+    // ten crowns a second, ~8 screens of translucent sheets, and the frame rate fell to 32 fps on the headset.
+    if (float(time_) - lastShotSplashT_ < 0.3f && length(Vec3{at.x - lastShotSplash_.x, 0, at.z - lastShotSplash_.z}) < 1.5f) {
+        for (int i = 0; i < 3; ++i) {
+            Particle d;
+            const float a = frand() * 6.28f;
+            d.pos = Vec3{at.x, player_.seaLevel + 0.02f, at.z};
+            d.vel = Vec3{std::cos(a) * 0.8f, 2.5f + 2.0f * frand(), std::sin(a) * 0.8f};
+            d.size0 = d.size1 = 0.06f + 0.05f * frand();
+            d.life = 0.5f + 0.3f * frand();
+            d.alpha = 0.9f;
+            d.rise = -11.0f;
+            d.tex = FxTex::Drip;
+            d.additive = true;
+            fx_.emit(d);
+        }
+        return true;
+    }
+    lastShotSplash_ = at;
+    lastShotSplashT_ = float(time_);
+    waterSplash(at, 0.45f, 1);
     return true;
 }
 

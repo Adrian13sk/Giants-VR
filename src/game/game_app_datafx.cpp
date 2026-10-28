@@ -105,6 +105,7 @@ void GameApp::buildStreaks(const Vec3& eye) {
             col[3] = 255;
             const float uv[4][2] = {{0.5f, 0.0f}, {0.5f, 0.0f}, {0.5f, 1.0f}, {0.5f, 1.0f}};
             streakBatch_.add(c, uv, col);
+            fxCover_[kCostStreaks] += std::min(1.0f, length(along) * (wa + wb) / std::max(0.01f, dot(a - eye, a - eye)) / 5.7f);
         }
     }
     streakBatch_.upload(renderer_);

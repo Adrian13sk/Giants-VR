@@ -436,6 +436,7 @@ void GameApp::renderFireballs() {
         const Vec3 col = Vec3{1.0f, 0.75f - 0.45f * k, 0.45f - 0.4f * k} * (a * 1.0f);
         const uint8_t rgba[4] = {uint8_t(255 * col.x), uint8_t(255 * std::max(0.0f, col.y)), uint8_t(255 * std::max(0.0f, col.z)), 255};
         fireBatch_.addBillboard(f.pos, size, right, up, f.t * 2.0f, rgba);
+        if (fxCostView_) fxCover_[kCostFireball] += coverOf(size, eyeD) * (k < 0.4f ? 1.25f : 1.0f);
         const uint8_t core[4] = {uint8_t(255 * a), uint8_t(240 * a), uint8_t(200 * a), 255};
         if (k < 0.4f) fireBatch_.addBillboard(f.pos, size * 0.5f, right, up, 0.0f, core);
     }
@@ -444,6 +445,7 @@ void GameApp::renderFireballs() {
         const uint8_t rgba[4] = {255, uint8_t(160 * a + 60), uint8_t(60 * a), 255};
         const uint8_t dim[4] = {uint8_t(rgba[0] * a), uint8_t(rgba[1] * a), uint8_t(rgba[2] * a), 255};
         fireBatch_.addBillboard(e.pos, e.size * (0.6f + 0.4f * a), right, up, 0.0f, dim);
+        if (fxCostView_) fxCover_[kCostEmbers] += coverOf(e.size * (0.6f + 0.4f * a), length(e.pos - renderer_.currentView().eyePosition));
     }
     fireBatch_.upload(renderer_);
     DrawParams dp;
