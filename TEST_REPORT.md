@@ -1077,3 +1077,14 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | devtest.ps1 report.html | not run (no PowerShell here); bracket balance checked |
 | 36 Hz run of every script (first time) | all pass as at 72 Hz except reaper_gun_fire, which found the stale aim laser (fixed) and an autoaim offset in the test |
 | Regression at 72 Hz | tests 62 + 4 render/audio/device-only lines; missions 31/31, weapons 18/18, npcs 11/11, ui 14/14; sweep 56/56 |
+
+## 2026-10-28 (late) — review fixes, checkpoints (harness verified; APK be28c75 on the PC, not yet on the headset)
+| Change | Harness check |
+|---|---|
+| Fixes from the independent review (mic lifetime/errors, arrow tags, seated camera and gestures, wrist timing, resets) | tests, ui, npcs, weapons at 72 and 24 Hz: all pass but the 3 audio/render/device-only lines; wrist_display now passes in the plain harness (its timer moved to update) |
+| Checkpoints within a mission | tests/checkpoint_respawn 24/72 Hz |
+| Teleport refused on a steep face | tests/teleport_refused |
+| Base table map on Delphi's base | ui/base_table_map_delphi |
+| Thumb from capacitive touch | frame rendered; which digit is the thumb: device to confirm |
+| Crash handler without dladdr; symbolize_crash.py | BUILD; symbolizer checked on a made-up report against the built library |
+| Unit tests | progress helpers, projectile tag: pass |
