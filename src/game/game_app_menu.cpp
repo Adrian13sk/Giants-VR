@@ -205,14 +205,21 @@ void GameApp::renderMenu() {
         {"KABUTO MIC ROAR", s.micRoar ? (micAllowed_ ? "ON - MIC READY" : "ON") : "OFF"},
         {"NEW GAME", newGame},
     };
-    const float rowH = 0.066f, w = 1.15f, h = rowH * float(kRowCount + 2) + 0.1f;
+    // (2026-10-28) A window of 16 rows that scrolls with the choice: with 26 rows the panel stood ~1.9 m tall.
+    constexpr int kVisible = 16;
+    const int first = std::max(0, std::min(int(kRowCount) - kVisible, menuRow_ - kVisible / 2));
+    const float rowH = 0.066f, w = 1.15f, h = rowH * float(kVisible + 2) + 0.1f;
     text_.drawPanel(base, w, h, {0.015f, 0.03f, 0.055f, 0.9f});
     drawPanelEdge(base, w, h);
     float tw, th;
     if (const MeshId t = text_.mesh("OPTIONS", 0.06f, 1.0f, &tw, &th))
         text_.draw(t, base * Mat4::translation({0, 0.5f * h - 0.07f, 0.004f}), {1.0f, 0.85f, 0.4f, 1.0f});
-    for (int i = 0; i < kRowCount; ++i) {
-        const float y = 0.5f * h - 0.17f - float(i) * rowH;
+    if (first > 0)
+        if (const MeshId m = text_.mesh("...", 0.042f, 0.3f, &tw, &th)) text_.draw(m, base * Mat4::translation({0.5f * w - 0.12f, 0.5f * h - 0.07f, 0.004f}), {0.7f, 0.7f, 0.7f, 1});
+    if (first + kVisible < int(kRowCount))
+        if (const MeshId m = text_.mesh("...", 0.042f, 0.3f, &tw, &th)) text_.draw(m, base * Mat4::translation({0.5f * w - 0.12f, -0.5f * h + 0.1f, 0.004f}), {0.7f, 0.7f, 0.7f, 1});
+    for (int i = first; i < std::min(int(kRowCount), first + kVisible); ++i) {
+        const float y = 0.5f * h - 0.17f - float(i - first) * rowH;
         const bool sel = i == menuRow_;
         if (sel) text_.drawPanel(base * Mat4::translation({0, y, 0.002f}), w - 0.06f, rowH * 0.9f, {0.75f, 0.5f, 0.15f, 0.45f});
         const Vec4 col = sel ? Vec4{1, 1, 0.8f, 1} : Vec4{0.85f, 0.85f, 0.85f, 1};
