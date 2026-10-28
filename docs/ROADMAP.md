@@ -48,9 +48,8 @@ quality levels chosen per world are logged and stay put.
 - **Shop: taking an item by hand.** DONE 2026-10-28: the test reached for the wrong side (items at positive
   angles stand to the LEFT); the ammo box is taken by hand at 24 and 72 Hz.
 - **Moored Reaperski missions:** DONE for rstory2_jetski_2 (2026-10-28: the autopilot gets on and rides a water
-  route; it found that getting on the moored ski put Delphi at the world's origin - fixed). rstory2_jetski_3: no
-  water route to its objective even over 1.2 m sandbars (ice walls or a closed lake?) - not yet tested by its
-  mechanic. 0.5 session.
+  route; it found that getting on the moored ski put Delphi at the world's origin - fixed). rstory2_jetski_3: the ski's
+  lagoon is enclosed (lowest land crossing 27 m, 2026-10-28 water map) - see B21; needs the original's behaviour.
 - **Kabuto's growth in real play:** DONE 2026-10-28: tests/kabuto_growth (GVR_KABUTO_FEED walks him to the nearest
   Smartie or Vimp and eats it): 50 -> 70 % in ~15 s in the harness, passing over two meals a house kept him from;
   missions/m_gate_k1a_grown70 (70 % breaks the wooden gate) and tests/kabuto_gate_too_small (60 % can't), 24/72 Hz.
