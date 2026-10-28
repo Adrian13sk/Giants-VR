@@ -984,3 +984,33 @@ Found and fixed by the new tests:
 New logs for the checks: "Rocket fired", "Creature N dies", "Options menu opened / closed (resume)",
 "Options: <row> changed", "Options: controls card shown", "Briefing: <title>". New script commands: `title`
 (start at the main menu), and GVR_AUTOAIM_VIMPS (auto-aim at Vimps).
+
+## Device run 20261027-191542 — the whole test on the Quest (APK bac967b), 2026-10-27
+`devtest.ps1 -All`: 247 runs in 248 min (planned 5 h 16 min), **247/247 finished, 0 crashes, 0 errors logged.**
+
+| Set | Result on the headset |
+|---|---|
+| missions | 28/29 with all events - m_race_rstory3_race_2 lost focus (below) |
+| weapons | 18/18 |
+| npcs | 7/7 |
+| ui | 10/10 |
+| cutscenes | 66/66 |
+| campaign | 1/1: 55/55 missions completed in order to the_end in one session (31 min of play); resident memory 268 -> ~350 MB, flat from Kstory2 on |
+| sweep | 56/56 |
+| tests | 54/60 with all events - 6 misses, all from stale scripts on the PC (below) |
+
+**Frame rate (DEVICE):** median 71.8 fps; 213 of 247 runs at 70+; 3 under 60 (npc_ripper_fight 56.2,
+delphi_tornado_circle 58.2, scorch_marks 59.9); median app GPU ~10 ms (sets: tests 10.0, missions 11.9,
+weapons 10.4, cutscenes 9.2, sweep 9.9). On 2026-10-26 (fccc02d) the median was 28 fps / 26 ms - the
+per-world quality levels and the lite look did it (B19).
+
+**The misses, diagnosed:**
+- birds_shoot, delphi_dive, gun_grab, kabuto_lobird, kabuto_smartie_throw, smartie_throw_hit: the PC's
+  `devtest\tests` copies were the versions from before fae230d's fixes (diffed: e.g. kabuto_smartie_throw had no
+  GVR_SMARTIE_AHEAD, gun_grab's hand went the wrong way). The current scripts pass in the harness with the
+  headset's own frame times (new `--frame-times <frames.csv>` replay). All 60 current scripts are now on the PC.
+- m_race_rstory3_race_2: the Guardian set-up came up 41 s into the race (session FOCUSED -> IDLE for 7 min). Not
+  the game. devtest.ps1 now detects a lost focus and runs the test again.
+
+**Tool changes:** `--frame-times` in the harness; devtest.ps1: FOCUS LOST detection + rerun, per-set totals count
+each test once, the other-app flag needs 6+ s.

@@ -14,6 +14,7 @@
 
 #include "audio/mixer.h"
 #include <cstring>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -66,7 +67,10 @@ int main(int argc, char** argv) {
     int videoEvery = 3, videoFrom = 0, vw = 1280, vh = 720, videoN = 0;
     GLuint vTex = 0, vDepth = 0, vFbo = 0, vMsFbo = 0, vMsColor = 0, vMsDepth = 0;
     float triggerAmount = 0.0f, aimPitchDeg = -17.2f, aimYawDeg = 0.0f;
-    float hz = 72.0f;  // --hz: the game's frame rate in a scripted run (the headset's 24 or 36 fps: timing checks)
+    float hz = 72.0f;
+    std::vector<float> frameDts;
+    float scriptT = 0.0f;
+    std::string frameTimesPath;  // (2026-10-28) a device run's frames.csv: each frame's dt from it, in order  // --hz: the game's frame rate in a scripted run (the headset's 24 or 36 fps: timing checks)
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         auto next = [&]() { return i + 1 < argc ? argv[++i] : ""; };
@@ -82,7 +86,8 @@ int main(int argc, char** argv) {
         else if (a == "--no-test-scene") testScene = false;
         else if (a == "--hold-brief") holdBrief = true;  // hold the left stick down (mission briefing overlay)
         else if (a == "--world") world = next();
-        else if (a == "--hz") hz = std::max(5.0f, float(std::atof(next())));  // with --script: update at this rate
+        else if (a == "--hz") hz = std::max(5.0f, float(std::atof(next())));
+        else if (a == "--frame-times") frameTimesPath = next();  // with --script: replay a headset run's frame times (its frames.csv dt_ms)  // with --script: update at this rate
         else if (a == "--script") scriptPath = next();  // a device test script (devtest/tests/*.txt), run at 72 fps
         else if (a == "--pitch") pitchDeg = std::atof(next());
         else if (a == "--height") headHeight = std::atof(next());
@@ -145,6 +150,22 @@ int main(int argc, char** argv) {
         if (!script.mission.empty()) setenv("GVR_MISSION", script.mission.c_str(), 1);
         for (const auto& e : script.env) setenv(e.first.c_str(), e.second.c_str(), 1);
         frames = int(script.duration * hz);
+        if (!frameTimesPath.empty()) {
+            // The headset's own frame times (frames.csv: t,dt_ms,...): the same uneven steps the game took there.
+            std::ifstream ft(frameTimesPath);
+            std::string line;
+            std::getline(ft, line);  // header
+            while (std::getline(ft, line)) {
+                const size_t c = line.find(',');
+                if (c == std::string::npos) continue;
+                const float dtMs = float(std::atof(line.c_str() + c + 1));
+                if (dtMs > 0.0f) frameDts.push_back(std::min(0.1f, dtMs / 1000.0f));  // (the app clamps at 0.1 s too)
+            }
+            if (!frameDts.empty()) {
+                frames = int(frameDts.size()) + 1;
+                LOGI("frame times: %zu from %s", frameDts.size(), frameTimesPath.c_str());
+            }
+        }
         firstPerson = script.firstPerson;
         pitchDeg = script.pitchDeg;
         aimYawDeg = script.aimYawDeg;
@@ -270,7 +291,8 @@ int main(int argc, char** argv) {
             in.hand[kRight].aimPose.position = in.hand[kRight].aimPose.position + Vec3{handDx, handDy, handDz} * k;
         }
         if (useScript) {
-            const float t = float(f) / hz, tp = float(f - 1) / hz;
+            float t = float(f) / hz, tp = float(f - 1) / hz;
+            if (!frameDts.empty()) { tp = scriptT; if (f > 0) scriptT += frameDts[size_t(f - 1)]; t = scriptT; }
             const Pose head = in.head;
             script.inputAt(t, in);
             in.head = head;  // (the harness's own head pose: --look-at already turned the rig)
@@ -297,7 +319,7 @@ int main(int argc, char** argv) {
             LOGI("blast x%d: %zu objects destroyed", blastN, app.destroyedCount());
         }
         const auto u0 = std::chrono::steady_clock::now();
-        app.update(1.0f / (useScript ? hz : 72.0f), in);
+        app.update(!frameDts.empty() && f > 0 ? frameDts[size_t(f - 1)] : 1.0f / (useScript ? hz : 72.0f), in);
         const double ums = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - u0).count();
         if (f >= 30) { updSum += ums; ++updN; if (ums > updMax) { updMax = ums; updMaxF = f; } }
         // GVR_CUT_EXIT=1: stop once the cutscene that played has ended (cutscene reviews).

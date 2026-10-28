@@ -32,6 +32,8 @@ source exists; this is a **native reimplementation that loads the user's origina
 ## Conventions
 - Runtime frame: right-handed, +Y up, -Z forward, metres. Giants data is Z-up:
   `runtime = (-x, z, y) * gGameUnitsToMeters` (0.2, provisional). Winding preserved.
+- With every APK, deliver EVERY changed devtest script too (all of `devtest/<set>/`), and stage one back to
+  compare: the 2026-10-27 whole test ran six stale `tests/` scripts that had been fixed but never copied.
 - Delivering an APK to the user's PC: stage it under a UNIQUE name (e.g. `GiantsVR-dev-<commit>.apk`).
   Re-sending the same staged path can silently deliver stale content. Then stage the PC copy back
   and compare its sha256 against the build before telling the user to install.

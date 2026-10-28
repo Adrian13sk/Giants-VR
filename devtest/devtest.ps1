@@ -230,7 +230,7 @@ while ($queue.Count -gt 0) {
         }
     }
     $shell = ''
-    if ($shellN -ge 2) {
+    if ($shellN -ge 6) {   # (2-5 s: the system shell drawing round the hand-overs at the start and end - 2026-10-27 run)
         $shell = "; OTHER APP DRAWING for $shellN s (its gpu $(Avg $shellMs) ms): these GPU figures are not the game's own"
         Write-Host "   Another app drew alongside the game (a system pop-up in the headset?) - take it off and run this test again." -ForegroundColor Yellow
     }
@@ -250,13 +250,31 @@ while ($queue.Count -gt 0) {
             if ($missing.Count -gt 0) { $events += ' (MISSING: ' + ($missing -join ' | ') + ')' }
         }
     }
+    # The headset took the app out of focus during the test (Guardian / standby: on 2026-10-27 the Guardian
+    # set-up came up 40 s into a race and the headset slept for 7 min): the session left FOCUSED (5) before the
+    # script finished. Those results are not the game's - run it once more.
+    $focusLost = $false
+    foreach ($l in $log) {
+        if ($l -match ('GiantsVR\(\s*' + $appPid + '\):\s*autotest: .* finished')) { break }
+        if ($l -match ('GiantsVR\(\s*' + $appPid + '\):\s*Session state 5 -> 4')) { $focusLost = $true; break }
+    }
+    if ($focusLost) {
+        $shell += "; FOCUS LOST (Guardian or standby took over the headset during the test): its results are not the game's"
+        Write-Host "   The headset took the app out of focus (Guardian / standby) during this test." -ForegroundColor Yellow
+    }
     $errs = (Select-String -Path (Join-Path $dest 'logcat.txt') -Pattern ' E/GiantsVR' -SimpleMatch -ErrorAction SilentlyContinue | Measure-Object).Count
     $line = "{0}: {1}; {2}; {3}{4}{5}; {6} errors logged" -f $name, $status, $fps, $vrs, $shell, $events, $errs
     Write-Host "   $line"
     $line | Add-Content $summary
     $fpsNum = 99.0
     if ($fps -match 'fps ([\d.]+)') { $fpsNum = [double]$Matches[1] }
-    if ($status -eq 'done' -and $fpsNum -lt 10 -and -not $retried.ContainsKey($script)) {
+    if ($focusLost -and -not $retried.ContainsKey($script)) {
+        $retried[$script] = $true
+        Write-Host "   (running it again)" -ForegroundColor Yellow
+        "${name}: focus lost - run again" | Add-Content $summary
+        $queue.Enqueue($script)
+    }
+    elseif ($status -eq 'done' -and $fpsNum -lt 10 -and -not $retried.ContainsKey($script)) {
         $retried[$script] = $true
         Write-Host "   (it hardly drew - the headset was probably asleep; running it again)" -ForegroundColor Yellow
         "${name}: hardly drew ($fpsNum fps) - run again" | Add-Content $summary
@@ -265,13 +283,17 @@ while ($queue.Count -gt 0) {
 }
 
 Adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable | Out-Null
-# One line per set: how many tests finished with every listed event seen.
+# One line per set: how many tests finished with every listed event seen (the last line per test: a test run
+# again counts once, by its second run).
 $lines = @(Get-Content $summary)
+$lastOf = @{}
+foreach ($l in $lines) { if ($l -match '^(\S+): (done|timeout|crashed);') { $lastOf[$Matches[1]] = $l } }
 foreach ($d in $Set + $(if ($Sweep) { @('sweep') } else { @() })) {
-    $prefix = @{ tests = ''; missions = 'm_'; weapons = 'w_'; npcs = 'npc_'; ui = 'ui_'; cutscenes = 'cut_'; campaign = 'camp_'; sweep = 'sweep_' }[$d]
-    if ($null -eq $prefix -or $prefix -eq '') { continue }
-    $mine = @($lines | Where-Object { $_ -match ('^' + [regex]::Escape($prefix) + '\S*: ') })
-    $good = @($mine | Where-Object { $_ -match ': done;' -and $_ -notmatch 'MISSING' })
+    if ($d -eq 'sweep') { $names = @($lastOf.Keys | Where-Object { $_ -like 'sweep_*' }) }
+    else { $names = @(Get-ChildItem (Join-Path $PSScriptRoot $d) -Filter *.txt -ErrorAction SilentlyContinue | ForEach-Object { $_.BaseName }) }
+    $mine = @($names | Where-Object { $lastOf.ContainsKey($_) } | ForEach-Object { $lastOf[$_] })
+    if ($mine.Count -eq 0) { continue }
+    $good = @($mine | Where-Object { $_ -match ': done;' -and $_ -notmatch 'MISSING' -and $_ -notmatch 'FOCUS LOST' })
     $t = "{0}: {1}/{2} done with all their events" -f $d, $good.Count, $mine.Count
     Write-Host $t
     $t | Add-Content $summary

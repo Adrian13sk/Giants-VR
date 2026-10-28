@@ -2600,3 +2600,16 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   kstory4_1). Bosses: GVR_KB_FACE_BOSS; kstory5_4's boss was 171 m behind the start without it.
 - Development plan written: docs/ROADMAP.md (performance first, then the bugs this suite finds, comfort with the
   user, fidelity, content, infrastructure).
+
+### 2026-10-28 — the whole test ran on the Quest (20261027-191542, APK bac967b)
+- 247/247 runs finished in 248 min, 0 crashes, 0 errors. The campaign played all 55 missions to the_end in one
+  session on the headset; memory 268 -> ~350 MB and flat (the harness soak had shown 174 -> 436 MB).
+- Frame rate: median 71.8 fps (was 28 on 2026-10-26); 3 runs under 60. B19 largely resolved; the rest are
+  effect-heavy moments.
+- All 7 event misses explained: 6 stale scripts on the PC (my delivery gap - the fae230d fixes never reached
+  `devtest\tests` there; CLAUDE.md now says to deliver every changed script with an APK) and one Guardian
+  interruption. Found with a new harness option, `--frame-times`, which replays a device run's frame times:
+  the current scripts pass with them, so the headset's uneven frames were not the cause.
+- devtest.ps1: "FOCUS LOST" (session left FOCUSED before the script finished) flags and reruns a test; the
+  per-set totals count each test once; the other-app check needs 6+ s (the shell draws 2-5 s round every
+  test's start and end - 54 false flags).
