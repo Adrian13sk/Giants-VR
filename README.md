@@ -5,16 +5,19 @@ Studios, Interplay, GOG or Meta, and it contains **no game data**: you need your
 game.
 
 ## What works today (honest status)
-- A native Quest APK (OpenXR + OpenGL ES 3, arm64). It builds and is signed, but has **not yet
-  been run on a headset**.
-- It reads the original `Bin/*.gzp` archives: models (GBS), textures (TGA), terrain (GTI) and
-  world definitions.
-- It renders original worlds (terrain, sky, sea, fog) and original characters playing their
-  original animations, in stereo VR. This has been verified in a headless desktop harness only.
-- Touch controller input, smooth locomotion, snap turning and terrain following.
-
-**Not yet:** gameplay, AI, weapons, missions, audio, menus, object/building placement.
-See [PROJECT_STATUS.md](PROJECT_STATUS.md) and [BLOCKERS.md](BLOCKERS.md).
+- A native Quest APK (OpenXR + OpenGL ES 3, arm64) that loads your own copy of the game's `Bin/` data. It has run on
+  the developer's Quest 2: the whole automated test (247 scripted runs, the campaign to the end) finished with no
+  crashes, median 71.8 fps (2026-10-27). Features added since then are checked in a headless desktop harness only
+  until the next headset run - see PROJECT_STATUS.md for which.
+- The original worlds, characters, animations, cutscenes, music and sounds; the three campaigns (Meccaryn, Sea
+  Reaper, Kabuto) with their missions, objectives and bosses; weapons and spells from the game's own tables;
+  base building; races; multiplayer maps against computer players (and LAN play between headsets, untested
+  with two).
+- VR play: first person with your hands as the hero's (punch, grab, throw, swim, climb, bows drawn by hand,
+  spells by gesture, Kabuto eating what he grabs), smooth or teleport movement, seated mode, menus by pointing
+  (or bare hands), a practice range on the main menu.
+- Much of the game's behaviour lives in its native code, which this project doesn't have: AI, damage numbers,
+  timings and some rules are our own reading (BLOCKERS.md lists where).
 
 ## Docs
 - [docs/INSTALL.md](docs/INSTALL.md) — install on a Quest, copy your game data, controls
