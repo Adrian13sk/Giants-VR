@@ -2627,3 +2627,17 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   on a moored ski put Delphi at (0, 0). Found by the new moored-ski autopilot test.
 - Jet-ski "hop" rule: at speed it climbed any face in small steps (a hill to 38 m); now only up to 8 m above the
   sea (race 3's line crosses a 5.7 m islet).
+
+### 2026-10-28 (afternoon) — Reaper guns, fire arrows, the wrist display, crash reports, the mic roar
+- Picked-up Reaper guns fire (trigger on a held gib with rpKind): the spear through weapon_.spawnShot (style 3),
+  the bazooka through rockets_. A held Reaper gun gates the hero's own gun and Delphi's bolt.
+- Fire arrows: spells are off while a bow is out, so the light comes from a flame (fireNear) or 0.4 s of the bow
+  hand's trigger; style 4 shots stick and start a blaze (startBlaze/updateBlazes).
+- Wrist display: drawn at render time; its hold timer advances only on the first view of a frame, so the harness
+  needs `--video <dir> 1` (every frame rendered) to see it - same for the fx-cost lines.
+- Crash handler: sigaltstack + _Unwind_Backtrace + dladdr, async-signal-safe writes, then the previous handler
+  (debuggerd still makes its tombstone). LOGI now feeds a 160-line ring for the report.
+- Mic roar: AAudio mono float input, RMS in the callback (fast attack, slow release), opened only while the option
+  is on, the hero is Kabuto and a mission is playing; RECORD_AUDIO asked once at run time (JNI
+  checkSelfPermission/requestPermissions). Never opened in scripted runs; GVR_MIC_TEST stands in. Kabuto's own
+  roar can't retrigger it (6 s roar cool-down).

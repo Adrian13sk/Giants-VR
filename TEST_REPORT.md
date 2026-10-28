@@ -1031,3 +1031,14 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Jet-ski no longer climbs hillsides (steep faces over 8 m above the sea stop it) | races 1/2/3 and rstory5 won at 24 and 72 Hz |
 | ui_shop reaches the real item spot | "Shop: took ammo" 24/72 Hz |
 | Regression | tests/missions/weapons/npcs/ui at 72 Hz: all pass except weather_storm's ambience line (harness has no audio; passes on the headset); sweep 56/56 |
+
+## 2026-10-28 (afternoon) — new mechanics (harness verified; APK e8e1e95 on the PC, not yet on the headset)
+| Change | Harness check |
+|---|---|
+| Reaper guns picked up fire in your hand (spear gun 12 shots, bazooka 3) | reaper_gun_fire: "fires the Reaper" + a kill, 24/72 Hz |
+| Delphi's fire arrows (an arrow lit at a flame or the bow-hand trigger; sets grass/brush ablaze) | delphi_fire_arrow, delphi_fire_arrow_hand: 24/72 Hz |
+| Wrist display (forearm across the face: health, ammo, injections, flares, objective distance) | wrist_display: "Wrist display shown" only with every frame rendered (`--video <dir> 1`); the plain harness renders only the last frame, so it shows MISSING there |
+| Health injection jabbed into the other forearm | syringe_arm: 24/72 Hz |
+| Native crash reports in files/crash/ (signal, backtrace, last 160 log lines); devtest.ps1 pulls them | BUILD only; experiments/crash_report (GVR_TEST_CRASH) is the device check |
+| Kabuto's microphone roar (Options -> KABUTO MIC ROAR, off by default; RECORD_AUDIO asked when used) | kabuto_mic_roar (GVR_MIC_TEST stands in for the mic): 24/72 Hz. The real microphone: device only, not yet tried |
+| Regression at 72 Hz | tests 54 ok + 3 render/audio-side (fx_water_fight and wrist_display pass with every frame rendered; weather_storm's ambience line needs audio); missions 30/30, weapons 18/18, npcs 7/7, ui 10/10; sweep 56/56; unit tests pass |
