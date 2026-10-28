@@ -2,12 +2,14 @@
 
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <link.h>
 #include <signal.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 #include <unwind.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -21,6 +23,32 @@ char gDir[512];
 struct sigaction gOld[32];
 char gAltStack[64 * 1024];
 volatile sig_atomic_t gInHandler = 0;
+// Our own library's address range and name, found once at install: the handler then needs no dladdr (it takes the
+// linker's lock - a crash inside dlopen would deadlock instead of writing the report; review 2026-10-28).
+uintptr_t gLibLo = 0, gLibHi = 0;
+char gLibName[128] = "libgiantsvr.so";
+
+int findOwnLib(struct dl_phdr_info* info, size_t, void* data) {
+    const uintptr_t probe = reinterpret_cast<uintptr_t>(data);
+    for (int i = 0; i < info->dlpi_phnum; ++i) {
+        const ElfW(Phdr)& ph = info->dlpi_phdr[i];
+        if (ph.p_type != PT_LOAD) continue;
+        const uintptr_t lo = info->dlpi_addr + ph.p_vaddr, hi = lo + ph.p_memsz;
+        if (probe >= lo && probe < hi) {
+            gLibLo = info->dlpi_addr;
+            uintptr_t top = 0;
+            for (int k = 0; k < info->dlpi_phnum; ++k)
+                if (info->dlpi_phdr[k].p_type == PT_LOAD) top = std::max<uintptr_t>(top, info->dlpi_addr + info->dlpi_phdr[k].p_vaddr + info->dlpi_phdr[k].p_memsz);
+            gLibHi = top;
+            if (info->dlpi_name && info->dlpi_name[0]) {
+                const char* slash = std::strrchr(info->dlpi_name, '/');
+                std::snprintf(gLibName, sizeof gLibName, "%s", slash ? slash + 1 : info->dlpi_name);
+            }
+            return 1;
+        }
+    }
+    return 0;
+}
 
 constexpr int kSignals[] = {SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL};
 
@@ -65,16 +93,13 @@ void handler(int sig, siginfo_t* info, void* uctx) {
         put(fd, line);
         Frames f;
         _Unwind_Backtrace(unwindOne, &f);
+        // (Frames in our library as "lib+offset" - addr2line -e the unstripped build/apk .so gives file:line; other
+        // frames as absolute addresses: debuggerd's tombstone names those.)
         for (int i = 0; i < f.n; ++i) {
-            Dl_info di{};
-            if (dladdr(reinterpret_cast<void*>(f.pc[i]), &di) && di.dli_fname) {
-                const char* mod = std::strrchr(di.dli_fname, '/');
-                std::snprintf(line, sizeof line, "  #%02d pc %08zx  %s (%s+%zu)\n", i, size_t(f.pc[i] - uintptr_t(di.dli_fbase)),
-                              mod ? mod + 1 : di.dli_fname, di.dli_sname ? di.dli_sname : "?",
-                              di.dli_saddr ? size_t(f.pc[i] - uintptr_t(di.dli_saddr)) : size_t(0));
-            } else {
+            if (gLibHi > gLibLo && f.pc[i] >= gLibLo && f.pc[i] < gLibHi)
+                std::snprintf(line, sizeof line, "  #%02d pc %08zx  %s\n", i, size_t(f.pc[i] - gLibLo), gLibName);
+            else
                 std::snprintf(line, sizeof line, "  #%02d pc %p\n", i, reinterpret_cast<void*>(f.pc[i]));
-            }
             put(fd, line);
         }
         put(fd, "\nlast log lines:\n");
@@ -100,6 +125,7 @@ void handler(int sig, siginfo_t* info, void* uctx) {
 
 void installCrashHandler(const char* dir) {
     std::snprintf(gDir, sizeof gDir, "%s", dir);
+    dl_iterate_phdr(findOwnLib, reinterpret_cast<void*>(&installCrashHandler));
     mkdir(gDir, 0775);
     stack_t ss{};
     ss.ss_sp = gAltStack;
@@ -112,7 +138,7 @@ void installCrashHandler(const char* dir) {
         sigemptyset(&sa.sa_mask);
         sigaction(s, &sa, &gOld[s]);
     }
-    LOGI("Crash handler: reports go to %s", gDir);
+    LOGI("Crash handler: reports go to %s (%s at %p)", gDir, gLibName, reinterpret_cast<void*>(gLibLo));
 }
 
 }  // namespace gvr
