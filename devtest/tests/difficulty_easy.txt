@@ -1,0 +1,13 @@
+# Rework (2026-10-28): Options -> DIFFICULTY EASY. Three Reapers 14 m out shoot at you (not god mode): a bolt's
+# 5 damage taken x0.5 (2.5); the Reapers' aim wilder. Set by GVR_SETTINGS.
+# Log (checked by devtest.ps1): "Difficulty: EASY" "player hurt 2.5".
+name difficulty_easy
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_NO_AMBUSH 1
+env GVR_SETTINGS difficulty=0
+view first
+duration 14
+reapers 3 14 1 999
+env GVR_DAMAGE_TRACE 1

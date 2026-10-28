@@ -24,7 +24,7 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 }
 
 namespace {
-enum MenuRow { kRowResume, kRowControls, kRowTurn, kRowMove, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowSeated, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowControls, kRowDifficulty, kRowTurn, kRowMove, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowSeated, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -34,6 +34,8 @@ void GameApp::applySettings() {
     rig_.comfort.smoothTurnDegPerSec = s.turn == 3 ? 150.0f : 90.0f;
     rig_.comfort.leftHanded = s.leftHanded;
     if (s.seated) LOGI("Seated play: the view and hands raised %.2f m", seatLift());
+    LOGI("Difficulty: %s (damage taken x%.2f, Reaper aim spread x%.2f)", s.difficulty == 0 ? "EASY" : (s.difficulty == 2 ? "HARD" : "NORMAL"),
+         difficultyDamage(), difficultySpread());
     if (!std::getenv("GVR_LOOK")) renderer_.setLook(s.classicLook ? 0 : (quality_ >= 2 ? 2 : 1));
     if (audio_) {
         audio_->setMasterVolume(0.85f * float(s.volume) / 9.0f);
@@ -92,6 +94,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
     UserSettings& s = settings_;
     if (dx != 0) {
         switch (menuRow_) {
+            case kRowDifficulty: s.difficulty = (s.difficulty + dx + 3) % 3; changed = true; break;
             case kRowTurn: s.turn = (s.turn + dx + 4) % 4; changed = true; break;
             case kRowMove: s.teleport = !s.teleport; changed = true; break;
             case kRowVignette: s.vignette = (s.vignette + dx + 3) % 3; changed = true; break;
@@ -117,7 +120,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             default: break;
         }
         if (changed) {
-            static const char* kRowNames[kRowCount] = {"resume", "controls", "turn", "movement", "vignette", "ambushes", "aim laser", "reach assist", "seated", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "mic roar", "new game"};
+            static const char* kRowNames[kRowCount] = {"resume", "controls", "difficulty", "turn", "movement", "vignette", "ambushes", "aim laser", "reach assist", "seated", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "mic roar", "new game"};
             LOGI("Options: %s changed", kRowNames[menuRow_]);
             applySettings();
             saveSettings();
@@ -178,6 +181,7 @@ void GameApp::renderMenu() {
     const std::string rows[kRowCount][2] = {
         {"RESUME", ""},
         {"CONTROLS", hero_ == Hero::Delphi ? "DELPHI" : (hero_ == Hero::Kabuto ? "KABUTO" : "MECCARYN")},
+        {"DIFFICULTY", s.difficulty == 0 ? "EASY" : (s.difficulty == 2 ? "HARD" : "NORMAL")},
         {"TURNING", turns[s.turn]},
         {"MOVEMENT", s.teleport ? "TELEPORT (STICK UP, LET GO)" : "SMOOTH"},
         {"COMFORT VIGNETTE", s.vignette == 0 ? "OFF" : (s.vignette == 1 ? "LOW" : "HIGH")},

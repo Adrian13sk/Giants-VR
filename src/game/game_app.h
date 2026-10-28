@@ -1868,6 +1868,9 @@ private:  // the mission placed enemies: no test waves
     // and passes its loudness (RMS, 0..1) every frame; a loud enough shout makes Kabuto roar.
 public:
     // Play seated (Options): the tracking-space floor sits this much lower, so a seated head is at a standing height.
+    // Options -> DIFFICULTY (2026-10-28): the damage you take and the Reapers' aim (EASY / NORMAL / HARD).
+    float difficultyDamage() const { return settings_.difficulty == 0 ? 0.5f : (settings_.difficulty == 2 ? 1.5f : 1.0f); }
+    float difficultySpread() const { return settings_.difficulty == 0 ? 1.5f : (settings_.difficulty == 2 ? 0.7f : 1.0f); }
     float seatLift() const { return settings_.seated ? 0.45f : 0.0f; }
     bool micWanted() const { return settings_.micRoar && hero_ == Hero::Kabuto && playMode_; }
     void setMicLevel(float rms, bool allowed) { micLevel_ = rms; micAllowed_ = allowed; }

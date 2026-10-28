@@ -3365,7 +3365,10 @@ void GameApp::damagePlayer(float amount, DeathCause cause) {
     static const bool god = std::getenv("GVR_GOD") != nullptr;  // test hook: the player can't be hurt (perf runs)
     if (god) return;
     if (hero_ == Hero::Kabuto) amount *= 0.3f;  // a giant's hide: Reaper bolts and bites sting
+    amount *= difficultyDamage();               // (2026-10-28) Options -> DIFFICULTY
     playerHealth_ -= amount;
+    static const bool dtrace = std::getenv("GVR_DAMAGE_TRACE") != nullptr;  // test hook
+    if (dtrace) LOGI("player hurt %.1f (cause %d), health %.0f", amount, int(cause), playerHealth_);
     lastHurt_ = cause;
     if (playerHealth_ < 45.0f && playerHealth_ > 0 && cause != DeathCause::Fall) timmySay(frand() < 0.5f ? "smchbaseattack4" : "smchbaseattack1");
     sinceDamage_ = 0;
@@ -4087,7 +4090,7 @@ void GameApp::updateCombat(float dt) {
         const Vec3 target = player_.position + Vec3{0, (0.5f + 0.4f * frand()) * playerHitTop() * (player_.height / (1.65f * heroScale_)), 0};
         Vec3 dir = normalize(target - muzzle);
         // Spread grows with distance: long shots mostly miss, close ones are dangerous.
-        const float spread = (0.06f + 0.004f * length(target - muzzle)) * (e.role == 1 ? 0.35f : 1.0f);  // (a marksman aims)
+        const float spread = (0.06f + 0.004f * length(target - muzzle)) * (e.role == 1 ? 0.35f : 1.0f) * difficultySpread();  // (a marksman aims)
         static const bool shotTrace = std::getenv("GVR_HIT_TRACE") != nullptr;
         if (shotTrace) LOGI("enemy shot: Reaper %u%s at %.1f m", e.uid, e.role == 1 ? " (marksman)" : "", length(target - muzzle));
         dir = normalize(dir + Vec3{frand() - 0.5f, (frand() - 0.5f) * 0.6f, frand() - 0.5f} * spread);
