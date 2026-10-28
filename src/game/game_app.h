@@ -1851,6 +1851,8 @@ private:  // the mission placed enemies: no test waves
     // (2026-10-28) The microphone roar: the platform reads the headset's microphone (only while this is true)
     // and passes its loudness (RMS, 0..1) every frame; a loud enough shout makes Kabuto roar.
 public:
+    // Play seated (Options): the tracking-space floor sits this much lower, so a seated head is at a standing height.
+    float seatLift() const { return settings_.seated ? 0.45f : 0.0f; }
     bool micWanted() const { return settings_.micRoar && hero_ == Hero::Kabuto && playMode_; }
     void setMicLevel(float rms, bool allowed) { micLevel_ = rms; micAllowed_ = allowed; }
 private:

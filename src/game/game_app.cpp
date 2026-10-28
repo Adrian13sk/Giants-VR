@@ -49,6 +49,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
         if (loadSettings(settingsPath_, settings_)) LOGI("Settings loaded from %s", settingsPath_.c_str());
         loadWorldQuality();
     }
+    if (const char* ov = std::getenv("GVR_SETTINGS")) { applySettingsList(ov, settings_); LOGI("Settings from GVR_SETTINGS: %s", ov); }
     firstPerson_ = !settings_.thirdPerson;
     applySettings();
     std::string startMission;
@@ -731,6 +732,7 @@ void GameApp::placeCamera(float dt, bool snap, const InputFrame* in) {
         // The player position IS the head (horizontally): the tracking origin is placed so the
         // tracked head lands on it; the floor is at the character's feet.
         if (in && in->headValid) pos = pos - q.rotate(Vec3{in->head.position.x, 0, in->head.position.z} * ws);
+        pos.y += seatLift() * ws;  // (seated: the real floor maps above the feet)
         rig_.worldFromTracking = Pose{q, pos};
         camFloor_ = player_.position.y;
         return;
@@ -742,10 +744,10 @@ void GameApp::placeCamera(float dt, bool snap, const InputFrame* in) {
     }
     if (snap || dt <= 0) camFloor_ = floorY;
     else camFloor_ += (floorY - camFloor_) * (1.0f - std::exp(-dt / kSmooth));
-    pos.y = firstPerson_ ? player_.position.y : camFloor_;
+    pos.y = (firstPerson_ ? player_.position.y : camFloor_) + seatLift() * ws;  // (seated: the real floor maps above the feet)
     // Camera collision: if a cliff or building is between the character and the viewer's eyes,
     // pull the camera in front of it so the character stays visible.
-    const float eyeH = ((in && in->headValid) ? in->head.position.y : 1.6f) * ws;
+    const float eyeH = (((in && in->headValid) ? in->head.position.y : 1.6f) + seatLift()) * ws;
     const Vec3 chest = player_.position + Vec3{0, 1.4f * hs, 0};
     const Vec3 eye = pos + Vec3{0, eyeH, 0};
     const Vec3 toEye = eye - chest;
@@ -784,7 +786,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         haveHeadPrev_ = true;
         // Eye height estimate for the body scale: smoothed, ignoring implausible values, so the
         // brief lift while putting the headset on does not inflate the body (old running max did).
-        const float hy = in.head.position.y;
+        const float hy = in.head.position.y + seatLift();
         if (hy > 1.0f && hy < 2.05f) {
             if (!eyeCalibrated_) { userEye_ = hy; eyeCalibrated_ = true; }
             else if (dt > 0) userEye_ += (hy - userEye_) * (1.0f - std::exp(-dt / 2.5f));

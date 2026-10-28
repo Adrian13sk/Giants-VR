@@ -1,0 +1,13 @@
+# Rework (2026-10-28): Options -> PLAY SEATED. The view and hands are raised 0.45 m (the real floor maps above the
+# hero's feet), so a seated player sees from a standing height; set here by GVR_SETTINGS. Screenshot: compare with
+# a standing test's view of the same spot. (Harness: the eye 0.45 m higher than the same script standing.)
+# Log (checked by devtest.ps1): "Seated play: the view and hands raised".
+name ui_seated
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE none
+env GVR_GOD 1
+view first
+duration 4
+env GVR_SETTINGS seated=1
+shot 3 seated

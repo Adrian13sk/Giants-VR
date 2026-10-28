@@ -1559,10 +1559,16 @@ static void testSaveGame() {
     CHECK(!loadSaveGame(path, c));
     UserSettings us;
     us.turn = 3; us.leftHanded = true; us.thirdPerson = true; us.hudSize = 2; us.volume = 4; us.music = 0; us.subtitles = false; us.foveation = 3;
+    us.seated = true; us.micRoar = true;
     CHECK(writeSettings(path, us));
     UserSettings ul;
     CHECK(loadSettings(path, ul) && ul.turn == 3 && ul.leftHanded && ul.thirdPerson && ul.hudSize == 2 && ul.volume == 4 &&
-          ul.music == 0 && !ul.subtitles && ul.foveation == 3 && near(ul.hudScale(), 1.3f, 1e-6f));
+          ul.music == 0 && !ul.subtitles && ul.foveation == 3 && near(ul.hudScale(), 1.3f, 1e-6f) && ul.seated && ul.micRoar);
+    {  // the GVR_SETTINGS list (test runs)
+        UserSettings o;
+        applySettingsList("seated=1,volume=3,bogus=7,turn=9", o);
+        CHECK(o.seated && o.volume == 3 && o.turn == 3 && !o.micRoar);
+    }
     CHECK(UserSettings{}.foveation == 2);  // an old settings file without the key: medium
     std::remove(path.c_str());
     std::printf("save game / settings ok\n");

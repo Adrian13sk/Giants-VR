@@ -24,7 +24,7 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 }
 
 namespace {
-enum MenuRow { kRowResume, kRowControls, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowNewGame, kRowCount };
+enum MenuRow { kRowResume, kRowControls, kRowTurn, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowSeated, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowNewGame, kRowCount };
 }
 
 void GameApp::applySettings() {
@@ -33,6 +33,7 @@ void GameApp::applySettings() {
     rig_.comfort.snapTurnDegrees = s.turn == 1 ? 45.0f : 30.0f;
     rig_.comfort.smoothTurnDegPerSec = s.turn == 3 ? 150.0f : 90.0f;
     rig_.comfort.leftHanded = s.leftHanded;
+    if (s.seated) LOGI("Seated play: the view and hands raised %.2f m", seatLift());
     if (!std::getenv("GVR_LOOK")) renderer_.setLook(s.classicLook ? 0 : (quality_ >= 2 ? 2 : 1));
     if (audio_) {
         audio_->setMasterVolume(0.85f * float(s.volume) / 9.0f);
@@ -96,6 +97,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowAmbush: s.ambushes = !s.ambushes; changed = true; break;
             case kRowLaser: s.aimLaser = !s.aimLaser; changed = true; break;
             case kRowReach: s.reachAssist = !s.reachAssist; changed = true; break;
+            case kRowSeated: s.seated = !s.seated; changed = true; break;
             case kRowLook: s.classicLook = !s.classicLook; changed = true; break;
             case kRowHand: s.leftHanded = !s.leftHanded; changed = true; break;
             case kRowView: s.thirdPerson = !s.thirdPerson; firstPerson_ = !s.thirdPerson; changed = true; break;
@@ -114,7 +116,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             default: break;
         }
         if (changed) {
-            static const char* kRowNames[kRowCount] = {"resume", "controls", "turn", "vignette", "ambushes", "aim laser", "reach assist", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "mic roar", "new game"};
+            static const char* kRowNames[kRowCount] = {"resume", "controls", "turn", "vignette", "ambushes", "aim laser", "reach assist", "seated", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "mic roar", "new game"};
             LOGI("Options: %s changed", kRowNames[menuRow_]);
             applySettings();
             saveSettings();
@@ -180,6 +182,7 @@ void GameApp::renderMenu() {
         {"AMBUSHES", s.ambushes ? "ON" : "OFF"},
         {"AIM LASER", s.aimLaser ? "ON" : "OFF"},
         {"GROUND REACH", s.reachAssist ? "EASY (BEND DOWN)" : "NATURAL (CROUCH)"},
+        {"PLAY SEATED", s.seated ? "ON (EYES RAISED 45 CM)" : "OFF (STANDING)"},
         {"LIGHTING", s.classicLook ? "CLASSIC" : "REWORK"},
         {"MAIN HAND", s.leftHanded ? "LEFT" : "RIGHT"},
         {"VIEW", firstPerson_ ? "FIRST PERSON" : "THIRD PERSON"},
