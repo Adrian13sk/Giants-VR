@@ -920,7 +920,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     }
     if (player_.takeOverheat()) {
         sfx2D("me_jpkno", 0.9f);
-        LOGI("Jetpack burnt dry: overheated");
+        LOGI("Jetpack burnt dry: overheated (tank %.0f s)", double(player_.params.fuelSeconds));
     }
     { GVR_PROF("pickups"); updatePickups(dt, in); }
     updateShop(dt, in);

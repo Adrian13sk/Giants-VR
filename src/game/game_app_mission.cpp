@@ -149,6 +149,13 @@ void GameApp::initMission() {
         hasShield_ = hero_ == Hero::Mecc && shieldSphere_ && (story4 || practice_ || std::getenv("GVR_SHIELD"));  // (test hook)
         shieldT_ = shieldCool_ = shieldTaken_ = shieldClock_ = 0;
         if (hasShield_) LOGI("Arsenal: the shield");
+        // (2026-10-29) The jetpack upgrade (weapondefs item 18 IconJetpack2, GText "Jetpack Upgrade", object 892
+        // mc_jetpack_2; no mission hands it out - ours: Story 5 on and practice): a bigger tank (8 -> 11 s of thrust)
+        // and faster flight (12 -> 14.5 m/s). Set every mission (the hero's params are otherwise never reset).
+        const bool jet2 = hero_ == Hero::Mecc && (mn.rfind("5", 0) == 0 || practice_ || std::getenv("GVR_JETPACK2"));  // (test hook)
+        player_.params.fuelSeconds = jet2 ? 11.0f : 8.0f;
+        player_.params.jetAirSpeed = jet2 ? 14.5f : 12.0f;
+        if (jet2) LOGI("Arsenal: the jetpack upgrade (an 11 s tank, 14.5 m/s)");
     }
     initPopup();
     // A level's Shop also sells ammo for the guns he carries / her bows' arrows (ours).

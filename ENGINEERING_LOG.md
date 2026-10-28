@@ -2873,3 +2873,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   is put on the ground if cast mid-jump; (9) the shield's 150 counts the hit as the difficulty makes it, and an
   absorbed hit buzzes the hand; (10) GVR_RAISE_SHIELD counts mission time (it used the app clock); (11) the shield
   recharges through Baz's death.
+- 2026-10-29: Delphi's spells on her wrist HUD (the data's st_rp_hail / slowtime / cloak / cluster / follow / circle /
+  tornado icons): lit when ready, faint while recharging, pulsing while one works - the reviews' "no feedback while
+  a gesture recharges". The jetpack upgrade (weapondefs item 18 IconJetpack2, "Jetpack Upgrade", object 892
+  mc_jetpack_2; no mission hands it out - ours: Story 5 on and practice): an 11 s tank (8) and 14.5 m/s flight (12),
+  set every mission; "Jetpack burnt dry" now logs the tank size (devtest weapons/w_mecc_jetpack2, 72 / 24 Hz).

@@ -1,0 +1,12 @@
+# (2026-10-29) The jetpack upgrade (the data's item 18 IconJetpack2; ours: Story 5 on): the jetpack held on until it
+# burns dry - an 11 s tank instead of 8.
+# Log (checked by devtest.ps1): "Arsenal: the jetpack upgrade" "Jetpack burnt dry: overheated (tank 11 s)".
+name w_mecc_jetpack2
+world Story5
+mission 5a_killcharger
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+view first
+duration 16
+hold a 1 14

@@ -1115,3 +1115,4 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Delphi's FIRE CIRCLE (item 31, EFX_circle_spell) | tests/delphi_fire_circle 72 / 24 Hz: cast by the arms-out gesture, 14-15 bolts / grenades / rockets stopped in its wall in 8 s; frame checked from inside |
 | Baz's shield (item 17, wheel slot 12) | weapons/w_mecc_shield 72 / 24 Hz (raised by GVR_RAISE_SHIELD as the wheel would; took 114 / 56 of the Reapers' fire in 12 s); frame checked (EFX_shield1 web; EFX_shield is a red placeholder) |
 | Review fixes (FOLLOW; fire circle / shield) | delphi_follow re-aimed (a steady aim, a 12 cm pull relative to the head) 72 / 24 Hz; fire circle without god mode: no blast damage after its bursts; regression: tests 75 + 3 known, weapons 25/25, ui 19/19, npcs 11/11, missions 31/31; mission sweep 56/56 exit 0 |
+| Jetpack upgrade (item 18, Story 5 on) | weapons/w_mecc_jetpack2 72 / 24 Hz (the held jetpack burns dry with an 11 s tank) |

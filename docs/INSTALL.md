@@ -245,6 +245,7 @@ blue fire round you for 8 s that burns up bolts and grenades and burns Reapers w
   head and squeeze the grip to take it back.
 - **Shield** (Baz, Story 4 on): choose it on the weapon wheel - a bubble takes up to 150 of the hits meant for you for
   12 s (not falls or water); 40 s before it can be raised again. The gun in hand stays.
+- **Jetpack upgrade** (Baz, Story 5 on): an 11 s tank instead of 8, and faster flight.
 
 ## Main menu
 - **PRACTICE** < BAZ | DELPHI | KABUTO >: the menu's island with every weapon of that hero's story, Reaper waves and
