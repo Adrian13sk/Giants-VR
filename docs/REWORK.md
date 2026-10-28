@@ -120,6 +120,15 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Combat | Shots fired from inside a big target's body (the Charger or an Offspring right on top of you) now hit it; before, they passed through and the fight stalled at close range. | HARNESS |
 | Missions | The invisible markers where a Sonak and its guards spawn were solid and stopped your shots at the guards (story3_3sonaks_4 could stall); they are now neither drawn nor solid. | HARNESS |
 | Missions | Meccaryn and Delphi story check: the pop-up bomb destroys the prison (story3_prison_7), the Torture Square gate (4a) and the barracks (5c); the tornado the barracks in both Reaper battles, also after building the base first; the Offspring (4b), the Charger (5a), the Raiks (r1_clusterspell), the Sonak guards (story3_sonak_1, story3_3sonaks_4) and all twelve guard objectives of rstory3_pre_race_1 fall to ordinary fighting. Scripts in `scripts/completion/`. | HARNESS |
+| Comfort | Options -> MOVEMENT: TELEPORT (an arc from the move hand, a blink with a fade; on foot only) and PLAY SEATED (view and hands raised 0.45 m). | HARNESS |
+| Options | DIFFICULTY (damage taken x0.5 / 1 / 1.5, Reaper aim wilder / sharper); three save slots on the main menu's CONTINUE row; the mission select offers only missions reached. | HARNESS |
+| Hands | Rounds left on top of the gun, arrows by the bow; the index finger points when it is off the trigger (capacitive touch); Kabuto's footfalls and the steadying hand's gun kick in the controllers. | HARNESS (touch and haptics: device only) |
+| Base | A table map on the Build Pad: the base in miniature, touch a site to build there. | HARNESS |
+| Fights | Picked-up Reaper guns fire; Delphi's fire arrows set grass ablaze; Reapers take cover among trees and rocks; a Reaper finds you in the bush pack by poking it. | HARNESS |
+| Kabuto | Roars into the microphone (Options, off by default); eats his way to the size a gate needs (tested 50 -> 70 % in k1a). | HARNESS (microphone: device only) |
+| Wrist | A wrist display (health, ammo, injections, flares, objective distance) and the injection jabbed into the forearm. | HARNESS |
+| Music | A battle closes on its own ending phrase; dying plays the death song. | BUILD (no audio in the harness) |
+| Speed | Water reflection at half size and the shadow map every other frame at the reduced quality levels; the terrain's far ring lighter. | HARNESS (cost: device to measure) |
 
 Harness regression: all 56 missions exit 0 with no errors (latest run after the grass).
 

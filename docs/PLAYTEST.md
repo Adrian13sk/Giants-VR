@@ -101,6 +101,24 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
 - Frame rate: the game now lowers detail by itself where the headset can't keep up (Kabuto story 3 and Reaper
   story 2 start lower). Does anything look noticeably worse there, or flicker between two looks?
 
+## 6. New on 2026-10-28 (all harness-checked only - your hands decide)
+- [ ] **Options -> MOVEMENT: TELEPORT.** Push the move stick forward: an arc from your hand, green where you may land.
+      Let go: a blink there. Comfortable? Arc reach right (too short / too long)? Off in races and on the Reaperski.
+- [ ] **Options -> PLAY SEATED.** Sit down: do you see from a standing height, can you still reach things on the ground?
+- [ ] **Options -> DIFFICULTY** (EASY / NORMAL / HARD): does HARD feel harder without feeling unfair?
+- [ ] **Main menu -> CONTINUE row, left/right:** three save slots. Start a NEW GAME in slot 2: slot 1 keeps its checkpoint.
+- [ ] **Main menu -> MISSION** now lists only missions you've reached (each hero's story up to its first unfinished one).
+- [ ] **Base table map** (22. 5c or 34. r4a): stand on the Build Pad and look to your left, waist high - the base in
+      miniature. Touch a green square to build there. Readable? Easy to touch the right one?
+- [ ] **Ammo on the gun / arrows on the bow:** a small number on top of the gun, by the bow's grip. Readable? In the way?
+- [ ] **Pointing:** make a fist with the grip but lift your index finger off the trigger - the finger points.
+- [ ] **Kabuto's mic roar** (Options -> KABUTO MIC ROAR, allow the microphone): shout - does he roar? Any false roars?
+- [ ] **Kabuto's footsteps** in the controllers; the gun's kick in the steadying hand too. Too strong / too weak?
+- [ ] **Reaper guns:** pick up a dropped Reaper spear gun or bazooka and pull the trigger.
+- [ ] **Delphi's fire arrows:** hold an arrow to a flame (or the bow hand's trigger 0.4 s), shoot into grass.
+- [ ] **Wrist display:** hold your forearm across in front of your face, as to read a watch.
+- [ ] **Injection:** jab the syringe into your other forearm.
+
 ## Reporting
 Anything odd: the mission number and what you did just before. If the Quest is plugged in, the automated runner
 (`devtest.ps1`) also collects the log and frame times.
