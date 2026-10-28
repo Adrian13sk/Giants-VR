@@ -8,6 +8,7 @@
 #include <cstdlib>
 
 #include "core/log.h"
+#include "game/arm_ik.h"  // rotationBetween
 #include "game/creature.h"
 #include "game/game_app.h"
 #include "game/villager.h"
@@ -333,6 +334,18 @@ bool GameApp::grabGib(int h, const Vec3& hand, const Vec3& reach, const Quat& ha
     const Quat inv{-handRot.x, -handRot.y, -handRot.z, handRot.w};
     g.heldRot = inv * Quat::fromAxisAngle(g.axis, g.angle);
     g.heldOff = Vec3{0, -0.04f, -0.06f};
+    if (g.rpKind >= 0 && g.rpKind <= 1 && rpWeapon_[g.rpKind].model) {
+        // (2026-10-28) A Reaper's gun is taken by its handle, pointing where the hand points: ready to fire.
+        const RpWeapon& w = rpWeapon_[g.rpKind];
+        const Mat4 handle = w.handleInv.affineInverse();
+        const Vec3 hp{handle.m[12], handle.m[13], handle.m[14]}, np{w.nozzle.m[12], w.nozzle.m[13], w.nozzle.m[14]};
+        g.base = Mat4::translation(hp * -1.0f);
+        g.heldRot = rotationBetween(normalize(np - hp), Vec3{0, 0, -1});
+        g.heldOff = Vec3{0, -0.01f, -0.03f};
+        g.scale = 1.0f;
+        timmyLine_ = g.rpKind == 1 ? "REAPER BAZOOKA - TRIGGER TO FIRE" : "REAPER SPEAR GUN - TRIGGER TO FIRE";
+        timmyLineT_ = 2.5f;
+    }
     g.hand = h;
     g.nRecent = 0;
     g.prev = lastInput_.hand[h].gripPose.position;  // (tracking space: handVelocity)
@@ -351,6 +364,62 @@ void GameApp::renderStones() {
     dp.material = DrawParams::Material::Stone;
     dp.unlit = true;  // (the light baked where it lay)
     renderer_.draw(stoneMesh_, Mat4::identity(), dp);
+}
+
+bool GameApp::heldReaperGun(int h) const {
+    for (const auto& g : gibs_)
+        if (g.hand == h && g.rpKind >= 0) return true;
+    return false;
+}
+
+// (2026-10-28) A picked-up Reaper gun fires with its hand's trigger: the spear gun a bolt (semi-automatic), the
+// bazooka a rocket; what the Reaper left in it, then a click.
+void GameApp::updateHeldReaperGuns(float dt, const InputFrame& in) {
+    for (auto& g : gibs_) {
+        if (g.hand < 0 || g.rpKind < 0 || g.rpKind > 1 || !rpWeapon_[g.rpKind].model) continue;
+        g.cool = std::max(0.0f, g.cool - dt);
+        const bool trig = in.hand[g.hand].trigger > 0.6f;
+        const bool edge = trig && !g.trigWas;
+        g.trigWas = trig;
+        if (!edge || g.cool > 0) continue;
+        if (g.ammo <= 0) {
+            sfx2D("me_outam", 0.8f);
+            haptics_.push_back({g.hand, 0.2f, 0.03f});
+            continue;
+        }
+        const RpWeapon& w = rpWeapon_[g.rpKind];
+        const Mat4 handle = w.handleInv.affineInverse();
+        const Vec3 hp{handle.m[12], handle.m[13], handle.m[14]}, np{w.nozzle.m[12], w.nozzle.m[13], w.nozzle.m[14]};
+        const Quat rot = Quat::fromAxisAngle(g.axis, g.angle);
+        const Mat4 xf = Mat4::translation(g.pos) * Mat4::rotation(rot) * g.base;
+        const Vec4 m4 = xf * Vec4{np.x, np.y, np.z, 1.0f};
+        const Vec3 muzzle{m4.x, m4.y, m4.z};
+        const Vec3 dir = normalize(rot.rotate(np - hp));
+        --g.ammo;
+        if (g.rpKind == 1) {
+            rockets_.push_back({muzzle + dir * 0.3f, dir * 26.0f, 0.0f});
+            sfx("pr_wsmil", muzzle, 1.0f, 1.0f);
+            haptics_.push_back({g.hand, 0.9f, 0.14f});
+            g.cool = 1.2f;
+        } else {
+            weapon_.shotDamage = 2.5f;
+            weapon_.shotStyle = 3;  // (drawn as a bolt in flight)
+            weapon_.spawnShot(muzzle, dir);
+            weapon_.shotStyle = 0;
+            weapon_.shotDamage = 1.0f;
+            sfx("rh_sprsh", muzzle, 0.9f, 1.0f + 0.1f * frand());
+            haptics_.push_back({g.hand, 0.6f, 0.07f});
+            g.cool = 0.35f;
+        }
+        addFlash(muzzle, {2.0f, 1.4f, 0.7f}, 6.0f, 0.12f);
+        LOGI("Fired the Reaper's %s from hand %d (%d left)", g.rpKind == 1 ? "bazooka" : "spear gun", g.hand, g.ammo);
+        static const bool trace = std::getenv("GVR_SHOT_TRACE") != nullptr;
+        if (trace) {
+            const Vec3 hf = rig_.toWorld(in.hand[g.hand].aimPose).orientation.rotate(Vec3{0, 0, -1});
+            LOGI("shot trace: Reaper gun muzzle (%.2f %.2f %.2f) dir (%.2f %.2f %.2f), hand forward (%.2f %.2f %.2f), hand at (%.2f %.2f %.2f)",
+                 muzzle.x, muzzle.y, muzzle.z, dir.x, dir.y, dir.z, hf.x, hf.y, hf.z, g.pos.x, g.pos.y, g.pos.z);
+        }
+    }
 }
 
 }  // namespace gvr

@@ -137,8 +137,9 @@ public:
     bool nearestEnemy(Vec3& chest) const {
         float best = 1e30f;
         bool found = false;
+        static const bool armedOnly = std::getenv("GVR_AUTOAIM_ARMED") != nullptr;  // (test hook: not the disarmed ones)
         for (const auto& e : enemies_.enemies) {
-            if (e.state == EnemyState::Dead) continue;
+            if (e.state == EnemyState::Dead || (armedOnly && e.disarmed)) continue;
             const float d = length(e.pos - player_.position);
             // (test hook GVR_AUTOAIM_PART: gun / legs)
             static const char* part = std::getenv("GVR_AUTOAIM_PART");
@@ -566,7 +567,13 @@ private:
         Quat heldRot{0, 0, 0, 1};
         Vec3 heldOff, prev, recent[12];
         int nRecent = 0;
+        // (2026-10-28) A Reaper's gun picked up fires with that hand's trigger: kind 0 spear gun, 1 bazooka.
+        int rpKind = -1, ammo = 0;
+        float cool = 0;
+        bool trigWas = false;
     };
+    void updateHeldReaperGuns(float dt, const InputFrame& in);
+    bool heldReaperGun(int h) const;
     // Rework, dismemberment (game_app_ragdoll.cpp): cuts off the limb of dead Reaper `e` nearest the
     // blow at `at` (head, an arm or a leg), throws it along `dir`; false if none could be cut.
     bool dismember(Enemy& e, const Vec3& at, const Vec3& dir);
@@ -1200,6 +1207,15 @@ private:  // the mission placed enemies: no test waves
     struct Tornado { Vec3 pos, dir; float age = 0, tick = 0; };
     struct Bubble { Vec3 pos; int target = -1; float age = 0; bool caught = false; };
     std::vector<FireWall> fireWalls_;
+    // (2026-10-28) Fire arrows: an arrow drawn with its tip in a flame (a fire wall, a burning hut, a fireball,
+    // Delphi's own charging hand) flies burning (projectile style 4) and starts a blaze where it strikes.
+    bool arrowLit_ = false;
+    float bowFlameT_ = 0;  // (first person: the bow hand's trigger held - her fire along the arrow)
+    bool fireNear(const Vec3& p, float r) const;
+    struct Blaze { Vec3 pos; float age = 0, tick = 0; };
+    std::vector<Blaze> blazes_;
+    void startBlaze(const Vec3& at);
+    void updateBlazes(float dt);
     std::vector<Tornado> tornadoes_;
     std::vector<Bubble> bubbles_;
     const RenderModel* fireRoll_ = nullptr;

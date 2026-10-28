@@ -350,4 +350,76 @@ void GameApp::renderSpells() {
         }
 }
 
+// (2026-10-28) Fire arrows. A flame within r of p: a fire wall, a burning hut or tree, a fireball, the fire
+// particles of anything burning (Delphi's own charging hand among them).
+bool GameApp::fireNear(const Vec3& p, float r) const {
+    for (const auto& w : fireWalls_)
+        for (const auto& s : w.seg)
+            if (length(Vec3{s.x - p.x, 0, s.z - p.z}) < r + 0.8f && p.y > s.y - 0.3f && p.y < s.y + 2.2f) return true;
+    for (const auto& f : fireballs_)
+        if (length(f.pos - p) < r + f.radius) return true;
+    for (const auto& b : blazes_)
+        if (length(Vec3{b.pos.x - p.x, 0, b.pos.z - p.z}) < r + 0.8f && p.y > b.pos.y - 0.3f && p.y < b.pos.y + 1.8f) return true;
+    for (const auto& q : fx_.parts)
+        if ((q.tex == FxTex::Fire || q.tex == FxTex::FireBlue) && q.opacity() > 0.2f && length(q.pos - p) < r * 0.6f + 0.5f * q.size()) return true;
+    if (assetWorld_) {
+        const auto& objs = assetWorld_->worldObjects();
+        for (const auto& d : destruct_.items) {
+            if (d.object < 0 || size_t(d.object) >= objs.size() || objs[size_t(d.object)].glow < 0.15f) continue;
+            if (length(Vec3{d.base.x - p.x, 0, d.base.z - p.z}) < d.radius + r && p.y < d.base.y + d.height + 0.5f) return true;
+        }
+    }
+    return false;
+}
+
+void GameApp::startBlaze(const Vec3& at) {
+    if (blazes_.size() >= 12) blazes_.erase(blazes_.begin());
+    Vec3 p = at;
+    if (enemies_.groundHeight) p.y = std::min(p.y, enemies_.groundHeight(p.x, p.z) + 1.5f);
+    blazes_.push_back({p, 0.0f, 0.0f});
+    addFlash(p, {2.2f, 1.2f, 0.4f}, 5.0f, 0.3f);
+    sfx("sr_spfsh", p, 0.8f, 0.9f);
+    LOGI("Fire arrow: a blaze at (%.1f %.1f %.1f)", p.x, p.y, p.z);
+}
+
+// A blaze burns 5 s where a fire arrow struck: flames and smoke; every half second 25 to anything within 1.8 m
+// (Reapers, creatures) and to huts, trees and wooden things it stands in - they catch and burn on.
+void GameApp::updateBlazes(float dt) {
+    for (const auto& pr : weapon_.projectiles())  // (a fire arrow in flight trails flame)
+        if (pr.style == 4 && frand() < dt * 40.0f) smokePuff(FxTex::Fire, pr.pos, Vec3{0, 0.3f, 0}, 0.12f, 0.05f, 0.25f, 1.0f, 0.2f);
+    for (auto& b : blazes_) {
+        b.age += dt;
+        const float k = std::max(0.0f, 1.0f - b.age / 5.0f);
+        if (frand() < dt * 30.0f * k)
+            smokePuff(FxTex::Fire, b.pos + Vec3{(frand() - 0.5f) * 0.8f, 0.2f + 0.4f * frand(), (frand() - 0.5f) * 0.8f}, Vec3{0, 1.6f, 0}, 0.6f, 0.2f, 0.45f, 1.0f, 0.6f);
+        if (frand() < dt * 3.0f * k) smokePuff(FxTex::SmokeBlack, b.pos + Vec3{0, 1.2f, 0}, Vec3{0, 1.2f, 0}, 0.5f, 2.2f, 2.0f, 0.4f, 0.4f);
+        b.tick -= dt;
+        if (b.tick > 0 || !weapon_.onHit) continue;
+        b.tick = 0.5f;
+        for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
+            const Enemy& e = enemies_.enemies[i];
+            if (e.state == EnemyState::Dead || length(Vec3{e.pos.x - b.pos.x, 0, e.pos.z - b.pos.z}) > 1.8f) continue;
+            hitMul_ = 0.6f;
+            weapon_.onHit(int(i), e.pos + Vec3{0, 1.0f, 0}, Vec3{0, 1, 0});
+            hitMul_ = 1.0f;
+            LOGI("Fire arrow: Reaper %u burns", e.uid);
+        }
+        for (size_t i = 0; i < creatures_.creatures.size(); ++i) {
+            const Creature& c = creatures_.creatures[i];
+            if (c.state == CreatureState::Dead || CreatureDirector::underground(c) || length(Vec3{c.pos.x - b.pos.x, 0, c.pos.z - b.pos.z}) > 1.8f + 0.4f * c.scale) continue;
+            hitMul_ = 0.6f;
+            weapon_.onHit(kCreatureTargetS + int(i), c.pos + Vec3{0, 0.5f, 0}, Vec3{0, 1, 0});
+            hitMul_ = 1.0f;
+        }
+        for (size_t i = 0; i < destruct_.items.size(); ++i) {
+            const Destructible& d = destruct_.items[i];
+            if (!d.alive() || d.kind == DestructKind::Rock || length(Vec3{d.base.x - b.pos.x, 0, d.base.z - b.pos.z}) > 1.5f + d.radius) continue;
+            damageObject(int(i), 25.0f, true, b.pos);
+            static int logged = 0;
+            if (logged++ < 8) LOGI("Fire arrow: object %d catches fire (%.0f hp left)", int(i), destruct_.items[i].hp);
+        }
+    }
+    blazes_.erase(std::remove_if(blazes_.begin(), blazes_.end(), [](const Blaze& b) { return b.age > 5.0f; }), blazes_.end());
+}
+
 }  // namespace gvr

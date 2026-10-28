@@ -411,7 +411,8 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                     LOGI("hit trace: target %d at %.1f m (%.1f %.1f %.1f), damage x%.1f, world object %s", target, length(p - player_.position), p.x, p.y, p.z, hm,
                          lastWorldTag_ >= 0 && assetWorld_ && size_t(lastWorldTag_) < assetWorld_->worldObjects().size() ? assetWorld_->worldObjects()[size_t(lastWorldTag_)].name.c_str() : "-");
                 // Rework: an arrow stays where it struck (in the ground, the scenery, a Reaper).
-                if (weapon_.hitStyle() == 3) stickArrow(target >= 0 && target < kCreatureTarget ? target : -1, p, shotDir);
+                if (weapon_.hitStyle() == 3 || weapon_.hitStyle() == 4) stickArrow(target >= 0 && target < kCreatureTarget ? target : -1, p, shotDir);
+                if (weapon_.hitStyle() == 4) startBlaze(p);  // (a fire arrow: a blaze where it struck)
                 if (target >= kVillagerShot) {
                     hitVillager(target - kVillagerShot, 25.0f * hm, p, shotDir);
                     haptics_.push_back({rig_.turnHand(), 0.4f, 0.04f});
@@ -963,6 +964,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     }
     updateCreatureFlashes(dt);
     updateFireballs(dt);
+    updateBlazes(dt);
     updateNearMisses(dt);
     updateHandTouch(dt);
     updateWaveGesture(dt);
@@ -3990,7 +3992,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("skirmish"); updateSkirmish(dt); }
     updateGroundMarks(dt);
     updateCasings(dt);
-    { GVR_PROF("ragdolls"); updateBodyGrab(dt, lastInput_); updateStones(dt, lastInput_); updateRagdolls(dt); updateHints(dt); }
+    { GVR_PROF("ragdolls"); updateBodyGrab(dt, lastInput_); updateStones(dt, lastInput_); updateHeldReaperGuns(dt, lastInput_); updateRagdolls(dt); updateHints(dt); }
     // Model slots follow the enemies (the director removes sunk corpses).
     std::fill(slotUsed_.begin(), slotUsed_.end(), 0);
     for (auto& e : enemies_.enemies)
@@ -4214,8 +4216,8 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     weaponsTicked_ = true;
     scopeWanted_ = false;
     bowValid_ = bowLinesShown_ = bowDrawing_ = false;  // (a Reaper mission's bow)
-    if (weaponSel_ == 2 || weaponSel_ == 3 || weaponSel_ == 8 || weaponSel_ == 9) {
-        // In the bush / holding a bomb or grenade: no gun in hand (its bolts still fly).
+    if (weaponSel_ == 2 || weaponSel_ == 3 || weaponSel_ == 8 || weaponSel_ == 9 || (firstPerson_ && heldReaperGun(gh))) {
+        // In the bush / holding a bomb or grenade (or a Reaper's gun picked up): no gun in hand (its bolts still fly).
         gunValid_ = false;
         weapon_.update(dt, false, Vec3{}, Vec3{0, 0, -1});
         if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
@@ -4847,7 +4849,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
             drawModel(sniperShotModel_, Mat4::translation(p.pos) * Mat4::rotation(r) * Mat4::scale({0.6f, 0.6f, 2.5f}), true, 1.0f);
             continue;
         }
-        if (p.style == 3 && arrowModel_) {  // an arrow: the rparrow streak
+        if ((p.style == 3 || p.style == 4) && arrowModel_) {  // an arrow: the rparrow streak (4: burning)
             drawModel(arrowModel_, Mat4::translation(p.pos) * Mat4::rotation(r) * Mat4::scale({0.2f, 0.2f, 0.2f}), true, 0.9f);
             continue;
         }

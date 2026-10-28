@@ -1,0 +1,29 @@
+# Rework (2026-10-28): fire arrows (GVR_FIRE_ARROWS: every arrow is lit) from Delphi's bow at four Reapers - each
+# starts a blaze where it strikes that burns 5 s, hurting what stands in it and setting huts and trees alight.
+# Log (checked by devtest.ps1): "The arrow catches fire" "A fire arrow from the" "Fire arrow: a blaze" "Fire arrow: Reaper N burns".
+name delphi_fire_arrow
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BOWS 1
+env GVR_DELPHI_WEAPON 0
+env GVR_RAGDOLL_TRACE 1
+env GVR_FIRE_ARROWS 1
+view third
+duration 25
+reapers 4 16 1 999
+autoaim r 1.5 25
+hold trigger_r 2.00 3.30
+hold trigger_r 4.00 5.30
+hold trigger_r 6.00 7.30
+hold trigger_r 8.00 9.30
+hold trigger_r 10.00 11.30
+hold trigger_r 12.00 13.30
+hold trigger_r 14.00 15.30
+hold trigger_r 16.00 17.30
+hold trigger_r 18.00 19.30
+hold trigger_r 20.00 21.30
+hold trigger_r 22.00 23.30
+shot 9 bow

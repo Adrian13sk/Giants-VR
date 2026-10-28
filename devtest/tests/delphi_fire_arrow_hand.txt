@@ -1,0 +1,18 @@
+# Rework (2026-10-28): lighting an arrow by hand (first person). The bow is in the left hand; its trigger held calls
+# Delphi's fire to the arrow's tip (0.4 s) while the right hand draws the string: the arrow catches fire
+# and flies burning.
+# Log (checked by devtest.ps1): "The arrow catches fire" "A fire arrow from the".
+name delphi_fire_arrow_hand
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_BOWS 1
+env GVR_DELPHI_WEAPON 0
+view first
+duration 8
+hand_r -0.4 0 0.31 0.5 1.0
+hold trigger_l 1.0 2.4
+hold grip_r 1.2 2.6
+hand_r 0 0 0.5 1.4 2.2
+shot 2.0 lit

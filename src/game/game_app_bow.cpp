@@ -204,7 +204,28 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
     bowTrigWas_ = trig;
     bowNock_ = nockAt;
     bowLinesShown_ = true;
+    // (2026-10-28) The tip held in a flame while drawn lights the arrow (GVR_FIRE_ARROWS: always).
+    {
+        static const bool always = std::getenv("GVR_FIRE_ARROWS") != nullptr;
+        const bool plain = delphiWeapon_ != kBowRpg && delphiWeapon_ != kBowHoming;
+        const Vec3 tip = bowGrip_ + bowFwd_ * 0.12f;
+        // First person the bow hand's trigger (her fire bolt's, free while she holds a bow) calls her fire to the
+        // arrow's tip: held 0.4 s while drawing, it lights.
+        const bool flame = firstPerson_ && plain && in.hand[bowHand].trigger > 0.6f;
+        bowFlameT_ = flame ? bowFlameT_ + dt : 0.0f;
+        if (flame && frand() < dt * 30.0f) smokePuff(FxTex::Fire, tip, Vec3{0, 0.3f, 0}, 0.1f, 0.04f, 0.25f, 1.0f, 0.2f);
+        if (!bowDrawing_) arrowLit_ = false;
+        else if (!arrowLit_ && plain && (always || bowFlameT_ > 0.4f || fireNear(tip, 0.6f))) {
+            arrowLit_ = true;
+            sfx("sr_spfsh", tip, 0.5f, 1.4f);
+            haptics_.push_back({bowHand, 0.3f, 0.08f});
+            LOGI("The arrow catches fire");
+        }
+        if (arrowLit_ && frand() < dt * 25.0f) smokePuff(FxTex::Fire, tip, Vec3{0, 0.4f, 0}, 0.08f, 0.03f, 0.25f, 1.0f, 0.3f);
+    }
     if (!release) return;
+    const bool lit = arrowLit_;
+    arrowLit_ = false;
     bowDrawing_ = false;
     const float draw = bowDraw_;
     bowDraw_ = 0;
@@ -231,7 +252,7 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
         const Vec3 side = normalize(cross(dir, Vec3{0, 1, 0}));
         weapon_.shotDamage = bow.damage * power * 0.6f;
         weapon_.projectileSpeed = 25.0f + 50.0f * draw;
-        weapon_.shotStyle = 3;
+        weapon_.shotStyle = lit ? 4 : 3;
         for (int k = -2; k <= 2; ++k) weapon_.spawnShot(from, normalize(dir + side * (0.07f * float(k))));
         weapon_.shotStyle = 0;
         weapon_.shotDamage = 1.0f;
@@ -240,7 +261,7 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
         weapon_.shotDamage = bow.damage * power;
         weapon_.projectileSpeed = delphiWeapon_ == kBowSniper ? 40.0f + 160.0f * draw : 25.0f + 50.0f * draw;
         weapon_.range = delphiWeapon_ == kBowSniper ? 600.0f : 250.0f;
-        weapon_.shotStyle = 3;
+        weapon_.shotStyle = lit ? 4 : 3;
         weapon_.spawnShot(from, dir);
         weapon_.shotStyle = 0;
         weapon_.shotDamage = 1.0f;
@@ -252,6 +273,7 @@ void GameApp::updateBow(float dt, const InputFrame& in) {
     sfx(kBows[delphiWeapon_].shot, from, 1.0f, 0.95f + 0.1f * frand());
     haptics_.push_back({bowHand, 0.4f + 0.5f * draw, 0.08f});
     if (bowByHand_) haptics_.push_back({drawHand, 0.6f, 0.05f});
+    if (lit) LOGI("A fire arrow from the %s", bow.name);
     LOGI("Arrow from the %s at %.0f%% draw (%s) from (%.1f %.1f %.1f) dir (%.2f %.2f %.2f)", bow.name, double(draw * 100.0f),
          bow.ammo >= 0 ? std::to_string(bow.ammo).c_str() : "unlimited", from.x, from.y, from.z, dir.x, dir.y, dir.z);
 }

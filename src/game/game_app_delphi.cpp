@@ -486,7 +486,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
             boltSpeed = 40.0f;
         }
     }
-    if (!consumed && !boltTrig && boltTrigWas_ && boltCooldown_ <= 0 && ok) {
+    if (!consumed && !boltTrig && boltTrigWas_ && boltCooldown_ <= 0 && ok && !heldReaperGun(mh)) {  // (that hand's trigger fires a held Reaper gun)
         if (!firstPerson_ && player_.onGround && swipeT_ < 0) player_.startAction(PlayerAnim::Cast, std::max(0.3f, player_.oneShot[int(PlayerAnim::Cast)] * 0.6f));
         Rocket r;
         r.pos = from;
