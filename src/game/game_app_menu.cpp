@@ -355,6 +355,7 @@ void GameApp::renderControlsCard(const Mat4& base) {
     static const char* mecc[][2] = {
         {"LEFT STICK", "RUN (LEFT GRIP HELD: SPRINT)"},
         {"RIGHT STICK", "TURN - PUSH FORWARD: NEXT WEAPON"},
+        {"WEAPON WHEEL", "HOLD IT FORWARD, MOVE THE HAND TOWARD ONE, LET GO"},
         {"RIGHT TRIGGER", "FIRE"},
         {"A (HOLD)", "JETPACK"},
         {"GUNS", "GRIP AT YOUR RIGHT HIP (HANDGUN) OR OVER YOUR SHOULDER"},

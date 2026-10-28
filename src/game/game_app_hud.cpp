@@ -262,6 +262,57 @@ void GameApp::hudWeaponStrip() {
     }
 }
 
+// The weapon wheel's cells: what he carries, in the switching order.
+void GameApp::buildWheelCells() {
+    wheelCells_.clear();
+    static const int kOrder[10] = {0, 4, 5, 6, 7, 8, 9, 1, 2, 3};
+    for (int sel : kOrder) {
+        if (!weaponOwned(sel)) continue;
+        const int g = gunOfSel(sel);
+        const int layer = g >= 0 ? guns_[g].hudLayer : sel == 9 ? kHudMine : sel == 8 ? kHudGrenade : sel == 3 ? kHudPop : sel == 2 ? kHudBush : (sel == 1 ? kHudLauncher : kHudGun);
+        const int count = g >= 0 ? guns_[g].ammo : (sel == 1 ? launcherAmmo_ : sel == 8 ? grenades_ : sel == 9 ? mines_ : sel == 3 ? popupBombs_ : -1);
+        wheelCells_.push_back({sel, layer, count});
+    }
+}
+
+// The wheel: a ring of icons (radius 11 cm) round where the gun hand was, the one the hand moves toward lit.
+void GameApp::hudWeaponWheel() {
+    if (!wheelOpen_ || wheelCells_.empty()) return;
+    HudFrame f;
+    f.o = wheelCentre_;
+    f.r = wheelR_;
+    f.u = wheelU_;
+    const uint8_t back[4] = {0, 0, 0, 160};
+    hudRect(kHudPlate, f, 0, 0, 0.32f, 0.32f, back);
+    // A dot where the hand points the choice (its move since the wheel opened, at the wheel's scale).
+    if (lastInput_.hand[rig_.turnHand()].gripPoseValid) {
+        const Vec3 d = rig_.toWorld(lastInput_.hand[rig_.turnHand()].gripPose).position - wheelHand0_;
+        float x = dot(d, wheelR_), y = dot(d, wheelU_);
+        const float len = std::sqrt(x * x + y * y);
+        if (len > 0.11f) { x *= 0.11f / len; y *= 0.11f / len; }
+        const uint8_t dot_[4] = {200, 230, 255, 220};
+        hudRect(kHudMarks, f, x, y, 0.012f, 0.012f, dot_);
+    }
+    const int n = int(wheelCells_.size());
+    for (int i = 0; i < n; ++i) {
+        const float a = 6.2832f * float(i) / float(n);
+        const float cx = 0.11f * std::sin(a), cy = 0.11f * std::cos(a);
+        const WheelCell& c = wheelCells_[size_t(i)];
+        const bool hot = i == wheelHover_, cur = c.sel == weaponSel_;
+        if (hot || cur) {
+            const uint8_t glow[4] = {uint8_t(hot ? 140 : 90), 255, uint8_t(hot ? 140 : 90), uint8_t(hot ? 170 : 70)};
+            hudRect(kHudMarks, f, cx, cy, 0.062f, 0.062f, glow);
+        }
+        const float sz = hot ? 0.058f : 0.046f;
+        const uint8_t col[4] = {255, 255, 255, uint8_t(hot ? 255 : 190)};
+        hudRect(c.layer, f, cx, cy, sz, sz, col);
+        if (c.count >= 0) {
+            const uint8_t nc[4] = {255, uint8_t(c.count > 0 ? 255 : 80), uint8_t(c.count > 0 ? 255 : 80), 230};
+            hudDigits(f, cx - 0.02f, cy - 0.034f, 0.014f, c.count, nc);
+        }
+    }
+}
+
 // A red wedge on the side the last hit came from, around the middle of the view.
 void GameApp::hudHitMarker() {
     if (hitDirTimer_ <= 0 || !lastInput_.headValid) return;
@@ -304,6 +355,7 @@ void GameApp::buildHud() {
             hudStatus(f);
         }
         hudWeaponStrip();
+        hudWeaponWheel();
         hudHitMarker();
     }
     if (settings_.showFps && subInit_ && lastInput_.headValid) {

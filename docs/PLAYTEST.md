@@ -132,6 +132,8 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
       trigger changes it. Point above / below the Options rows and pull to scroll.
 - [ ] **Bare hands in the menus:** put the controllers down - your hands' rays point, a pinch is the trigger, the
       left hand's palm-up pinch (the menu gesture) opens / closes Options. Picking a controller up takes over again.
+- [ ] **Weapon wheel (Baz):** hold the right stick forward: a ring of what you carry appears before you; move the
+      gun hand toward one and let the stick go. A short push still steps to the next weapon (now when you let go).
 - [ ] **Delphi's new spells** (Reaper story 3 on, the battles, or PRACTICE as Delphi), left trigger held:
       SUMMON HAIL - raise the hand above your head and bring it down hard: ice falls where you aim.
       SLOW TIME - both hands together in front of your chest for half a second: Reapers slow to a third for 8 s.

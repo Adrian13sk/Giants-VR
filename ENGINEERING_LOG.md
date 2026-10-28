@@ -2747,3 +2747,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   limit 20; Kabuto drops a flag after 60 damage since he took it (4 s before he can take one again) and carries it
   without sprinting at 80 % speed (bots). After: 12 maps x 20 min, 13 rounds finished (was 6); 3-way rounds Blue 1,
   Green 1, Red 1, one map unfinished. The large maps (L3, Lw1) stay slow with bots alone: they rarely meet.
+- Weapon wheel (Baz): the right stick held forward 0.4 s (three or more things carried) opens a ring of the original
+  HUD icons 0.5 m before the eyes, 18 cm low; the gun hand picks by moving 4 cm or more from where it was (the
+  angle chooses the cell; a dot shows the hand's move), letting the stick go takes it. First tried at the hand: it
+  sat under the gun model and at the edge of the view. A short push still steps on, now on release. Found in
+  testing: the hold timer stopped after one frame (the "armed" flag cleared on the push itself).

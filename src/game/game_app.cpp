@@ -1853,19 +1853,75 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     updateGunKick(dt);
     // Right stick forward: next weapon (released to neutral before it switches again).
     const float sy = in.hand[gh].thumbstick.y;
-    if (sy < 0.3f) switchArmed_ = true;
-    if (switchArmed_ && sy > 0.75f) {
+    // (2026-10-28) Held forward 0.4 s with three or more things carried: the weapon wheel; a shorter push steps on.
+    int pick = -1;
+    if (sy > 0.75f && (switchArmed_ || stickFwdT_ > 0)) {  // (a push begun from neutral, held)
+        stickFwdT_ += dt;
+        if (!wheelOpen_ && stickFwdT_ > 0.4f && in.hand[gh].gripPoseValid) {
+            buildWheelCells();
+            if (wheelCells_.size() >= 3) {
+                // Before the eyes, a little low, facing them (in view wherever the hand is); the hand picks by
+                // moving from where it was when the wheel opened.
+                const Pose hp = rig_.toWorld(in.hand[gh].gripPose);
+                const Pose head = rig_.toWorld(in.head);
+                Vec3 fwd = head.orientation.rotate(Vec3{0, 0, -1});
+                fwd.y = 0;
+                fwd = length(fwd) > 1e-3f ? normalize(fwd) : Vec3{0, 0, -1};
+                wheelR_ = normalize(cross(fwd, Vec3{0, 1, 0}));
+                wheelU_ = Vec3{0, 1, 0};
+                wheelCentre_ = head.position + fwd * 0.5f + Vec3{0, -0.18f, 0};
+                wheelHand0_ = hp.position;
+                wheelOpen_ = true;
+                wheelHover_ = -1;
+                haptics_.push_back({gh, 0.3f, 0.04f});
+                LOGI("Weapon wheel: %zu things", wheelCells_.size());
+            }
+        }
+    }
+    if (wheelOpen_) {
+        if (in.hand[gh].gripPoseValid) {
+            const Vec3 d = rig_.toWorld(in.hand[gh].gripPose).position - wheelHand0_;
+            const float x = dot(d, wheelR_), y = dot(d, wheelU_);
+            int best = -1;
+            if (std::sqrt(x * x + y * y) > 0.04f) {  // (moved 4 cm or more: the nearest cell by angle)
+                const float a = std::atan2(x, y);
+                const int n = int(wheelCells_.size());
+                best = int(std::floor((a < 0 ? a + 6.2832f : a) / 6.2832f * float(n) + 0.5f)) % n;
+            }
+            if (best != wheelHover_ && best >= 0) haptics_.push_back({gh, 0.2f, 0.02f});
+            wheelHover_ = best;
+        }
+        if (sy < 0.3f) {
+            wheelOpen_ = false;
+            if (wheelHover_ >= 0 && size_t(wheelHover_) < wheelCells_.size()) pick = wheelCells_[size_t(wheelHover_)].sel;
+            LOGI("Weapon wheel closed (%s)", pick >= 0 ? "chosen" : "nothing chosen");
+        }
+    }
+    bool step = false;
+    if (sy < 0.3f) {
+        if (!switchArmed_ && stickFwdT_ > 0 && pick < 0 && !wheelWasOpen_) step = true;  // (a short push)
+        switchArmed_ = true;
+        stickFwdT_ = 0;
+        wheelWasOpen_ = false;
+    } else if (sy > 0.75f) {
+        switchArmed_ = false;
+        if (wheelOpen_) wheelWasOpen_ = true;
+    }
+    if (step || pick >= 0) {
         // The weapon strip drops in either way (showing what is carried); with only the gun
         // there is nothing to switch to.
-        switchArmed_ = false;
-        // Handgun -> shotgun -> machine gun -> sniper gun -> mortar -> grenades -> launcher -> bush pack ->
-        // pop-up bomb, skipping what he doesn't carry.
-        static const int kOrder[10] = {0, 4, 5, 6, 7, 8, 9, 1, 2, 3};
-        int at = 0;
-        while (at < 10 && kOrder[at] != weaponSel_) ++at;
-        for (int k = 1; k <= 10; ++k) {
-            const int next = kOrder[(at + k) % 10];
-            if (weaponOwned(next)) { weaponSel_ = next; break; }
+        if (pick >= 0) {
+            if (weaponOwned(pick)) weaponSel_ = pick;
+        } else {
+            // Handgun -> shotgun -> machine gun -> sniper gun -> mortar -> grenades -> launcher -> bush pack ->
+            // pop-up bomb, skipping what he doesn't carry.
+            static const int kOrder[10] = {0, 4, 5, 6, 7, 8, 9, 1, 2, 3};
+            int at = 0;
+            while (at < 10 && kOrder[at] != weaponSel_) ++at;
+            for (int k = 1; k <= 10; ++k) {
+                const int next = kOrder[(at + k) % 10];
+                if (weaponOwned(next)) { weaponSel_ = next; break; }
+            }
         }
         if (weaponSel_ == 9) {
             timmyLine_ = "MINES (" + std::to_string(mines_) + ") - TRIGGER TO SET ONE DOWN";

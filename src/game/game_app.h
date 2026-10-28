@@ -425,6 +425,18 @@ private:
     void updateMines(float dt, const InputFrame& in);
     void renderMines();
     bool switchArmed_ = true;
+    // (2026-10-28) The weapon wheel (Meccaryn): the gun hand's stick held forward 0.4 s opens a ring of what he
+    // carries in front of that hand; move the hand toward one and let the stick go. A short push still steps to the
+    // next weapon (on release now).
+    float stickFwdT_ = 0;
+    bool wheelOpen_ = false, wheelWasOpen_ = false;
+    int wheelHover_ = -1;
+    Vec3 wheelCentre_, wheelR_, wheelU_, wheelHand0_;
+    struct WheelCell { int sel, layer, count; };
+    std::vector<WheelCell> wheelCells_;
+    void buildWheelCells();
+    void hudWeaponWheel();
+    void selectWeapon(int sel);
     float rocketCooldown_ = 0;
     bool rocketTriggerHeld_ = false;
     // kind 0 rocket, 1 Delphi's fire bolt, 2 a SAM's homing missile, 3 a Reaper's bazooka rocket, 4 a shotgun shell,
