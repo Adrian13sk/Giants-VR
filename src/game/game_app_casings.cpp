@@ -48,6 +48,8 @@ void GameApp::stickArrow(int enemy, const Vec3& at, const Vec3& dir) {
         a.local = inv.rotate(a.pos - e.pos);
         a.localDir = inv.rotate(a.dir);
     }
+    // (2026-10-28) An arrow from a bow that counts its arrows can be taken back (walk over it or pick it up).
+    if (hero_ == Hero::Delphi && delphiBow() && bows_[delphiWeapon_].ammo >= 0) a.bow = delphiWeapon_;
     stuckArrows_.push_back(a);
     static const bool trace = std::getenv("GVR_HIT_TRACE") != nullptr;
     if (trace) LOGI("arrow stuck at (%.2f %.2f %.2f)%s", a.pos.x, a.pos.y, a.pos.z, a.uid ? " in a Reaper" : "");
@@ -66,6 +68,31 @@ void GameApp::updateCasings(float dt) {
         const Quat r = Quat::fromAxisAngle({0, 1, 0}, e->yaw);
         a.pos = e->pos + Vec3{0, e->sink * -1.0f, 0} + r.rotate(a.local);
         a.dir = r.rotate(a.localDir);
+    }
+    // Taking arrows back (2026-10-28): Delphi's hand within 15 cm of one, or her feet within 0.9 m of one in the
+    // ground - not one still in a living Reaper. Its bow gets it back, up to the bow's most.
+    if (hero_ == Hero::Delphi && playMode_ && !dying_) {
+        Vec3 hands[2];
+        int nh = 0;
+        for (int h = 0; h < 2; ++h)
+            if (lastInput_.hand[h].gripPoseValid) hands[nh++] = rig_.toWorld(lastInput_.hand[h].gripPose).position;
+        for (auto& a : stuckArrows_) {
+            if (a.bow < 0 || a.bow >= kNumBows || a.age > 1e8f || !bows_[a.bow].have || bows_[a.bow].ammo < 0) continue;
+            if (a.uid) {
+                bool alive = false;
+                for (const auto& en : enemies_.enemies) alive = alive || (en.uid == a.uid && en.state != EnemyState::Dead);
+                if (alive) continue;
+            }
+            bool near = length(Vec3{a.pos.x - player_.position.x, 0, a.pos.z - player_.position.z}) < 0.9f &&
+                        std::fabs(a.pos.y - player_.position.y) < 1.0f;
+            for (int k = 0; k < nh && !near; ++k) near = length(hands[k] - a.pos) < 0.15f;
+            if (!near || (bows_[a.bow].maxAmmo >= 0 && bows_[a.bow].ammo >= bows_[a.bow].maxAmmo)) continue;
+            ++bows_[a.bow].ammo;
+            a.age = 1e9f;  // (gone)
+            sfx2D("ph_selct", 0.5f, 1.5f);
+            haptics_.push_back({kLeft, 0.25f, 0.03f});
+            LOGI("Arrow taken back: %s %d", bows_[a.bow].name, bows_[a.bow].ammo);
+        }
     }
     stuckArrows_.erase(std::remove_if(stuckArrows_.begin(), stuckArrows_.end(), [](const StuckArrow& a) { return a.age > 20.0f; }), stuckArrows_.end());
     for (auto& c : casings_) {

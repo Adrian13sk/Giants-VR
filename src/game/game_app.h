@@ -624,7 +624,7 @@ private:
     void ejectCasing(const Vec3& muzzle, const Vec3& fwd, float scale);
     // Rework: arrows that stay where they struck (game_app_casings.cpp) - in the world, or riding on a
     // Reaper (his uid; the point and direction in his own frame).
-    struct StuckArrow { Vec3 pos, dir, local, localDir; uint32_t uid = 0; float age = 0; };
+    struct StuckArrow { Vec3 pos, dir, local, localDir; uint32_t uid = 0; float age = 0; int bow = -1; };  // bow: whose arrow (to take back)
     std::vector<StuckArrow> stuckArrows_;
     void stickArrow(int enemy, const Vec3& at, const Vec3& dir);
     void updateCasings(float dt);

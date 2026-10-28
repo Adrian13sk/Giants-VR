@@ -1,0 +1,19 @@
+# Rework (2026-10-28): Delphi takes her arrows back - walk over one stuck in the ground (or pick it up by hand) and
+# the bow that shot it has it again (bows that count arrows; not one still in a living Reaper).
+# Log (checked by devtest.ps1): "arrow stuck" "Arrow taken back: SNIPER BOW".
+name arrows_back
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BOWS 1
+env GVR_DELPHI_WEAPON 2
+env GVR_HIT_TRACE 1
+view third
+duration 12
+pitch -30
+hold trigger_r 1.0 2.3
+hold trigger_r 3.0 4.3
+move 0 1 5 10
+shot 6 arrows
