@@ -2641,3 +2641,24 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   is on, the hero is Kabuto and a mission is playing; RECORD_AUDIO asked once at run time (JNI
   checkSelfPermission/requestPermissions). Never opened in scripted runs; GVR_MIC_TEST stands in. Kabuto's own
   roar can't retrigger it (6 s roar cool-down).
+
+### 2026-10-28 (evening) — GPU pass timer, base table map, teleport, seated, counters, NPC fixes
+- GPU pass timer: GL_EXT_disjoint_timer_query timestamps only at the edges of whole framebuffer passes (shadow,
+  haze cube, reflection, scope, cinema screen) and of the frame. Inside the eye pass a mark wouldn't split a
+  tiler's work usefully, so "eyes" is the remainder; its parts are still priced with GVR_LOOK_OFF.
+- Bush poke never landed: the Reaper walked until closer than 1.6 m, but bodies keep ~1.6 m apart - he walked on
+  the spot. And the punch rule fired on a hidden player he hadn't seen through. Both fixed.
+- Smarties' cheer reached every village on the map; now 90 m round the player.
+- Base table map: the real building models drawn at 1:330 on a glass table left of the build signs; a free site's
+  marker is touchable. The base spans ~180 m (walls at 86 m), so the miniatures are small.
+- Kabuto feed autopilot: 50 -> 70 % in ~15 s in k1a; two meals behind a house were passed over (2 s no headway).
+- Parry: the blade is swept from its last frame's place. The 18 Hz miss of delphi_parry is aim spread, measured:
+  bolts passed 0.14-0.6 m from the blade.
+- Seated: the tracking floor maps 0.45 m above the hero's feet (first person returns early in placeCamera - the lift
+  had to go there too; found by comparing the eye height of the same script).
+- Teleport: a ballistic arc (9 m/s x sqrt(scale)) from the move hand, landing by worldRay_; valid when the surface
+  normal is up (> 0.75), not deep water, within 14 m x scale. Fade 0.08 s out, 0.15 s in.
+- rstory2_jetski_3 (B21): a water map (terrain < -0.4 m) shows the moored ski's lagoon enclosed; a minimax path
+  search over the map puts the lowest land crossing at 27 m.
+- Memory eviction (B15) not done: the headset's campaign run stayed flat at ~350 MB; evicting the shared cache risks
+  pointers kept across worlds for little gain.

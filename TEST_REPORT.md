@@ -1042,3 +1042,21 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Native crash reports in files/crash/ (signal, backtrace, last 160 log lines); devtest.ps1 pulls them | BUILD only; experiments/crash_report (GVR_TEST_CRASH) is the device check |
 | Kabuto's microphone roar (Options -> KABUTO MIC ROAR, off by default; RECORD_AUDIO asked when used) | kabuto_mic_roar (GVR_MIC_TEST stands in for the mic): 24/72 Hz. The real microphone: device only, not yet tried |
 | Regression at 72 Hz | tests 54 ok + 3 render/audio-side (fx_water_fight and wrist_display pass with every frame rendered; weather_storm's ambience line needs audio); missions 30/30, weapons 18/18, npcs 7/7, ui 10/10; sweep 56/56; unit tests pass |
+
+## 2026-10-28 (evening) — more mechanics and fixes (harness verified; APK 47315f8 on the PC, not yet on the headset)
+| Change | Harness check |
+|---|---|
+| GPU time per offscreen pass (GVR_GPU_PASSES; on in every scripted device run; result.txt `gpu_passes`, review_results.py table) | Mesa has the extension: shadow / haze / reflection / eyes logged every 5 s with --video frames. Device numbers: not yet |
+| Reapers take cover among palms | npcs/npc_reaper_cover 24/72 Hz |
+| Bush poke: the Reaper stopped 1.6 m short and punched an unseen bush - fixed | npcs/npc_bush_poke 24/72 Hz; standing still in the bush stays hidden |
+| Smarties cheer only within 90 m (was every village) | npcs/npc_smarties_cheer 24/72 Hz (6 cheer, was 11) |
+| Timmy on his tower | npcs/npc_timmy_tower |
+| Base table map on the Build Pad (touch a site to build) | ui/base_table_map 24/72 Hz; npc_base_build still completes; frame looked at |
+| Kabuto's growth by eating (GVR_KABUTO_FEED) | tests/kabuto_growth: 50 -> 70 % in ~15 s; missions/m_gate_k1a_grown70 breaks the gate; tests/kabuto_gate_too_small (60 %) can't - 24/72 Hz |
+| Parry: blade swept between frames | delphi_parry at 12/15/20/24/36/72 Hz (18 Hz: this script's bolts pass 0.14-0.6 m from the blade) |
+| Options -> PLAY SEATED (+0.45 m) and the GVR_SETTINGS hook | unit test; eye 0.45 m higher than the same script standing; ui/ui_seated |
+| Rounds left on top of the gun / arrows by the bow grip | tests/gun_counter, tests/bow_counter; frame looked at |
+| Kabuto's footfalls and the steadying hand's gun kick in the haptics | kabuto_footprints logs the footfalls (haptics themselves: device only) |
+| Options -> MOVEMENT: TELEPORT | ui/teleport_move: two 6 m blinks, 24/72 Hz; arc frame looked at |
+| rstory2_jetski_3 (B21) | water map: the ski's lagoon is enclosed (lowest crossing 27 m); on foot reachable by flood fill, the walk autopilot didn't arrive in 10 min |
+| Regression at 72 Hz | tests 59 ok + the 3 render/audio-side lines; missions 31/31, weapons 18/18, npcs 11/11, ui 13/13 (ui_title_options fixed for the two new menu rows); sweep 56/56; unit tests pass |
