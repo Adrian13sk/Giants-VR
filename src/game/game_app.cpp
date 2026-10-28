@@ -3136,7 +3136,7 @@ void GameApp::updateMusic(float dt) {
         if (battleEndHeard_) { battleSet_.clear(); battleEndHeard_ = false; }
     }
     if (dying_ && musicSet_ && !musicSet_->variants(pre + "dh").empty()) want = pre + "dh";
-    if (stingerLeft_ > 0) want = pre + "vy";
+    if (stingerLeft_ > 0) { want = pre + "vy"; battleSet_.clear(); }  // (the victory closes the battle: no ending phrase after it)
     if (streamLeft_ > 0) want.clear();  // a cutscene soundtrack is playing
     music_->request(want);
     static std::string lastMood = "?";
