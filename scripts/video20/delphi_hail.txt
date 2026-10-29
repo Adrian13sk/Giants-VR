@@ -1,0 +1,17 @@
+# (2026-10-28) Delphi's SUMMON HAIL by gesture: the left (casting) hand raised above the head, trigger held, brought
+# down hard - ice falls where she aims (three Reapers stand 10 m out, where she looks).
+# Log (checked by devtest.ps1): "Delphi casts SUMMON HAIL" "Hail stone lands" "Hail: N Reaper(s) killed".
+name delphi_hail
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BASE 0
+env GVR_SPELL_TRACE 1
+duration 10
+reapers 3 10 0.5 99
+hold trigger_l 1.0 2.6
+hand_l 0 0.75 0 1.2 1.6
+hand_l 0 -1.1 0 1.9 2.1
+shot 2.6 hail

@@ -6,6 +6,8 @@
 #include "core/log.h"
 #include "game/game_app.h"
 
+#include <cstdlib>
+
 namespace gvr {
 
 namespace {
@@ -13,6 +15,7 @@ enum : int { kHintBody = 1, kHintStone = 2, kHintGun = 4, kHintSwim = 8, kHintBa
 }
 
 void GameApp::updateHints(float dt) {
+    if (static const bool off = std::getenv("GVR_NO_HINTS") != nullptr; off) settings_.hintsShown = ~0;  // test hook (videos): as if all were seen
     // On the Reaperski: the handlebars, once.
     if (onSki() && playMode_ && firstPerson_ && !cutsceneActive() && !menuOpen_ && !(settings_.hintsShown & kHintBars) && !skiBars_) {
         rideHintT_ += dt;

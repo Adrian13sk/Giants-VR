@@ -1,0 +1,13 @@
+# Progress video 20 (rework, 2026-10-29): caption|world|mission|from frame|frames|env and harness args
+Delphi's FOLLOW: point at a Reaper and pull back - he hangs where you point; swing and let go to throw him|Rstory5|rstory5_battle_2|72|576|--script scripts/video20/delphi_follow.txt GVR_NO_HINTS=1
+Delphi's SHRINK: point at a Reaper and close the hand - he shrinks to a quarter and runs (she can tread on him)|Rstory5|rstory5_battle_2|108|360|--script scripts/video20/delphi_shrink.txt GVR_NO_HINTS=1
+SUMMON SEA MONSTER: point far out to sea and lift the hand - the serpent comes in and spits fireballs at the Reapers|Rstory2|rstory2_battle_1|216|864|--script scripts/video20/delphi_sea_monster.txt GVR_NO_HINTS=1
+FIRE CIRCLE: both arms out - a ring of blue fire round her that stops bolts and grenades|Rstory4|r4a_buildbase|72|792|--script scripts/video20/delphi_fire_circle.txt GVR_NO_HINTS=1
+SUMMON HAIL: raise the hand high and bring it down hard - ice falls where she aims|Rstory2|rstory2_battle_1|72|648|--script scripts/video20/delphi_hail.txt GVR_NO_HINTS=1
+SLOW TIME: both hands together before the chest - the Reapers slow to a third|Rstory2|rstory2_battle_1|144|864|--script scripts/video20/delphi_slow_time.txt GVR_NO_HINTS=1
+Baz's portable turret: planted with the trigger, it turns to the Reapers and shoots them|Story3|story3_bunker_3|396|828|--script scripts/video20/w_mecc_turret.txt GVR_NO_HINTS=1
+The gyrocopter: a hand on it to climb in, fly with the sticks, land and get out|Story3|story3_bunker_3|0|1440|--script scripts/video20/w_mecc_gyro.txt GVR_NO_HINTS=1
+Baz's shield: a web of light round him that soaks up the Reapers' fire|Story4|4a_gainaccess|144|1152|--script scripts/video20/w_mecc_shield.txt GVR_NO_HINTS=1
+Proximity rockets: they burst beside a Reaper instead of flying past|Story4|4a_gainaccess|72|504|--script scripts/video20/w_mecc_prox.txt GVR_NO_HINTS=1
+The wrist display: forearm across the face - health, ammo, the goal's distance|Story1|1a_1_timmy|36|396|--script scripts/video20/wrist_display.txt GVR_NO_HINTS=1
+The weapon wheel: hold the stick forward, move the hand to a weapon|Story1|1a_1_timmy|36|468|--script scripts/video20/w_mecc_wheel.txt GVR_NO_HINTS=1

@@ -1,0 +1,39 @@
+# Rework (2026-10-28): pick up a Reaper's dropped gun (GVR_TEST_KILL=disarm) with the left hand - it comes to the hand by
+# its handle, pointing where the hand points - and fire it with that hand's trigger at the Reapers (auto-aimed).
+# Log (checked by devtest.ps1): "Picked up a dropped gun" "Fired the Reaper's" "goes limp".
+name reaper_gun_fire
+world Story1
+mission 1c_1_firstmecc
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_TEST_KILL disarm
+env GVR_PASSIVE_REAPERS 1
+env GVR_RAGDOLL_TRACE 1
+env GVR_AUTOAIM_ARMED 1
+view first
+pitch -30
+duration 16
+reapers 1 1.4 0.3 1.0
+hand_l -0.3 -0.95 -0.45 2.6 3.2
+hold grip_l 3.4 16
+hand_l 0 1.1 0.35 3.8 4.6
+reapers 3 12 5 999
+autoaim l 5.5 16
+hold trigger_l 6.50 6.65
+hold trigger_l 7.10 7.25
+hold trigger_l 7.70 7.85
+hold trigger_l 8.30 8.45
+hold trigger_l 8.90 9.05
+hold trigger_l 9.50 9.65
+hold trigger_l 10.10 10.25
+hold trigger_l 10.70 10.85
+hold trigger_l 11.30 11.45
+hold trigger_l 11.90 12.05
+hold trigger_l 12.50 12.65
+hold trigger_l 13.10 13.25
+hold trigger_l 13.70 13.85
+hold trigger_l 14.30 14.45
+hold trigger_l 14.90 15.05
+hold trigger_l 15.50 15.65
+shot 8 firing

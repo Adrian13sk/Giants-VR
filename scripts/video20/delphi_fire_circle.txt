@@ -1,0 +1,20 @@
+# (2026-10-28) Delphi's SUMMON FIRE CIRCLE (the data's item 31, its EFX_circle_spell column): left trigger held, both
+# arms stretched out to the sides - a ring of blue fire round her for 8 s; Reaper bolts burn up in its wall and
+# Reapers that walk into it burn.
+# Log (checked by devtest.ps1): "Delphi casts FIRE CIRCLE" "Fire circle dies down (N bolts burnt up)".
+name delphi_fire_circle
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_SPELL_TRACE 1
+duration 12
+reapers 3 14 0.5 99
+hand_l -0.45 0 0 1.5 1.9
+hand_r 0.45 0 0 1.5 1.9
+hold trigger_l 2.0 3.0
+hand_l 0.45 0 0 3.2 3.5
+hand_r -0.45 0 0 3.2 3.5
+shot 5 fire_circle

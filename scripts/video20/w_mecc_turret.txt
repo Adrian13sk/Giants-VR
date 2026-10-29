@@ -1,0 +1,25 @@
+# (2026-10-28) Baz's portable turret (the data's item 11 IconTurret1, mc_turret; ours: carried from Story 3 on): in
+# hand, pointed at the ground, the trigger plants it there; a hand on its head and a squeeze of the grip takes it
+# back (into the hand); planted again, it turns to the Reapers that come and shoots them.
+# Log (checked by devtest.ps1): "Arsenal: the portable turret" "Turret planted" "Turret: taken back" "Turret planted" "Turret: on Reaper" "Baz's turret shot Reaper".
+name w_mecc_turret
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_WEAPON 11
+env GVR_TURRET_TRACE 1
+view first
+duration 17
+pitch -22
+pitch_r -55 0.5 1.0
+hold trigger_r 1.5 1.7
+hand_r -0.15 -0.55 -0.85 2.5 3.5
+hold grip_r 4 4.3
+shot 4.5 turret_taken
+hand_r 0.15 0.55 0.85 5 5.5
+pitch_r 30 5 5.5
+hold trigger_r 6 6.2
+reapers 2 18 7 99
+shot 16 turret

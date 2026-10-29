@@ -1,0 +1,15 @@
+# (2026-10-28) Baz's shield (the data's item 17 IconShield, mc_shield; ours: Story 4 on): chosen on the weapon wheel
+# (here GVR_RAISE_SHIELD raises it at 3 s, as the wheel's choice does) a bubble round him takes the Reapers' bolts -
+# up to 150 - for 12 s.
+# Log (checked by devtest.ps1): "Arsenal: the shield" "Shield up" "it took N".
+name w_mecc_shield
+world Story4
+mission 4a_gainaccess
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_RAISE_SHIELD 3
+view third
+duration 18
+reapers 3 14 0.5 99
+shot 6 shield

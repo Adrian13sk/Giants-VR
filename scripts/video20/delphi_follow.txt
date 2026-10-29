@@ -1,0 +1,20 @@
+# (2026-10-28) Delphi's FOLLOW (the data's item 30, the Reapers' followspell clips): the left hand points at a Reaper
+# with the trigger held and is pulled back - he is lifted off his feet and hangs where she points; she swings the hand
+# round and lets go: he is thrown and hurt where he lands.
+# Log (checked by devtest.ps1): "Delphi casts FOLLOW: Reaper N caught" "FOLLOW: Reaper N let go (the trigger)" "FOLLOW: the thrown Reaper lands".
+name delphi_follow
+world Rstory5
+mission rstory5_battle_2
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_SPELL_TRACE 1
+env GVR_PASSIVE_REAPERS 1
+duration 8
+reapers 1 10 0.5 99
+pitch_l 17 0.5 1.0
+hold trigger_l 1.5 4.8
+hand_l 0 0 0.45 2.5 2.65
+shot 3.8 follow_held
+yaw_l -28 4.4 4.75

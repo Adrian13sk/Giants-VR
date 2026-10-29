@@ -1,0 +1,13 @@
+# (2026-10-28) The weapon wheel: the right stick held forward 0.4 s opens a ring of what Baz carries in front of the
+# gun hand; the hand moves right (toward a cell) and the stick is let go - that weapon is chosen.
+# Log (checked by devtest.ps1): "Weapon wheel: N things" "Weapon wheel closed (chosen)" "Weapon: ".
+name w_mecc_wheel
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_ARSENAL 1
+duration 7
+turn 0 1 2 4
+hand_r 0.13 0 0 2.8 3.1
+shot 3.5 wheel
