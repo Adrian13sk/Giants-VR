@@ -183,6 +183,10 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
       as strong? Is the switch on leaving the menu (a short fade through black) comfortable?
 - [ ] **Options -> FOVEATED RENDERING: AUTO (UP TO HIGH):** the headset itself sharpens the edges when there is time
       to spare. Compare with MEDIUM in 1a's village: sharper? smoother? Note the FRAME RATE either way.
+- [ ] **Pause on the Quest button (2026-10-29):** mid-fight, press the headset's Oculus/Meta button and wait 10 s,
+      then come back: the game should be paused in the options menu (RESUME chosen), your health as you left it.
+- [ ] **Options -> CONTROLS as Delphi or Baz:** the card now shows 14 rows at a time ("1/2" in the title); stick
+      left / right turns the page, any button closes it. Readable?
 
 ## Reporting
 Anything odd: the mission number and what you did just before. If the Quest is plugged in, the automated runner
