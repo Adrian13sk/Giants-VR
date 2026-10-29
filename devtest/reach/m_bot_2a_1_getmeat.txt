@@ -1,0 +1,10 @@
+# 2a_1_getmeat by the mission bot (2026-10-29): its objectives done with the real controls (walk, aim, fire), from its start: hunting Vimps, picking up the meat, bringing 20 pieces.
+# Log (checked by devtest.ps1): "Mission 2a_1_getmeat complete".
+name m_bot_2a_1_getmeat
+world Story2
+mission 2a_1_getmeat
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MISSION_BOT 1
+duration 1500

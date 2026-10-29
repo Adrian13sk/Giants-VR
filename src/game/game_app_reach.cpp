@@ -250,6 +250,17 @@ bool GameApp::reachWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt) {
         reachTarget_ = -1;
         return false;
     }
+    const Objective& ob = objectives_[size_t(reachTarget_)];
+    if (!walkBoxInput(ob.boundsMin, ob.boundsMax, reachTarget_, move, viewYaw, jump, dt)) {
+        reachTarget_ = -1;
+        return false;
+    }
+    return true;
+}
+
+// Along reachPath_ toward the box [mn, mx] (the reach walker's and the mission bot's legs); false: given up.
+bool GameApp::walkBoxInput(const Vec3& mn, const Vec3& mx, int objective, Vec2& move, float& viewYaw, bool& jump, float dt) {
+    if (reachPath_.empty()) return false;
     const Vec3 p{player_.position.x, 0, player_.position.z};
     const float near = std::max(3.0f, 1.5f * player_.radius);
     size_t dropped = 0;
@@ -273,18 +284,17 @@ bool GameApp::reachWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt) {
                 if (x >= 0 && z >= 0 && x < reachW_ && size_t(z) * reachW_ + x < reachBlocked_.size()) reachBlocked_[size_t(z) * reachW_ + x] = 1;
             }
         reachStuckT_ = 0;
-        bool planned = ++reachReplans_ <= 80 && planReach(reachTarget_, false);
+        bool planned = ++reachReplans_ <= 80 && planReachBox(mn, mx, false, objective);
         if (!planned && reachReplans_ <= 80 && reachResets_ < 4) {
             // Boxed in by our own marks: forget them and try again from here.
             ++reachResets_;
             std::fill(reachBlocked_.begin(), reachBlocked_.end(), uint8_t(0));
-            planned = planReach(reachTarget_, false);
+            planned = planReachBox(mn, mx, false, objective);
             LOGI("reach walk: cleared the blocked marks (%d) - %s", reachResets_, planned ? "a way again" : "still none");
         }
         if (!planned) {
             LOGI("reach walk: gave up after %d replans at (%.0f %.0f %.0f)", reachReplans_, player_.position.x, player_.position.y, player_.position.z);
             reachPath_.clear();
-            reachTarget_ = -1;
             return false;
         }
         LOGI("reach walk: stuck at (%.0f %.0f %.0f)%s%s%s, waypoint (%.0f %.0f), replanned (%d): %zu waypoints", player_.position.x, player_.position.y,
@@ -298,7 +308,7 @@ bool GameApp::reachWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt) {
     move = Vec2{0, 1};
     // (2026-10-29) Under a place to reach that is high above the ground (4d_fortress: on the fortress, 35 m up):
     // Baz flies up into it, as a player would, refuelling on the ground between tries.
-    const Objective& o = objectives_[size_t(reachTarget_)];
+    const Objective o{1, mn, mx};
     const Vec3 oc = (o.boundsMin + o.boundsMax) * 0.5f;
     const float toC = std::sqrt((oc.x - p.x) * (oc.x - p.x) + (oc.z - p.z) * (oc.z - p.z));
     if (hero_ == Hero::Mecc && player_.jetpackAvailable && reachPath_.size() <= 2 && toC < 0.5f * (o.boundsMax.x - o.boundsMin.x) + 4.0f &&

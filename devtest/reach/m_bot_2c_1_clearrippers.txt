@@ -1,0 +1,10 @@
+# 2c_1_clearrippers by the mission bot (2026-10-29): its objectives done with the real controls (walk, aim, fire), from its start.
+# Log (checked by devtest.ps1): "Mission 2c_1_clearrippers complete".
+name m_bot_2c_1_clearrippers
+world Story2
+mission 2c_1_clearrippers
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MISSION_BOT 1
+duration 900

@@ -1,0 +1,12 @@
+# story3_3sonaks_4 by the mission bot (2026-10-29): its objectives done with the real controls (walk, aim, fire), started by the Sonak patrols.
+# Log (checked by devtest.ps1): "Mission story3_3sonaks_4 complete".
+name m_bot_story3_3sonaks_4
+world Story3
+mission story3_3sonaks_4
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MISSION_BOT 1
+at -900 -1050
+look -900 -915
+duration 400

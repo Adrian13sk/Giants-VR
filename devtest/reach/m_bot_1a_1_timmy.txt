@@ -1,0 +1,10 @@
+# 1a_1_timmy by the mission bot (2026-10-29): its objectives done with the real controls (walk, aim, fire), from its start.
+# Log (checked by devtest.ps1): "Mission 1a_1_timmy complete".
+name m_bot_1a_1_timmy
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MISSION_BOT 1
+duration 600

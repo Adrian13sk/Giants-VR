@@ -423,6 +423,31 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 if (treeRay(o, d, std::min(maxD, hw ? tw : maxD), tt, ti) && (!he || tt < te)) {
                     hw = true; tw = tt; nw = d * -1.0f; worldTarget = kObjectTarget + ti;
                 }
+                // (2026-10-29) Buildings and ships a mission asks to destroy (r4a's Reaper ships: shots and fire bolts
+                // went through their hulls - their collision covers little - so only the galleon could be sunk): also an
+                // upright cylinder, a third of the model's
+                // size round, from its foot (or the sea: their foot is the sea floor) up a third of its height.
+                if (assetWorld_)
+                    for (size_t k = 0; k < destruct_.items.size(); ++k) {
+                        const Destructible& it = destruct_.items[k];
+                        if (!it.alive() || it.kind != DestructKind::House || it.object < 0) continue;
+                        bool target = false;
+                        for (const auto& ob : objectives_) target |= ob.kind == 5 && ob.item == int(k) && !ob.done;
+                        if (!target) continue;
+                        const float r = std::max(1.5f, 0.33f * it.radius);
+                        const float y0 = std::max(it.base.y, player_.seaLevel - 1.0f), y1 = std::max(it.base.y, player_.seaLevel) + std::max(4.0f, 0.33f * it.height);
+                        const Vec3 oc{o.x - it.base.x, 0, o.z - it.base.z};
+                        const float a = d.x * d.x + d.z * d.z, b = oc.x * d.x + oc.z * d.z, cc = oc.x * oc.x + oc.z * oc.z - r * r;
+                        if (a < 1e-6f) continue;
+                        const float disc = b * b - a * cc;
+                        if (disc < 0) continue;
+                        float tc = (-b - std::sqrt(disc)) / a;
+                        if (tc < 0 && cc <= 0) tc = 0;
+                        if (tc < 0 || tc > maxD || (hw && tc >= tw) || (he && tc >= te)) continue;
+                        const float yh = o.y + d.y * tc;
+                        if (yh < y0 || yh > y1) continue;
+                        hw = true; tw = tc; nw = d * -1.0f; worldTarget = kObjectTarget + int(k);
+                    }
                 if (!hw && !he) return false;
                 if (he && (!hw || te < tw)) { t = te; n = ne; target = ie; }
                 else { t = tw; n = nw; target = worldTarget; }

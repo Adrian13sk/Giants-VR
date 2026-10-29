@@ -1,0 +1,16 @@
+# r4a_buildbase's Reaper ships by the mission bot (2026-10-29): fire bolts sink the galleon and both ships. The two
+# ships couldn't be hit before (their collision covers little; bolts went through) - destroy targets now also have
+# an upright hit cylinder.
+# Log (checked by devtest.ps1): "Objective 1 done" "Objective 2 done" "Objective 3 done".
+name m_bot_r4a_ships
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_BASE 0
+env GVR_MISSION_BOT 1
+at -2498 -380
+look -2498 -507
+duration 240

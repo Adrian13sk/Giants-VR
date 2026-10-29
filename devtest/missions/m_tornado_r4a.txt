@@ -1,0 +1,14 @@
+# r4a_buildbase's army barracks by Delphi's tornado (2026-10-29; "can only be destroyed by a TORNADO SPELL").
+# Log (checked by devtest.ps1): "Delphi casts the TORNADO" "Objective 0 done".
+name m_tornado_r4a
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_BASE 0
+duration 16
+at -3192 570
+look -3192 459
+hold trigger_l 2 4.2
+env GVR_NO_RAIDS 1
