@@ -39,4 +39,7 @@ source exists; this is a **native reimplementation that loads the user's origina
   and compare its sha256 against the build before telling the user to install.
 - `scripts/build_apk.sh` keeps each build's unstripped library as `build/symbols/<commit>.so` (build from a clean
   commit before delivering); crash reports from the headset: `tools/py/symbolize_crash.py <report> build/symbols/<commit>.so`.
+- ASan/UBSan runs that take a while (all devtests, the mission sweep): build them from a snapshot worktree
+  (`git worktree add <dir> HEAD`, its own `build/asan` with `-fsanitize=address,undefined`), never from the working
+  tree while editing - a compile that reads half-edited headers gives a binary with mismatched struct layouts.
 - Keep docs current: PROJECT_STATUS.md, ENGINEERING_LOG.md, BLOCKERS.md, TEST_REPORT.md.
