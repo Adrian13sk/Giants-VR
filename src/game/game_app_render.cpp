@@ -160,6 +160,7 @@ void GameApp::renderShadowMap() {
     // The player's own body (whole, also in first person) and Timmy on his back.
     if (playMode_ && playerModel_ && !cut && !playerGibbed_) playerModel_->renderShadowFull(renderer_, bodyXf_);
     if (playMode_ && timmyOn_ && !cut) timmy_->renderShadow(renderer_, timmyXf_);
+    if (playMode_ && gyroModel_ && gyro_.on && !cut && length(gyro_.pos - centre) < half * 1.4f) gyroModel_->renderShadow(renderer_, gyroXf());  // (the gyrocopter)
     renderer_.endShadowPass();
     renderer_.setShadowsActive(true);
 }

@@ -41,6 +41,13 @@ void GameApp::updateVignette(float dt, const InputFrame& in) {
         const float turn = rig_.comfort.snapTurn ? 0.0f : std::fabs(in.hand[rig_.turnHand()].thumbstick.x);
         float k = std::max(move > 0.2f ? move : 0.0f, turn > 0.2f ? turn : 0.0f);
         if (riding_ || !player_.onGround) k = std::max(k, std::min(1.0f, player_.horizontalSpeed() / 12.0f));
+        // (2026-10-29) In a vehicle the view turns and climbs without the stick turning it: its turn rate (snap steps
+        // aside) and the gyrocopter's climb count too.
+        if (riding_ && dt > 0) {
+            const float yr = std::fabs(angleDelta(vigYawPrev_, camYaw_)) / dt;
+            if (yr < 0.3f / dt) k = std::max(k, std::min(1.0f, yr / 1.2f));
+            if (gyro_.riding) k = std::max(k, std::min(1.0f, std::fabs(gyro_.vel.y) / 6.0f));
+        }
         want = k * (settings_.vignette == 1 ? 0.55f : 0.9f);
     }
     // A cutscene camera that travels (the view moves without you): the same comfort ring, by its speed.
@@ -51,6 +58,7 @@ void GameApp::updateVignette(float dt, const InputFrame& in) {
     } else {
         cutVigPrev_ = cutEye_;
     }
+    vigYawPrev_ = camYaw_;
     vignette_ += (want - vignette_) * std::min(1.0f, dt * (want > vignette_ ? 6.0f : 3.0f));
     static const bool trace = std::getenv("GVR_VIGNETTE_TRACE") != nullptr;
     if (trace) LOGI("vignette %.2f (want %.2f, setting %d)", vignette_, want, settings_.vignette);

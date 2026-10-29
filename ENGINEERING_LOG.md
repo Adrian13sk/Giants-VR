@@ -2936,3 +2936,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   forward where the user is looking; the holster draw doesn't fire on the joystick grip; a Reaper gun picked up with
   the beam on stops the repair loop; a wrecked pad drops its gyrocopter. Open: no turn-rate vignette in flight; the
   gyrocopter casts no shadow.
+- Comfort in vehicles (the gyrocopter review's open point): the vignette now also closes with the view's turn rate
+  in a vehicle (snap steps aside) and the gyrocopter's climb / descent - checked with GVR_VIGNETTE_TRACE (0.53-0.55 at
+  the low setting while turning and climbing). The gyrocopter casts a shadow.
