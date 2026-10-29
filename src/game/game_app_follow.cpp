@@ -130,7 +130,8 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
         if (int(followT_ * 4) != int((followT_ - dt) * 4)) haptics_.push_back({mh, 0.25f, 0.04f});
         return;
     }
-    if (!(followOwned() || shrinkOwned()) || !firstPerson_ || !c.aimPoseValid || !c.gripPoseValid || !in.headValid || !held || delphiBow() || spellGestureCast_) {
+    rtCool_ = std::max(0.0f, rtCool_ - dt);
+    if (!(followOwned() || shrinkOwned() || rsTeleportOwned()) || !firstPerson_ || !c.aimPoseValid || !c.gripPoseValid || !in.headValid || !held || delphiBow() || spellGestureCast_) {
         followCandUid_ = 0;
         followAimT_ = followPullDist_ = 0;
         return;
@@ -175,13 +176,18 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
         castShrink(followCandUid_, mh);
         return;
     }
-    if (!followOwned()) return;
     // Pulled back toward her: caught.
     const Vec3 toHead{in.head.position.x - c.gripPose.position.x, 0, in.head.position.z - c.gripPose.position.z};
     const float pull = length(toHead) > 1e-3f ? dot(hv, normalize(toHead)) : 0.0f;
     // The pull: fast, and over at least 12 cm.
     if (pull > 1.0f) followPullDist_ += pull * dt;
     else if (pull < 0.5f) followPullDist_ = 0;
+    // No Reaper in the aim: the same pull on open ground is TELEPORT (game_app_rsteleport.cpp).
+    if (!(followCandUid_ && followCandT_ > 0) && updateRsTeleport(dt, pull, followPullDist_, from, dir, mh)) {
+        followPullDist_ = 0;
+        return;
+    }
+    if (!followOwned()) return;
     static const bool trace = std::getenv("GVR_SPELL_TRACE") != nullptr;
     if (trace && pull > 0.8f) LOGI("spell trace: FOLLOW pull %.1f m/s (%.2f m), candidate %u (%.1f s left, aimed %.2f s)", double(pull), double(followPullDist_), followCandUid_, double(followCandT_), double(followAimT_));
     if (pull < kFollowPull || followPullDist_ < 0.12f || !followCandUid_ || followCandT_ <= 0 || followAimT_ < 0.2f || followCool_ > 0) return;

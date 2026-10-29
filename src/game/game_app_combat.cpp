@@ -56,7 +56,13 @@ void GameApp::spawnWave() {
 
 void GameApp::damagePlayer(float amount, DeathCause cause) {
     if (playerHealth_ <= 0 || dying_) return;
-    if (cloakT_ > 0) ++cloakHits_;  // (counted even in god mode: devtest delphi_cloak_fight)
+    // (counted even in god mode: devtest delphi_cloak_fight; not the first half second - bolts already in flight
+    // when she cast it land, as they would)
+    if (cloakT_ > 0 && cloakT_ < 11.5f) {
+        ++cloakHits_;
+        static const bool trace = std::getenv("GVR_SPELL_TRACE") != nullptr;
+        if (trace) LOGI("spell trace: hit while cloaked (%.0f, cause %d, cloak %.1f s left)", double(amount), int(cause), double(cloakT_));
+    }
     {
         // Baz's shield takes what it can - before god mode, so a test can see it; counted in the damage the
         // difficulty makes of the hit (its 150 is the same on every level).

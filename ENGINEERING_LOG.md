@@ -3038,3 +3038,15 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   (strobing on the headset): SkinnedModel::setSoftTexture draws that part blended, no depth write, no shadow;
   (2) riding the gyrocopter, the third-person camera sat inside the rotor's disc: 6.5 m back and 2.6 m up then;
   (3) over the sea the third-person camera could dip under the surface: kept above it unless he is under water.
+- Delphi's TELEPORT (the data's item 24 IconRSTeleport, GText "Teleport"; no st_rp_ art for it). Ours: FOLLOW's
+  pull (1.2 m/s over 12 cm, relative to the head) aimed at open ground instead of a Reaper - she pulls herself
+  there. The aim ray must meet ground she could stand on 3-25 m away (normal y over 0.75, not deep water, room
+  overhead), held steady 0.3 s (a blue flame marks the spot; the pull drags the aim, so the spot is the steady one);
+  the blink is the teleport movement's (fade, move, fade back). A Reaper in FOLLOW's cone takes precedence; on foot,
+  not riding, not in races; 5 s between; Reaper story 3 on and practice; the trigger's release is used up. Devtest
+  tests/delphi_teleport (7.8 m, 72 / 24 Hz); delphi_follow / delphi_shrink / delphi_shrink_run unchanged (no
+  teleports, their casts as before). Controls card row.
+- delphi_cloak_fight missed after TELEPORT ("hit 1 times while cloaked"): a Reaper's bolt already in flight landed
+  in the frame she cast (the aim marker's particles had shifted the random sequence, so the volleys fell
+  differently). The cloak's hit count now starts half a second after the cast (bolts in flight land, as they
+  would); GVR_SPELL_TRACE logs each hit while cloaked. 72 / 24 Hz: 0 hits.

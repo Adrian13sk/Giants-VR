@@ -1386,6 +1386,16 @@ private:  // the mission placed enemies: no test waves
     // tread on him. 14 s between. Rstory4 and 5, and practice.
     float shrinkCool_ = 0;
     bool shrinkGripHeld_ = false;
+    // (2026-10-29) TELEPORT (the data's item 24 IconRSTeleport, GText "Teleport"). Rules ours: FOLLOW's pull aimed
+    // at open ground instead of a Reaper - she pulls herself there (3-25 m; a blink as Options -> MOVEMENT: TELEPORT
+    // does). Pointed at steadily 0.3 s first (a blue flame shows the spot); 5 s between; not in races.
+    // game_app_rsteleport.cpp.
+    float rtAimT_ = 0, rtCool_ = 0;
+    Vec3 rtSpot_;
+    bool rtSpotOk_ = false;
+    bool rsTeleportOwned() const;
+    bool rsTeleportAim(const Vec3& from, const Vec3& dir, Vec3& spot) const;
+    bool updateRsTeleport(float dt, float pull, float pullDist, const Vec3& from, const Vec3& dir, int hand);
     bool shrinkOwned() const;
     void castShrink(uint32_t uid, int hand);
     void updateShrink(float dt);

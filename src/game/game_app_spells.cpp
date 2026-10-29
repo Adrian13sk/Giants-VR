@@ -152,6 +152,8 @@ void GameApp::resetSpells() {
     seaHandValid_ = seaArmLow_ = seaRaised_ = seaBlocked_ = false;
     rsBeam_ = rsBlocked_ = false;  // (review: the beam's flag outlived a death / a mission)
     rsAimT_ = 0;
+    rtAimT_ = rtCool_ = 0;
+    rtSpotOk_ = false;
     shrinkGripHeld_ = false;
     followThrown_.clear();
     cloakT_ = cloakCool_ = clusterCool_ = gestFaceT_ = 0;

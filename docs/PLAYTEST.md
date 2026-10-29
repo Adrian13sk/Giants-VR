@@ -167,6 +167,9 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
       (deep water) for a moment with the hand low, then lift the hand sharply above your head: the serpent surfaces
       there, comes in and spits fireballs at the Reapers by the shore. Easy to do? Visible enough at 40-60 m? Keep
       away from where it spits - its fireballs burn you too.
+- [ ] **Delphi's TELEPORT** (Reaper story 3 on, PRACTICE): left trigger held, point at open ground 3-25 m away (a blue
+      flame marks the spot), pull the hand back sharply: you blink there. Comfortable? Does it ever fire when you
+      meant FOLLOW (a Reaper near the spot)?
 - [ ] **Delphi's REPAIR** (r4a and the battles, once her base has buildings): left trigger held, point at one of her
       damaged buildings for half a second: green fire mends it while you hold. Letting go should not throw a fire wall.
 - [ ] **Bodies against walls:** throw a Reaper with FOLLOW into a hut or rock: he stops against it (no flying
