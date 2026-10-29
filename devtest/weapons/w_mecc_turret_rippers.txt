@@ -1,0 +1,19 @@
+# (2026-10-29) Baz's portable turret shoots Rippers too (it had only looked for Reapers): planted near a Ripper
+# barracks breeding fast, it turns to the Rippers that come out and shoots them (not ones underground).
+# Log (checked by devtest.ps1): "Turret planted" "Turret: on Ripper" "Baz's turret shot Ripper".
+name w_mecc_turret_rippers
+world Story2
+mission 2c_1_clearrippers
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_TURRET 1
+env GVR_WEAPON 11
+env GVR_SPAWN_FAST 1
+view first
+duration 40
+at 601 -220
+look 601 -70
+pitch_r -55 0.5 1.0
+hold trigger_r 1.5 1.7
+shot 25 turret_rippers

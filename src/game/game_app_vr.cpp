@@ -184,7 +184,7 @@ void GameApp::updateHandTouch(float dt) {
 bool GameApp::handReach(const Vec3& p, float r) const {
     for (int h = 0; h < 2; ++h) {
         const ControllerState& c = lastInput_.hand[h];
-        if (c.gripPoseValid && length(rig_.toWorld(c.gripPose).position - p) < r * rig_.comfort.worldScale) return true;
+        if (c.gripPoseValid && length(rig_.toWorld(c.gripPose).position - p) < r * gameScale()) return true;  // (KABUTO VIEW: LOWER reaches as far)
     }
     return false;
 }

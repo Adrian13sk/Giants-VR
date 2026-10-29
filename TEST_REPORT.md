@@ -1123,3 +1123,9 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Gyrocopter review fixes | w_mecc_gyro 72 / 24 Hz (boarding by a hand on it; a short flight; out on land); regression: tests 75 + 3 known, weapons 28/28, ui 19/19, npcs 12/12, missions 31/31; sweep 56/56 |
 | ASan/UBSan over the 20 new devtests (36 Hz) | 0 reports, all exit 0 |
 | Options -> KABUTO VIEW | tests/kabuto_view_lower (view scale 5.0 lower vs 8.1-8.4 giant); ui set for the new row |
+| Review fixes (pad rebuilt, engine after a cutscene, KABUTO VIEW keeps throws / reach, fade on resume) | npc_base_gyropad, w_mecc_gyro, kabuto_view_lower 72 Hz unchanged; regression below |
+| Thrown / falling bodies and walls, roofs | unit test testFallingCollision (a 5 cm wall at 24 Hz and 25 m/s; a hut roof; the hut removed); tests/delphi_follow 72 / 24 Hz unchanged |
+| The portable turret shoots Rippers | weapons/w_mecc_turret_rippers 72 / 24 Hz (Story2 by the Ripper barracks: four Rippers shot) |
+| Delphi's cloak against Rippers | unit tests in testCreatures (not noticed at 15 m in front; a chasing one goes to the old spot, no bites) |
+| Regression 2026-10-29 | tests 76 + the 3 known harness-only lines, weapons 29/29, ui 19/19, npcs 12/12, missions 31/31 (72 Hz); tests, weapons at 24 Hz the same; sweep 56/56 exit 0 (one warning: r4a's second Hellfire turret site); unit tests pass |
+| ASan/UBSan 2026-10-29 | mission sweep 56/56 and 7 devtests (turret x2, FOLLOW, cloak fight, gyro pad, gyro, Kabuto view) at 36 Hz: 0 reports, all exit 0 |

@@ -231,7 +231,7 @@ void GameApp::updateBodyGrab(float dt, const InputFrame& in) {
         for (int k = 0; k < std::min(b.nRecent, 12); ++k)
             if (length(b.recent[k]) > length(thr)) thr = b.recent[k];
         const float sp = length(thr);
-        if (sp > 2.0f * (kab ? std::max(1.0f, rig_.comfort.worldScale) : 1.0f)) {
+        if (sp > 2.0f * (kab ? std::max(1.0f, gameScale()) : 1.0f)) {
             const float heavy = kab ? 0.9f : (b.kind == kReaperBody ? 0.55f : (b.kind == kNpcCreature ? 0.6f : 0.85f));  // (a doll to him)
             Vec3 kick = thr * heavy;
             if (length(kick) > 40.0f) kick = kick * (40.0f / length(kick));

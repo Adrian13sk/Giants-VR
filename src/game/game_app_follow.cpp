@@ -17,6 +17,12 @@ namespace gvr {
 namespace {
 // The ground the Reapers land on (their own height function).
 float groundOf(const EnemyDirector& d, const Vec3& p) { return d.groundHeight ? d.groundHeight(p.x, p.z) : p.y - 10.0f; }
+// The terrain or a roof / ledge under (x, z) no higher than maxY (what a falling body would land on).
+float floorUnder(const EnemyDirector& d, const Vec3& p, float maxY) {
+    float g = groundOf(d, p), r;
+    if (d.collision && d.collision->groundAt(p.x, p.z, maxY, r) && r > g) g = r;
+    return g;
+}
 constexpr float kFollowRange = 30.0f;    // m
 constexpr float kFollowCone = 0.122f;    // rad (7 degrees) off the hand's aim
 constexpr float kFollowPull = 1.2f;      // m/s of the hand toward her (horizontal, relative to the head) that catches - over 12 cm
@@ -42,6 +48,7 @@ void GameApp::releaseFollow(const char* why) {
     const float sp = length(v);
     if (sp > kFollowMaxSpeed) v = v * (kFollowMaxSpeed / sp);
     e.vel = v;
+    e.wallHit = 0;
     e.fallFrom = e.pos.y;
     e.aware = true;
     enemies_.setBodyClip(ei, EnemyClip::FallCycle, true);
@@ -90,7 +97,7 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
         const Pose aim = rig_.toWorld(c.aimPose);
         const Vec3 ad = aim.orientation.rotate(Vec3{0, 0, -1});
         Vec3 want = aim.position + ad * followDist_ - Vec3{0, 1.1f, 0};
-        want.y = std::max(want.y, groundOf(enemies_, want) + 0.5f);  // (not dragged through the ground: that would land him)
+        want.y = std::max(want.y, floorUnder(enemies_, want, e.pos.y + 0.3f) + 0.5f);  // (not dragged through the ground: that would land him)
         Vec3 step = (want - e.pos) * std::min(1.0f, 8.0f * dt);
         const float sl = length(step), maxStep = kFollowMaxSpeed * dt;
         if (sl > maxStep) step = step * (maxStep / sl);
@@ -105,7 +112,7 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
         const Vec3 v = dt > 0 ? step * (1.0f / dt) : Vec3{0, 0, 0};
         followVel_ = followVel_ * 0.5f + v * 0.5f;
         e.pos = e.pos + step;
-        e.pos.y = std::max(e.pos.y, groundOf(enemies_, e.pos) + 0.3f);  // (trailing up a slope: kept off it)
+        e.pos.y = std::max(e.pos.y, floorUnder(enemies_, e.pos, e.pos.y + 0.3f) + 0.3f);  // (trailing up a slope or over a roof: kept off it)
         e.vel = Vec3{0, 0, 0};
         e.fallFrom = e.pos.y;
         // Caught, then hanging limp.
@@ -193,6 +200,19 @@ void GameApp::stepFollowThrown(float dt) {
         if (ti < 0) { t.age = 99; continue; }
         Enemy& e = enemies_.enemies[size_t(ti)];
         const Vec3 c = e.pos + Vec3{0, 0.9f, 0};
+        if (e.state == EnemyState::Falling && e.wallHit > 0) {
+            // Slammed into a wall or rock (EnemyDirector stops him there): it hurts like the landing.
+            const float hit = e.wallHit;
+            e.wallHit = 0;
+            if (hit > 6.0f) {
+                const int obj = e.objective;
+                const bool killed = enemies_.damage(ti, 5.0f * hit);
+                if (killed && obj >= 0) completeObjective(obj);
+                bleed(c, Vec3{0, 1, 0}, killed, 0.8f);
+                sfx("ex_bdys1", c, 1.0f, 0.85f);
+                LOGI("FOLLOW: the thrown Reaper hits a wall at %.1f m/s (%.0f damage%s)", double(hit), double(5.0f * hit), killed ? ", dead" : "");
+            }
+        }
         if (e.state == EnemyState::Falling) {
             for (size_t j = 0; j < enemies_.enemies.size(); ++j) {
                 if (int(j) == ti) continue;

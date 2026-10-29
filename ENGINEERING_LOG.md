@@ -2944,3 +2944,31 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   0 reports, all exit 0, the features exercised (checked in the logs). Options -> KABUTO VIEW: GIANT / LOWER (the view
   scale x0.6 - his chest's height; the roadmap's "giant's view" setting); "View scale N" logged as it settles
   (devtest tests/kabuto_view_lower: 5.0 against 8.1-8.4).
+- Review of e9c45a9 / 400892b / e37614c (read-only reviewer agent), fixed: (1) a Gyrocopter Pad rebuilt after a wreck
+  left its parked gyrocopter on the ground inside the new pad's mesh (it couldn't be boarded again): it goes back on
+  top, or one in the air gets its landing pad back; (2) a cutscene in flight stopped the engine loop for good (only
+  boarding started it): it restarts in the ride; (3) KABUTO VIEW: LOWER shrank the tracking scale, which also made
+  his throws 40 % slower and his reach 60 % (hand velocity, grab and pickup radii use the scale): gameScale() divides
+  the view factor back out there - the view (and his body as seen) is lower, the giant isn't weaker; (4) changing the
+  option in the menu dropped the view metres in one frame on resume: a fade through black then; (5) a header comment
+  on the wrong member. Checked fine by the reviewer: placeGyro can't make a second gyrocopter or move a ridden one,
+  restart / quit / death / free camera reset it; the vignette's yaw history (wrap, snap steps, teleports); the
+  setting's save, load, clamp and menu rows.
+- Thrown bodies and walls (open since FOLLOW): a Reaper in the air (thrown by FOLLOW, blown off a tower, knocked off)
+  had no building collision - he flew through walls and fell through roofs to the terrain. Falling now sweeps a ray
+  at chest height along the horizontal motion (a 25 m/s throw at 24 Hz can't skip a 5 cm wall), stops at the wall,
+  bounces back a little and records the impact speed (Enemy::wallHit); FOLLOW's thrown Reaper takes 5 x that speed in
+  damage over 6 m/s. One coming down on a roof / ledge (CollisionWorld::groundAt below where he was) stays there,
+  posted as a sentry (his body too - the ragdoll and terrain-following would drop him through it); if that roof goes
+  (wrecked, burnt: no floor under him) he falls. FOLLOW's hold keeps him above roofs as well as the terrain. Unit test
+  testFallingCollision (thin wall at 24 Hz, a hut roof, the hut removed).
+- Baz's portable turret shoots Rippers too (it only looked for Reapers): the nearest living Reaper or Ripper in
+  range and in sight - not one underground (Buried / Tunnel / Dive), not Vimps. A Ripper's id in the turret's
+  target / shot carries a high bit (kTurretCreature); stepTurretShots hits it through thrownHitCreature (gore,
+  objectives, sounds). Devtest weapons/w_mecc_turret_rippers (Story2 2c_1_clearrippers by the Ripper barracks):
+  planted, "on Ripper 3/4/5/6", four shot.
+- Delphi's cloak and Rippers (open since CLOAK): Rippers saw her as ever. CreatureDirector::playerHidden (set while
+  cloaked): one only notices her right next to it (2.5 m x its size); one already chasing runs to where it last saw
+  her (Creature::lastSeen) and casts about there - burrowers dig back in after loseAfter as when they lose anyone.
+  Buried Rippers still feel her steps. Unit tests (in testCreatures): a Ripper in front of her at 15 m never
+  notices; a chasing one, she moves 20 m away cloaked - it goes to the old spot and never bites.

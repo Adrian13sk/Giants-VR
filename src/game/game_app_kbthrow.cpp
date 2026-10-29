@@ -313,7 +313,7 @@ void GameApp::updateThrows(float dt, const InputFrame& in) {
         if (tap) {
             // (eaten below)
         } else if (firstPerson_ && hc.gripPoseValid) {
-            const float S = std::max(1.0f, rig_.comfort.worldScale);
+            const float S = std::max(1.0f, gameScale());
             const float real = length(kbHandVel_) / S;  // the user's own hand speed (m/s)
             if (real < 1.2f) thrown = false;             // just let go: it drops
             vel = kbHandVel_ * 1.5f;

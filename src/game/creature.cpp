@@ -272,13 +272,16 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
         };
         const float reach = params.reach * s;
         // Sees the player: close by from any side, or further in front of it with a clear line.
+        const float nearSense = playerHidden ? 2.5f * ss : 1e9f;  // (cloaked: only right next to it)
         auto spots = [&]() {
             if (!playerAlive) return false;
+            if (playerHidden) return dist < nearSense;
             if (dist < params.hearRange * ss) return true;
             if (dist > params.sightRange * ss || std::fabs(angleDelta(c.yaw, faceYaw)) > params.noticeAngle) return false;
             return lineOfSight(c.pos + Vec3{0, 0.6f * s, 0}, player + Vec3{0, 1.2f, 0});
         };
-        const bool sees = playerAlive && dist < params.sightRange * ss && (dist < params.hearRange * ss || lineOfSight(c.pos + Vec3{0, 0.6f * s, 0}, player + Vec3{0, 1.2f, 0}));
+        const bool sees = playerAlive && dist < params.sightRange * ss && dist < nearSense &&
+                          (dist < params.hearRange * ss || lineOfSight(c.pos + Vec3{0, 0.6f * s, 0}, player + Vec3{0, 1.2f, 0}));
         switch (c.state) {
             case CreatureState::Buried: {
                 // Lies in wait: feels the player's steps close by (any side), or comes up when a
@@ -449,6 +452,7 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                 // Lost the player a while: digs back in where it is. Far out of reach: dives and
                 // tunnels at him.
                 c.lostTime = sees ? 0.0f : c.lostTime + dt;
+                if (sees || !playerHidden) c.lastSeen = player;
                 const bool soil = !groundHeight || groundHeight(c.pos.x, c.pos.z) > -0.2f;  // not in the water
                 if (c.canBurrow && soil && !c.hunter && (c.lostTime > params.loseAfter || !playerAlive)) {
                     c.state = CreatureState::Dive;
@@ -470,6 +474,16 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                 }
                 if (!playerAlive || (!c.hunter && !c.canBurrow && fromHome > params.leash && dist > params.sightRange * ss)) {
                     c.state = CreatureState::Return;
+                    break;
+                }
+                if (playerHidden && !sees) {
+                    // Cloaked out of its reach: it runs to where it last saw her and casts about there.
+                    if (length(Vec3{c.lastSeen.x - c.pos.x, 0, c.lastSeen.z - c.pos.z}) > 1.5f * s) {
+                        steer(c.lastSeen, params.runSpeed * ss);
+                    } else {
+                        c.speed = 0;
+                        setClip(c, CreatureClip::Idle, true);
+                    }
                     break;
                 }
                 if (dist <= reach) {

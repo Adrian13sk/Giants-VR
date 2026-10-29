@@ -553,14 +553,26 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         }
         if (b.progress >= 1.0f) {
             b.state = 3;
-            if (isKey(b.def, "gyropad") && !gyro_.on) {  // its gyrocopter, on the pad's top
+            // Its gyrocopter, on the pad's top. (2026-10-29 review) Rebuilt after a wreck: the parked one
+            // had come down through the wreck onto the ground inside the new pad (it couldn't be boarded
+            // again) - it goes back on top; one in the air just gets its landing pad back.
+            const Vec3 padPos{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
+            const bool parkedHere = gyro_.on && !gyro_.riding && length(Vec3{gyro_.pos.x - padPos.x, 0, gyro_.pos.z - padPos.z}) < 4.0f;
+            if (isKey(b.def, "gyropad") && (!gyro_.on || parkedHere || gyro_.riding)) {
                 Vec3 mn{0, 0, 0}, mx{0, 0.4f, 0};
                 if (b.model) { mn = b.model->restMin(); mx = b.model->restMax(); }
                 else if (b.still) { mn = b.still->boundsMin; mx = b.still->boundsMax; }
                 float ty = b.xf.m[13];
                 assetWorld_->terrain().heightAt(b.xf.m[12], b.xf.m[14], ty);
-                placeGyro(Vec3{b.xf.m[12], b.xf.m[13], b.xf.m[14]}, std::atan2(-b.xf.m[8], -b.xf.m[10]), std::max(0.0f, b.xf.m[13] + mx.y - ty));
-                smartieSay("SMARTIE", "smchgyropaddone");
+                const float lift = std::max(0.0f, b.xf.m[13] + mx.y - ty);
+                if (gyro_.riding) {
+                    gyro_.padAt = Vec3{padPos.x, ty, padPos.z};
+                    gyro_.padY = lift > 0 ? ty + lift : -1e9f;
+                } else {
+                    const bool first = !gyro_.on;
+                    placeGyro(padPos, parkedHere ? gyro_.yaw : std::atan2(-b.xf.m[8], -b.xf.m[10]), lift);
+                    if (first) smartieSay("SMARTIE", "smchgyropaddone");
+                }
             }
             b.maxHp = b.hp = (kDefs[b.def].core ? 400.0f : 250.0f) * (b.level > 0 ? 1.6f : 1.0f);
             // Solid once standing: the building's own collision mesh (<model>_coll), else its model.
@@ -1180,7 +1192,20 @@ void GameApp::stepTurretShots(std::vector<Base::TurretShot>& shots, float dt, co
         t.pos = t.pos + t.vel * dt;
         t.life -= dt;
         bool done = t.life <= 0;
-        for (size_t k = 0; k < enemies_.enemies.size() && !done; ++k) {
+        // A Ripper (the portable turret's: the id carries kTurretCreature).
+        for (size_t k = 0; k < creatures_.creatures.size() && !done && (t.target & kTurretCreature); ++k) {
+            const Creature& c = creatures_.creatures[k];
+            if ((c.uid | kTurretCreature) != t.target || c.state == CreatureState::Dead) continue;
+            const Vec3 m = c.pos + Vec3{0, 0.5f * c.scale, 0};
+            const Vec3 seg = t.pos - from;
+            const float sl = std::max(1e-6f, dot(seg, seg));
+            const float u = std::max(0.0f, std::min(1.0f, dot(m - from, seg) / sl));
+            if (length(from + seg * u - m) > 0.6f * std::max(1.0f, c.scale)) break;
+            const uint32_t uid = c.uid;
+            if (thrownHitCreature(int(k), t.damage, from + seg * u, normalize(t.vel))) LOGI("%s shot Ripper %u", who, uid);
+            done = true;
+        }
+        for (size_t k = 0; k < enemies_.enemies.size() && !done && !(t.target & kTurretCreature); ++k) {
             const Enemy& e = enemies_.enemies[k];
             if (e.uid != t.target || e.state == EnemyState::Dead) continue;
             const Vec3 c = e.pos + Vec3{0, 1.1f, 0};

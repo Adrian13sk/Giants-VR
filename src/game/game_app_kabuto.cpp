@@ -209,9 +209,22 @@ void GameApp::updateHeroScale() {
         const float step = 0.0012f;  // per frame: ~1 s per Smartie at 72 Hz
         applyKabutoGrowth(kbGrowShown_ + std::max(-step, std::min(step, kbGrow_ - kbGrowShown_)));
     }
-    if (hero_ == Hero::Kabuto && playMode_ && !cutsceneActive() && load_.phase == LoadPhase::Idle)
-        s = std::max(1.0f, kabutoEye_ * kbGrowShown_ / std::max(1.0f, userEye_) * (settings_.kabutoView == 1 ? 0.6f : 1.0f));  // (Options -> KABUTO VIEW)
-    if (const char* e = std::getenv("GVR_WORLD_SCALE")) s = float(std::atof(e));  // test hook
+    float full = 1.0f;
+    if (hero_ == Hero::Kabuto && playMode_ && !cutsceneActive() && load_.phase == LoadPhase::Idle) {
+        full = std::max(1.0f, kabutoEye_ * kbGrowShown_ / std::max(1.0f, userEye_));
+        s = std::max(1.0f, full * (settings_.kabutoView == 1 ? 0.6f : 1.0f));  // (Options -> KABUTO VIEW)
+    }
+    if (const char* e = std::getenv("GVR_WORLD_SCALE")) s = full = float(std::atof(e));  // test hook
+    // LOWER is a view: his body and hands look smaller, but he throws as hard and reaches as far
+    // (see gameScale()). 2026-10-29 review: it had weakened his throws by 40 %.
+    kbViewFactor_ = s / std::max(1.0f, full);
+    // A big jump (the option changed in the menu): the eyes are held while the menu is up, but the
+    // floor comes back under his feet on resume - in one frame, metres. Fade through black then.
+    if (menuOpen_ && std::fabs(s - rig_.comfort.worldScale) > 0.1f * std::max(1.0f, rig_.comfort.worldScale)) kbViewJump_ = true;
+    if (kbViewJump_ && !menuOpen_) {
+        kbViewJump_ = false;
+        respawnFade_ = std::max(respawnFade_, 1.0f);
+    }
     if (std::fabs(s - scaleLogged_) > 0.25f) {  // (logged when it settles somewhere new: a test can read it)
         scaleLogged_ = s;
         LOGI("View scale %.2f (%s)", s, hero_ == Hero::Kabuto ? (settings_.kabutoView == 1 ? "Kabuto, lower view" : "Kabuto, giant view") : "life size");

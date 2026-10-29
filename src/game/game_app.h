@@ -558,7 +558,7 @@ private:
         const Vec3 d = trackNow - trackPrev;
         trackPrev = trackNow;
         if (dt <= 0) return Vec3{0, 0, 0};
-        return rig_.worldFromTracking.orientation.rotate(d * rig_.comfort.worldScale) * (1.0f / dt) + player_.velocity;
+        return rig_.worldFromTracking.orientation.rotate(d * gameScale()) * (1.0f / dt) + player_.velocity;  // (KABUTO VIEW: LOWER doesn't weaken throws)
     }
     bool thrownHitCreature(int i, float damage, const Vec3& at, const Vec3& dir);
     std::vector<float> slotLift_;   // per model slot: lift so the posed body's lowest point is on the ground
@@ -1011,7 +1011,7 @@ private:
             uint32_t target = 0;
         };
         std::vector<Bldg> bldgs;
-        struct TurretShot { Vec3 pos, vel; float life; uint32_t target; float damage; };
+        struct TurretShot { Vec3 pos, vel; float life; uint32_t target; float damage; };  // target: a Reaper's uid, or a Ripper's | kTurretCreature
         std::vector<TurretShot> turretShots;
         struct Item { int def; Vec3 pos; };
         std::vector<Item> items;
@@ -2222,8 +2222,14 @@ private:
     void updateMelee(float dt, const InputFrame& in);
     // Comfort vignette (rework): the view's edges darken while the stick moves or turns you.
     float vignette_ = 0;
-    float vigYawPrev_ = 0;
-    float scaleLogged_ = 1.0f;  // (the view scale last logged)  // the view yaw last frame (a vehicle turning the view)
+    float vigYawPrev_ = 0;      // the view yaw last frame (a vehicle turning the view)
+    float scaleLogged_ = 1.0f;  // (the view scale last logged)
+    // Options -> KABUTO VIEW: LOWER shrinks the tracking scale (worldScale) by this factor (1 otherwise);
+    // gameScale() undoes it for what is gameplay rather than view (throw speeds, reach).
+    float kbViewFactor_ = 1.0f;
+    bool kbViewJump_ = false;   // the view scale jumped while the menu was open: fade through black on resume
+    float gameScale() const { return rig_.comfort.worldScale / kbViewFactor_; }
+    static constexpr uint32_t kTurretCreature = 0x80000000u;  // a turret shot's target is a Ripper (its uid | this)
     MeshId vignetteMesh_ = 0, hurtRingMesh_ = 0, hitRingMesh_ = 0;
     void drawEyeRing(MeshId& mesh, float k, const Vec3& rgb, float alpha);
     void updateVignette(float dt, const InputFrame& in);

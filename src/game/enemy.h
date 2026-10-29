@@ -43,6 +43,7 @@ struct Enemy {
     int objective = -1;     // mission objective this enemy's death completes (game app), -1 none
     bool posted = false;    // sentry on a platform (guard tower): never moves, fires from there
     float postY = 0;        // its floor height
+    bool roofed = false;    // posted because he fell onto a roof / ledge (not a guard post): dropped if it goes
     uint32_t uid = 0;       // stable id (corpses, Cleaners)
     // Corpse (corpsesPersist): lies until eaten by Cleaners or blown apart.
     float eaten = 0, corpseHp = 50;
@@ -59,6 +60,7 @@ struct Enemy {
     bool los = false;       // last line-of-sight result
     Vec3 vel;               // Falling: knocked off its post (the tower collapsed under it)
     float fallFrom = 0;     // height it fell from
+    float wallHit = 0;      // Falling: speed (m/s) he last hit a wall at; the game layer reads and clears it
     int postObject = -1;    // the structure it stands on (game layer's world object index)
     // Besieging (set by the game layer: a raider at a building): while unaware of the player it
     // stands facing `siegeAt` and fires bursts at it (reported in EnemyDirector::siegeShots).

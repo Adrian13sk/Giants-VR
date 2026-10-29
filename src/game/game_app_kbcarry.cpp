@@ -61,7 +61,7 @@ void GameApp::updateKabutoCarry(float dt, const InputFrame& in) {
                 LOGI("grab trace: tree at game (%.0f, %.0f), %.1f m tall, %.0f m away", -it.base.x / 0.2f, it.base.z / 0.2f, it.height, length(it.base - player_.position));
     }
     const float H = player_.height;
-    const float S = std::max(1.0f, rig_.comfort.worldScale);
+    const float S = std::max(1.0f, gameScale());  // (reach and throws: not shrunk by KABUTO VIEW: LOWER)
     auto ground = [&](const Vec3& p) { return player_.groundHeight ? player_.groundHeight(p.x, p.z) : player_.position.y; };
     for (auto& c : kbClubCool_) c.second -= dt;
     kbClubCool_.erase(std::remove_if(kbClubCool_.begin(), kbClubCool_.end(), [](const std::pair<uint32_t, float>& c) { return c.second <= 0; }),

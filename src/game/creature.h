@@ -64,6 +64,7 @@ struct Creature {
     bool dropped = false;     // game layer: its spit left behind as a health pickup
     bool gibbed = false, cleanersCalled = false;
     Vec3 patrolTo;
+    Vec3 lastSeen;            // where it last saw the player (chasing her while she is cloaked)
     float patrolWait = 0, notice = 0;  // notice > 0: spotted the player, about to charge
     float lookTimer = 0;
     float fadeWeight(float crossfade) const { return crossfade > 0 ? std::min(1.0f, fade / crossfade) : 1.0f; }
@@ -161,6 +162,9 @@ public:
     void disturb(const Vec3& at, float radius);
     // Underground (not drawn, can't be shot): Buried, Tunnel, or the hidden part of Dive.
     static bool underground(const Creature& c);
+    // Delphi's cloak (set by the game layer): Rippers don't see her beyond a few metres - they only
+    // feel her right next to them (or underground, her steps as ever).
+    bool playerHidden = false;
     // Advances AI and spit balls; appends what happened this frame to `events` (cleared first).
     void update(float dt, const Vec3& playerPos, bool playerAlive, std::vector<CreatureEvent>& events);
     // Applies damage; returns true if this killed the creature. `dir`: direction of the shot.

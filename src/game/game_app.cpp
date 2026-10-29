@@ -1460,6 +1460,7 @@ void GameApp::updateCharacters(float dt) {
     {
         GVR_PROF("creatures ai");
         static const bool passive = std::getenv("GVR_PASSIVE_CREATURES") != nullptr;  // test hook: Rippers ignore the player
+        creatures_.playerHidden = cloakT_ > 0;  // (2026-10-29: Rippers had seen through Delphi's cloak)
         creatures_.update(dt * enemyTimeScale(), player_.position, playMode_ && playerHealth_ > 0 && !dying_ && !passive, creatureEvents_);
     }
     for (const auto& e : creatureEvents_) {

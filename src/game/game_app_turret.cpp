@@ -215,24 +215,37 @@ void GameApp::updatePortTurret(float dt, const InputFrame& in) {
         turretTrigBlock_ = in.hand[rig_.turnHand()].trigger > 0.6f;  // (a trigger held now doesn't plant it again)
         return;
     }
-    // The nearest Reaper it can see.
+    // The nearest Reaper or Ripper it can see. (2026-10-29: Rippers too - a Ripper's id carries kTurretCreature;
+    // not ones underground, and not Vimps: it guards Baz, it doesn't hunt.)
     const Vec3 eye = turret_.pos + Vec3{0, 0.9f - kTurretSink, 0};
-    const Enemy* tgt = nullptr;
+    bool have = false;
+    uint32_t tgtId = 0;
+    Vec3 tgtPos, tgtAim;
     float best = kTurretRange * kTurretRange;
-    for (const auto& e : enemies_.enemies) {
-        if (e.state == EnemyState::Dead || e.remove) continue;
-        const Vec3 v = e.pos + Vec3{0, 1.1f, 0} - eye;
+    auto consider = [&](uint32_t id, const Vec3& feet, const Vec3& mid) {
+        const Vec3 v = mid - eye;
         const float d2 = dot(v, v);
         // (the one it is on keeps it unless another is clearly nearer: no swinging between two)
-        const float score = e.uid == turret_.target ? d2 * 0.64f : d2;
-        if (d2 >= kTurretRange * kTurretRange || score >= best) continue;
+        const float score = id == turret_.target ? d2 * 0.64f : d2;
+        if (d2 >= kTurretRange * kTurretRange || score >= best) return;
         const float d = std::sqrt(d2);
         float t;
         Vec3 n;
         const Vec3 dirv = v * (1.0f / std::max(d, 1e-3f));
-        if (worldRay_ && d > 2.0f && worldRay_(eye + dirv * 0.8f, dirv, d - 1.6f, t, n)) continue;  // behind a wall or a hill
+        if (worldRay_ && d > 2.0f && worldRay_(eye + dirv * 0.8f, dirv, d - 1.6f, t, n)) return;  // behind a wall or a hill
         best = score;
-        tgt = &e;
+        have = true;
+        tgtId = id;
+        tgtPos = feet;
+        tgtAim = mid;
+    };
+    for (const auto& e : enemies_.enemies)
+        if (e.state != EnemyState::Dead && !e.remove) consider(e.uid, e.pos, e.pos + Vec3{0, 1.1f, 0});
+    for (const auto& c : creatures_.creatures) {
+        if (c.state == CreatureState::Dead || c.remove || c.state == CreatureState::Buried || c.state == CreatureState::Tunnel ||
+            c.state == CreatureState::Dive)
+            continue;
+        consider(c.uid | kTurretCreature, c.pos, c.pos + Vec3{0, 0.5f * c.scale, 0});
     }
     turret_.fireT = std::max(0.0f, turret_.fireT - dt);
     // The muzzle (game frame: the nozzle turned about the centre by aimYaw), to the world.
@@ -245,14 +258,14 @@ void GameApp::updatePortTurret(float dt, const InputFrame& in) {
         return Vec3{w.x, w.y, w.z};
     };
     turret_.muzzle = muzzleNow();
-    if (!tgt) { turret_.target = 0; return; }
-    if (turret_.target != tgt->uid) {
-        turret_.target = tgt->uid;
-        LOGI("Turret: on Reaper %u, %.0f m away", tgt->uid, double(length(tgt->pos - turret_.pos)));
+    if (!have) { turret_.target = 0; return; }
+    if (turret_.target != tgtId) {
+        turret_.target = tgtId;
+        LOGI("Turret: on %s %u, %.0f m away", (tgtId & kTurretCreature) ? "Ripper" : "Reaper", tgtId & ~kTurretCreature, double(length(tgtPos - turret_.pos)));
     }
     // The heading wanted, in the model's game frame: the target's offset brought back into it.
     const Mat4 inv = affineInverse(turret_.xf);
-    const Vec4 lv = inv * Vec4{tgt->pos.x - turret_.pos.x, 0, tgt->pos.z - turret_.pos.z, 0};
+    const Vec4 lv = inv * Vec4{tgtPos.x - turret_.pos.x, 0, tgtPos.z - turret_.pos.z, 0};
     // runtime local (x, y, z) = game (-x, z, y): game x = -lx, game y = lz.
     const float want = std::atan2(lv.z, -lv.x) - gBarrel;
     float diff = want - turret_.aimYaw;
@@ -262,15 +275,15 @@ void GameApp::updatePortTurret(float dt, const InputFrame& in) {
     if (std::fabs(diff) < 0.12f && turret_.fireT <= 0 && turret_.rise >= 1.0f && turretRounds_ > 0) {
         turret_.fireT = kTurretInterval;
         const Vec3 mz = muzzleNow();
-        const Vec3 aim = tgt->pos + Vec3{0, 1.1f, 0} + Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} * 0.4f;
+        const Vec3 aim = tgtAim + Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} * 0.4f;
         const Vec3 dv = normalize(aim - mz);
         static const bool trace = std::getenv("GVR_TURRET_TRACE") != nullptr;  // test hook: the barrel's line against the target's
         if (trace) {
             const Vec3 hd = turret_.pos + Vec3{0, 0.62f - kTurretSink, 0};
-            const Vec3 a{mz.x - hd.x, 0, mz.z - hd.z}, b{tgt->pos.x - hd.x, 0, tgt->pos.z - hd.z};
+            const Vec3 a{mz.x - hd.x, 0, mz.z - hd.z}, b{tgtPos.x - hd.x, 0, tgtPos.z - hd.z};
             LOGI("turret trace: barrel %.0f deg off the target", double(std::acos(std::max(-1.0f, std::min(1.0f, dot(normalize(a), normalize(b))))) * 57.2958f));
         }
-        turretShots_.push_back({mz + dv * 0.3f, dv * 70.0f, 1.0f, tgt->uid, kTurretDamage});
+        turretShots_.push_back({mz + dv * 0.3f, dv * 70.0f, 1.0f, tgtId, kTurretDamage});
         addFlash(mz, {2.0f, 1.4f, 0.5f}, 4.0f, 0.06f);
         sfx("me_gtfr1", mz, 0.7f, 1.1f + 0.1f * frand());
         if (--turretRounds_ <= 0) {

@@ -264,6 +264,8 @@ void GameApp::updateGyroRide(float dt, const InputFrame& in) {
     gyro_.bank += (turnIn * 0.35f * std::min(1.0f, std::fabs(along) / 8.0f + 0.3f) - gyro_.bank) * std::min(1.0f, 3.0f * dt);
     gyro_.tilt += (-along / kGyroTop * 0.18f - gyro_.tilt) * std::min(1.0f, 3.0f * dt);
     gyro_.rotor = std::min(1.0f, gyro_.rotor + dt * 0.8f);
+    // (2026-10-29 review) A cutscene in flight stops the vehicle loops (stopVehicleLoops): the engine starts again after it.
+    if (audio_ && !gyroLoop_ && !cutsceneActive()) gyroLoop_ = audio_->play2D("me_gylp", 0.45f, 0.8f, true);
     if (gyroLoop_ && audio_) audio_->setPitch(gyroLoop_, 0.8f + 0.5f * std::min(1.0f, length(gyro_.vel) / kGyroTop) + 0.15f * std::fabs(climbIn));
     // Baz rides it (his feet on its floor: the tracked head gives his seated height); the view goes with it.
     // First person the eyes go where the seated pilot's are (the seat, 0.55 m up), whatever the user's own height:

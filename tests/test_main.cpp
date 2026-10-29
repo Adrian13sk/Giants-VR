@@ -1013,6 +1013,37 @@ static void testCreatures() {
     CHECK(alerted);
     CHECK(struck && damage > 0);
     CHECK(std::fabs(cd.creatures[size_t(i)].pos.z) < 2.5f);  // closed in on the player
+    // (2026-10-29) Delphi cloaked: the same Ripper in front of her never notices her...
+    {
+        CreatureDirector ck;
+        ck.groundHeight = cd.groundHeight;
+        for (int c = 0; c < int(CreatureClip::Count); ++c) ck.clipDuration[c] = 0.6f;
+        ck.spawn({0, 0, -15}, kPi, 1.0f, CreatureSize::Small, 20.0f, false);
+        ck.creatures[0].canBurrow = false;
+        ck.playerHidden = true;
+        bool noticed = false;
+        for (int f = 0; f < 600; ++f) {
+            ck.update(1.0f / 60, player, true, ev);
+            for (const auto& e : ev) noticed |= e.kind == CreatureEvent::Alert || e.kind == CreatureEvent::Strike;
+        }
+        CHECK(!noticed);
+        // ...and one already chasing runs to where it last saw her, not to where she went.
+        CreatureDirector ch;
+        ch.groundHeight = cd.groundHeight;
+        for (int c = 0; c < int(CreatureClip::Count); ++c) ch.clipDuration[c] = 0.6f;
+        ch.spawn({0, 0, -15}, kPi, 1.0f, CreatureSize::Small, 20.0f, false);
+        ch.creatures[0].canBurrow = false;
+        for (int f = 0; f < 60 && ch.creatures[0].state != CreatureState::Chase; ++f) ch.update(1.0f / 60, player, true, ev);
+        CHECK(ch.creatures[0].state == CreatureState::Chase);
+        ch.playerHidden = true;
+        const Vec3 moved{20, 0, 0};
+        bool bit = false;
+        for (int f = 0; f < 600; ++f) {
+            ch.update(1.0f / 60, moved, true, ev);
+            for (const auto& e : ev) bit |= e.kind == CreatureEvent::Strike;
+        }
+        CHECK(!bit && length(ch.creatures[0].pos - moved) > 10.0f && length(ch.creatures[0].pos - player) < 3.0f);
+    }
     // Out of sight: stays idle.
     CreatureDirector far;
     far.groundHeight = cd.groundHeight;
@@ -2229,6 +2260,51 @@ static void testProgress() {
     std::printf("progress ok\n");
 }
 
+// (2026-10-29) A body flying through the air (thrown by FOLLOW, blown off a tower) stops at walls - even a
+// thin one at 24 Hz and 25 m/s - and lands on a roof it comes down on; it drops when that roof goes.
+static void testFallingCollision() {
+    CollisionWorld cw;
+    {
+        std::vector<Vec3> tris;  // a 5 cm thin wall at x = 5, 3 m tall
+        auto quad = [&](Vec3 a, Vec3 b, Vec3 c, Vec3 d) { tris.insert(tris.end(), {a, b, c, a, c, d}); };
+        quad({5, 0, -3}, {5, 0, 3}, {5, 3, 3}, {5, 3, -3});
+        quad({5.05f, 0, -3}, {5.05f, 3, -3}, {5.05f, 3, 3}, {5.05f, 0, 3});
+        cw.addObject(tris);
+    }
+    const int hut = cw.addObject(boxTris({-6, 0, -2}, {-3, 2, 2}));  // a 2 m hut west of the start
+    std::vector<int> sh;
+    EnemyDirector w;
+    w.groundHeight = [](float, float) { return 0.0f; };
+    w.collision = &cw;
+    for (auto& c : w.clipDuration) c = 0.6f;
+    w.params.marksmen = 0;
+    w.spawn({0, 0, 0}, 0);
+    w.knockOff(0, Vec3{25, 3, 0});
+    float maxX = 0;
+    for (int i = 0; i < 24 * 3; ++i) {
+        w.update(1.0f / 24.0f, Vec3{0, 0, 40}, true, sh);
+        maxX = std::max(maxX, w.enemies[0].pos.x);
+    }
+    CHECK(maxX < 5.0f && maxX > 4.0f);          // stopped at the wall, not through it
+    CHECK(w.enemies[0].wallHit > 20.0f);         // the impact speed, for the game layer
+    CHECK(w.enemies[0].state != EnemyState::Falling && w.enemies[0].pos.y < 0.01f);
+    // Thrown up and west onto the hut's roof: he lands on it and stays there.
+    EnemyDirector r;
+    r.groundHeight = w.groundHeight;
+    r.collision = &cw;
+    for (auto& c : r.clipDuration) c = 0.6f;
+    r.params.marksmen = 0;
+    r.spawn({-1, 0, 0}, 0);
+    r.knockOff(0, Vec3{-3.5f, 9, 0});
+    for (int i = 0; i < 72 * 3; ++i) r.update(1.0f / 72.0f, Vec3{0, 0, 40}, true, sh);
+    CHECK(r.enemies[0].posted && r.enemies[0].roofed && near(r.enemies[0].pos.y, 2.0f, 0.05f));
+    CHECK(r.enemies[0].pos.x < -3.0f && r.enemies[0].pos.x > -6.0f);
+    // The hut goes (wrecked): he falls to the ground.
+    cw.setEnabled(hut, false);
+    for (int i = 0; i < 72 * 3; ++i) r.update(1.0f / 72.0f, Vec3{0, 0, 40}, true, sh);
+    CHECK(!r.enemies[0].posted && r.enemies[0].pos.y < 0.01f);
+}
+
 int main() {
     testAmbience();
     testUpscale();
@@ -2268,6 +2344,7 @@ int main() {
     testPlayer();
     testArmIk();
     testCollision();
+    testFallingCollision();
     testWeapon();
     testEnemies();
     testCreatures();

@@ -101,6 +101,8 @@ void EnemyDirector::knockOff(int i, const Vec3& v) {
     Enemy& e = enemies[size_t(i)];
     if (e.state == EnemyState::Dead || e.state == EnemyState::Falling) return;
     e.posted = false;
+    e.roofed = false;
+    e.wallHit = 0;
     e.postObject = -1;   // (off his tower: its fall later doesn't knock him over again wherever he is)
     e.dropping = false;  // (a hover pack's descent would keep steering him)
     e.actT = 0;
@@ -536,11 +538,40 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 break;
             case EnemyState::Falling: {
                 e.vel.y -= 14.0f * dt;
-                e.pos += e.vel * dt;
+                const float prevY = e.pos.y;
+                // Walls and rock: a body flying sideways (thrown, blown off a tower) stops against them
+                // instead of passing through - a swept ray at chest height, so a fast throw can't skip a
+                // thin wall between two frames. He bounces back a little and drops.
+                const Vec3 hv{e.vel.x, 0, e.vel.z};
+                const float hs = length(hv);
+                if (collision && hs > 0.01f) {
+                    const Vec3 dir = hv * (1.0f / hs);
+                    const float reach = hs * dt + params.radius;
+                    float t = 0;
+                    Vec3 n;
+                    if (collision->raycast(e.pos + Vec3{0, params.height * 0.45f, 0}, dir, reach, t, n)) {
+                        e.pos += dir * std::max(0.0f, t - params.radius);
+                        e.wallHit = std::max(e.wallHit, hs);
+                        e.vel.x = -dir.x * hs * 0.15f;
+                        e.vel.z = -dir.z * hs * 0.15f;
+                    } else {
+                        e.pos += hv * dt;
+                    }
+                } else {
+                    e.pos += hv * dt;
+                }
+                e.pos.y += e.vel.y * dt;
                 e.fallFrom = std::max(e.fallFrom, e.pos.y);  // (thrown upward: the fall counts from the top of the arc)
-                const float g = groundHeight ? groundHeight(e.pos.x, e.pos.z) : 0.0f;
+                float g = groundHeight ? groundHeight(e.pos.x, e.pos.z) : 0.0f;
+                // A roof, wall top or ledge under him (one he was above a moment ago) catches him.
+                float roof;
+                bool onRoof = false;
+                if (collision && e.vel.y <= 0 && collision->groundAt(e.pos.x, e.pos.z, prevY + 0.05f, roof) && roof > g + 0.4f) { g = roof; onRoof = true; }
                 if (e.pos.y <= g) {
                     e.pos.y = g;
+                    // On a roof he stays up there (a sentry where he lands; his body stays there): the
+                    // terrain-following and ragdoll code below would drop him through it.
+                    if (onRoof) { e.posted = true; e.postY = g; e.roofed = true; e.postObject = -1; }
                     const bool lethal = e.fallFrom - g > lethalFall;
                     if (lethal) e.kick = e.vel * 0.5f;  // (a ragdoll lands with it)
                     e.vel = {0, 0, 0};
@@ -574,6 +605,15 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             if (std::fabs(e.vel.x) + std::fabs(e.vel.z) < 0.05f) e.vel = {0, 0, 0};
         }
         // Ground too steep to stand on: slide downhill (as the player does).
+        // Fell onto a roof that has since gone (wrecked, burnt): he drops.
+        if (e.roofed && e.posted && collision) {
+            float y;
+            if (!collision->groundAt(e.pos.x, e.pos.z, e.postY + 0.05f, y) || y < e.postY - 0.3f) {
+                e.roofed = false;
+                if (e.state == EnemyState::Dead) e.posted = false;
+                else knockOff(int(i), Vec3{0, 0.5f, 0});
+            }
+        }
         if (e.posted) {
             e.pos.y = e.postY - e.sink;
         } else if (e.state != EnemyState::Dead && groundHeight) {
