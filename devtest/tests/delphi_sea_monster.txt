@@ -1,6 +1,7 @@
 # (2026-10-29) Delphi's SUMMON SEA MONSTER (the data's item 32, IconRSSeaMonster; the serpent RM_seamonster and its
 # weapon 48 fireball; rules ours): facing the sea, the left hand points at deep water with the trigger held, then is
-# lifted sharply above the head - the serpent surfaces there, comes in and spits fireballs at the Reapers on the shore.
+# lifted sharply above the head and held there a moment - the serpent surfaces, comes in and spits fireballs at the
+# Reapers on the shore.
 # Log (checked by devtest.ps1): "Delphi summons the SEA MONSTER" "Sea monster spits a fireball" "Sea monster's fireball bursts".
 name delphi_sea_monster
 world Rstory2
@@ -19,6 +20,6 @@ reapers 3 16 0.5 99
 pitch_l 15 0.5 1.0
 hand_l 0 -0.45 0 1.0 1.3
 hold trigger_l 1.5 3.6
-hand_l 0 0.9 0 2.6 2.9
-hand_l 0 -0.7 0.2 3.8 4.2
+hand_l 0 1.15 0 2.6 2.9
+hand_l 0 -0.95 0.2 3.8 4.2
 shot 12 sea_monster

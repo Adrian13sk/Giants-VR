@@ -35,7 +35,7 @@ bool GameApp::seaMonsterTarget(Vec3& at) const {
     bool got = false;
     auto consider = [&](const Vec3& p) {
         const float d = length(Vec3{p.x - m.x, 0, p.z - m.z});
-        if (d >= best || length(Vec3{p.x - player_.position.x, 0, p.z - player_.position.z}) < 9.0f) return;
+        if (d >= best || length(Vec3{p.x - player_.position.x, 0, p.z - player_.position.z}) < 12.0f) return;  // (review: 9 -> 12 m)
         best = d;
         at = p;
         got = true;
@@ -53,7 +53,7 @@ void GameApp::summonSeaMonster(const Vec3& at) {
     Vec3 toward = player_.position;
     float best = 1e9f;
     for (const auto& e : enemies_.enemies)
-        if (e.state != EnemyState::Dead && length(e.pos - at) < best) { best = length(e.pos - at); toward = e.pos; }
+        if (e.state != EnemyState::Dead && !e.remove && length(e.pos - at) < std::min(best, 80.0f)) { best = length(e.pos - at); toward = e.pos; }
     Vec3 dir = toward - at;
     dir.y = 0;
     dir = length(dir) > 1.0f ? normalize(dir) : Vec3{0, 0, -1};
@@ -79,9 +79,14 @@ void GameApp::updateSeaSummon(float dt, const InputFrame& in) {
     const int mh = rig_.moveHand();
     const ControllerState& c = in.hand[mh];
     const bool held = c.trigger > 0.4f;
-    auto reset = [&]() { seaAimT_ = seaLift_ = 0; seaArmLow_ = false; seaHandValid_ = false; };
+    auto reset = [&]() { seaAimT_ = seaLift_ = seaHoldT_ = 0; seaArmLow_ = seaRaised_ = false; seaHandValid_ = false; };
+    // (2026-10-29 review) Not run last frame (dying, the menu, riding): no hand speed across the gap.
+    if (time_ - seaLastT_ > 0.1) seaHandValid_ = false;
+    seaLastT_ = time_;
+    if (!held) seaBlocked_ = false;
+    // (review) Not while the serpent is out at all - summoned or the ambient one (it would jump to the new spot).
     if (!seaSummonOwned() || !firstPerson_ || !held || !c.aimPoseValid || !c.gripPoseValid || !in.headValid || delphiBow() ||
-        spellGestureCast_ || seaCool_ > 0 || followUid_ || player_.seaLevel < -1e8f || (seaMon_.summoned && seaMon_.phase != 0)) {
+        spellGestureCast_ || seaCool_ > 0 || followUid_ || player_.seaLevel < -1e8f || seaMon_.phase != 0 || seaBlocked_) {
         reset();
         return;
     }
@@ -107,7 +112,9 @@ void GameApp::updateSeaSummon(float dt, const InputFrame& in) {
     // The hand's height against the head (tracking space: ducking isn't lifting).
     const float rel = c.gripPose.position.y - in.head.position.y;
     const float vy = seaHandValid_ && dt > 0 ? (rel - seaHandPrevY_) / dt : 0.0f;
+    const float speed = seaHandValid_ && dt > 0 ? length(c.gripPose.position - seaHandPrevP_) / dt : 0.0f;
     seaHandPrevY_ = rel;
+    seaHandPrevP_ = c.gripPose.position;
     seaHandValid_ = true;
     // Aimed at deep water? (before the lift: once lifting, the aim sweeps up off the sea)
     if (seaLift_ <= 0) {
@@ -132,6 +139,9 @@ void GameApp::updateSeaSummon(float dt, const InputFrame& in) {
         } else if (trace && int(time_ * 4) != int((time_ - dt) * 4)) {
             LOGI("spell trace: SEA MONSTER aim not down at the sea (dir y %.2f)", double(d.y));
         }
+        // (review) The pull must start out at sea: a trigger already held for a charge elsewhere (a fire wall,
+        // a tornado, a bolt at something on the water) is never turned into the summons.
+        if (onSea && seaAimT_ <= 0 && spellCharge_ > 0.15f) { seaBlocked_ = true; reset(); return; }
         if (onSea && (seaAimT_ <= 0 || length(p - seaAimP_) < 5.0f)) {
             if (seaAimT_ <= 0) seaAimP_ = p;
             seaAimP_ = seaAimP_ * 0.9f + p * 0.1f;
@@ -143,9 +153,20 @@ void GameApp::updateSeaSummon(float dt, const InputFrame& in) {
     }
     // Then the lift: fast, from below the chest, over 0.2 m and more.
     if (trace && vy > 1.0f) LOGI("spell trace: SEA MONSTER hand rising %.1f m/s (aimed %.2f s, low %d, lifted %.2f m)", double(vy), double(seaAimT_), int(seaArmLow_), double(seaLift_));
-    if (seaAimT_ >= 0.4f && seaArmLow_ && vy > 1.4f) seaLift_ += vy * dt;
-    else if (vy < 0.4f && seaLift_ > 0) { if (trace) LOGI("spell trace: SEA MONSTER lift stopped at %.2f m", double(seaLift_)); seaLift_ = 0; }
-    if (seaLift_ > 0.2f && rel > -0.05f) {
+    if (!seaRaised_) {
+        if (seaAimT_ >= 0.4f && seaArmLow_ && vy > 1.4f) seaLift_ += vy * dt;
+        else if (vy < 0.4f && seaLift_ > 0) { if (trace) LOGI("spell trace: SEA MONSTER lift stopped at %.2f m", double(seaLift_)); seaLift_ = 0; }
+        if (seaLift_ > 0.2f && rel > 0.15f) seaRaised_ = true;  // up over the head
+    } else if (rel < 0.0f) {
+        // (review) Brought down again (hail's downstroke): not the summons.
+        if (trace) LOGI("spell trace: SEA MONSTER the hand came down again - not cast");
+        reset();
+        return;
+    } else {
+        // (review) ...and held there, still, for a moment (hail strikes down at once; the tornado circles).
+        seaHoldT_ = speed < 0.5f ? seaHoldT_ + dt : 0.0f;
+    }
+    if (seaRaised_ && seaHoldT_ >= 0.25f) {
         spellGestureCast_ = true;  // (the trigger's release is not a fire bolt)
         spellCharge_ = 0;
         seaCool_ = kSeaCool;

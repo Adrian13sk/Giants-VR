@@ -17,9 +17,10 @@ void GameApp::updateRsRepair(float dt, const InputFrame& in) {
     const int mh = rig_.moveHand();
     const ControllerState& c = in.hand[mh];
     const bool held = c.trigger > 0.4f;
+    if (!held) rsBlocked_ = false;
     bool active = false;
     Vec3 from, d;
-    if (rsRepairOwned() && held && c.aimPoseValid && firstPerson_ && !delphiBow() && !followUid_ && (!spellGestureCast_ || rsBeam_)) {
+    if (rsRepairOwned() && held && !rsBlocked_ && c.aimPoseValid && firstPerson_ && !delphiBow() && !followUid_ && (!spellGestureCast_ || rsBeam_)) {
         const Pose aim = rig_.toWorld(c.aimPose);
         from = aim.position;
         d = aim.orientation.rotate(Vec3{0, 0, -1});
@@ -34,7 +35,16 @@ void GameApp::updateRsRepair(float dt, const InputFrame& in) {
                 if (bl.state == 3 && bl.hp < bl.maxHp && length(cpos - from) < bd) { bd = length(cpos - from); b = int(i); }
             }
         }
-        const bool damaged = b >= 0 && base_.bldgs[size_t(b)].state == 3 && base_.bldgs[size_t(b)].hp < base_.bldgs[size_t(b)].maxHp;
+        bool damaged = b >= 0 && base_.bldgs[size_t(b)].state == 3 && base_.bldgs[size_t(b)].hp < base_.bldgs[size_t(b)].maxHp;
+        // (2026-10-29 review) Not through a Reaper / Ripper standing in front of it (she is aiming at him: a fire wall,
+        // FOLLOW), and only when the pull starts on the building - a charge begun elsewhere is never taken over.
+        if (damaged && !rsBeam_ && !autoAim) {
+            float te = 0;
+            Vec3 ne;
+            int tgt = -1;
+            if (weapon_.raycast && weapon_.raycast(from, d, length(hit - from), te, ne, tgt) && tgt >= 0) damaged = false;
+        }
+        if (damaged && !rsBeam_ && rsAimT_ <= 0 && spellCharge_ > 0.15f) { rsBlocked_ = true; damaged = false; }
         static const bool trace = std::getenv("GVR_SPELL_TRACE") != nullptr;
         if (trace && int(time_ * 2) != int((time_ - dt) * 2))
             LOGI("spell trace: REPAIR building %d%s, aimed %.2f s", b, damaged ? " (damaged)" : "", double(rsAimT_));

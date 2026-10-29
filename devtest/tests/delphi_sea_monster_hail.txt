@@ -1,0 +1,22 @@
+# (2026-10-29 review) SUMMON SEA MONSTER against HAIL: the same start (pointing out to sea, the hand lifted overhead) but
+# brought straight down hard - that is hail's stroke, not the summons: the serpent stays away.
+# Log (checked by devtest.ps1): "spell trace: SEA MONSTER the hand came down again - not cast".
+name delphi_sea_monster_hail
+world Rstory2
+mission rstory2_battle_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_SPELL_TRACE 1
+env GVR_PASSIVE_REAPERS 1
+env GVR_SEA_SUMMON 1
+duration 8
+at -500 3917
+look -412 4068
+reapers 3 16 0.5 99
+pitch_l 15 0.5 1.0
+hand_l 0 -0.45 0 1.0 1.3
+hold trigger_l 1.5 3.6
+hand_l 0 1.15 0 2.6 2.9
+hand_l 0 -1.2 0 2.95 3.1

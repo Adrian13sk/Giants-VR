@@ -3016,3 +3016,15 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   loop, a breath of her fire each mend, the original repair ring on the building - while the trigger is held and
   the hand on a building; it uses up the trigger pull (no fire wall on letting go). Devtest tests/delphi_repair
   (r4a, the Persuader taken to 40 %: 160 -> 360 / 400 in 10 s, no fire wall) 72 / 24 Hz.
+- Review of d45f7ed / fcab4bb (read-only reviewer agent), fixed: (1) REPAIR took over a fire wall / tornado charged at
+  Reapers near her damaged buildings during a raid, and then blocked FOLLOW / SHRINK: it only starts when the pull
+  begins on the building (a charge over 0.15 s begun elsewhere blocks it until the trigger is let go) and not through
+  a Reaper or Ripper standing in front of it; (2) SUMMON SEA MONSTER could take over hail or the tornado (raising the
+  hand after pointing out to sea) or an overhand bolt: the pull must begin aimed at the sea, and the lift must end
+  over the head (+0.15 m) and be held still there a quarter second - brought straight down (hail's stroke) it is not
+  cast (devtest tests/delphi_sea_monster_hail); (3) no hand speed across a gap of frames (dying, the menu, riding);
+  (4) REPAIR's flag outlived a death / a mission (its HUD pulse; a beam restarting without the dwell): reset with the
+  spells and on death; the serpent can't be summoned while the ambient one is out (it jumped to the new spot); it
+  spits at nobody within 12 m of her (was 9); the mend's haptic pulse goes to the casting hand; the heading picks a
+  live Reaper within 80 m. Checked fine: the serpent's reset per mission, every summoned path ends in a dive, the
+  turn with the target behind, kind 11 against every other rocket rule, rockets not saved, bldgInRay as before.

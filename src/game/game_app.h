@@ -323,7 +323,7 @@ private:
     // damaged buildings with the trigger held for half a second: her green fire mends it (the Repair Gun's rate) as
     // long as the trigger is held and the hand on a building. game_app_rsrepair.cpp.
     float rsAimT_ = 0;
-    bool rsBeam_ = false;
+    bool rsBeam_ = false, rsBlocked_ = false;
     bool rsRepairOwned() const;
     void updateRsRepair(float dt, const InputFrame& in);
     uint32_t repairLoop_ = 0;  // (the Repair Gun's own sounds: me_repst, the me_replp loop, me_repnd)
@@ -1831,9 +1831,10 @@ private:  // the mission placed enemies: no test waves
     // points at deep water 12-70 m out (trigger held) for 0.4 s, then is lifted sharply from below the chest to above
     // the head - "raise it from the sea": the serpent surfaces there, comes in toward the shore and spits five
     // fireballs at the Reapers and Rippers near the water, then dives. 45 s between. Delphi's battles and practice.
-    float seaCool_ = 0, seaAimT_ = 0, seaLift_ = 0, seaHandPrevY_ = 0;
-    bool seaHandValid_ = false, seaArmLow_ = false;
-    Vec3 seaAimP_;
+    float seaCool_ = 0, seaAimT_ = 0, seaLift_ = 0, seaHandPrevY_ = 0, seaHoldT_ = 0;
+    bool seaHandValid_ = false, seaArmLow_ = false, seaBlocked_ = false, seaRaised_ = false;
+    double seaLastT_ = -1;
+    Vec3 seaAimP_, seaHandPrevP_;
     bool seaSummonOwned() const;
     void updateSeaSummon(float dt, const InputFrame& in);
     void summonSeaMonster(const Vec3& at);

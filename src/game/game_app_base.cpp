@@ -1475,7 +1475,7 @@ void GameApp::updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const 
     if (repairTick_ >= 1.5f) {
         repairTick_ -= 1.5f;
         if (spell) sfx("sr_spfsh", repairTo_, 0.6f, 1.3f);  // (her spell: no gun loop - a breath of her fire each mend)
-        haptics_.push_back({rig_.turnHand(), 0.3f, 0.05f});
+        haptics_.push_back({spell ? rig_.moveHand() : rig_.turnHand(), 0.3f, 0.05f});  // (her spell: the casting hand)
         LOGI("%s: %s %.0f / %.0f", spell ? "Delphi repairs" : "Repair gun", bldgLabel(b.def, b.level), b.hp, b.maxHp);
         if (b.hp >= b.maxHp) {
             timmyLine_ = std::string(bldgLabel(b.def, b.level)) + " REPAIRED";

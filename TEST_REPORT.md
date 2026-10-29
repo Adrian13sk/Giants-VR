@@ -1136,3 +1136,4 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Delphi's SUMMON SEA MONSTER (item 32; RM_seamonster, weapon 48) | tests/delphi_sea_monster 72 / 24 Hz (summoned, a fireball, the Reapers on the shore killed); frames checked |
 | Delphi's REPAIR (item 73) | tests/delphi_repair 72 / 24 Hz (Persuader 160 -> 361 / 400, no fire wall on release) |
 | Regression after SEA MONSTER and REPAIR | tests 80 + the 3 known lines, weapons 29/29, ui 19/19, npcs 12/12, missions 31/31 (72 Hz), tests / weapons at 24 Hz the same, sweep 56/56 clean; ASan: delphi_repair, w_mecc_repair, delphi_sea_monster, delphi_shrink, w_mecc_launcher 0 reports |
+| Review fixes (REPAIR / SEA MONSTER gesture conflicts, gaps, resets) | delphi_sea_monster (lift held overhead) 72 / 24 Hz; delphi_sea_monster_hail (brought straight down: not cast); delphi_repair 72 Hz |

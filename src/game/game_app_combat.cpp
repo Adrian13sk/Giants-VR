@@ -110,6 +110,8 @@ void GameApp::startDeath() {
     if (shieldT_ > 0) { shieldT_ = 0; shieldCool_ = 40.0f; }
     enemies_.playerHidden = enemies_.playerMoving = false;
     repairOn_ = false;
+    rsBeam_ = false;  // (Delphi's REPAIR: its HUD pulse and dwell, 2026-10-29 review)
+    rsAimT_ = 0;
     ++statDeaths_;
     deathTime_ = 0;
     deathCause_ = player_.swimming() ? DeathCause::Drowned : lastHurt_;

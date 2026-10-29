@@ -148,7 +148,10 @@ void GameApp::resetSpells() {
     followUid_ = followCandUid_ = 0;
     followCool_ = followT_ = 0;
     shrinkCool_ = 0;           // (2026-10-29 review: carried over respawn / missions)
-    seaCool_ = seaAimT_ = seaLift_ = 0;
+    seaCool_ = seaAimT_ = seaLift_ = seaHoldT_ = 0;
+    seaHandValid_ = seaArmLow_ = seaRaised_ = seaBlocked_ = false;
+    rsBeam_ = rsBlocked_ = false;  // (review: the beam's flag outlived a death / a mission)
+    rsAimT_ = 0;
     shrinkGripHeld_ = false;
     followThrown_.clear();
     cloakT_ = cloakCool_ = clusterCool_ = gestFaceT_ = 0;
