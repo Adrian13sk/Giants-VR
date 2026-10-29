@@ -1,0 +1,17 @@
+# (2026-10-29 review) SUMMON SHADOW against a low slash: the right trigger held and the blade swept down into the ground
+# level (not point first) - no shadow.
+# Log (checked by devtest.ps1): "spell trace: SHADOW not cast - the blade isn't pointing down".
+name delphi_shadow_slash
+world Rstory5
+mission rstory5_battle_2
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_PASSIVE_REAPERS 1
+env GVR_SPELL_TRACE 1
+duration 5
+reapers 2 12 0.5 99
+pitch_r -10 1.0 1.5
+hold trigger_r 2.0 3.0
+hand_r 0 -1.4 -0.3 2.3 2.5

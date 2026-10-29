@@ -3075,3 +3075,14 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   with nobody to fight it keeps 2.5 m behind her; then it sinks back. The Reapers don't fight it. 45 s between;
   Reaper story 5 and practice. Devtest tests/delphi_shadow (rises, kills one Reaper in three blows and goes for the
   next, 72 / 24 Hz).
+- Review of ba48871 (SUMMON SHADOW; read-only reviewer agent), fixed: (1) "point first" was never checked and the
+  tip's speed was the world's (walking downhill, a low slash): the blade must point down (within 45 degrees) and
+  the tip's speed is taken relative to her - devtest tests/delphi_shadow_slash (a level blade into the ground:
+  "not cast"); (2) the deep-water block never fired (the NPCs' ground stops at the sea floor): the terrain itself;
+  (3) the cooldown only ran with the sword out: counted always; (4) she died and it fought on, then ran to the
+  checkpoint: it sinks when she dies; (5) it struck Reapers above or below it (a ledge, an ambush dropping from the
+  sky): within 1.5 m in height only, droppers skipped; (6) nothing kept it out of her body: kept 1.2 m off; a spawn
+  pushed out to 2.5 m isn't through a wall; a Reaper it can't get to (no headway in 3 s) is left for 8 s; a failed
+  model load sets the cooldown (not retried every frame) and gives no haptics. Checked fine: the right trigger is
+  free with the sword drawn, the tip is the drawn blade's, the model across worlds, posing once a frame,
+  enemyFootOffset_, objectives counted once.

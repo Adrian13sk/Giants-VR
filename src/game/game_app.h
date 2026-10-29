@@ -1405,7 +1405,8 @@ private:  // the mission placed enemies: no test waves
         Vec3 pos;
         float yaw = 0, life = 0, rise = 0, atkCool = 0, clipT = 0;
         int clip = 0;
-        uint32_t target = 0;
+        uint32_t target = 0, skip = 0;   // skip: a Reaper it couldn't get to (a wall in the way), left a while
+        float skipT = 0, progressT = 0, bestDist = 1e9f;
     };
     ShadowWarrior shadowW_;
     std::unique_ptr<SkinnedModel> shadowModel_;
@@ -1413,7 +1414,7 @@ private:  // the mission placed enemies: no test waves
     int shadowClipIdle_ = 0, shadowClipRun_ = 0, shadowClipPunch_ = 0;
     float shadowCool_ = 0;
     bool shadowOwned() const;
-    void updateShadowSummon(float dt, const Vec3& tip, const Vec3& tipVel, bool trigger, int hand);
+    void updateShadowSummon(float dt, const Vec3& tip, const Vec3& hilt, const Vec3& tipVel, bool trigger, int hand);
     void summonShadow(const Vec3& at);
     void updateShadowWarrior(float dt);
     void renderShadowWarrior();

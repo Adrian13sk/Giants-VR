@@ -386,7 +386,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
             }
         }
         // SUMMON SHADOW (game_app_shadow.cpp): the right trigger held and the blade driven point-first into the ground.
-        if (swordTipValid_ && dt > 0) updateShadowSummon(dt, tip, (tip - swordTipPrev_) * (1.0f / dt), in.hand[gh].trigger > 0.6f, gh);
+        if (swordTipValid_ && dt > 0) updateShadowSummon(dt, tip, hilt, (tip - swordTipPrev_) * (1.0f / dt), in.hand[gh].trigger > 0.6f, gh);
         swordTipPrev_ = tip;
         swordHiltPrev_ = hilt;
         swordTipValid_ = true;
