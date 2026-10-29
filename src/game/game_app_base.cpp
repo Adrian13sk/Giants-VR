@@ -1153,7 +1153,7 @@ void GameApp::updateTurrets(float dt) {
         float best = 45.0f * 45.0f;
         for (const auto& e : enemies_.enemies) {
             if (e.state == EnemyState::Dead || e.remove) continue;
-            const Vec3 v = e.pos + Vec3{0, 1.1f, 0} - muzzle;
+            const Vec3 v = enemyChest(e) - muzzle;
             const float d2 = dot(v, v);
             if (d2 >= best) continue;
             const float d = std::sqrt(d2);
@@ -1177,7 +1177,7 @@ void GameApp::updateTurrets(float dt) {
         b.aimYaw += std::max(-2.5f * dt, std::min(2.5f * dt, diff));
         if (std::fabs(diff) < 0.15f && b.fireT <= 0) {
             b.fireT = 0.7f;
-            const Vec3 aim = tgt->pos + Vec3{0, 1.1f, 0} + Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} * 0.4f;
+            const Vec3 aim = enemyChest(*tgt) + Vec3{frand() - 0.5f, frand() - 0.5f, frand() - 0.5f} * 0.4f;
             const Vec3 dv = normalize(aim - muzzle);
             base_.turretShots.push_back({muzzle + dv * 1.5f, dv * 70.0f, 1.0f, tgt->uid, 18.0f});
             sfx(base_.reaper ? "me_rtfr1" : "me_gtfr1", muzzle, 0.8f, 0.95f + 0.1f * frand());
@@ -1210,12 +1210,12 @@ void GameApp::stepTurretShots(std::vector<Base::TurretShot>& shots, float dt, co
         for (size_t k = 0; k < enemies_.enemies.size() && !done && !(t.target & kTurretCreature); ++k) {
             const Enemy& e = enemies_.enemies[k];
             if (e.uid != t.target || e.state == EnemyState::Dead) continue;
-            const Vec3 c = e.pos + Vec3{0, 1.1f, 0};
+            const Vec3 c = enemyChest(e);
             // Closest approach of this step's segment to the body.
             const Vec3 seg = t.pos - from;
             const float sl = std::max(1e-6f, dot(seg, seg));
             const float u = std::max(0.0f, std::min(1.0f, dot(c - from, seg) / sl));
-            if (length(from + seg * u - c) > 0.8f) break;
+            if (length(from + seg * u - c) > 0.8f * std::max(0.4f, e.shrink)) break;
             const Vec3 hit = from + seg * u;
             const bool killed = enemies_.damage(int(k), t.damage);
             if (killed && e.objective >= 0) completeObjective(e.objective);

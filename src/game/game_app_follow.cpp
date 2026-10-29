@@ -166,8 +166,12 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
                  double(std::acos(std::max(-1.0f, std::min(1.0f, dot(normalize(to), dir)))) * 57.3f),
                  double(std::remainder(yawOff, 2 * kPi) * 57.3f), double((std::asin(normalize(to).y) - std::asin(dir.y)) * 57.3f));
         }
-    // The hand closed on him (trigger held, pointed at steadily): SHRINK.
-    if (gripEdge && shrinkOwned() && followCandUid_ && followCandT_ > 0 && followAimT_ >= 0.2f) {
+    // The hand closed on him (trigger held, pointed at steadily): SHRINK. (2026-10-29 review) The same grip runs
+    // (turbo) with the stick pushed: only standing - the stick near centre - does closing the hand cast; on
+    // cooldown it does nothing (a charged spell stays charged).
+    const bool stickIdle = c.thumbstick.x * c.thumbstick.x + c.thumbstick.y * c.thumbstick.y < 0.09f;
+    if (gripEdge && !stickIdle && ctrace && shrinkOwned() && followCandUid_) LOGI("spell trace: SHRINK not cast - the grip runs (stick pushed)");
+    if (gripEdge && stickIdle && shrinkCool_ <= 0 && shrinkOwned() && followCandUid_ && followCandT_ > 0 && followAimT_ >= 0.2f) {
         castShrink(followCandUid_, mh);
         return;
     }
@@ -215,6 +219,7 @@ void GameApp::stepFollowThrown(float dt) {
             // Slammed into a wall or rock (EnemyDirector stops him there): it hurts like the landing.
             const float hit = e.wallHit;
             e.wallHit = 0;
+            t.speed = std::min(t.speed, length(e.vel));  // (2026-10-29 review: stopped by the wall - he only drops; not hurt twice)
             if (hit > 6.0f) {
                 const int obj = e.objective;
                 const bool killed = enemies_.damage(ti, 5.0f * hit);

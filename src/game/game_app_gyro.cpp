@@ -173,6 +173,7 @@ void GameApp::updateGyroParked(float dt, const InputFrame& in) {
     timmyOn_ = false;  // (Timmy, riding on his back, gets off for the flight)
     sfx2D("me_gyin", 0.9f);
     sfx2D("me_gyon", 0.8f);
+    gyroLoopTried_ = false;
     if (audio_ && !gyroLoop_) gyroLoop_ = audio_->play2D("me_gylp", 0.45f, 0.8f, true);
     for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.5f, 0.15f});
     timmyLine_ = "LEFT STICK: FLY AND TURN - RIGHT STICK: UP / DOWN - TRIGGER: GUNS - LANDED, HOLD THE LEFT GRIP: OUT";
@@ -265,7 +266,10 @@ void GameApp::updateGyroRide(float dt, const InputFrame& in) {
     gyro_.tilt += (-along / kGyroTop * 0.18f - gyro_.tilt) * std::min(1.0f, 3.0f * dt);
     gyro_.rotor = std::min(1.0f, gyro_.rotor + dt * 0.8f);
     // (2026-10-29 review) A cutscene in flight stops the vehicle loops (stopVehicleLoops): the engine starts again after it.
-    if (audio_ && !gyroLoop_ && !cutsceneActive()) gyroLoop_ = audio_->play2D("me_gylp", 0.45f, 0.8f, true);
+    if (audio_ && !gyroLoop_ && !cutsceneActive() && !gyroLoopTried_) {
+        gyroLoop_ = audio_->play2D("me_gylp", 0.45f, 0.8f, true);
+        gyroLoopTried_ = gyroLoop_ == 0;  // (unavailable: not asked again every frame until the next boarding)
+    }
     if (gyroLoop_ && audio_) audio_->setPitch(gyroLoop_, 0.8f + 0.5f * std::min(1.0f, length(gyro_.vel) / kGyroTop) + 0.15f * std::fabs(climbIn));
     // Baz rides it (his feet on its floor: the tracked head gives his seated height); the view goes with it.
     // First person the eyes go where the seated pilot's are (the seat, 0.55 m up), whatever the user's own height:

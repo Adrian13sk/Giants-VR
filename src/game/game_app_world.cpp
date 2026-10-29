@@ -307,6 +307,15 @@ void GameApp::updateDestruction(float dt) {
             }
         }
     }
+    // (2026-10-29 review) A Reaper who came down on a tower's platform (bounced off its parapet) belongs to that
+    // tower, as its sentries do: thrown off when it collapses.
+    for (auto& e : enemies_.enemies) {
+        if (!e.roofed || !e.posted || e.postObject >= 0 || e.state == EnemyState::Dead) continue;
+        for (size_t k = 0; k < destruct_.items.size(); ++k) {
+            const Destructible& d = destruct_.items[k];
+            if (d.kind == DestructKind::Tower && d.alive() && std::hypot(e.pos.x - d.base.x, e.pos.z - d.base.z) < 4.0f) { e.postObject = int(k); break; }
+        }
+    }
     // Towers: the collapse clip; the sentry is thrown off as it bends, debris flies.
     for (auto& c : collapses_) {
         Destructible& d = destruct_.items[size_t(c.item)];

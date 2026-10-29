@@ -579,7 +579,9 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                 // A roof, wall top or ledge under him (one he was above a moment ago) catches him.
                 float roof;
                 bool onRoof = false;
-                if (collision && e.vel.y <= 0 && collision->groundAt(e.pos.x, e.pos.z, prevY + 0.05f, roof) && roof > g + 0.4f) { g = roof; onRoof = true; }
+                if (collision && e.vel.y <= 0 && collision->groundAt(e.pos.x, e.pos.z, prevY + 0.05f, roof) && roof > g + 1.5f) { g = roof; onRoof = true; }
+                // ((2026-10-29 review) a roof, a tower's platform - not a rock, fence or step he would be stuck on
+                // as a sentry: lower than 1.5 m he comes down beside it, pushed out of it once he's up)
                 if (e.pos.y <= g) {
                     e.pos.y = g;
                     // On a roof he stays up there (a sentry where he lands; his body stays there): the

@@ -28,6 +28,7 @@ int CreatureDirector::spawn(const Vec3& pos, float yaw, float scale, CreatureSiz
     c.clipTime = rnd() * clipDuration[int(CreatureClip::Idle)];  // desynchronise idles
     c.uid = nextUid_++;
     c.patrolTo = c.pos;
+    c.lastSeen = c.pos;  // (2026-10-29 review: a hunter born while she is cloaked ran to the world's origin)
     c.patrolWait = 1.0f + 4.0f * rnd();
     c.lookTimer = rnd() * 0.3f;
     creatures.push_back(c);
@@ -282,6 +283,7 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
         };
         const bool sees = playerAlive && dist < params.sightRange * ss && dist < nearSense &&
                           (dist < params.hearRange * ss || lineOfSight(c.pos + Vec3{0, 0.6f * s, 0}, player + Vec3{0, 1.2f, 0}));
+        if (sees || !playerHidden) c.lastSeen = player;  // (every state: Chase entered from any of them)
         switch (c.state) {
             case CreatureState::Buried: {
                 // Lies in wait: feels the player's steps close by (any side), or comes up when a
@@ -452,7 +454,6 @@ void CreatureDirector::update(float dt, const Vec3& player, bool playerAlive, st
                 // Lost the player a while: digs back in where it is. Far out of reach: dives and
                 // tunnels at him.
                 c.lostTime = sees ? 0.0f : c.lostTime + dt;
-                if (sees || !playerHidden) c.lastSeen = player;
                 const bool soil = !groundHeight || groundHeight(c.pos.x, c.pos.z) > -0.2f;  // not in the water
                 if (c.canBurrow && soil && !c.hunter && (c.lostTime > params.loseAfter || !playerAlive)) {
                     c.state = CreatureState::Dive;

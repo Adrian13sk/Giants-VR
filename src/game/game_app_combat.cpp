@@ -426,7 +426,7 @@ void GameApp::updateRockets(float dtAll) {
                 if (d < bestD && dot(to * (1.0f / std::max(1e-3f, d)), f) > 0.5f) { bestD = d; best = p; bestId = id; }
             };
             for (size_t i = 0; i < enemies_.enemies.size(); ++i)
-                if (enemies_.enemies[i].state != EnemyState::Dead) consider(enemies_.enemies[i].pos + Vec3{0, 1.1f, 0}, int(i));
+                if (enemies_.enemies[i].state != EnemyState::Dead) consider(enemyChest(enemies_.enemies[i]), int(i));
             for (size_t i = 0; i < creatures_.creatures.size(); ++i)
                 if (creatures_.creatures[i].state != CreatureState::Dead)
                     consider(creatures_.creatures[i].pos + Vec3{0, 0.5f * creatures_.creatures[i].scale, 0}, kCreatureTarget + int(i));
@@ -463,7 +463,7 @@ void GameApp::updateRockets(float dtAll) {
                 if (d < bestD && dot(to * (1.0f / std::max(1e-3f, d)), f) > 0.5f) { bestD = d; best = p; }
             };
             for (const auto& e : enemies_.enemies)
-                if (e.state != EnemyState::Dead) consider(e.pos + Vec3{0, 1.1f, 0});
+                if (e.state != EnemyState::Dead) consider(enemyChest(e));
             for (const auto& c : creatures_.creatures)
                 if (c.state != CreatureState::Dead && !CreatureDirector::underground(c)) consider(c.pos + Vec3{0, 0.5f * c.scale, 0});
             for (const auto& c : chars_)  // (bosses)
@@ -491,7 +491,7 @@ void GameApp::updateRockets(float dtAll) {
                     return length(closest - c);
                 };
                 for (const auto& e : enemies_.enemies)
-                    if (e.state != EnemyState::Dead && dist(e.pos + Vec3{0, 1.1f, 0}) < 3.0f) { near = true; break; }
+                    if (e.state != EnemyState::Dead && dist(enemyChest(e)) < 3.0f) { near = true; break; }
                 for (const auto& c : creatures_.creatures)
                     if (!near && c.state != CreatureState::Dead && !CreatureDirector::underground(c) && dist(c.pos + Vec3{0, 0.5f * c.scale, 0}) < 3.0f + 0.5f * c.scale) near = true;
                 for (const auto& c : chars_)  // (the bosses - the Charger, Sonaks, a rival Kabuto - live here, not in enemies_)
@@ -502,7 +502,7 @@ void GameApp::updateRockets(float dtAll) {
             if (ptrace && int(r.life * 10) != int((r.life - dt) * 10)) {
                 float best = 1e9f;
                 for (const auto& e : enemies_.enemies)
-                    if (e.state != EnemyState::Dead) best = std::min(best, length(e.pos + Vec3{0, 1.1f, 0} - r.pos));
+                    if (e.state != EnemyState::Dead) best = std::min(best, length(enemyChest(e) - r.pos));
                 LOGI("prox trace: %.1f s, nearest foe %.1f m", double(r.life), double(best));
             }
             if (near) {

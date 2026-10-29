@@ -514,6 +514,8 @@ private:
     std::vector<Ragdoll> ragdolls_;  // rework: per model slot (game_app_ragdoll.cpp)
     const Enemy* posingEnemy_ = nullptr;  // the enemy its slot model is being posed for
     Mat4 ragdollToWorld(const Enemy& e) const;
+    // A Reaper's chest (aim point): 1.1 m up, less when SHRINK has made him small (2026-10-29 review).
+    static Vec3 enemyChest(const Enemy& e) { return e.pos + Vec3{0, 1.1f * e.shrink, 0}; }
     // A living Reaper's model transform: his slot's foot lift, his heading, and SHRINK's scale.
     Mat4 enemyXf(const Enemy& e) const {
         const float lift = e.slot >= 0 && size_t(e.slot) < slotLift_.size() ? slotLift_[size_t(e.slot)] : 0.0f;
@@ -2243,6 +2245,7 @@ private:
     // Options -> KABUTO VIEW: LOWER shrinks the tracking scale (worldScale) by this factor (1 otherwise);
     // gameScale() undoes it for what is gameplay rather than view (throw speeds, reach).
     float kbViewFactor_ = 1.0f;
+    bool gyroLoopTried_ = false;  // the gyrocopter's engine loop failed to start (no sound): not retried every frame
     bool kbViewJump_ = false;   // the view scale jumped while the menu was open: fade through black on resume
     float gameScale() const { return rig_.comfort.worldScale / kbViewFactor_; }
     static constexpr uint32_t kTurretCreature = 0x80000000u;  // a turret shot's target is a Ripper (its uid | this)

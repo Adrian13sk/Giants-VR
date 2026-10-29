@@ -32,15 +32,11 @@ void GameApp::castShrink(uint32_t uid, int hand) {
     if (ei < 0) return;
     Enemy& e = enemies_.enemies[size_t(ei)];
     if (e.state == EnemyState::Dead || e.state == EnemyState::Falling) return;
+    if (shrinkCool_ > 0) return;  // (not ready: updateFollow doesn't call it then)
     spellGestureCast_ = true;  // (the trigger's release is not a fire bolt)
     spellCharge_ = 0;
     followCandUid_ = 0;
     followAimT_ = 0;
-    if (shrinkCool_ > 0) {  // not ready: a fizzle
-        sfx2D("ph_error", 0.5f);
-        haptics_.push_back({hand, 0.2f, 0.05f});
-        return;
-    }
     endCloak("she cast");
     e.shrinkT = kShrinkTime;
     e.aware = true;

@@ -51,7 +51,8 @@ void GameApp::updateReaperGrenades(float dt) {
     rpGrenadeCool_ = std::max(0.0f, rpGrenadeCool_ - dt);
     for (auto& e : enemies_.enemies) {
         e.grenadeCool = std::max(0.0f, e.grenadeCool - dt);
-        const bool fighting = e.aware && (e.state == EnemyState::Fire || e.state == EnemyState::Advance) && !e.posted;
+        const bool fighting = e.aware && (e.state == EnemyState::Fire || e.state == EnemyState::Advance) && !e.posted &&
+                              e.shrinkT <= 0 && e.shrink >= 0.9f;  // (2026-10-29 review: shrunk, he only runs)
         if (!fighting) { e.hiddenT = 0; continue; }
         e.hiddenT = e.los ? 0.0f : e.hiddenT + dt;
         const Vec3 to = player_.position - e.pos;

@@ -240,7 +240,7 @@ void GameApp::updatePortTurret(float dt, const InputFrame& in) {
         tgtAim = mid;
     };
     for (const auto& e : enemies_.enemies)
-        if (e.state != EnemyState::Dead && !e.remove) consider(e.uid, e.pos, e.pos + Vec3{0, 1.1f, 0});
+        if (e.state != EnemyState::Dead && !e.remove) consider(e.uid, e.pos, enemyChest(e));
     for (const auto& c : creatures_.creatures) {
         if (c.state == CreatureState::Dead || c.remove || c.state == CreatureState::Buried || c.state == CreatureState::Tunnel ||
             c.state == CreatureState::Dive)

@@ -2983,3 +2983,17 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   reflection follows); unit test testShrink. Controls card row; a HUD icon in her spell row (8 now: two rows of four).
 - r4a's base: the second Hellfire turret site found no level ground since the Gyrocopter Pad took a site (a sweep
   warning): the search goes round to 2.85 rad and 16 m further out.
+- Review of d125b40 / 7914447 (read-only reviewer agent), fixed: (1) shrunk Reapers still threw grenades (the
+  grenade code counts fleeing Advance as fighting): not while shrunk; (2) SHRINK's grip is also Delphi's run (turbo):
+  closing the hand only casts with the stick near centre, and on cooldown it does nothing (it had eaten a charged
+  spell with an error buzz) - devtest tests/delphi_shrink_run (stick pushed: "not cast"; stick let go: cast), 72 / 24
+  Hz; (3) a thrown Reaper stopped by a wall was hurt again on landing at his throw speed: the landing counts the speed
+  he has left; (4) any floor 0.4 m up (a rock, a fence, a step) made a landing Reaper a sentry for good: roofs from
+  1.5 m up only; (5) one bounced onto his own tower's platform lost his link to it: re-linked to the tower he stands
+  on; (6) Rippers chasing a cloaked Delphi could run to the world's origin (lastSeen unset for a hunter born then, and
+  only kept in Chase): set at spawn and in every state; (7) SHRINK's cooldown carried over respawn / missions:
+  reset with the other spells; (8) turrets, homing arrows / rockets aimed 1.1 m up at a quarter-size Reaper (rounds
+  passing over his head, blood in mid-air): enemyChest() scales with him, the turret's hit radius too; the
+  gyrocopter's engine loop isn't asked for every frame if the sound is missing; a header comment. Checked fine by
+  the reviewer: uids (never the turret's creature bit, never reused), a fresh Enemy on spawn, slots, objectives
+  completed once, FOLLOW's hold over roofs, roofed bodies, raiders unstuck, gameScale's frame order.

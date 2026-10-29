@@ -147,6 +147,8 @@ void GameApp::resetSpells() {
     circleT_ = circleCool_ = gestArmsT_ = 0;
     followUid_ = followCandUid_ = 0;
     followCool_ = followT_ = 0;
+    shrinkCool_ = 0;           // (2026-10-29 review: carried over respawn / missions)
+    shrinkGripHeld_ = false;
     followThrown_.clear();
     cloakT_ = cloakCool_ = clusterCool_ = gestFaceT_ = 0;
     hailStones_.clear();
