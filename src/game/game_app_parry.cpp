@@ -43,7 +43,7 @@ int GameApp::parryShots(const Vec3& hilt, const Vec3& tip, const Vec3& prevHilt,
     auto& ps = enemyFire_.projectiles();
     const float reach = 0.12f * heroScale_;
     // A one-time hint the first time a bolt flies close by her with the sword out.
-    static bool hinted = false;
+    static bool hinted = std::getenv("GVR_NO_HINTS") != nullptr;  // (test hook: videos)
     if (!hinted && !cutsceneActive())
         for (const auto& p : ps)
             if (length(p.pos - player_.position) < 4.0f && dot(p.vel, player_.position - p.pos) > 0) {

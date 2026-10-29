@@ -12,8 +12,8 @@ env GVR_NO_RAIDS 1
 env GVR_SPELL_TRACE 1
 env GVR_PASSIVE_REAPERS 1
 duration 6.5
-reapers 1 10 0.5 99
-pitch_l 17 0.5 1.0
+reapers 1 6 0.5 99
+pitch_l 14 0.5 1.0
 hold trigger_l 1.5 2.8
 hold grip_l 2.3 2.6
 shot 3.4 shrunk

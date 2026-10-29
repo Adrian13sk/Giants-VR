@@ -1,6 +1,7 @@
 #include "scene/skinned_model.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <unordered_map>
 
@@ -78,6 +79,8 @@ bool SkinnedModel::load(const AssetFS& fs, ModelCache& textures, Renderer& r, co
         if (!bp.texture.empty()) p.texture = textures.texture(bp.texture, &alpha);
         if (alpha) p.blend = BlendMode::AlphaTest;
         p.glass = (bp.subFlags & GbsModel::kSubGlass) != 0;
+        p.texName = bp.texture;
+        for (auto& ch : p.texName) ch = char(std::tolower(static_cast<unsigned char>(ch)));
         p.lit = bp.lit;
         for (const auto& v : bp.mesh.vertices) {
             bmin_ = {std::min(bmin_.x, v.pos[0]), std::min(bmin_.y, v.pos[1]), std::min(bmin_.z, v.pos[2])};
@@ -336,6 +339,7 @@ void SkinnedModel::renderFull(Renderer& r, const Mat4& world) const {
         dp.blend = p.blend;
         dp.unlit = !p.lit;
         if (p.glass) { dp.blend = BlendMode::AlphaBlend; dp.tint = {1, 1, 1, 0.3f}; }
+        if (p.soft) { dp.blend = BlendMode::AlphaBlend; dp.depthWrite = false; }
         r.draw(p.fullMesh ? p.fullMesh : p.mesh, world, dp);
     }
 }
@@ -397,13 +401,26 @@ void SkinnedModel::render(Renderer& r, const Mat4& world, const Vec4& tint) cons
             dp.blend = BlendMode::AlphaBlend;
             dp.tint = {tint.x, tint.y, tint.z, 0.3f};
         }
+        if (p.soft) {
+            dp.blend = BlendMode::AlphaBlend;
+            dp.depthWrite = false;
+        }
         r.draw(p.mesh, world, dp);
     }
 }
 
 void SkinnedModel::renderShadow(Renderer& r, const Mat4& world) const {
     for (const Part& p : parts_)
-        if (!p.glass) r.drawShadow(p.mesh, world);
+        if (!p.glass && !p.soft) r.drawShadow(p.mesh, world);
+}
+
+int SkinnedModel::setSoftTexture(const std::string& name) {
+    std::string n = name;
+    for (auto& ch : n) ch = char(std::tolower(static_cast<unsigned char>(ch)));
+    int k = 0;
+    for (Part& p : parts_)
+        if (p.texName == n || p.texName == n + ".tga") { p.soft = true; ++k; }
+    return k;
 }
 
 void SkinnedModel::renderGhost(Renderer& r, const Mat4& world, const Vec3& rgb) const {

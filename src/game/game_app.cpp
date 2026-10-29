@@ -749,7 +749,10 @@ void GameApp::placeCamera(float dt, bool snap, const InputFrame* in) {
     // Kabuto: the camera distances grow with him (heroScale_), the tracking space with the
     // giant's eye height (rig_.comfort.worldScale, see updateHeroScale).
     const float hs = heroScale_, ws = rig_.comfort.worldScale;
-    const float kBack = 3.6f * hs, kUp = 1.1f * hs, kSmooth = 0.12f;
+    // (2026-10-29, found making video 20) Riding the gyrocopter, the usual spot put the eyes in its rotor's disc - the
+    // blades swept across the view as white planes (strobing on the headset): further back and above them instead.
+    const bool gyroCam = gyro_.riding;
+    const float kBack = (gyroCam ? 6.5f : 3.6f) * hs, kUp = (gyroCam ? 2.6f : 1.1f) * hs, kSmooth = 0.12f;
     const Quat q = Quat::fromAxisAngle({0, 1, 0}, camYaw_);
     Vec3 pos = player_.position;
     if (firstPerson_) {
@@ -765,6 +768,9 @@ void GameApp::placeCamera(float dt, bool snap, const InputFrame* in) {
     if (!firstPerson_) {
         pos += q.rotate(Vec3{0, 0, kBack});
         if (player_.groundHeight) floorY = std::max(floorY, player_.groundHeight(pos.x, pos.z) + 0.3f * hs);
+        // (2026-10-29, found making video 20) Over the sea the camera behind him dipped under the surface (the
+        // gyrocopter landing on the water, a swim): kept above it unless he is under water himself (diving).
+        if (player_.seaLevel > -1e8f && player_.position.y > player_.seaLevel - 0.2f) floorY = std::max(floorY, player_.seaLevel + 0.3f * hs);
     }
     if (snap || dt <= 0) camFloor_ = floorY;
     else camFloor_ += (floorY - camFloor_) * (1.0f - std::exp(-dt / kSmooth));

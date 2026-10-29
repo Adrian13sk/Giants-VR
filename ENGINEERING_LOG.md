@@ -3028,3 +3028,13 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   spits at nobody within 12 m of her (was 9); the mend's haptic pulse goes to the casting hand; the heading picks a
   live Reaper within 80 m. Checked fine: the serpent's reset per mission, every summoned path ends in a dive, the
   turn with the target behind, kind 11 against every other rocket rule, rockets not saved, bldgInRay as before.
+- Progress video 20 (2 min 7 s; scripts/video_clips_20.txt, clip scripts trimmed in scripts/video20/; frames checked
+  clip by clip before joining): FOLLOW, SHRINK, SUMMON SEA MONSTER, FIRE CIRCLE, HAIL, SLOW TIME, the portable
+  turret, the gyrocopter (third person), the shield (third person), proximity rockets, the wrist display, the
+  weapon wheel. Dropped after checking: the Reaper-gun clip (the camera inside a Reaper) and the fire-arrow clip (no
+  grass on that shore). GVR_NO_HINTS (test hook) keeps the one-time hints out of videos. Found and fixed making it:
+  (1) the gyrocopter's rotor is a flat disc with a soft motion-blur texture (gyro_blade: 68 % clear, 31 % partly
+  see-through) - alpha-tested, as every alpha texture is, it showed as hard white blades sweeping through the view
+  (strobing on the headset): SkinnedModel::setSoftTexture draws that part blended, no depth write, no shadow;
+  (2) riding the gyrocopter, the third-person camera sat inside the rotor's disc: 6.5 m back and 2.6 m up then;
+  (3) over the sea the third-person camera could dip under the surface: kept above it unless he is under water.

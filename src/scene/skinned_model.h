@@ -82,6 +82,9 @@ public:
     // With a colour multiplier (hit flashes).
     void render(Renderer& r, const Mat4& world, const Vec4& tint) const;
     void renderShadow(Renderer& r, const Mat4& world) const;
+    // The parts textured `name` are drawn alpha-blended (soft alpha, e.g. the gyrocopter's rotor blur, gyro_blade)
+    // instead of alpha-tested, without depth writes or a shadow. Returns how many parts.
+    int setSoftTexture(const std::string& name);
     // Unlit, self-illuminated draw (effects such as the Rippers' spit balls).
     // A see-through, glowing copy (additive, no depth write): a soul or a ghost.
     void renderGhost(Renderer& r, const Mat4& world, const Vec3& rgb) const;
@@ -126,6 +129,8 @@ private:
         BlendMode blend = BlendMode::Opaque;
         bool lit = true;
         bool glass = false;
+        bool soft = false;    // drawn blended, no depth write, no shadow (setSoftTexture: a rotor's blur disc)
+        std::string texName;  // lower case
         std::vector<Vertex> verts;
         std::vector<uint32_t> indices;
         std::vector<uint32_t> posIndex;

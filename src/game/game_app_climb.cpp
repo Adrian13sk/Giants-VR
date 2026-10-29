@@ -81,7 +81,7 @@ void GameApp::updateClimb(float dt, const InputFrame& in) {
         ++holding;
     }
     // A one-time hint: pushing the stick into ground too steep to walk, getting nowhere.
-    static bool hinted = false;
+    static bool hinted = std::getenv("GVR_NO_HINTS") != nullptr;  // (test hook: videos)
     if (can && !hinted && holding == 0) {
         const Vec2 mv = in.hand[rig_.moveHand()].thumbstick;
         float ya, y0;

@@ -53,6 +53,10 @@ void GameApp::initGyro(ModelCache* mc) {
         at("ref_nozzle", gyroNozzle_);
         at("joystick", gyroStick_);
     }
+    // (2026-10-29, found making video 20) Its rotor is a flat disc (cylinder02) with a soft motion-blur texture
+    // (gyro_blade: two thirds clear, a third partly see-through): alpha-tested it showed as hard white blades
+    // sweeping through the view; blended it reads as a spinning rotor.
+    LOGI("Gyrocopter: %d rotor-blur part(s) blended", sm->setSoftTexture("gyro_blade"));
     gyroModel_ = std::move(sm);
     // The pilot: gyro_breathe is the gyrocopter with a Meccaryn seated in it - its Meccaryn bones pose Baz there
     // (both his models: with and without the jetpack).

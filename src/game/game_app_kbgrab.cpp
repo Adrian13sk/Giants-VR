@@ -23,7 +23,7 @@ constexpr int kVimpTargetG = 6000;
 void GameApp::updateKabutoHandGrab(const InputFrame& in) {
     const float H = player_.height;
     // A one-time hint the first time something grabbable is at his feet (first person).
-    static bool hinted = false;
+    static bool hinted = std::getenv("GVR_NO_HINTS") != nullptr;  // (test hook: videos)
     if (!hinted && firstPerson_ && playMode_ && kbHold_ == HoldNone && !cutsceneActive()) {
         bool near = false;
         for (const auto& e : enemies_.enemies)
