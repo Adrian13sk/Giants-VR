@@ -1456,6 +1456,7 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initAmbience(w);
     initDestruction(w, mc);
     initSpawners();
+    initReaperWeapons();  // (2026-10-29) now, not on the first play frame: ~25-30 ms on the host there (a hitch as the opening cutscene ended)
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);
     // The VR map's island model is built now, behind the loading screen (it took ~5 ms on the host
     // when built on the first frame of play).
@@ -2360,6 +2361,14 @@ void GameApp::update(float dt, const InputFrame& in) {
         if (assetWorld_) assetWorld_->update(dt);
         lastInput_ = in;
         return;
+    }
+    // (2026-10-29) The headset's system menu or the Guardian set-up took input focus: the game used to run on with
+    // the controllers dead (Reapers shooting a hero who can't move). Pause it - the options menu, RESUME chosen.
+    if (!in.focused && !menuOpen_) {
+        pushUnscaledRig(in.head, in.headValid);
+        openMenu(in);
+        popUnscaledRig();
+        LOGI("Input focus lost: game paused (options menu)");
     }
     // The left menu button: options (the game pauses while they're open).
     if (menuEdge_.pressed(in.hand[kLeft].menu)) {

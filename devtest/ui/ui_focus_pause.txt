@@ -1,0 +1,11 @@
+# The headset's system menu (or the Guardian) takes input focus mid-fight: the game pauses in the options menu
+# instead of running on with dead controllers; RESUME carries on. (2026-10-29)
+# Log (checked by devtest.ps1): "Input focus lost: game paused (options menu)" "Options menu closed (resume)".
+name ui_focus_pause
+world Story1
+mission 1a_1_timmy
+env GVR_CUTSCENE none
+duration 12
+reapers 2 25 3 99
+hold unfocused 4 7
+hold trigger_r 8.5 8.8

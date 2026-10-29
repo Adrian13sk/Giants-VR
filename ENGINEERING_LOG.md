@@ -3094,3 +3094,12 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   left / right turns the page (it used to close the card), up / down or any button still closes it. The row tables
   moved to file scope so the input code knows the page count without depending on a drawn frame (the harness draws
   only its output frame - the first try never flipped there). New devtest ui/ui_controls_pages; ui 20/20 (HARNESS).
+- Pause on focus loss (2026-10-29): with the headset's system menu or the Guardian set-up open (session VISIBLE,
+  not FOCUSED) the game ran on with the controllers zeroed - Reapers could shoot a hero who couldn't move (B20's
+  Guardian interruption ran a race on for 40 s this way). InputFrame.focused now carries xr.focused(); in play the
+  game opens the options menu (paused, RESUME chosen). Scripts: `hold unfocused t0 t1`. Found while testing it: the
+  harness reuses one InputFrame, so inputAt now sets focused = true each frame. New devtest ui/ui_focus_pause (HARNESS;
+  BUILD on the headset path - the device's own focus events are untested).
+- Reaper weapon models load with the mission's characters, not on the first play frame (a 25-30 ms hitch on the host
+  as 1a's opening cutscene ended; GVR_PROF_SPIKES). All sets at 24 Hz: tests 85 + the 3 known, weapons 29, ui 21,
+  npcs 12, missions 31.

@@ -38,6 +38,7 @@ struct InputFrame {
     Pose head;                 // tracking space
     bool headValid = false;
     uint32_t recenterSerial = 0;  // increments when the user recentres (reference space change)
+    bool focused = true;          // (2026-10-29) false while the system menu / Guardian has input focus (the game pauses)
 };
 
 // Edge detection helper for boolean buttons.

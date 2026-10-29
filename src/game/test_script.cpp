@@ -8,7 +8,7 @@ namespace gvr {
 
 namespace {
 constexpr float kDeg = 3.14159265f / 180.0f;
-const char* const kButtons[] = {"trigger_r", "trigger_l", "grip_r", "grip_l", "a", "b", "x", "y", "lclick", "rclick", "menu"};
+const char* const kButtons[] = {"trigger_r", "trigger_l", "grip_r", "grip_l", "a", "b", "x", "y", "lclick", "rclick", "menu", "unfocused"};
 bool isButton(const std::string& s) {
     for (const char* b : kButtons)
         if (s == b) return true;
@@ -135,6 +135,7 @@ Pose TestScript::eyePose(int eye, float ipd) const {
 void TestScript::inputAt(float t, InputFrame& in) const {
     in.headValid = true;
     in.head = headPose();
+    in.focused = true;  // ("unfocused" spans clear it below; the frame is reused)
     for (int h = 0; h < 2; ++h) {
         ControllerState& c = in.hand[h];
         c = ControllerState{};
@@ -190,6 +191,7 @@ void TestScript::inputAt(float t, InputFrame& in) const {
         else if (s.what == "lclick") in.hand[kLeft].thumbstickClick = true;
         else if (s.what == "rclick") in.hand[kRight].thumbstickClick = true;
         else if (s.what == "menu") in.hand[kLeft].menu = true;
+        else if (s.what == "unfocused") in.focused = false;  // (as if the headset's system menu were open)
     }
 }
 

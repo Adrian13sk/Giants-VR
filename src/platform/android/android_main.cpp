@@ -270,8 +270,9 @@ void android_main(android_app* app) {
         float dt = static_cast<float>(now - last);
         last = now;
         if (dt > 0.1f) dt = 0.1f;  // clamp after suspension
+        frame.input.focused = xr.focused();
         if (!xr.focused()) {
-            // Not focused (system menu / guardian): keep rendering, ignore gameplay input.
+            // Not focused (system menu / guardian): keep rendering, ignore gameplay input (the game pauses itself).
             for (auto& h : frame.input.hand) { h.thumbstick = {}; h.trigger = h.squeeze = 0; }
         }
         for (auto& h : frame.input.hand)

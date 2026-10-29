@@ -17,6 +17,7 @@
 //   move <x> <y> <t0> <t1>           left stick
 //   turn <x> <y> <t0> <t1>           right stick
 //   hold <button> <t0> <t1>          trigger_r trigger_l grip_r grip_l a b x y lclick rclick menu
+//                                    (or "unfocused": the app loses input focus, as with the system menu open)
 //   hand_r|hand_l <dx> <dy> <dz> <t0> <t1>   move that controller (tracking metres) over [t0, t1]
 //   aim <yawDeg> <pitchDeg>          right controller direction (default 0, -17.2)
 //   blast <gx> <gy> <h> <n> <t>      n rocket blasts at a point (as --blast-at)
