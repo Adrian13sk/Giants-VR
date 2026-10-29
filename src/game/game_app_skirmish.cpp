@@ -440,6 +440,20 @@ void GameApp::skirmishBlast(const Vec3& at, float radius, float damage) {
     }
 }
 
+int GameApp::skirmishHitWhere(float damage, const Vec3& from, const std::function<bool(const SkPlayer&)>& in) {
+    if (!skirmish_) return 0;
+    int n = 0;
+    for (auto& p : sk_.players) {
+        if (!p.alive || p.local || !in(p)) continue;
+        const Vec3 c = p.body.position + Vec3{0, 0.5f * std::min(p.body.height, 2.0f), 0};
+        Vec3 dir = c - from;
+        dir.y = 0;
+        skirmishHit(p.id, damage, c, normalize(dir + Vec3{1e-3f, 0, 0}));
+        ++n;
+    }
+    return n;
+}
+
 void GameApp::skHandleEvent(const SkEvent& e) {
     auto flagName = [](int team) { return std::string("THE ") + teamUpper(team) + " FLAG"; };
     auto say = [&](const std::string& s, float secs) {
@@ -547,6 +561,29 @@ void GameApp::updateSkirmish(float dt) {
         }
     }
     sk_.update(dt);
+    // Test hook GVR_SK_DUMMY=<m>: the first bot of another side stands still that far in front of the player, holding
+    // fire, and its health is logged as it changes (spells / fists against skirmish players, 2026-10-29).
+    static const float dummyAt = std::getenv("GVR_SK_DUMMY") ? float(std::atof(std::getenv("GVR_SK_DUMMY"))) : 0.0f;
+    if (dummyAt > 0 && skLocal_ >= 0 && skNet_ != SkNetMode::Join) {
+        const SkPlayer* me = sk_.player(skLocal_);
+        for (auto& p : sk_.players) {
+            if (!p.bot || !me || p.team == me->team) continue;
+            static float lastHp = -1;
+            if (p.alive) {
+                const Vec3 f{-std::sin(player_.yaw), 0, -std::cos(player_.yaw)};
+                Vec3 at = player_.position + f * dummyAt;
+                if (enemies_.groundHeight) at.y = enemies_.groundHeight(at.x, at.z);
+                p.body.position = at;
+                p.body.velocity = Vec3{0, 0, 0};
+                p.fireCool = 1.0f;
+                p.target = -1;
+            }
+            const float hp = p.alive ? p.hp : 0.0f;
+            if (hp != lastHp) LOGI("Skirmish dummy %s: health %.0f%s%s", p.name.c_str(), hp, p.alive ? "" : " (dead)", p.lastAttacker == skLocal_ ? " - by you" : "");
+            lastHp = hp;
+            break;
+        }
+    }
     // Every 15 s: where everyone is (logs for tests).
     static const float traceEvery = std::getenv("GVR_SK_TRACE") ? float(std::atof(std::getenv("GVR_SK_TRACE"))) : 15.0f;  // test hook
     if (std::floor(sk_.time / traceEvery) != std::floor((sk_.time - dt) / traceEvery)) {

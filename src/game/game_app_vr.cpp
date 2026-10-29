@@ -609,6 +609,19 @@ void GameApp::updateMelee(float dt, const InputFrame& in) {
             LOGI("melee-trace hand %d speed %.1f at (%.2f %.2f %.2f) enemy (%.2f %.2f %.2f)", h, speed, p.x, p.y, p.z, enemies_.enemies[0].pos.x,
                  enemies_.enemies[0].pos.y, enemies_.enemies[0].pos.z);
         if (speed < 2.6f) continue;
+        {
+            const float dmg = std::min(60.0f, 18.0f + (speed - 2.6f) * 12.0f);
+            if (skirmishHitWhere(dmg, p - v * 0.05f, [&](const SkPlayer& sp) {
+                    const float dy = p.y - sp.body.position.y;
+                    return dy > 0.3f && dy < std::max(2.1f, sp.body.height) &&
+                           length(Vec3{p.x - sp.body.position.x, 0, p.z - sp.body.position.z}) < 0.25f + sp.body.radius;
+                }) > 0) {
+                haptics_.push_back({h, 1.0f, 0.09f});
+                punchCool_[h] = 0.35f;
+                LOGI("Punch: a skirmish player hit (%.1f m/s)", speed);
+                continue;
+            }
+        }
         for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
             const Enemy& e = enemies_.enemies[i];
             if (e.state == EnemyState::Dead) continue;

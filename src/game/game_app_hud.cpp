@@ -197,7 +197,7 @@ void GameApp::hudStatus(const HudFrame& f) {
         // pulsing while one is working (slow time, the cloak, the fire circle, a Reaper held by FOLLOW).
         struct Sp { int layer; bool owned; float cool, active; };
         const Sp sp[] = {{kHudRpHail, hailOwned(), hailCool_, 0},
-                         {kHudRpSlow, slowOwned(), slowCool_, slowT_},
+                         {kHudRpSlow, slowOwned() && !skirmish_, slowCool_, slowT_},
                          {kHudRpCloak, cloakOwned(), cloakCool_, cloakT_},
                          {kHudRpCluster, clusterOwned(), clusterCool_, 0},
                          {kHudRpFollow, followOwned(), followCool_, followUid_ ? 1.0f : 0.0f},

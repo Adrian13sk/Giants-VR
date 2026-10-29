@@ -24,7 +24,7 @@ constexpr float kSeaReach = 70.0f;  // m from the serpent it spits at
 }  // namespace
 
 bool GameApp::seaSummonOwned() const {
-    if (hero_ != Hero::Delphi || !assetWorld_ || !seaMonModel_) return false;
+    if (hero_ != Hero::Delphi || !assetWorld_ || !seaMonModel_ || skirmish_) return false;  // (its targets are the campaign's Reapers)
     return practice_ || tornadoOwned() || std::getenv("GVR_SEA_SUMMON") != nullptr;  // (test hook)
 }
 

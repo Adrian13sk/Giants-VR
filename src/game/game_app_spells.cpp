@@ -31,6 +31,7 @@ bool GameApp::tornadoOwned() const {
     // Her Smarties make it once she has a base: the battles (r4a, rstory2_battle, rstory5_battle) and on.
     const std::string m = toLower(assetWorld_->missionName());
     // r4a builds the base first: "Your Smarties will create the TORNADO SPELL for you once your BASE is complete".
+    if (skirmish_) return true;  // (2026-10-29) a skirmish's bases stand from the start
     if (base_.on) return base_.complete;  // r4a and the Reaper battles that build a base
     return m.rfind("r4", 0) == 0 || m.find("battle") != std::string::npos || m.rfind("rstory5", 0) == 0;
 }
@@ -319,7 +320,7 @@ void GameApp::updateSpellGestures(float dt, const InputFrame& in, const Vec3& di
         const ControllerState& o = in.hand[1 - mh];
         const bool together = o.gripPoseValid && length(h - o.gripPose.position) < 0.2f && h.y < head.y - 0.1f && h.y > head.y - 0.75f;
         gestTogether_ = together ? gestTogether_ + dt : 0.0f;
-        if (gestTogether_ > 0.5f && slowOwned() && slowCool_ <= 0) {
+        if (gestTogether_ > 0.5f && slowOwned() && !skirmish_ && slowCool_ <= 0) {  // (not in a skirmish: other headsets' time runs on)
             castSlowTime();
             if (trace) LOGI("spell gesture: hands together -> slow time");
             gestTogether_ = 0;
@@ -475,6 +476,10 @@ void GameApp::stepSpells(float dt) {
                     if (killed) LOGI("Fire circle: Reaper %u burnt", e.uid);
                 }
             }
+            skirmishHitWhere(20.0f, circleAt_, [&](const SkPlayer& sp) {
+                const float r = length(Vec3{sp.body.position.x - circleAt_.x, 0, sp.body.position.z - circleAt_.z});
+                return std::fabs(r - kCircleR) < 0.9f + sp.body.radius && std::fabs(sp.body.position.y - circleAt_.y) < 3.0f;
+            });
             for (size_t i = 0; i < creatures_.creatures.size(); ++i) {
                 const Creature& c = creatures_.creatures[i];
                 if (c.state == CreatureState::Dead || CreatureDirector::underground(c)) continue;
@@ -571,6 +576,12 @@ void GameApp::stepSpells(float dt) {
                 for (const auto& p : w.seg)
                     if (length(Vec3{c.pos.x - p.x, 0, c.pos.z - p.z}) < 1.6f + 0.4f * c.scale) { hitMul_ = 0.8f; weapon_.onHit(kCreatureTargetS + int(i), c.pos + Vec3{0, 0.5f, 0}, w.dir); hitMul_ = 1.0f; break; }
             }
+            skirmishHitWhere(20.0f, w.seg.empty() ? player_.position : w.seg[0] - w.dir, [&](const SkPlayer& sp) {
+                for (const auto& p : w.seg)
+                    if (length(Vec3{sp.body.position.x - p.x, 0, sp.body.position.z - p.z}) < 1.6f + sp.body.radius &&
+                        std::fabs(sp.body.position.y - p.y) < 3.0f) return true;
+                return false;
+            });
             for (size_t i = 0; i < destruct_.items.size(); ++i) {
                 const Destructible& d = destruct_.items[i];
                 if (!d.alive() || d.kind != DestructKind::Tree) continue;
@@ -602,6 +613,10 @@ void GameApp::stepSpells(float dt) {
             if (killed && enemies_.enemies[i].objective >= 0) completeObjective(enemies_.enemies[i].objective);
             enemies_.push(int(i), normalize(r + Vec3{0, 0.01f, 0}) * 8.0f + Vec3{0, 6.0f, 0});
         }
+        skirmishHitWhere(35.0f, tn.pos, [&](const SkPlayer& sp) {
+            return length(Vec3{sp.body.position.x - tn.pos.x, 0, sp.body.position.z - tn.pos.z}) < 4.5f + sp.body.radius &&
+                   sp.body.position.y - tn.pos.y < 8.0f;
+        });
         for (size_t i = 0; i < creatures_.creatures.size(); ++i) {
             const Creature& c = creatures_.creatures[i];
             if (c.state == CreatureState::Dead || CreatureDirector::underground(c) || length(Vec3{c.pos.x - tn.pos.x, 0, c.pos.z - tn.pos.z}) > 4.5f) continue;

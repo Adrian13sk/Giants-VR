@@ -1304,6 +1304,10 @@ private:  // the mission placed enemies: no test waves
     void renderSkirmishHud();
     bool skirmishRay(const Vec3& o, const Vec3& d, float maxD, float& t, int& target) const;
     void skirmishBlast(const Vec3& at, float radius, float damage);
+    // (2026-10-29) The rework's spells and fists hurt the campaign's Reapers and creatures only: in a skirmish a tornado,
+    // fire wall, fire circle or punch passed through the other players. Damages each other player `in` says stands in
+    // it (pushed away from `from`); returns how many.
+    int skirmishHitWhere(float damage, const Vec3& from, const std::function<bool(const SkPlayer&)>& in);
     void skirmishHit(int id, float amount, const Vec3& at, const Vec3& dir);
     std::string skName(int id) const;
     std::string skText(const char* key, const char* fallback) const;
