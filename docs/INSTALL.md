@@ -235,7 +235,13 @@ you look (Reaper story 3 on); both hands together before your chest - **slow tim
 eyes - **cloak**, unseen until you shoot (story 4 on); let a fire bolt go as the hand flicks up - **cluster**, six
 bolts (story 4 on); point at a Reaper and pull the hand back - **follow**: he hangs in the air where you point;
 swing and let go to throw him (story 5 on); both arms stretched out to the sides - **fire circle**: a ring of
-blue fire round you for 8 s that burns up bolts and grenades and burns Reapers walking into it (story 4 on).
+blue fire round you for 8 s that burns up bolts and grenades and burns Reapers walking into it (story 4 on);
+point at a Reaper and close the hand (squeeze the grip, the stick let go) - **shrink**: he shrinks to a quarter and
+runs, any hit kills him, step on him (story 4 on); point at open ground and pull the hand back - **teleport**: you
+blink there (story 3 on); point far out at deep water, then lift the hand sharply over your head and hold it a
+moment - **summon sea monster**: the serpent comes in and spits fireballs at the Reapers by the shore (her battles;
+keep away from where it spits); with her base up, point at one of her damaged buildings - **repair**: green fire
+mends it while you hold.
 
 ## Weapon wheel, Repair Gun, homing rockets, turret
 - **Hold the right stick forward**: a ring of what you carry appears before you; move the gun hand toward one and
@@ -245,7 +251,7 @@ blue fire round you for 8 s that burns up bolts and grenades and burns Reapers w
   Story 4 on): they burst as they pass a foe. Bought rockets are loaded at once; the weapon wheel shows a launcher
   cell per load (homing tinted green, proximity orange) to change it.
 - **Portable turret** (Baz, Story 3 on): in hand, point at the ground within 6 m and pull the trigger to plant it;
-  it shoots the Reapers it can see (60 rounds), folds away when empty and is back 20 s later. Put a hand on its
+  it shoots the Reapers and Rippers it can see (60 rounds), folds away when empty and is back 20 s later. Put a hand on its
   head and squeeze the grip to take it back.
 - **Shield** (Baz, Story 4 on): choose it on the weapon wheel - a bubble takes up to 150 of the hits meant for you for
   12 s (not falls or water); 40 s before it can be raised again. The gun in hand stays.
