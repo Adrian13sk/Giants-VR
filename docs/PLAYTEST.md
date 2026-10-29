@@ -188,6 +188,9 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
 - [ ] **The lift (story3_prison_6, "Dick Whittington Lift"):** go down to the canyon floor under the gantry, step onto
       the round car on the rope and stand still: it rises 81 m to the gift shop. Comfortable to ride? (It was missing:
       the mission couldn't be finished by hand before.)
+- [ ] **Delphi's first missions by hand:** r1_saveyan ends when the ten guards at Yan's house are dead; in r1_smartiegrab
+      and r1_turbo, bring the Smartie back and set it down next to Yan (they couldn't be finished before).
+- [ ] **r4a's Reaper ships:** the two smaller ships now take fire bolts (only the galleon could be sunk before).
 - [ ] **Options -> CONTROLS as Delphi or Baz:** the card now shows 14 rows at a time ("1/2" in the title); stick
       left / right turns the page, any button closes it. Readable?
 

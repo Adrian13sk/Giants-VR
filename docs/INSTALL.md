@@ -54,8 +54,9 @@ Story1 plays its missions in order, as in the original:
    **reach for a Smartie and squeeze the grip** to pick it up (either hand). Carry it to the Smartie pad and
    **let go of the grip** over the pad. **Four saved** completes the mission (as the briefing says). One that falls
    in the water is eaten by the piranhas within about five seconds: grab it out quickly. Another hangs there later.
-3. **1c** and later: the mission's objectives (reach a place, kill marked enemies) work; story events in between
-   are not implemented yet.
+3. **1c** and later: the mission's objectives (reach a place, kill marked enemies, destroy buildings) work.
+   story3_prison_6: go down into the canyon under the gantry, **step onto the lift's round car and stand still** -
+   it rises to the gift shop. Delphi's rescues (r1_smartiegrab, r1_turbo): **set the Smartie down by Yan**.
 
 Cutscenes: watch from the shot's camera (you travel with it, the view never turns by itself); subtitles follow
 your head, just below the line of sight. **Either trigger skips** (release it first if you were holding it when the cutscene started).
