@@ -3151,3 +3151,13 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   counted. Fixed: Yan with trigger 3 is protected, not cargo; with no pad, the drop-off is 3 m round Yan. Mission
   bot / rescue tests: r1_saveyan, r1_smartiegrab, r1_turbo, story3_bunker_3, rstory3_pre_race_1,
   story3_launcher_5 (from in sight of the launchers) complete; 1b's rescue completes.
+- Mission bot over 28 Meccaryn and Delphi missions from their starts (900 s each, 24 Hz): 22 complete with the real
+  controls; the rest by targeted runs or their own mechanic tests (pop-up bombs, races, the lift, the ski). Two
+  more blockers found and fixed: **r4a's two Reaper ships could not be sunk** (their collision covers little of the
+  hull; fire bolts and shots went through, only the galleon went down) - destroy targets now also have an upright hit
+  cylinder (a third of the model's size round, from the sea up); and the bot itself learned Vimp meat (2a: hunt,
+  pick up, bring 20), aiming low on buildings (a galleon is "107 m tall" with its mast), putting Delphi's bow away
+  to cast bolts, walking with the reach walker (its own legs had looped in the sea off 1a's tower).
+- Per-mission coverage now (objectives completed by mechanics in some test, no AUTOCOMPLETE): every mission of the
+  three campaigns except k2d_offspring (walked earlier in the harness; Kabuto's walk is slow), kstory3_4 (the climb:
+  done on the headset, B18), rstory2_jetski_3 (B21: its route is unknown) and the_end (no objectives).

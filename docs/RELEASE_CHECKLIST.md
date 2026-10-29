@@ -9,7 +9,8 @@ when it depends on the headset (frame rate, comfort, controllers, sound on the Q
 
 | # | Criterion | Status |
 |---|---|---|
-| A1 | All three campaigns playable start to end: Meccaryn (Story1-4), Delphi (Rstory1-5), Kabuto (Kstory1-5), the 56 missions and the ending | HARNESS: campaign run 55/55 to the_end; sweep 56/56 clean. DEVICE: whole campaign completed 2026-10-27 (bac967b) |
+| A1 | All three campaigns playable start to end: Meccaryn (Story1-4), Delphi (Rstory1-5), Kabuto (Kstory1-5), the 56 missions and the ending | HARNESS: campaign run 55/55 to the_end; sweep 56/56 clean. DEVICE: whole campaign completed 2026-10-27 (bac967b) - but that run marks missions complete (AUTOCOMPLETE) |
+| A1b | Every mission finishable **by hand** (objectives done with the real controls, not marked complete) | HARNESS 2026-10-29: all but k2d_offspring (walked earlier), kstory3_4 (DEVICE, B18), rstory2_jetski_3 (B21: route unknown). This check found four missions that could not be finished: story3_prison_6 (no lift), r1_saveyan / r1_smartiegrab / r1_turbo (rescues with no drop-off), r4a's ships (couldn't be hit) - all fixed. devtest/reach + the mission bot |
 | A2 | Every inventory item in the data's item table works (weapondefs.bin, 73 items) | HARNESS: all but Motion Bomb (13) and Laser (4), which the data names but gives no behaviour; mines and the shotgun cover them |
 | A3 | Every Delphi spell (items 21-33, 73) by gesture | HARNESS (all 14); DEVICE for the ones in bac967b (fire bolt, wall, tornado); the rest pending the next run |
 | A4 | Cutscenes: all 66 chains play with the right cast; subtitles; skippable | HARNESS; DEVICE (cutscene set ran 2026-10-27) |
