@@ -729,6 +729,7 @@ void GameApp::teleportPlayer(const Vec3& p, float yaw) {
 
 void GameApp::setPlayMode(bool on, const InputFrame& in) {
     if (on == playMode_ || (on && !playerModel_)) return;
+    if (!on) { gyroOut("the free camera"); stopVehicleLoops(); }
     playMode_ = on;
     if (on) {
         // Re-enter play mode where the free camera is: the character drops in below the head.
@@ -844,6 +845,13 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         enemies_.playerHidden = enemies_.playerMoving = false;
         if (gyro_.riding) updateGyroRide(dt, in);
         else updateRiding(dt, in);
+        // (review 2026-10-29) What runs on whatever he does: the line's timer, a planted turret, the shield, mines
+        // (they still go off), the base (still building).
+        timmyLineT_ = std::max(0.0f, timmyLineT_ - dt);
+        updatePortTurret(dt, in);
+        updateShield(dt);
+        updateMines(dt, in);
+        if (base_.on) updateBase(dt, in);
         { GVR_PROF("feel"); updateFeel(dt, in); }
         updateCombat(dt);
         { GVR_PROF("audio"); updateAudio(dt); }
@@ -1983,6 +1991,7 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
     scopeWanted_ = false;
     bowValid_ = bowLinesShown_ = bowDrawing_ = false;  // (a Reaper mission's bow)
     if (weaponSel_ == 2 || weaponSel_ == 3 || weaponSel_ == 8 || weaponSel_ == 9 || (firstPerson_ && heldReaperGun(gh))) {
+        if (repairOn_ || repairLoop_) { repairOn_ = false; stopRepairLoop(); }  // (a Reaper gun picked up with the Repair Gun's beam on)
         // In the bush / holding a bomb or grenade (or a Reaper's gun picked up): no gun in hand (its bolts still fly).
         gunValid_ = false;
         laserOn_ = false;  // (2026-10-28: else the aim laser stayed drawn where it last was - found by a 36 Hz run)

@@ -62,20 +62,39 @@ void GameApp::initGyro(ModelCache* mc) {
          gyroNozzle_.x, gyroNozzle_.y, gyroNozzle_.z, gyroStick_.x, gyroStick_.y, gyroStick_.z);
 }
 
-void GameApp::placeGyro(const Vec3& at, float yaw) {
+void GameApp::placeGyro(const Vec3& at, float yaw, float lift) {
     if (!gyroModel_ || !assetWorld_) return;
     gyro_ = Gyro{};
     gyro_.on = true;
     gyro_.pos = at;
     float g;
     if (assetWorld_->terrain().heightAt(at.x, at.z, g)) gyro_.pos.y = g;
+    gyro_.pos.y += lift;  // (standing on a pad)
+    gyro_.padY = lift > 0 ? gyro_.pos.y : -1e9f;
+    gyro_.padAt = gyro_.pos;
     gyro_.yaw = yaw;
     LOGI("Gyrocopter parked at (%.1f %.1f %.1f)", gyro_.pos.x, gyro_.pos.y, gyro_.pos.z);
+}
+
+// The floor under a point: the ground, the sea's surface over water (it skims, never sinks), its pad near the pad.
+float GameApp::gyroFloor(const Vec3& p) const {
+    float g = -1000.0f;
+    if (assetWorld_ && !assetWorld_->terrain().heightAt(p.x, p.z, g)) g = -1000.0f;
+    if (player_.seaLevel > -1e8f) g = std::max(g, player_.seaLevel + 0.3f);
+    if (gyro_.padY > -1e8f && length(Vec3{p.x - gyro_.padAt.x, 0, p.z - gyro_.padAt.z}) < 4.0f) g = std::max(g, gyro_.padY);
+    return g;
 }
 
 Mat4 GameApp::gyroXf() const {
     return Mat4::translation(gyro_.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, gyro_.yaw) * Quat::fromAxisAngle({0, 0, 1}, gyro_.bank) *
                                                          Quat::fromAxisAngle({1, 0, 0}, gyro_.tilt));
+}
+
+// Engine and beam loops off (quitting to the menu, a cutscene, the free camera).
+void GameApp::stopVehicleLoops() {
+    if (gyroLoop_ && audio_) { audio_->stop(gyroLoop_); gyroLoop_ = 0; }
+    if (repairLoop_ && audio_) { audio_->stop(repairLoop_); repairLoop_ = 0; }
+    repairOn_ = false;
 }
 
 void GameApp::gyroOut(const char* why) {
@@ -84,8 +103,11 @@ void GameApp::gyroOut(const char* why) {
     riding_ = false;
     if (gyroLoop_ && audio_) { audio_->stop(gyroLoop_); gyroLoop_ = 0; }
     sfx2D("me_gyout", 0.8f);
+    // Beside it, at its floor's height (not a teleport: that would put him on the terrain under a pad or a roof, and
+    // refill the jetpack); his own physics takes it from there.
     const Vec3 side{std::cos(gyro_.yaw), 0, -std::sin(gyro_.yaw)};
-    player_.teleport(gyro_.pos + side * 2.5f + Vec3{0, 0.5f, 0}, gyro_.yaw);
+    player_.position = gyro_.pos + side * 2.5f + Vec3{0, 0.3f, 0};
+    player_.velocity = Vec3{0, 0, 0};
     gyro_.vel = Vec3{0, 0, 0};
     gyro_.boardCool = 2.0f;
     LOGI("Baz gets out of the gyrocopter (%s)", why);
@@ -98,9 +120,28 @@ void GameApp::updateGyroParked(float dt, const InputFrame& in) {
     gyro_.rotor *= std::max(0.0f, 1.0f - dt * 0.6f);  // (winding down)
     gyro_.bank *= 0.9f;
     gyro_.tilt *= 0.9f;
+    // Left in the air (its pilot fell): it comes down on its own.
+    {
+        const float fl = gyroFloor(gyro_.pos);
+        if (gyro_.pos.y > fl + 0.02f) {
+            gyro_.vel.y -= 9.8f * dt;
+            gyro_.pos.y += gyro_.vel.y * dt;
+            if (gyro_.pos.y <= fl) { gyro_.pos.y = fl; gyro_.vel.y = 0; sfx("me_gylnd", gyro_.pos, 0.9f); }
+        } else {
+            gyro_.pos.y = std::max(gyro_.pos.y, fl);
+            gyro_.vel.y = 0;
+        }
+    }
+    // The grips' last state every frame (one held since before - sprinting, after getting out - isn't a fresh one).
+    bool fresh[2];
+    for (int h = 0; h < 2; ++h) {
+        const bool sq = in.hand[h].squeeze > 0.8f;
+        fresh[h] = sq && !gyroGripWas_[h];
+        gyroGripWas_[h] = sq;
+    }
     if (hero_ != Hero::Mecc || !playMode_ || dying_ || cutsceneActive() || gyro_.boardCool > 0) return;
     const float d = length(Vec3{player_.position.x - gyro_.pos.x, 0, player_.position.z - gyro_.pos.z});
-    if (d > 3.5f) { gyroGripWas_[0] = gyroGripWas_[1] = false; return; }
+    if (d > 3.5f || std::fabs(player_.position.y - gyro_.pos.y) > 2.5f) return;
     if (!gyroHinted_) {
         gyroHinted_ = true;
         timmyLine_ = "THE GYROCOPTER: SQUEEZE A GRIP TO GET IN";
@@ -108,11 +149,12 @@ void GameApp::updateGyroParked(float dt, const InputFrame& in) {
     }
     static const bool autoIn = std::getenv("GVR_GYRO_AUTO") != nullptr;  // test hook: in at once
     bool in2 = autoIn;
+    const Vec4 seatW = gyroXf() * Vec4{gyroSeat_.x, gyroSeat_.y, gyroSeat_.z, 1.0f};
     for (int h = 0; h < 2 && !in2; ++h) {
-        const bool sq = in.hand[h].squeeze > 0.8f;
-        const bool fresh = sq && !gyroGripWas_[h];
-        gyroGripWas_[h] = sq;
-        if (fresh) in2 = true;
+        if (!fresh[h] || !in.hand[h].gripPoseValid) continue;
+        // First person: a hand on it (within 1.8 m of the seat); third person: the gun hand's grip (the other's is sprint).
+        if (firstPerson_) in2 = length(rig_.toWorld(in.hand[h].gripPose).position - Vec3{seatW.x, seatW.y, seatW.z}) < 1.8f;
+        else in2 = h == rig_.turnHand();
     }
     if (!in2) return;
     // In.
@@ -120,9 +162,15 @@ void GameApp::updateGyroParked(float dt, const InputFrame& in) {
     riding_ = true;
     gyro_.vel = Vec3{0, 0, 0};
     gyro_.stickHeld = false;
-    camYaw_ = gyro_.yaw;
+    // The view: the gyrocopter's forward where the user is looking now (not where the tracking space faces).
+    gyro_.headYaw0 = in.headValid ? yawOf(in.head.orientation) : 0.0f;
+    gyro_.head0 = in.headValid ? in.head.position : Vec3{0, 1.6f, 0};
+    camYaw_ = gyro_.yaw - gyro_.headYaw0;
+    gyro_.viewYaw = camYaw_;
     player_.yaw = gyro_.yaw;
     player_.velocity = Vec3{};
+    if (mgLoop_ && audio_) { audio_->stop(mgLoop_); mgLoop_ = 0; }
+    timmyOn_ = false;  // (Timmy, riding on his back, gets off for the flight)
     sfx2D("me_gyin", 0.9f);
     sfx2D("me_gyon", 0.8f);
     if (audio_ && !gyroLoop_) gyroLoop_ = audio_->play2D("me_gylp", 0.45f, 0.8f, true);
@@ -161,19 +209,25 @@ void GameApp::updateGyroRide(float dt, const InputFrame& in) {
     if (std::fabs(turnIn) < 0.12f) turnIn = 0;
     if (std::fabs(climbIn) < 0.2f) climbIn = 0;
     // The floor under it: the ground, or the sea's surface over water (it skims, it doesn't sink).
-    auto floorAt = [&](const Vec3& p) {
-        float g = -1000.0f;
-        if (assetWorld_ && !assetWorld_->terrain().heightAt(p.x, p.z, g)) g = -1000.0f;
-        if (player_.seaLevel > -1e8f) g = std::max(g, player_.seaLevel + 0.3f);
-        return g;
-    };
+    auto floorAt = [&](const Vec3& p) { return gyroFloor(p); };
     float ground = floorAt(gyro_.pos);
     const bool landed = gyro_.pos.y <= ground + 0.05f;
     // Turning (on the ground only while it rolls).
     const Vec3 f0{-std::sin(gyro_.yaw), 0, -std::cos(gyro_.yaw)};
     const float fwdSpeed = dot(gyro_.vel, f0);
     if (!landed || std::fabs(fwdSpeed) > 0.5f) gyro_.yaw -= turnIn * kGyroTurn * dt;
-    camYaw_ = gyro_.yaw;
+    // The view turns with it - in steps when the user plays with snap turning (smoothly otherwise).
+    {
+        const float want = gyro_.yaw - gyro_.headYaw0;
+        if (settings_.turn <= 1) {
+            const float step = settings_.turn == 0 ? 0.5236f : 0.7854f;
+            const float diff = angleDelta(gyro_.viewYaw, want);
+            if (std::fabs(diff) >= step) gyro_.viewYaw += diff > 0 ? step : -step;
+        } else {
+            gyro_.viewYaw = want;
+        }
+        camYaw_ = gyro_.viewYaw;
+    }
     player_.yaw = gyro_.yaw;
     const Vec3 fwd{-std::sin(gyro_.yaw), 0, -std::cos(gyro_.yaw)};
     // Speed along its heading eases toward the stick's; the sideways slip dies away; climb as asked.
@@ -195,6 +249,7 @@ void GameApp::updateGyroRide(float dt, const InputFrame& in) {
         if (worldRay_(gyro_.pos + Vec3{0, 1.2f, 0}, dir, hs * dt + 2.5f, t, n) && t < 2.5f) {
             if (hs > 10.0f) { sfx2D("me_gydmg", 0.8f); damagePlayer(4.0f, DeathCause::Fall); }  // (a crash)
             gyro_.vel.x = gyro_.vel.z = 0;
+            if (!gyro_.riding) return;  // (the crash killed him: out already)
         }
     }
     gyro_.pos = gyro_.pos + gyro_.vel * dt;
@@ -215,15 +270,21 @@ void GameApp::updateGyroRide(float dt, const InputFrame& in) {
     // the tracking floor is set under them by the tracked head's height.
     player_.position = gyro_.pos;
     if (firstPerson_ && in.headValid) {
-        const Vec4 e = gyroXf() * Vec4{gyroSeat_.x, gyroSeat_.y + 0.55f, gyroSeat_.z + 0.05f, 1.0f};
-        player_.position = Vec3{e.x, e.y - in.head.position.y * rig_.comfort.worldScale, e.z};
+        // (review: from its position and heading only - not its bank and pitch, which slid the eye about - and the
+        // head's movement since boarding still moves the eye: leaning and ducking work)
+        const float ws = rig_.comfort.worldScale;
+        const Quat yq = Quat::fromAxisAngle({0, 1, 0}, gyro_.yaw);
+        const Vec3 e = gyro_.pos + yq.rotate(Vec3{gyroSeat_.x, gyroSeat_.y + 0.55f, gyroSeat_.z + 0.05f});
+        const Vec3 dh = Quat::fromAxisAngle({0, 1, 0}, camYaw_).rotate(Vec3{in.head.position.x - gyro_.head0.x, 0, in.head.position.z - gyro_.head0.z}) * ws;
+        player_.position = Vec3{e.x + dh.x, e.y - gyro_.head0.y * ws - seatLift() * ws, e.z + dh.z};
     }
     player_.velocity = gyro_.vel;
     player_.onGround = true;
     placeCamera(dt, false, &in);
     bodyXf_ = gyroXf();
+    armTargets_[0].valid = armTargets_[1].valid = false;  // (the clip's arms: no stale targets from before boarding)
     if (playerModel_ && gyroRideClip_ >= 0) {
-        playerModel_->setHideEnabled(false);
+        playerModel_->setHideEnabled(firstPerson_);  // (first person: his head hidden round the eyes)
         const float len = std::max(0.1f, playerModel_->animDuration(gyroRideClip_));
         playerModel_->poseBlend(renderer_, gyroRideClip_, std::fmod(float(time_), len), gyroRideClip_, std::fmod(float(time_), len), 0.0f);
     }
@@ -247,7 +308,14 @@ void GameApp::updateGyroRide(float dt, const InputFrame& in) {
     // Out: landed, the move hand's grip held a second.
     if (landed && in.hand[mh].squeeze > 0.8f) {
         gyro_.outT += dt;
-        if (gyro_.outT > 1.0f) { gyro_.outT = 0; gyroOut("the grip held"); }
+        float tg = -1000.0f;
+        const bool overSea = assetWorld_ && (!assetWorld_->terrain().heightAt(gyro_.pos.x, gyro_.pos.z, tg) || tg < player_.seaLevel - 0.3f) &&
+                             !(gyro_.padY > -1e8f && length(Vec3{gyro_.pos.x - gyro_.padAt.x, 0, gyro_.pos.z - gyro_.padAt.z}) < 4.0f);
+        if (gyro_.outT > 1.0f && overSea) {
+            gyro_.outT = -1.0f;
+            timmyLine_ = "NOT OVER THE WATER - LAND ON THE GROUND FIRST";
+            timmyLineT_ = 2.0f;
+        } else if (gyro_.outT > 1.0f) { gyro_.outT = 0; gyroOut("the grip held"); }
     } else {
         gyro_.outT = 0;
     }

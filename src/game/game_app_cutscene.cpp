@@ -45,6 +45,7 @@ bool GameApp::cutsceneInfo(std::string& shot, float& t, float& black) const {
 void GameApp::startCutscene(const std::string& first) {
     if (!cutscene_ || first.empty()) return;
     if (!cutscene_->start(first)) return;
+    stopVehicleLoops();  // (loops the cutscene would otherwise play under)
     LOGI("Cutscene %s started", first.c_str());
     skipArmed_ = false;  // a trigger held when the cutscene starts must not skip it
 }

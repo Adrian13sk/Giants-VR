@@ -14,7 +14,7 @@ enum : int { kHintBody = 1, kHintStone = 2, kHintGun = 4, kHintSwim = 8, kHintBa
 
 void GameApp::updateHints(float dt) {
     // On the Reaperski: the handlebars, once.
-    if (riding_ && playMode_ && firstPerson_ && !cutsceneActive() && !menuOpen_ && !(settings_.hintsShown & kHintBars) && !skiBars_) {
+    if (onSki() && playMode_ && firstPerson_ && !cutsceneActive() && !menuOpen_ && !(settings_.hintsShown & kHintBars) && !skiBars_) {
         rideHintT_ += dt;
         if (rideHintT_ > 1.5f && timmyLineT_ <= 0) {
             settings_.hintsShown |= kHintBars;

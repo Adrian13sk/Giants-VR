@@ -1119,3 +1119,5 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Proximity rockets (item 16) and the launcher loads on the wheel | weapons/w_mecc_prox 72 / 24 Hz (bursts by the Reaper; the plain-rocket control bursts ~50 m beyond) |
 | Gyrocopter (Gyro_l0; practice) | weapons/w_mecc_gyro 72 / 24 Hz (in by the grip, flies 20 m up and 130 m out, lands on the sea surface, out); frames checked in both views |
 | Original sounds for the new items; review fixes (proximity arming / bosses / load fallback / shop after CONTINUE) | no "unavailable" sounds in the runs; w_mecc_prox and w_mecc_homing 72 / 24 Hz still pass; regression: tests 75 + 3 known, weapons 27/27, ui 19/19, npcs 11/11, missions 31/31; sweep 56/56 |
+| The Gyrocopter Pad (base) | npcs/npc_base_gyropad 72 Hz: built in 20 s, "Gyropad ready!", the gyrocopter on its top; frame checked |
+| Gyrocopter review fixes | w_mecc_gyro 72 / 24 Hz (boarding by a hand on it; a short flight; out on land); regression: tests 75 + 3 known, weapons 28/28, ui 19/19, npcs 12/12, missions 31/31; sweep 56/56 |

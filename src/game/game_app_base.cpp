@@ -61,6 +61,9 @@ const BldgDef kMecc[] = {
     // The Bulldog Turret (GTextEnglish iconphmeccturret; s_mecc_turret in xx_mecc_base). The template
     // has no turret slots: two sites are ours (placeTurretSites), and so is what it does.
     {"turret", "BULLDOG TURRET", "s_mecc_turret", "s_mecc_turret.anm", "", 5, 15.0f, false},
+    // (2026-10-29) The Gyrocopter Pad (GText basephmeccgyropad / iconphmeccvehlaunch; s_mecc_gpad): on the template's
+    // free "teleport" slot (ours). Built, it has a gyrocopter standing on it ("Gyropad ready!") - game_app_gyro.cpp.
+    {"gyropad", "GYROCOPTER PAD", "s_mecc_gpad", "s_mecc_gpad.anm", "teleport", 8, 20.0f, false},
 };
 
 // Delphi's base (r4a, "Sappho's Fleet"): RP_base_template_1 and xx_reaper_base.gzp. Names from
@@ -324,6 +327,8 @@ void GameApp::initBase() {
             if (fs.exists(std::string(kDefs[d].model) + ".skn") && sm->load(fs, *mc, renderer_, kDefs[d].model, kDefs[d].anim)) bl.model = std::move(sm);
             else bl.still = mc->get(std::string(kDefs[d].model) + ".gbs", kDefs[d].anim, true);  // static (wood_command)
             if (!bl.model && !bl.still) LOGW("Base: %s unavailable", kDefs[d].model);
+            if (isKey(d, "gyropad") && bl.model && bl.model->restMin().y > 0.05f)  // (its mesh starts 2.5 m above its origin: on the ground)
+                bl.xf.m[13] -= bl.model->restMin().y;
             if (d == 0) { bl.state = 3; bl.progress = 1.0f; }
             base_.bldgs.push_back(std::move(bl));
         }
@@ -477,6 +482,9 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         base_.autoOrdered = true;
         if (std::string(o) == "all")
             for (int d : baseOffers()) { base_.food += kDefs[d].meat; orderBuilding(d); }
+        else  // (a building's key: that one only)
+            for (int d : baseOffers())
+                if (isKey(d, o)) { base_.food += kDefs[d].meat; orderBuilding(d); }
     }
     const Vec3 p = player_.position;
     auto flat = [](const Vec3& a, const Vec3& b) { return std::sqrt((a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z)); };
@@ -545,6 +553,15 @@ void GameApp::updateBase(float dt, const InputFrame& in) {
         }
         if (b.progress >= 1.0f) {
             b.state = 3;
+            if (isKey(b.def, "gyropad") && !gyro_.on) {  // its gyrocopter, on the pad's top
+                Vec3 mn{0, 0, 0}, mx{0, 0.4f, 0};
+                if (b.model) { mn = b.model->restMin(); mx = b.model->restMax(); }
+                else if (b.still) { mn = b.still->boundsMin; mx = b.still->boundsMax; }
+                float ty = b.xf.m[13];
+                assetWorld_->terrain().heightAt(b.xf.m[12], b.xf.m[14], ty);
+                placeGyro(Vec3{b.xf.m[12], b.xf.m[13], b.xf.m[14]}, std::atan2(-b.xf.m[8], -b.xf.m[10]), std::max(0.0f, b.xf.m[13] + mx.y - ty));
+                smartieSay("SMARTIE", "smchgyropaddone");
+            }
             b.maxHp = b.hp = (kDefs[b.def].core ? 400.0f : 250.0f) * (b.level > 0 ? 1.6f : 1.0f);
             // Solid once standing: the building's own collision mesh (<model>_coll), else its model.
             ModelCache* mc = assetWorld_->models();
@@ -1079,6 +1096,7 @@ void GameApp::placeTurretSites(int d, const Mat4& baseXf) {
 // A raided building falls: noise and dust, and its site is empty again (ordered again from the Build Pad).
 void GameApp::wreckBuilding(Base::Bldg& b) {
     const Vec3 bp{b.xf.m[12], b.xf.m[13], b.xf.m[14]};
+    if (isKey(b.def, "gyropad")) gyro_.padY = -1e9f;  // (its gyrocopter comes down off the wreck: updateGyroParked)
     b.state = 0;
     b.progress = 0;
     b.hp = 0;

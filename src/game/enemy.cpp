@@ -255,7 +255,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
             turn(faceYaw);
             if (e.punchPending && e.clip == EnemyClip::Punch && e.clipTime > clipDuration[int(EnemyClip::Punch)] * 0.42f) {
                 e.punchPending = false;
-                if (playerAlive && dist < 2.1f) punches.push_back(int(i));
+                if (playerAlive && dist < 2.1f && std::fabs(player.y - e.pos.y) < 2.0f) punches.push_back(int(i));  // (not one hovering over him)
             }
             e.clipTime += dt;
             e.clipTime = std::min(e.clipTime, clipDuration[int(e.clip)] * 0.999f);
@@ -263,7 +263,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
         }
         // Rework: you right up against him - he punches (rpman_punch) instead of firing point blank.
         // (Not at a bush he hasn't seen through yet: the poke is how he finds you - 2026-10-28.)
-        if (params.punch && playerAlive && sees && dist < 1.7f && e.punchCool <= 0 && !e.posted && !(playerHidden && !e.aware) &&
+        if (params.punch && playerAlive && sees && dist < 1.7f && std::fabs(player.y - e.pos.y) < 2.0f && e.punchCool <= 0 && !e.posted && !(playerHidden && !e.aware) &&
             (e.state == EnemyState::Advance || e.state == EnemyState::Fire || e.state == EnemyState::Idle)) {
             setClip(e, EnemyClip::Punch, false);
             e.clipTime = 0;

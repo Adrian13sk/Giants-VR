@@ -162,6 +162,7 @@ void GameApp::grantPracticeKit() {
 
 void GameApp::quitToTitle(const InputFrame& in) {
     menuOpen_ = false;
+    stopVehicleLoops();  // (the gyrocopter's engine, the Repair Gun's beam)
     if (cutsceneActive()) cutscene_->stop();
     // Sounds that loop with the hero's state (the main menu doesn't update them, review 2026-10-28).
     if (audio_) {

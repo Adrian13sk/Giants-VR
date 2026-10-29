@@ -1,0 +1,15 @@
+# (2026-10-29) The base's Gyrocopter Pad (the data's s_mecc_gpad; GText "Gyrocopter Pad", "Gyropad ready!"): ordered
+# (GVR_BASE_ORDER gyropad), the crew builds it on the template's free slot, and a gyrocopter stands on it.
+# Log (checked by devtest.ps1): "Base: GYROCOPTER PAD" "Gyrocopter parked".
+name npc_base_gyropad
+world Story5
+mission 5c_securebase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_RAIDS 1
+env GVR_BASE_FOOD 20
+env GVR_BASE_ORDER gyropad
+env GVR_BASE_TRACE 1
+view third
+duration 60
+shot 55 gyropad

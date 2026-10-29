@@ -182,7 +182,7 @@ void GameApp::updateFeel(float dt, const InputFrame& in) {
     }
     // First person: reach for the holstered weapon and grip to draw it (right thigh for the gun,
     // over the shoulder for the launcher); the stick still switches too.
-    if (firstPerson_ && (hasLauncher_ || longOut)) {
+    if (firstPerson_ && !riding_ && (hasLauncher_ || longOut)) {  // (not in a vehicle: the joystick grip isn't a draw)
         const int gh = rig_.turnHand();
         const ControllerState& c = in.hand[gh];
         const bool grip = c.squeeze > 0.7f;

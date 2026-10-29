@@ -1897,6 +1897,10 @@ private:  // the mission placed enemies: no test waves
         bool on = false, riding = false, stickHeld = false;
         Vec3 pos, vel;
         float yaw = 0, bank = 0, tilt = 0, rotor = 0, rotorT = 0, boardCool = 0, outT = 0, stickPitch0 = 0, stickRoll0 = 0;
+        float padY = -1e9f;  // a pad's top under its parking spot (it stands on it, not in it)
+        float headYaw0 = 0, viewYaw = 0;  // the head's yaw (tracking) when he got in; the view's yaw (snap steps)
+        Vec3 head0;                       // the head (tracking) when he got in
+        Vec3 padAt;
     } gyro_;
     std::unique_ptr<SkinnedModel> gyroModel_;
     Vec3 gyroSeat_{0, 1.0f, 0}, gyroNozzle_{0.6f, 1.2f, -1.0f}, gyroStick_{0, 1.3f, -0.5f};
@@ -1904,8 +1908,10 @@ private:  // the mission placed enemies: no test waves
     int gyroRideClip_ = -1;
     bool gyroGripWas_[2] = {false, false}, gyroHinted_ = false;
     void initGyro(ModelCache* mc);
-    void placeGyro(const Vec3& at, float yaw);
+    void placeGyro(const Vec3& at, float yaw, float lift = 0.0f);
     Mat4 gyroXf() const;
+    float gyroFloor(const Vec3& p) const;
+    void stopVehicleLoops();
     void gyroOut(const char* why);
     void updateGyroParked(float dt, const InputFrame& in);
     void updateGyroRide(float dt, const InputFrame& in);

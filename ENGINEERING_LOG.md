@@ -2915,3 +2915,24 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   placeCamera in the ride the view stayed at the start. Devtest weapons/w_mecc_gyro (in, 20 m up, 130 m out over the
   sea, down, out; 72 / 24 Hz); frames checked (third person: the pilot in his seat; first person: the cockpit).
   The Gyrocopter Pad in the bases: not yet.
+- The Gyrocopter Pad in Baz's base (s_mecc_gpad on the template's free "teleport" slot; 8 meat, 20 s; ours): built,
+  a gyrocopter stands on its top and a Smartie says the data's "Gyropad ready!" (smchgyropaddone). The pad's mesh
+  starts 2.5 m above its origin - lowered onto the ground; its top (4.3 m) is the gyrocopter's floor there. Devtest
+  npcs/npc_base_gyropad (GVR_BASE_ORDER now also takes one building's key); frame checked.
+- Review of b68f19d (the gyrocopter; read-only reviewer agent), fixed: (1) the boarding line never timed out in
+  flight (the line's timer only ran on foot - the Reaperski's handlebars hint too); fixing it would have shown that
+  hint for Baz's gyrocopter and marked it shown: the hint now tests onSki(); (2) first person the eye was pinned
+  every frame - leaning and ducking didn't move it, and it took the model's bank / tilt (sliding the eye 0.3-0.5 m):
+  now from its position and heading, plus the head's movement since boarding, less the seated lift; (3) in flight the
+  turret, shield, mines and the base stopped (the riding branch returned before them): they run there now, and Timmy
+  gets off; (4) left in the air (the pilot dead), it hung there for the rest of the mission: a parked gyrocopter
+  comes down on its own; (5) any fresh grip within 3.5 m boarded (sprinting, a holster draw): first person a hand
+  within 1.8 m of the seat, third person the gun hand only; the machine gun's loop stops on boarding; (6) Reapers
+  punched him at any height (horizontal distance only): not over 2 m apart vertically; (7) the engine and Repair Gun
+  loops played on through quit-to-menu, cutscenes and the free camera: stopVehicleLoops(); (8) a crash that killed
+  him kept running the ride; (9) getting out used teleport (onto the terrain under a pad, a free refuel): set beside
+  it at its floor, and refused over the sea; (10) first person the seated body showed its head and bent its arms to
+  stale targets; (11) the view turns with it in snap steps under snap turning, and boards with the gyrocopter's
+  forward where the user is looking; the holster draw doesn't fire on the joystick grip; a Reaper gun picked up with
+  the beam on stops the repair loop; a wrecked pad drops its gyrocopter. Open: no turn-rate vignette in flight; the
+  gyrocopter casts no shadow.
