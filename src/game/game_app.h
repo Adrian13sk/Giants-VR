@@ -1576,6 +1576,7 @@ private:  // the mission placed enemies: no test waves
     void updateKabutoHandGrab(const InputFrame& in);
     void checkReachObjectives();  // test hook GVR_REACH_CHECK (game_app_reach.cpp)
     bool planReach(int objective, bool log);
+    bool planReachBox(const Vec3& mn, const Vec3& mx, bool log, int objective);
     bool reachWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt);  // GVR_REACH_WALK: steers along reachPath_
     // Test hook GVR_KABUTO_FEED=<size>: Kabuto walks to the nearest Smartie or Vimp and eats it (X) until he
     // has grown to that size - his growth in real play, with its timing (game_app_kabuto.cpp).
@@ -2105,6 +2106,15 @@ private:  // the mission placed enemies: no test waves
     float hornCool_ = 0, hornWaveT_ = -1;
     int hornAlarms_ = 0;
     void initHorn();
+    // (2026-10-29) Test hook GVR_MISSION_BOT: plays the objectives with the real controls (game_app_bot.cpp).
+    bool botOn() const;
+    bool botTargetOf(int i, Vec3& at, bool& shoot) const;
+    void botFireInput(float dt, InputFrame& in);
+    void botWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt);
+    int botObjective_ = -1, botReplans_ = 0, botLog_ = 0;
+    float botPickT_ = 0, botFireT_ = 0, botStuckT_ = 0, botReplanT_ = 0;
+    bool botPlanned_ = false, botEngaged_ = false;
+    Vec3 botTarget_;
     void updateHorn(float dt);  // (the mixer held while a cutscene waits behind the headset's menu)
     void sfx(const char* name, const Vec3& pos, float vol = 1.0f, float pitch = 1.0f);
     void sfx2D(const char* name, float vol = 1.0f, float pitch = 1.0f);

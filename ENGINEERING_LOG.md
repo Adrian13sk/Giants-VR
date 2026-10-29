@@ -3141,3 +3141,13 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   each standing log_launcher_base sends two guards down on hover packs near you; 45 s between alarms, three at most,
   none once the launchers are down. npcs/npc_guard_horn. Everything else the briefings name is in the game (bush
   pack, nitro, bubble spell, regenerating in deep water, ice walls and ski pickups, weak spots, boulders, crystals).
+- Every mission finishable by hand? The campaign run marks missions complete (GVR_AUTOCOMPLETE), which hid what
+  story3_prison_6 showed. New test hook GVR_MISSION_BOT (game_app_bot.cpp): goes for the nearest objective left
+  (reach / kill / destroy) along the reach planner's paths, and in range and in sight stops, aims and fires with the
+  real controls; stuck, it looks for a firing spot round the target. Coverage per mission = objectives completed by
+  mechanics in any test (no AUTOCOMPLETE). Found: **the Delphi story could not be finished by hand from its first
+  mission** - r1_saveyan's objective list holds Yan himself (trigger 3, read as a Smartie to carry; no pad), and
+  r1_smartiegrab / r1_turbo ask to "Return the SMARTIE to YAN" with no Smartie pad in the mission, so no rescue ever
+  counted. Fixed: Yan with trigger 3 is protected, not cargo; with no pad, the drop-off is 3 m round Yan. Mission
+  bot / rescue tests: r1_saveyan, r1_smartiegrab, r1_turbo, story3_bunker_3, rstory3_pre_race_1,
+  story3_launcher_5 (from in sight of the launchers) complete; 1b's rescue completes.

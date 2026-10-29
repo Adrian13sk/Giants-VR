@@ -1,0 +1,13 @@
+# story3_launcher_5 by the mission bot (2026-10-29), started in sight of the first launcher: the three guard
+# launchers brought down with the real controls (the horn's reinforcements on the way).
+# Log (checked by devtest.ps1): "Mission story3_launcher_5 complete".
+name m_bot_story3_launcher_5
+world Story3
+mission story3_launcher_5
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MISSION_BOT 1
+at 1971 300
+look 1971 145
+duration 400

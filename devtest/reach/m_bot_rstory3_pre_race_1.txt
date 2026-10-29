@@ -1,0 +1,10 @@
+# rstory3_pre_race_1 by the mission bot (2026-10-29): every objective done with the real controls (walk, aim, fire).
+# Log (checked by devtest.ps1): "Mission rstory3_pre_race_1 complete".
+name m_bot_rstory3_pre_race_1
+world Rstory3_race_1
+mission rstory3_pre_race_1
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MISSION_BOT 1
+duration 900

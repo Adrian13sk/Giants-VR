@@ -130,6 +130,12 @@ void reachFill(const AssetWorld& world, const PlayerController& pc, bool giant, 
 
 bool GameApp::planReach(int objective, bool log) {
     if (!assetWorld_ || objective < 0 || size_t(objective) >= objectives_.size()) return false;
+    return planReachBox(objectives_[size_t(objective)].boundsMin, objectives_[size_t(objective)].boundsMax, log, objective);
+}
+
+// The path (reachPath_) to anything within the box [mn, mx]: an objective, or the mission bot's target.
+bool GameApp::planReachBox(const Vec3& mn, const Vec3& mx, bool log, int objective) {
+    if (!assetWorld_) return false;
     Vec3 lo;
     int W = 0, H = 0;
     std::vector<uint8_t> seen;
@@ -139,7 +145,7 @@ bool GameApp::planReach(int objective, bool log) {
     reachW_ = W;
     reachLo_ = lo;
     if (reachBlocked_.size() != size_t(W) * H) reachBlocked_.assign(size_t(W) * H, 0);
-    const Objective& o = objectives_[size_t(objective)];
+    const Objective o{1, mn, mx};
     const Vec3 c = (o.boundsMin + o.boundsMax) * 0.5f;
     // (2026-10-29) A goal cell: within the box (plus the 2 m the objective allows - a 2.3 m box fell between the 2 m
     // grid's points) AND at the box's height where the ground there is (story3_prison_6's box sits on a plateau 80 m

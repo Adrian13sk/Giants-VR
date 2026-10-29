@@ -1,0 +1,11 @@
+# r1_saveyan by the mission bot (2026-10-29): Yan carries trigger 3 in the data - read as a Smartie to carry, the
+# mission could never end; he is protected where he stands, and the ten guards' deaths finish it.
+# Log (checked by devtest.ps1): "Yan (trigger 3): protected" "Mission r1_saveyan complete".
+name m_bot_r1_saveyan
+world Rstory1
+mission r1_saveyan
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MISSION_BOT 1
+duration 600

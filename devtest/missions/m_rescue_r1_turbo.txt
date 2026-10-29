@@ -1,0 +1,11 @@
+# Delphi's rescues (2026-10-29): "Return the SMARTIE to YAN" - no Smartie pad in these missions, so the rescue
+# could never count; now set down by Yan it does. (GVR_AUTO_RESCUE: the test hand fetches it - not the walk.)
+# Log (checked by devtest.ps1): "Smartie drop-off: by Yan" "Objective 0 done".
+name m_rescue_r1_turbo
+world Rstory1
+mission r1_turbo
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_AUTO_RESCUE 1
+duration 400

@@ -1,0 +1,10 @@
+# story3_bunker_3 by the mission bot (2026-10-29): every objective done with the real controls (walk, aim, fire).
+# Log (checked by devtest.ps1): "Mission story3_bunker_3 complete".
+name m_bot_story3_bunker_3
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MISSION_BOT 1
+duration 900

@@ -91,6 +91,7 @@ add_library(gvr_core STATIC
   src/game/game_app_shadow.cpp
   src/game/game_app_lift.cpp
   src/game/game_app_horn.cpp
+  src/game/game_app_bot.cpp
   src/game/game_app_shield.cpp
   src/game/game_app_gyro.cpp
   src/game/game_app_basecrew.cpp

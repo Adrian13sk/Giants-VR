@@ -242,6 +242,11 @@ void GameApp::initMission() {
         if (weaponSel_ == 13 || weaponSel_ == 14) { launcherMode_ = weaponSel_ - 12; weaponSel_ = 1; }  // (the launcher's loads: wheel cells only)
     }
     if (!weaponOwned(weaponSel_)) weaponSel_ = 0;
+    {
+        std::string kinds;  // (2026-10-29) which kinds: 1 reach, 2 kill, 3 rescue, 4 bring meat, 5 destroy, 6 race
+        for (const auto& o : objectives_) kinds += char('0' + o.kind);
+        if (!kinds.empty()) LOGI("Objective kinds: %s", kinds.c_str());
+    }
     LOGI("Mission %s: %zu objectives, jetpack %s", assetWorld_->missionName().c_str(), objectives_.size(),
          jet ? "available" : "not yet (story)");
 }

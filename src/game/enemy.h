@@ -180,9 +180,10 @@ public:
     // Any clip on a body (rework: a Reaper hanging on Delphi's blade flails, then lies again).
     void setBodyClip(int i, EnemyClip c, bool loop) { if (i >= 0 && size_t(i) < enemies.size()) { enemies[size_t(i)].actT = 0; setClip(enemies[size_t(i)], c, loop); } }
 
+    bool lineOfSight(const Vec3& from, const Vec3& to) const;  // (public 2026-10-29: the mission bot test hook)
+
 private:
     void setClip(Enemy& e, EnemyClip c, bool loop);
-    bool lineOfSight(const Vec3& from, const Vec3& to) const;
     // Moves e horizontally by `step` unless the ground rises too steeply (cliff); true if moved.
     bool tryMove(Enemy& e, const Vec3& step);
     unsigned rng_ = 12345u;

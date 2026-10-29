@@ -875,6 +875,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     if (hero_ == Hero::Kabuto && kbGrabHand_ == mh) pi.sprint = false;  // that grip holds something
     if (heldBody_.hand == mh || (heldVillager_ != 0 && heldVillagerHand_ == mh) || stoneInHand(mh)) pi.sprint = false;  // (a body, a Smartie, a stone)
     if (!reachPath_.empty()) reachWalkInput(pi.move, pi.viewYaw, pi.jet, dt);  // test hook GVR_REACH_WALK
+    botWalkInput(pi.move, pi.viewYaw, pi.jet, dt);                             // test hook GVR_MISSION_BOT
     kabutoFeedInput(pi.move, pi.viewYaw, dt);                                   // test hook GVR_KABUTO_FEED
     shrinkChaseInput(pi.move, pi.viewYaw);                                       // test hook GVR_SHRINK_CHASE
     updateTeleport(dt, pi, in);                                                 // Options -> MOVEMENT: TELEPORT
@@ -1201,7 +1202,12 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
             LOGI("Flyer %s circles game (%.0f, %.0f), radius %.0f m, %.0f m up", ch.model.c_str(), -ci.home.x / gGameUnitsToMeters,
                  ci.home.z / gGameUnitsToMeters, ci.flyR, ci.flyH);
         }
-        if (ch.trigger == 3 && ch.objectClass == 18) {
+        // (2026-10-29) r1_saveyan marks Yan himself (trigger 3): he is the one being saved from the Reapers at his house,
+        // not a Smartie to carry - no player could carry him anywhere (no pad in the mission), so the mission could not
+        // end. Ours: he stands where he is; killing the guards (the other objectives) finishes it.
+        const bool yanToSave = ch.trigger == 3 && ch.objectClass == 18 && toLower(ch.model).rfind("smyan", 0) == 0;
+        if (yanToSave) LOGI("Yan (trigger 3): protected where he stands, not carried");
+        if (ch.trigger == 3 && ch.objectClass == 18 && !yanToSave) {
             // A stranded Smartie to carry to the pad (1b): its own clips for each state.
             static const char* clips[int(SmartieClip::Count)] = {"", "sm_wave.anm", "sm_squirm.anm", "sm_fall.anm",
                                                                   "sm_celebrate.anm", "sm_drowned.anm", "sm_hang.anm",
@@ -1387,6 +1393,18 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
         for (auto& sm : rescue_.smarties) sm.holdFor = rescue_.holdMin;
     }
     rescue_.hasPad = !rescue_.smarties.empty() && w->objectBounds("sm_dropoff", rescue_.padMin, rescue_.padMax);
+    if (!rescue_.hasPad && !rescue_.smarties.empty()) {
+        // (2026-10-29) r1_smartiegrab / r1_turbo: "rescue a SMARTIE WORKER ... Return the SMARTIE to YAN" - no pad in
+        // these missions, so the rescue could never count. Ours: set him down by Yan (3 m round him).
+        for (const auto& ch : w->characters())
+            if (toLower(ch.model).rfind("smyan", 0) == 0 && ch.trigger != 3) {
+                rescue_.padMin = ch.position - Vec3{3.0f, 1.0f, 3.0f};
+                rescue_.padMax = ch.position + Vec3{3.0f, 1.5f, 3.0f};
+                rescue_.hasPad = true;
+                LOGI("Smartie drop-off: by Yan at (%.1f %.1f %.1f)", ch.position.x, ch.position.y, ch.position.z);
+                break;
+            }
+    }
     if (rescue_.hasPad) {
         // The pad's footprint plus a little: a Smartie set down on its edge counts.
         rescue_.padMin = rescue_.padMin - Vec3{0.5f, 0.5f, 0.5f};
@@ -2286,7 +2304,11 @@ void GameApp::poseFirstPersonBody(const InputFrame& in) {
 
 bool GameApp::hasOriginalAssets() const { return assetWorld_ && assetWorld_->loaded(); }
 
-void GameApp::update(float dt, const InputFrame& in) {
+void GameApp::update(float dt, const InputFrame& inRaw) {
+    // (test hook GVR_MISSION_BOT: its aim and trigger on a copy of the input)
+    InputFrame inBot = inRaw;
+    botFireInput(dt, inBot);
+    const InputFrame& in = inBot;
     logFxCost(dt);
     fxCostView_ = true;  // (the first view this frame counts the effects drawn in the views)
     warmedThisFrame_ = false;
