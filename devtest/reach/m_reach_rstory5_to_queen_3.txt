@@ -1,0 +1,12 @@
+# Reach objective (2026-10-29): the autopilot walks there the way a player could (Baz jets up banks and into places
+# high above the ground) - the mission's place to reach is reachable in play, not only on the map.
+# Log (checked by devtest.ps1): "Objective 0 done".
+name m_reach_rstory5_to_queen_3
+world Rstory5
+mission rstory5_to_queen_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_REACH_CHECK 1
+env GVR_REACH_WALK 1
+duration 420

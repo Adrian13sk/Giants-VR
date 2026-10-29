@@ -1,0 +1,15 @@
+# story3_prison_6 "Get to the LIFT and ride it up to the GIFT SHOP" (2026-10-29): the Guards' lift car waits at the
+# canyon floor under the gantry; standing on it, it rises 81 m to the clifftop - the mission's place to reach.
+# Log (checked by devtest.ps1): "Lift: going up with the player" "Objective 0 done".
+name m_lift_prison_6
+world Story3
+mission story3_prison_6
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+at 2224 660
+look 2224 675
+duration 32
+move 0 0.6 1.0 2.4
+shot 8 riding
+shot 26 top

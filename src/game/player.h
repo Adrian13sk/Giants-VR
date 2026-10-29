@@ -88,6 +88,10 @@ public:
     // False until the jetpack is in the inventory (Mecc story 1 starts without it: Baz loses it
     // in the opening cutscene and gets it from Timmy).
     bool jetpackAvailable = true;
+    // (2026-10-29) A moving platform to stand on (the Guards' lift car): a disc at platformY round platformCentre.
+    bool platformOn = false;
+    Vec3 platformCentre;
+    float platformRadius = 0, platformY = 0;
     // Water: deeper than floatDepth the Meccaryn floats with his shoulders at the surface (he
     // can't dive) and swims at swimSpeed. seaLevel -1e9 = no water.
     float seaLevel = -1e9f, floatDepth = 1.35f, swimSpeed = 2.4f;

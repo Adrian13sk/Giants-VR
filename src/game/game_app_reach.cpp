@@ -141,15 +141,24 @@ bool GameApp::planReach(int objective, bool log) {
     if (reachBlocked_.size() != size_t(W) * H) reachBlocked_.assign(size_t(W) * H, 0);
     const Objective& o = objectives_[size_t(objective)];
     const Vec3 c = (o.boundsMin + o.boundsMax) * 0.5f;
-    int goal = -1;
+    // (2026-10-29) A goal cell: within the box (plus the 2 m the objective allows - a 2.3 m box fell between the 2 m
+    // grid's points) AND at the box's height where the ground there is (story3_prison_6's box sits on a plateau 80 m
+    // above the canyon floor under its middle; walking under it never counts). Else, as before, under it.
+    const float m = 10.0f * gGameUnitsToMeters;
+    int goal = -1, under = -1;
     float best = 1e9f;
     for (int z = 0; z < H && goal < 0; ++z)
         for (int x = 0; x < W; ++x) {
-            if (seen[size_t(z) * W + x] != 1) continue;
+            const size_t k = size_t(z) * W + x;
+            if (seen[k] != 1) continue;
             const Vec3 p{lo.x + x * kCell, 0, lo.z + z * kCell};
             best = std::min(best, std::sqrt((p.x - c.x) * (p.x - c.x) + (p.z - c.z) * (p.z - c.z)));
-            if (p.x >= o.boundsMin.x && p.x <= o.boundsMax.x && p.z >= o.boundsMin.z && p.z <= o.boundsMax.z) { goal = z * W + x; break; }
+            if (p.x < o.boundsMin.x - m || p.x > o.boundsMax.x + m || p.z < o.boundsMin.z - m || p.z > o.boundsMax.z + m) continue;
+            const float h = k < reachHgt_.size() ? reachHgt_[k] : 0.0f;
+            if (!std::isnan(h) && h >= o.boundsMin.y - m - 1.0f && h <= o.boundsMax.y + m) { goal = int(k); break; }
+            if (under < 0) under = int(k);
         }
+    if (goal < 0) goal = under;
     if (const char* dump = std::getenv("GVR_REACH_DUMP")) {
         // Debug: heights (grey), walkable (green tint), blocked (red), the player (blue) and the objective (yellow) as a PPM.
         if (FILE* f = std::fopen(dump, "wb")) {
@@ -281,6 +290,19 @@ bool GameApp::reachWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt) {
     const Vec3 aim = reachPath_[std::min<size_t>(reachPath_.size() - 1, 1)] - p;
     viewYaw = std::atan2(-aim.x, -aim.z);
     move = Vec2{0, 1};
+    // (2026-10-29) Under a place to reach that is high above the ground (4d_fortress: on the fortress, 35 m up):
+    // Baz flies up into it, as a player would, refuelling on the ground between tries.
+    const Objective& o = objectives_[size_t(reachTarget_)];
+    const Vec3 oc = (o.boundsMin + o.boundsMax) * 0.5f;
+    const float toC = std::sqrt((oc.x - p.x) * (oc.x - p.x) + (oc.z - p.z) * (oc.z - p.z));
+    if (hero_ == Hero::Mecc && player_.jetpackAvailable && reachPath_.size() <= 2 && toC < 0.5f * (o.boundsMax.x - o.boundsMin.x) + 4.0f &&
+        o.boundsMin.y > player_.position.y + 1.0f) {
+        reachStuckT_ = 0;
+        if (player_.fuel() > 0.05f && !(player_.onGround && player_.fuel() < 0.95f)) jump = true;
+        const Vec3 to{oc.x - p.x, 0, oc.z - p.z};
+        viewYaw = std::atan2(-to.x, -to.z);
+        move = Vec2{0, toC > 1.0f ? 0.5f : 0.0f};
+    }
     return true;
 }
 

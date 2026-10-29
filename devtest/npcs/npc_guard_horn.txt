@@ -1,0 +1,13 @@
+# story3_launcher_5 (2026-10-29): "Look out for HORN-WIELDING REAPER GUARDS. Once they sound an alert, Guard
+# reinforcements will be on their way. Watch the skies!" - a guard who sees you blows the horn (RN_HORN), and the
+# standing guard launchers send guards down from the sky on hover packs.
+# Log (checked by devtest.ps1): "Guard horn:" "Guard launchers: 6 guards sent".
+name npc_guard_horn
+world Story3
+mission story3_launcher_5
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+duration 30
+reapers 2 20 1 99
+shot 12 reinforcements

@@ -930,6 +930,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         enemies_.playerHidden = true;
         enemies_.playerMoving = player_.horizontalSpeed() > 4.0f;
     }
+    updateLifts(dt);
     { GVR_PROF("player"); player_.update(dt, pi); }
     if (const char* t = std::getenv("GVR_PLAYER_TURN")) player_.yaw = camYaw_ + std::atof(t) * kPi / 180.0f;  // test hook: side views
     // Hard landings hurt (the original: damage and a 2 s stun; a rocket under him prevents it).
@@ -1455,8 +1456,10 @@ void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
     initHitchers(w, mc);
     initFish(w, mc);
     initSeaMonster(w, mc);
+    initLifts();
     initAmbience(w);
     initDestruction(w, mc);
+    initHorn();  // (after the destructibles: the launchers are among them)
     initSpawners();
     initReaperWeapons();  // (2026-10-29) now, not on the first play frame: ~25-30 ms on the host there (a hitch as the opening cutscene ended)
     LOGI("Mission characters: %zu Rippers, %zu Reapers, %zu ambient", rippers, reapers, ambient);

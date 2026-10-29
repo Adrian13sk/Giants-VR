@@ -2093,7 +2093,19 @@ private:  // the mission placed enemies: no test waves
     void injectHealth();
     // Audio (original WAVs from the user's archives; names decoded by guesswork, see the log).
     AudioMixer* audio_ = nullptr;
-    bool cutscenePausedAudio_ = false;  // (the mixer held while a cutscene waits behind the headset's menu)
+    bool cutscenePausedAudio_ = false;
+    // (2026-10-29) The Guards' lift (game_app_lift.cpp).
+    struct Lift { Vec3 rope; float topY = 0, bottomY = 0, floorY = 0, waitT = 0; bool moving = false, goingUp = true, needLeave = false; Mat4 rot; const RenderModel* car = nullptr; };
+    std::vector<Lift> lifts_;
+    void initLifts();
+    void updateLifts(float dt);
+    void renderLifts();
+    // (2026-10-29) The guards' alarm horn and the guard launchers' reinforcements (game_app_horn.cpp).
+    std::vector<int> hornLaunchers_;  // destruct_ indices
+    float hornCool_ = 0, hornWaveT_ = -1;
+    int hornAlarms_ = 0;
+    void initHorn();
+    void updateHorn(float dt);  // (the mixer held while a cutscene waits behind the headset's menu)
     void sfx(const char* name, const Vec3& pos, float vol = 1.0f, float pitch = 1.0f);
     void sfx2D(const char* name, float vol = 1.0f, float pitch = 1.0f);
     bool ensureSound(const char* name);  // loads a sound the first time it is played

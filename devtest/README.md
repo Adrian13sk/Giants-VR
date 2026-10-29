@@ -28,6 +28,7 @@ powershell -ExecutionPolicy Bypass -File .\devtest.ps1 -Set missions,weapons    
 | ui | 10 | ~9 min | main menu, options, map, briefing, shop, hints |
 | cutscenes | 66 | ~91 min | every cutscene chain to its end |
 | campaign | 1 | ~55 min | the whole campaign in one run, each mission completed after 25 s of play |
+| reach | 14 | ~2 h (not in -All: `-Set reach`) | every mission's place to reach, walked (Baz: jetted) there by the autopilot; the lift in story3_prison_6 |
 | (sweep) | 56 | ~42 min | every mission for 20 s |
 
 To run the GPU experiments (same scenes with foveation levels, shadows or reflections off):

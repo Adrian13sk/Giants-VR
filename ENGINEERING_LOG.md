@@ -3124,3 +3124,20 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   returns doesn't press RESUME; the crash handler installs once per process; the sword trail's batch per GameApp.
 - Third-party notices (docs/THIRD_PARTY_NOTICES.txt: Apache-2.0 for the OpenXR loader and native_app_glue, stb's
   MIT) go next to the APK.
+- Reach objectives (19 in the campaign): every one now walked in play by the autopilot except three with known
+  reasons. Changes: Baz jets up banks when stuck (1.3 s holds) and flies up into a place high above the ground; the
+  planner's goal is a cell at the box's height (+2 m round it: 1a's 2.3 m box fell between grid points). Found: two
+  boxes are far above the ground under them - 4d_fortress (35 m: flown into, as the briefing's JETPACK UPGRADE hint
+  suggests) and story3_prison_6 (80 m: on the clifftop). prison_6's briefing reads "Get to the LIFT and ride it up
+  to the GIFT SHOP" and we had no lift: **the mission could not be finished by hand**. New: the Guards' lift
+  (game_app_lift.cpp) - the strut's rope (lift_strut03, 16 m out, 122 m down), the data's Guard_lift car on it, a
+  standing platform in the player controller; standing on it 1 s at the bottom takes you up at 4 m/s (ours: no rule
+  for it in the data we read). New set devtest/reach (14 scripts, opt-in: ~2 h on the headset). Not walked: k2d
+  (Kabuto; walked earlier, slow and variable), kstory3_4 (the 68-degree climb - Kabuto's climbing, done on the
+  headset in B18), rstory2_jetski_3 (B21), mission1 (an unused copy of 1a).
+- Briefings read against the game (every mo_* text): one more mechanic missing - story3_launcher_5's horn guards
+  ("Once they sound an alert, Guard reinforcements will be on their way. Watch the skies!"). New (game_app_horn.cpp;
+  rules ours, the data has Rpm_Horn and RN_HORN.wav): the nearest guard who has seen you blows the horn, 4 s later
+  each standing log_launcher_base sends two guards down on hover packs near you; 45 s between alarms, three at most,
+  none once the launchers are down. npcs/npc_guard_horn. Everything else the briefings name is in the game (bush
+  pack, nitro, bubble spell, regenerating in deep water, ice walls and ski pickups, weak spots, boulders, crystals).

@@ -259,6 +259,12 @@ void PlayerController::update(float dt, const PlayerInput& in) {
             gg = og;
             objectGround = true;
         }
+        // A moving platform (the lift car) under him, if he's on it or coming down onto it.
+        if (platformOn && platformY > gg && platformY <= std::max(prevY, position.y) + stepUp &&
+            (x - platformCentre.x) * (x - platformCentre.x) + (z - platformCentre.z) * (z - platformCentre.z) < platformRadius * platformRadius) {
+            gg = platformY;
+            objectGround = true;
+        }
         // Deep water holds him up: floating, shoulders at the surface.
         if (seaLevel - floatDepth - diveDepth > gg) {
             gg = seaLevel - floatDepth - diveDepth;

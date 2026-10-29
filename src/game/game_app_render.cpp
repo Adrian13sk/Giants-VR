@@ -425,6 +425,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     renderMines();
     renderSkirmish(false, v.eyePosition);
     renderSpells();
+    renderLifts();
     renderKabutoPowers(v.eyePosition);
     renderThrows();
     renderKabutoCarry();

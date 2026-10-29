@@ -100,8 +100,10 @@ void GameApp::initMission() {
         if (t.kind == 1) {
             objectives_.push_back({1, t.boundsMin, t.boundsMax});
             const Vec3 c = (t.boundsMin + t.boundsMax) * 0.5f;
-            LOGI("Objective: reach type %d at game (%.0f, %.0f), %.1f m wide", int(t.type), -c.x / gGameUnitsToMeters,
-                 c.z / gGameUnitsToMeters, t.boundsMax.x - t.boundsMin.x);
+            float gy = 0;
+            const bool hasG = assetWorld_->terrain().heightAt(c.x, c.z, gy);
+            LOGI("Objective: reach type %d at game (%.0f, %.0f), %.1f m wide, height %.1f..%.1f m (ground %.1f)", int(t.type), -c.x / gGameUnitsToMeters,
+                 c.z / gGameUnitsToMeters, t.boundsMax.x - t.boundsMin.x, t.boundsMin.y, t.boundsMax.y, hasG ? gy : -999.0f);
         }
     // (Reaperski riding and races are set up at the end, once the hero is known.)
     // Starting inventory: a Mecc mission lists the items the player is handed (op 0x0E).

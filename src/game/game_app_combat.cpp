@@ -951,6 +951,7 @@ void GameApp::updateCombat(float dt) {
     { GVR_PROF("sams"); updateSams(dt * enemyTimeScale()); }
     { GVR_PROF("fx"); updateFx(dt); }
     { GVR_PROF("spells"); stepSpells(dt); }
+    updateHorn(dt);
     // Sentries killed by their fall.
     for (int i : enemies_.landed) {
         const Enemy& e = enemies_.enemies[size_t(i)];
