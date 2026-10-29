@@ -244,6 +244,9 @@ bool GameApp::reachWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt) {
     }
     reachStuckT_ = dropped ? 0.0f : reachStuckT_ + dt;
     jump = reachStuckT_ > 0.6f && std::fmod(reachStuckT_, 0.8f) < 0.25f;  // stuck: try jumping (or the jetpack) up it
+    // (2026-10-29) The Meccaryn uses the jetpack as a player would: held ~1.3 s at a time up a bank or out of the sea
+    // (taps barely lifted him; the survey's walks stuck at shores and slopes).
+    if (hero_ == Hero::Mecc && player_.jetpackAvailable) jump = reachStuckT_ > 0.5f && std::fmod(reachStuckT_, 2.0f) < 1.3f;
     if (reachStuckT_ > 3.0f) {
         // The controller won't go on here: block the spot ahead (and round it) and plan again.
         const Vec3 w = reachPath_.front();

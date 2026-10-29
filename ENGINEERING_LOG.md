@@ -3103,3 +3103,24 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Reaper weapon models load with the mission's characters, not on the first play frame (a 25-30 ms hitch on the host
   as 1a's opening cutscene ended; GVR_PROF_SPIKES). All sets at 24 Hz: tests 85 + the 3 known, weapons 29, ui 21,
   npcs 12, missions 31.
+
+### 2026-10-29 (evening) — toward "finished": multiplayer, a release review, the checklist
+- The user asked for as much as can be done toward a finished game. docs/RELEASE_CHECKLIST.md now defines
+  "finished" (content, quality gates, the headset run, the release package) with each item's honest status.
+- Multiplayer after the rework: two harnesses still join and agree on positions within ~1 m. The rework's spells and
+  fists only hurt the campaign's Reapers and creatures - a tornado passed through skirmish players.
+  skirmishHitWhere() now applies the fire wall, fire circle, tornado and punches to them (hits go through the
+  existing host-authoritative path). In a skirmish Delphi has her base spells from the start (the bases stand
+  from the start) except SLOW TIME (other headsets' time runs on) and the SEA MONSTER (its targets are Reapers).
+  Protocol 3: spells are sent as events (a joiner's resent until the host takes them; the host logs them for
+  everyone) and drawn on the other headsets without harm there. Online, the options menu no longer pauses (the hero
+  idles, the netcode runs: a paused headset was dropped after 15 s); silence timers ignore one long frame.
+- Release review (an independent agent, read-only; 9 findings, all fixed): saves and settings written through
+  writeFileAtomic (temp, fsync, rename - an I/O error used to rename an empty file over the save); the free camera
+  (B: X skips missions, held X deletes the save) only with developer=1 in settings.txt; switchWorld checks a world
+  can load before tearing the current one down, a new game deletes the save only once the new world has loaded, and
+  a failed load from the main menu's island returns to the main menu; the options menu stops the looping sounds;
+  paused time isn't mission time; a cutscene and the mixer wait behind the headset's menu; a trigger held as focus
+  returns doesn't press RESUME; the crash handler installs once per process; the sword trail's batch per GameApp.
+- Third-party notices (docs/THIRD_PARTY_NOTICES.txt: Apache-2.0 for the OpenXR loader and native_app_glue, stb's
+  MIT) go next to the APK.
