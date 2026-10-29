@@ -2886,3 +2886,32 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   homing tinted green, proximity orange; the stick's steps skip 13 / 14), bought rockets are loaded at once, an empty
   load falls to the next with any ("NOW FIRING ..."). Saved at checkpoints. Devtest weapons/w_mecc_prox (the same shot
   with a plain rocket flies on and bursts ~50 m beyond).
+- 2026-10-29, the data's own sounds for the new items (all resolve - no "unavailable" in the runs): the Repair Gun
+  me_repst / me_replp (loop while the beam is on) / me_repnd (stopped on a switch, death, riding, a new mission);
+  homing rockets me_homsh / me_homex; proximity rockets me_prxsh / me_prxex1; the turret me_place + me_trrbd when
+  planted, me_trrdn when it folds; the shield me_sld1 / me_slden. (There are gyrocopter sounds too - me_gyin / gyon
+  / gylp / gyrev / gylnd / gyout / gydmg - and a flyable Gyro_l0 with a seat, joystick and prop clip, built by the
+  Gyrocopter Pad base building, s_mecc_gpad: not placed by any mission; a candidate.)
+- Review of a548755 / c20ba4e / b66bcd2 (read-only reviewer agent), fixed: a proximity rocket armed 2.7-3.6 m out
+  could burst at Baz's elbow with a Reaper beside him (4 m blast): armed only beyond 5 m from him, and it bursts at
+  the closest point of its step; bosses (in chars_, not enemies_) now trip the proximity fuse and draw homing
+  rockets; a load that runs out moves on to the next at once (the counters read 0 with rockets left); after
+  CONTINUE the Shop's homing / proximity items were decided before the launcher came back from the checkpoint - now
+  after the restore; GVR_WEAPON 13 / 14 map to the launcher's loads; the wrist line names the load and the others;
+  the wheel widens past 12 cells; Delphi's spell icons sit in two rows within the plate, the tornado's pulses while
+  one turns.
+- Baz's gyrocopter (2026-10-29): the data has a flyable one - Gyro_l0 (1273 tris; nodes Ref_seat, Ref_nozzle, joystick,
+  a prop whose 0.3 s clip spins it), gyro_breathe / gyro_scan (the gyrocopter with a Meccaryn seated in it: its
+  Meccaryn bones pose Baz's own model as the pilot), the Gyrocopter Pad base building (s_mecc_gpad), its sounds
+  (me_gyin / gyon / gylp / gylnd / gyout / gydmg) and lines ("Gyropad ready!"); no mission places one. Ours: parked
+  9 m ahead of the start in practice (Baz). In: a fresh grip squeeze within 3.5 m. Flying (ours): left stick forward /
+  back (22 / 6 m/s) and turn (1.3 rad/s), right stick climb / descend (6 m/s), up to 90 m over the ground or the sea's
+  surface (over water it skims, never sinks); or the joystick - the right grip held, the controller's pitch and roll
+  from where it was taken; its guns on the right trigger along its heading and the head's pitch; walls stop it (a
+  fast one hurts); the engine loop's pitch follows the speed (AudioMixer::setPitch, new). Level horizon (the model
+  banks and pitches, the view only turns with it). First person the eyes are pinned at the pilot's (the seat + 0.55 m)
+  whatever the user's real height; riding_ covers both vehicles (onSki() for the Reaperski's own code). Found in
+  testing: off the land the floor lookup failed and the ceiling clamp pulled it down 10 m a frame; without
+  placeCamera in the ride the view stayed at the start. Devtest weapons/w_mecc_gyro (in, 20 m up, 130 m out over the
+  sea, down, out; 72 / 24 Hz); frames checked (third person: the pilot in his seat; first person: the cockpit).
+  The Gyrocopter Pad in the bases: not yet.

@@ -202,15 +202,15 @@ void GameApp::hudStatus(const HudFrame& f) {
                          {kHudRpCluster, clusterOwned(), clusterCool_, 0},
                          {kHudRpFollow, followOwned(), followCool_, followUid_ ? 1.0f : 0.0f},
                          {kHudRpCircle, slowOwned(), circleCool_, circleT_},
-                         {kHudRpTornado, tornadoOwned(), 0, 0}};
-        float sx = -0.002f;
+                         {kHudRpTornado, tornadoOwned(), 0, tornadoes_.empty() ? 0.0f : 1.0f}};
+        int k = 0;
         const float pulse = 0.6f + 0.4f * std::sin(float(time_) * 6.0f);
         for (const auto& s : sp) {
             if (!s.owned) continue;
             const uint8_t a = uint8_t(s.active > 0 ? 255 * pulse : (s.cool > 0 ? 70 : 230));
             const uint8_t col[4] = {255, 255, 255, a};
-            hudRect(s.layer, f, sx, -0.062f, 0.022f, 0.022f, col);
-            sx += 0.025f;
+            hudRect(s.layer, f, -0.002f + 0.022f * float(k % 4), -0.060f - 0.022f * float(k / 4), 0.019f, 0.019f, col);  // (two rows of four: within the plate's width)
+            ++k;
         }
     } else {
         const bool launcher = weaponSel_ == 1 && launcherModel_;
@@ -338,7 +338,7 @@ void GameApp::hudWeaponWheel() {
     f.r = wheelR_;
     f.u = wheelU_;
     const uint8_t back[4] = {0, 0, 0, 160};
-    hudRect(kHudPlate, f, 0, 0, 0.32f, 0.32f, back);
+    hudRect(kHudPlate, f, 0, 0, wheelCells_.size() > 12 ? 0.37f : 0.32f, wheelCells_.size() > 12 ? 0.37f : 0.32f, back);
     // A dot where the hand points the choice (its move since the wheel opened, at the wheel's scale).
     float x = 0, y = 0;
     if (wheelHandMove(lastInput_.hand[rig_.turnHand()], x, y)) {
@@ -350,7 +350,8 @@ void GameApp::hudWeaponWheel() {
     const int n = int(wheelCells_.size());
     for (int i = 0; i < n; ++i) {
         const float a = 6.2832f * float(i) / float(n);
-        const float cx = 0.11f * std::sin(a), cy = 0.11f * std::cos(a);
+        const float rad = n > 12 ? 0.135f : 0.11f;  // (13+ cells: a wider ring, so they don't touch)
+        const float cx = rad * std::sin(a), cy = rad * std::cos(a);
         const WheelCell& c = wheelCells_[size_t(i)];
         const int curSel = weaponSel_ == 1 ? (launcherMode_ == 1 ? 13 : launcherMode_ == 2 ? 14 : 1) : weaponSel_;
         const bool hot = i == wheelHover_, cur = c.sel == curSel;
@@ -792,7 +793,12 @@ void GameApp::renderWristPanel() {
     if (hero_ == Hero::Mecc) {
         const int g = gunOfSel(weaponSel_);
         if (g >= 0) ammo = std::string(guns_[g].name) + " " + std::to_string(guns_[g].ammo);
-        else if (weaponSel_ == 1) ammo = "LAUNCHER " + std::to_string(launcherAmmo_) + (launcherHoming_ > 0 ? " +" + std::to_string(launcherHoming_) + " HOMING" : "");
+        else if (weaponSel_ == 1) {
+            static const char* kLoad[3] = {"ROCKETS", "HOMING", "PROXIMITY"};
+            ammo = std::string(kLoad[launcherMode_]) + " " + std::to_string(launcherRounds(launcherMode_));
+            for (int m = 0; m < 3; ++m)
+                if (m != launcherMode_ && launcherRounds(m) > 0) ammo += std::string(" +") + std::to_string(launcherRounds(m)) + " " + kLoad[m];
+        }
         else if (weaponSel_ == 8) ammo = "GRENADES " + std::to_string(grenades_);
         else if (weaponSel_ == 9) ammo = "MINES " + std::to_string(mines_);
         else if (weaponSel_ == 10) ammo = "REPAIR GUN";

@@ -19,6 +19,7 @@
 // POP-UP BOMB the Smarties make once the base is complete.
 #include "game/game_app.h"
 #include "assets/gtext.h"
+#include "audio/mixer.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1350,9 +1351,20 @@ void GameApp::renderBaseTable() {
 // (2026-10-28) The Repair Gun's beam: aimed at a base building within 50 m (the data's range, 50 game units read
 // as metres here - ours), held: +50 every 1.5 s (the data's -50 damage per 1.5 s), shown as green fire along the beam
 // and the original repair ring (EFX_repair_ring) on the building.
+void GameApp::stopRepairLoop() {
+    if (!repairLoop_) return;
+    if (audio_) audio_->stop(repairLoop_);
+    repairLoop_ = 0;
+    sfx2D("me_repnd", 0.6f);
+}
+
 void GameApp::updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const Vec3& fwd) {
     repairOn_ = false;
-    if (!trigger) { repairTarget_ = -1; repairTick_ = 0; return; }
+    if (!trigger) { repairTarget_ = -1; repairTick_ = 0; stopRepairLoop(); return; }
+    if (!repairLoop_ && audio_) {  // (the data's repair gun sounds: start, then its loop while the beam is on)
+        sfx2D("me_repst", 0.7f);
+        repairLoop_ = audio_->play2D("me_replp", 0.5f, 1.0f, true);
+    }
     int best = -1;
     float bestT = 50.0f;
     Vec3 hit = muzzle + fwd * 50.0f;
@@ -1409,7 +1421,6 @@ void GameApp::updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const 
     b.hp = std::min(b.maxHp, b.hp + (50.0f / 1.5f) * dt);
     if (repairTick_ >= 1.5f) {
         repairTick_ -= 1.5f;
-        sfx("pu_hlth", hit, 0.6f, 1.2f);
         haptics_.push_back({rig_.turnHand(), 0.3f, 0.05f});
         LOGI("Repair gun: %s %.0f / %.0f", bldgLabel(b.def, b.level), b.hp, b.maxHp);
         if (b.hp >= b.maxHp) {

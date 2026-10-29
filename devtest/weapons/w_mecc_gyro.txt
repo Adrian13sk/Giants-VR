@@ -1,0 +1,21 @@
+# (2026-10-29) Baz's gyrocopter (the data's Gyro_l0; ours: parked ahead of the start in practice - GVR_GYRO here):
+# he walks up to it and squeezes a grip - in; flies forward and climbs (left stick forward, right stick up), comes down
+# and lands; on the ground the left grip held a second - out.
+# Log (checked by devtest.ps1): "Gyrocopter parked" "Baz takes the gyrocopter" "Baz gets out of the gyrocopter".
+name w_mecc_gyro
+world Story3
+mission story3_bunker_3
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_GYRO 1
+env GVR_GYRO_TRACE 1
+view first
+duration 24
+move 0 1 1 3.2
+hold grip_r 4 4.3
+move 0 1 6 12
+turn 0 1 6 9
+shot 11 gyro_flying
+turn 0 -1 12.5 19
+hold grip_l 21 22.5

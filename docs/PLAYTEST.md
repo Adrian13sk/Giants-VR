@@ -144,6 +144,9 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
       When it runs dry it sinks away; 20 s later "TURRET READY". Too strong? Is 1.1 m tall readable?
 - [ ] **Proximity rockets / the launcher's loads** (Shops from Story 4 on, or PRACTICE): on the wheel, three launcher
       cells (plain, green homing, orange proximity) - choose a load; a proximity rocket bursts as it passes a Reaper.
+- [ ] **The gyrocopter** (PRACTICE as Baz: parked 9 m ahead): get in with a grip; fly with the sticks, then try the
+      joystick (right grip held, tilt the controller). Comfortable? (The horizon stays level; the view turns with
+      it.) Does the seated view sit right? Landed, hold the left grip to get out.
 - [ ] **Baz's shield** (Story 4 on, PRACTICE): on the weapon wheel; choose it: "SHIELD UP", a faint blue-violet web
       round you that flares where shots land. Is it visible enough without being in the way?
 - [ ] **Delphi's new spells** (Reaper story 3 on, the battles, or PRACTICE as Delphi), left trigger held:

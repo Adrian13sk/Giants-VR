@@ -403,7 +403,8 @@ void GameApp::updateTreeShake(float dt) {
 void GameApp::updateSpeedWind(float dt) {
     if (!audio_) return;
     float speed = length(player_.velocity);
-    if (riding_) speed = std::max(speed, std::fabs(ski_.speed));
+    if (onSki()) speed = std::max(speed, std::fabs(ski_.speed));
+    if (gyro_.riding) speed = std::max(speed, length(gyro_.vel));
     speed /= std::max(1.0f, std::sqrt(heroScale_));  // (a giant's stride is not a gale)
     const bool on = playMode_ && !title_ && !dying_ && !cutsceneActive() && !underwater_ && settings_.ambience >= 1;
     const float want = on ? std::min(1.0f, std::max(0.0f, (speed - 6.0f) / 16.0f)) * 0.7f : 0.0f;

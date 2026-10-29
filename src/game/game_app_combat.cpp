@@ -105,6 +105,8 @@ void GameApp::startDeath() {
     playerHealth_ = 0;
     dying_ = true;
     endCloak("she fell");
+    if (gyro_.riding) gyroOut("Baz is down");
+    stopRepairLoop();
     if (shieldT_ > 0) { shieldT_ = 0; shieldCool_ = 40.0f; }
     enemies_.playerHidden = enemies_.playerMoving = false;
     repairOn_ = false;
@@ -464,6 +466,8 @@ void GameApp::updateRockets(float dtAll) {
                 if (e.state != EnemyState::Dead) consider(e.pos + Vec3{0, 1.1f, 0});
             for (const auto& c : creatures_.creatures)
                 if (c.state != CreatureState::Dead && !CreatureDirector::underground(c)) consider(c.pos + Vec3{0, 0.5f * c.scale, 0});
+            for (const auto& c : chars_)  // (bosses)
+                if (c.boss && c.hp > 0) consider(c.pos + Vec3{0, 0.5f * c.bossH, 0});
             if (bestD < 100.0f) {
                 if (r.bounces == 0) { r.bounces = 1; LOGI("Homing rocket locked on a foe %.0f m away", bestD); }
                 f = normalize(f + (normalize(best - r.pos) - f) * std::min(1.0f, 7.0f * dt));
@@ -472,17 +476,27 @@ void GameApp::updateRockets(float dtAll) {
             // (its trail: FX_homing with the original effects, else updateFx's flame and smoke as on any rocket)
         }
         if (r.kind == 10) {
-            // Baz's proximity rocket: bursts as it passes within 3 m of a living foe (after its first 4 m of flight).
+            // Baz's proximity rocket: bursts as it passes within 3 m of a living foe - armed only once it is 5 m from
+            // him (its burst reaches 4 m: a Reaper beside him in a melee must not set it off at his elbow).
             bool near = false;
-            if (r.life > 0.12f) {
+            Vec3 burstAt = r.pos;
+            if (length(r.pos - (player_.position + Vec3{0, 0.9f, 0})) > 5.0f) {
                 // (over this frame's whole step: at a low frame rate it moves 1-2 m a frame)
                 const Vec3 a = r.pos, seg = r.vel * dt;
                 const float sl = std::max(1e-6f, dot(seg, seg));
-                auto dist = [&](const Vec3& c) { const float u = std::max(0.0f, std::min(1.0f, dot(c - a, seg) / sl)); return length(a + seg * u - c); };
+                Vec3 closest = a;
+                auto dist = [&](const Vec3& c) {
+                    const float u = std::max(0.0f, std::min(1.0f, dot(c - a, seg) / sl));
+                    closest = a + seg * u;
+                    return length(closest - c);
+                };
                 for (const auto& e : enemies_.enemies)
                     if (e.state != EnemyState::Dead && dist(e.pos + Vec3{0, 1.1f, 0}) < 3.0f) { near = true; break; }
                 for (const auto& c : creatures_.creatures)
                     if (!near && c.state != CreatureState::Dead && !CreatureDirector::underground(c) && dist(c.pos + Vec3{0, 0.5f * c.scale, 0}) < 3.0f + 0.5f * c.scale) near = true;
+                for (const auto& c : chars_)  // (the bosses - the Charger, Sonaks, a rival Kabuto - live here, not in enemies_)
+                    if (!near && c.boss && c.hp > 0 && dist(c.pos + Vec3{0, 0.5f * c.bossH, 0}) < 3.0f + c.bossR) near = true;
+                if (near) burstAt = closest;
             }
             static const bool ptrace = std::getenv("GVR_PROX_TRACE") != nullptr;  // test hook: its closest foe
             if (ptrace && int(r.life * 10) != int((r.life - dt) * 10)) {
@@ -493,7 +507,8 @@ void GameApp::updateRockets(float dtAll) {
             }
             if (near) {
                 blastFx_ = "FX_EXPLOSION_ROCKET";
-                explode(r.pos, 4.0f, 120.0f);
+                explode(burstAt, 4.0f, 120.0f);
+                sfx("me_prxex1", burstAt, 1.0f);
                 LOGI("Proximity rocket bursts by a foe");
                 r.life = 1e9f;
                 continue;
@@ -550,6 +565,8 @@ void GameApp::updateRockets(float dtAll) {
             else {
                 blastFx_ = "FX_EXPLOSION_ROCKET";
                 explode(hit ? r.pos + dir * t : r.pos, 4.0f, 120.0f);
+                if (r.kind == 9) sfx("me_homex", hit ? r.pos + dir * t : r.pos, 1.0f);  // (the homing rocket's own burst)
+                if (r.kind == 10) sfx("me_prxex1", hit ? r.pos + dir * t : r.pos, 1.0f);
             }
             r.life = 1e9f;
             continue;

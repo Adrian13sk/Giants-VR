@@ -1117,3 +1117,5 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Review fixes (FOLLOW; fire circle / shield) | delphi_follow re-aimed (a steady aim, a 12 cm pull relative to the head) 72 / 24 Hz; fire circle without god mode: no blast damage after its bursts; regression: tests 75 + 3 known, weapons 25/25, ui 19/19, npcs 11/11, missions 31/31; mission sweep 56/56 exit 0 |
 | Jetpack upgrade (item 18, Story 5 on) | weapons/w_mecc_jetpack2 72 / 24 Hz (the held jetpack burns dry with an 11 s tank) |
 | Proximity rockets (item 16) and the launcher loads on the wheel | weapons/w_mecc_prox 72 / 24 Hz (bursts by the Reaper; the plain-rocket control bursts ~50 m beyond) |
+| Gyrocopter (Gyro_l0; practice) | weapons/w_mecc_gyro 72 / 24 Hz (in by the grip, flies 20 m up and 130 m out, lands on the sea surface, out); frames checked in both views |
+| Original sounds for the new items; review fixes (proximity arming / bosses / load fallback / shop after CONTINUE) | no "unavailable" sounds in the runs; w_mecc_prox and w_mecc_homing 72 / 24 Hz still pass; regression: tests 75 + 3 known, weapons 27/27, ui 19/19, npcs 11/11, missions 31/31; sweep 56/56 |

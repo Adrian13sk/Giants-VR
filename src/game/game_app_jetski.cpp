@@ -511,10 +511,10 @@ void GameApp::updateJetskiWorld(float dt, const InputFrame& in) {
         (autopilot || length(Vec3{player_.position.x - ski_.pos.x, 0, player_.position.z - ski_.pos.z}) < 2.6f))
         mountJetski(ski_.pos, ski_.yaw);
     if (skiParked_) { ski_.bob += dt; ski_.bank *= 0.95f; }
-    if (skiModel_ && (riding_ || skiParked_)) skiModel_->pose(renderer_, std::fmod(ski_.bob, std::max(0.1f, skiModel_->animDuration())));
+    if (skiModel_ && (onSki() || skiParked_)) skiModel_->pose(renderer_, std::fmod(ski_.bob, std::max(0.1f, skiModel_->animDuration())));
     // Engine: idle and running loops.
     if (audio_) {
-        const int want = !riding_ ? -1 : (std::fabs(ski_.speed) > 4.0f ? 1 : 0);
+        const int want = !onSki() ? -1 : (std::fabs(ski_.speed) > 4.0f ? 1 : 0);
         if (want != skiLoopKind_) {
             if (skiLoop_) audio_->stop(skiLoop_);
             skiLoop_ = want < 0 ? 0 : audio_->play2D(want == 1 ? "js_rmve1" : "js_ridl1", want == 1 ? 0.55f : 0.4f, 1.0f, true);
@@ -525,7 +525,7 @@ void GameApp::updateJetskiWorld(float dt, const InputFrame& in) {
     // Pickups (respawn after a while): turbo, missiles, homing missiles.
     for (auto& p : skiPickups_) {
         p.gone = std::max(0.0f, p.gone - dt);
-        if (p.gone > 0 || !riding_) continue;
+        if (p.gone > 0 || !onSki()) continue;
         if (length(Vec3{p.pos.x - ski_.pos.x, 0, p.pos.z - ski_.pos.z}) < 4.0f) {
             p.gone = 20.0f;
             if (p.kind == 0) skiTurbo_ = std::min(12.0f, skiTurbo_ + 4.0f);
@@ -602,7 +602,7 @@ void GameApp::updateJetskiWorld(float dt, const InputFrame& in) {
 }
 
 void GameApp::renderJetski(bool shadow, const Vec3& eye) {
-    if (skiModel_ && (riding_ || skiParked_)) {
+    if (skiModel_ && (onSki() || skiParked_)) {
         const Mat4 xf = skiXf(ski_.pos, ski_.yaw, ski_.bank, ski_.bob);
         if (shadow) skiModel_->renderShadow(renderer_, xf);
         else skiModel_->render(renderer_, xf);
@@ -637,7 +637,7 @@ void GameApp::renderRaceHud() {
             text_.draw(m, xf * Mat4::translation({0, 0, 0.003f}), {1.0f, 0.9f, 0.5f, 1.0f});
         }
     }
-    if (riding_ && (skiTurbo_ > 0 || skiMissiles_ > 0)) {
+    if (onSki() && (skiTurbo_ > 0 || skiMissiles_ > 0)) {
         char line[64];
         std::snprintf(line, sizeof line, "TURBO %.0f S    MISSILES %d", std::ceil(skiTurbo_), skiMissiles_);
         if (const MeshId m = text_.mesh(line, 0.03f, 1.2f, &w, &h)) {

@@ -136,6 +136,7 @@ void GameApp::initMission() {
     hasRepairGun_ = hero_ == Hero::Mecc && (base_.on || practice_) && repairModel_;
     repairOn_ = false;
     repairTarget_ = -1;
+    stopRepairLoop();
     if (hasRepairGun_) LOGI("Arsenal: the Repair Gun (base mission)");
     // The portable turret (ours: see game_app.h): Baz carries it from Story 3 on, and in practice.
     {
@@ -157,6 +158,17 @@ void GameApp::initMission() {
         player_.params.fuelSeconds = jet2 ? 11.0f : 8.0f;
         player_.params.jetAirSpeed = jet2 ? 14.5f : 12.0f;
         if (jet2) LOGI("Arsenal: the jetpack upgrade (an 11 s tank, 14.5 m/s)");
+        // The gyrocopter (ours: game_app_gyro.cpp): parked 9 m ahead of the start in practice (Baz); a base's
+        // Gyrocopter Pad parks one when it is built.
+        if (gyro_.riding) { gyro_.riding = false; riding_ = false; }
+        if (gyroLoop_ && audio_) { audio_->stop(gyroLoop_); gyroLoop_ = 0; }
+        gyro_ = Gyro{};
+        gyroHinted_ = false;
+        if (hero_ == Hero::Mecc && gyroModel_ && (practice_ || std::getenv("GVR_GYRO"))) {  // (test hook)
+            const float sy = assetWorld_->spawnYaw();
+            const Vec3 sp = assetWorld_->spawnPoint() + Vec3{-std::sin(sy), 0, -std::cos(sy)} * 9.0f;
+            placeGyro(sp, sy);
+        }
     }
     initPopup();
     // A level's Shop also sells ammo for the guns he carries / her bows' arrows (ours).
@@ -164,15 +176,6 @@ void GameApp::initMission() {
         shopItems_.push_back({4, shopAt_, false});
     if (shopOn_ && hero_ == Hero::Mecc && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 5; }))
         shopItems_.push_back({5, shopAt_, false});  // mines (no mission hands them out; ours)
-    if (shopOn_ && hero_ == Hero::Mecc && hasLauncher_ && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 8; }))
-        shopItems_.push_back({8, shopAt_, false});  // homing rockets (item 15; ours, once he has the launcher)
-    {
-        // Proximity rockets (item 16; ours: from Story 4 on, once he has the launcher).
-        const std::string mn4 = toLower(assetWorld_->missionName());
-        if (shopOn_ && hero_ == Hero::Mecc && hasLauncher_ && (mn4.rfind("4", 0) == 0 || mn4.rfind("5", 0) == 0) &&
-            std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 9; }))
-            shopItems_.push_back({9, shopAt_, false});
-    }
     if (hero_ == Hero::Kabuto) {
         // He comes out of the sea weakened at the start of his story (k1a) and of 2a ("Eat 5
         // Smarties to reach full strength and size"); full size elsewhere. Our reading.
@@ -222,7 +225,20 @@ void GameApp::initMission() {
     }
     if (practice_) grantPracticeKit();
     else writeCheckpoint();  // (practice: never)
-    if (const char* w = std::getenv("GVR_WEAPON")) weaponSel_ = std::atoi(w);  // test hook: start with this weapon in hand
+    // (After the checkpoint restore and the practice kit: the launcher may only just have come back - review 2026-10-29.)
+    if (shopOn_ && hero_ == Hero::Mecc && hasLauncher_ && std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 8; }))
+        shopItems_.push_back({8, shopAt_, false});  // homing rockets (item 15; ours, once he has the launcher)
+    {
+        // Proximity rockets (item 16; ours: from Story 4 on, once he has the launcher).
+        const std::string mn4 = toLower(assetWorld_->missionName());
+        if (shopOn_ && hero_ == Hero::Mecc && hasLauncher_ && (mn4.rfind("4", 0) == 0 || mn4.rfind("5", 0) == 0) &&
+            std::none_of(shopItems_.begin(), shopItems_.end(), [](const ShopItem& i) { return i.kind == 9; }))
+            shopItems_.push_back({9, shopAt_, false});
+    }
+    if (const char* w = std::getenv("GVR_WEAPON")) {  // test hook: start with this weapon in hand
+        weaponSel_ = std::atoi(w);
+        if (weaponSel_ == 13 || weaponSel_ == 14) { launcherMode_ = weaponSel_ - 12; weaponSel_ = 1; }  // (the launcher's loads: wheel cells only)
+    }
     if (!weaponOwned(weaponSel_)) weaponSel_ = 0;
     LOGI("Mission %s: %zu objectives, jetpack %s", assetWorld_->missionName().c_str(), objectives_.size(),
          jet ? "available" : "not yet (story)");

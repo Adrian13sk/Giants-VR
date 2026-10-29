@@ -42,7 +42,7 @@ void GameApp::raiseShield() {
     shieldT_ = kShieldTime;
     shieldHp_ = kShieldHp;
     shieldHitT_ = 0.5f;
-    sfx2D("ph_enter", 0.9f, 1.4f);
+    sfx2D("me_sld1", 0.9f);  // (the data's shield sounds: me_sld1 up, me_slden down)
     for (int h = 0; h < 2; ++h) haptics_.push_back({h, 0.5f, 0.2f});
     timmyLine_ = "SHIELD UP";
     timmyLineT_ = 2.0f;
@@ -60,7 +60,7 @@ float GameApp::shieldAbsorb(float amount, DeathCause cause) {
     if (shieldHp_ <= 0.5f) {
         shieldT_ = 0;
         shieldCool_ = kShieldCool;
-        sfx2D("ex_bdys1", 0.7f, 1.5f);
+        sfx2D("me_slden", 0.9f, 0.8f);
         timmyLine_ = "SHIELD DOWN";
         timmyLineT_ = 2.0f;
         LOGI("Shield broken (it took %.0f)", double(shieldTaken_));
@@ -79,7 +79,7 @@ void GameApp::updateShield(float dt) {
         if (shieldT_ <= 0) {
             shieldT_ = 0;
             shieldCool_ = kShieldCool;
-            sfx2D("ph_enter", 0.6f, 0.8f);
+            sfx2D("me_slden", 0.7f);
             LOGI("Shield down (time; it took %.0f)", double(shieldTaken_));
             shieldTaken_ = 0;
         }

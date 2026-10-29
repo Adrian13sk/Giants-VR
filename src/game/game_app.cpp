@@ -292,6 +292,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 LOGI("Repair gun: model ok, ring %.2f m across", length(repairRing_->boundsMax - repairRing_->boundsMin));
             initPortTurret(mc);
             initShield(mc);
+            initGyro(mc);
             arsenalReady_ = false;  // this world's model cache: the guns are fetched again (kept: what he carries)
             initArsenal();
             rocketModel_ = mc->get("mc_rocket.gbs", "mc_rocket.anm", /*dynamicLit=*/true);
@@ -834,12 +835,15 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
         return;
     }
     { GVR_PROF("jetski world"); updateJetskiWorld(dt, in); }
-    if (riding_) {  // on the Reaperski: its own handling (game_app_jetski.cpp)
+    updateGyroParked(dt, in);
+    if (riding_) {  // on the Reaperski (game_app_jetski.cpp) or in the gyrocopter (game_app_gyro.cpp): their own handling
         swordValid_ = gunValid_ = false;
         repairOn_ = false;
+        stopRepairLoop();
         endCloak("she rides");  // (updateBush is skipped here: nothing else clears her hiding)
         enemies_.playerHidden = enemies_.playerMoving = false;
-        updateRiding(dt, in);
+        if (gyro_.riding) updateGyroRide(dt, in);
+        else updateRiding(dt, in);
         { GVR_PROF("feel"); updateFeel(dt, in); }
         updateCombat(dt);
         { GVR_PROF("audio"); updateAudio(dt); }
@@ -1872,7 +1876,7 @@ Mat4 GameApp::gunDrawXf() const {
 
 void GameApp::updateWeapon(float dt, const InputFrame& in) {
     const int gh = rig_.turnHand();
-    if (weaponSel_ != 10) repairOn_ = false;  // (2026-10-28 review: the beam stayed drawn after a switch to the bush or bombs)
+    if (weaponSel_ != 10) { repairOn_ = false; stopRepairLoop(); }  // (2026-10-28 review: the beam stayed drawn after a switch to the bush or bombs)
     if (weaponSel_ != 11) lastWeaponSel_ = weaponSel_;
     {
         // The turret's trigger: a fresh pull plants it; after planting (or taking it back), the pull still held
@@ -2170,7 +2174,16 @@ void GameApp::updateWeapon(float dt, const InputFrame& in) {
             haptics_.push_back({gh, 0.9f, 0.12f});
             gunKick(0.30f);
             addFlash(muzzle, {2.2f, 1.4f, 0.6f}, 9.0f, 0.18f);
-            sfx("me_msls1", muzzle, 1.0f, 0.95f + 0.1f * frand());
+            sfx(mode == 1 ? "me_homsh" : mode == 2 ? "me_prxsh" : "me_msls1", muzzle, 1.0f, 0.95f + 0.1f * frand());  // (each load's own launch sound)
+            // That load just ran out with others left: on to the next now (the counters show what will fire).
+            if (launcherRounds(mode) <= 0 && launcherAmmo_ + launcherHoming_ + launcherProx_ > 0) {
+                int next = mode;
+                for (int k = 0; k < 3 && launcherRounds(next) <= 0; ++k) next = (next + 1) % 3;
+                launcherMode_ = next;
+                static const char* kLoad2[3] = {"ROCKETS", "HOMING ROCKETS", "PROXIMITY ROCKETS"};
+                timmyLine_ = std::string("NOW FIRING ") + kLoad2[next];
+                timmyLineT_ = 2.0f;
+            }
             if (homing) LOGI("Homing rocket fired (%d left)", launcherHoming_);
             else if (mode == 2) LOGI("Proximity rocket fired (%d left)", launcherProx_);
             else LOGI("Rocket fired (%d left)", launcherAmmo_);

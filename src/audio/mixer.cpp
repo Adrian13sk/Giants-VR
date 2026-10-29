@@ -99,6 +99,12 @@ void AudioMixer::setVolume(uint32_t id, float volume) {
         if (v.id == id) v.volume = volume;
 }
 
+void AudioMixer::setPitch(uint32_t id, float pitch) {
+    std::lock_guard<std::mutex> lk(mu_);
+    for (auto& v : voices_)
+        if (v.id == id) v.pitch = std::max(0.1f, std::min(4.0f, pitch));
+}
+
 bool AudioMixer::playing(uint32_t id) const {
     std::lock_guard<std::mutex> lk(mu_);
     for (const auto& v : voices_)

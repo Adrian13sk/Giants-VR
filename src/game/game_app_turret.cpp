@@ -145,8 +145,8 @@ void GameApp::plantTurret(const Vec3& muzzle, const Vec3& fwd) {
     turret_.xf = Mat4::translation(turret_.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, yaw));
     turret_.aimYaw = -1.5708f - gBarrel;
     turret_.fireT = kTurretRise + 0.3f;
-    sfx("me_minth", turret_.pos, 1.0f, 0.7f);
-    sfx("ph_enter", turret_.pos, 0.7f, 1.3f);
+    sfx("me_place", turret_.pos, 1.0f);   // (the data's: set down,
+    sfx("me_trrbd", turret_.pos, 0.8f);   //  and the turret unfolding)
     haptics_.push_back({rig_.turnHand(), 0.7f, 0.12f});
     LOGI("Turret planted %.1f m away (%d rounds)", length(Vec3{at.x - player_.position.x, 0, at.z - player_.position.z}), turretRounds_);
     // Back to what was in hand - not into the bush, and not a grenade cocked by the trigger still held.
@@ -275,7 +275,7 @@ void GameApp::updatePortTurret(float dt, const InputFrame& in) {
         sfx("me_gtfr1", mz, 0.7f, 1.1f + 0.1f * frand());
         if (--turretRounds_ <= 0) {
             turret_.folding = true;
-            sfx("ph_enter", turret_.pos, 0.6f, 0.8f);
+            sfx("me_trrdn", turret_.pos, 0.8f);  // (the data's turret-down sound)
             LOGI("Turret: out of rounds - it folds away");
         }
     }

@@ -317,6 +317,8 @@ private:
     float repairTick_ = 0;
     int repairTarget_ = -1;
     void updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const Vec3& fwd);
+    uint32_t repairLoop_ = 0;  // (the Repair Gun's own sounds: me_repst, the me_replp loop, me_repnd)
+    void stopRepairLoop();
     void renderRepairBeam();
     const RenderModel* rocketModel_ = nullptr;
     bool hasLauncher_ = false;
@@ -1889,6 +1891,25 @@ private:  // the mission placed enemies: no test waves
     // walks into (rstory2_jetski_*), or from the start in the races; the races run on the data's
     // gates and racing lines against rivals.
     bool riding_ = false, raceMode_ = false, skiParked_ = false;
+    bool onSki() const { return riding_ && !gyro_.riding; }  // (riding_: on the Reaperski or in the gyrocopter)
+    // (2026-10-29) Baz's gyrocopter (game_app_gyro.cpp): the data's Gyro_l0; ours: in practice, on a base's Gyrocopter Pad.
+    struct Gyro {
+        bool on = false, riding = false, stickHeld = false;
+        Vec3 pos, vel;
+        float yaw = 0, bank = 0, tilt = 0, rotor = 0, rotorT = 0, boardCool = 0, outT = 0, stickPitch0 = 0, stickRoll0 = 0;
+    } gyro_;
+    std::unique_ptr<SkinnedModel> gyroModel_;
+    Vec3 gyroSeat_{0, 1.0f, 0}, gyroNozzle_{0.6f, 1.2f, -1.0f}, gyroStick_{0, 1.3f, -0.5f};
+    uint32_t gyroLoop_ = 0;
+    int gyroRideClip_ = -1;
+    bool gyroGripWas_[2] = {false, false}, gyroHinted_ = false;
+    void initGyro(ModelCache* mc);
+    void placeGyro(const Vec3& at, float yaw);
+    Mat4 gyroXf() const;
+    void gyroOut(const char* why);
+    void updateGyroParked(float dt, const InputFrame& in);
+    void updateGyroRide(float dt, const InputFrame& in);
+    void renderGyro();
     JetskiState ski_;
     JetskiParams skiParams_;
     RaceDirector race_;

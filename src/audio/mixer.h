@@ -46,6 +46,7 @@ public:
     void stop(uint32_t id);
     void setPosition(uint32_t id, const Vec3& pos);
     void setVolume(uint32_t id, float volume);
+    void setPitch(uint32_t id, float pitch);  // (a looping engine's note follows its speed)
     bool playing(uint32_t id) const;
     void setListener(const Vec3& pos, const Quat& orientation);
     void setMasterVolume(float v);
