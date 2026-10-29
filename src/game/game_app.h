@@ -316,7 +316,16 @@ private:
     Vec3 repairTo_;
     float repairTick_ = 0;
     int repairTarget_ = -1;
-    void updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const Vec3& fwd);
+    void updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const Vec3& fwd, bool spell = false);
+    int bldgInRay(const Vec3& from, const Vec3& dir, float range, Vec3& hit) const;
+    // (2026-10-29) Delphi's REPAIR spell (the data's item 73 IconRSRepair, HUD art st_rp_repair; the Reapers' own
+    // repair, as Baz's Repair Gun is the Meccaryns'). Ours: with her base up, the casting hand points at one of her
+    // damaged buildings with the trigger held for half a second: her green fire mends it (the Repair Gun's rate) as
+    // long as the trigger is held and the hand on a building. game_app_rsrepair.cpp.
+    float rsAimT_ = 0;
+    bool rsBeam_ = false;
+    bool rsRepairOwned() const;
+    void updateRsRepair(float dt, const InputFrame& in);
     uint32_t repairLoop_ = 0;  // (the Repair Gun's own sounds: me_repst, the me_replp loop, me_repnd)
     void stopRepairLoop();
     void renderRepairBeam();
@@ -1989,7 +1998,7 @@ private:  // the mission placed enemies: no test waves
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
                     kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudMine, kHudRepair, kHudTurret, kHudShield,
-                    kHudRpHail, kHudRpSlow, kHudRpCloak, kHudRpCluster, kHudRpFollow, kHudRpCircle, kHudRpTornado, kHudRpShrink, kHudRpMonster, kHudLayers };
+                    kHudRpHail, kHudRpSlow, kHudRpCloak, kHudRpCluster, kHudRpFollow, kHudRpCircle, kHudRpTornado, kHudRpShrink, kHudRpMonster, kHudRpRepair, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     float digitU_[11] = {}, digitU0_[10] = {}, digitU1_[10] = {};

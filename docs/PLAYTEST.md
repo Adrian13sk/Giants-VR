@@ -167,6 +167,8 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
       (deep water) for a moment with the hand low, then lift the hand sharply above your head: the serpent surfaces
       there, comes in and spits fireballs at the Reapers by the shore. Easy to do? Visible enough at 40-60 m? Keep
       away from where it spits - its fireballs burn you too.
+- [ ] **Delphi's REPAIR** (r4a and the battles, once her base has buildings): left trigger held, point at one of her
+      damaged buildings for half a second: green fire mends it while you hold. Letting go should not throw a fire wall.
 - [ ] **Bodies against walls:** throw a Reaper with FOLLOW into a hut or rock: he stops against it (no flying
       through walls) and is hurt; one thrown onto a roof stays up there.
 - [ ] **The turret and Rippers / the cloak and Rippers:** Baz's planted turret now shoots Rippers too; Delphi

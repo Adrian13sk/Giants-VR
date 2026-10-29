@@ -1403,16 +1403,12 @@ void GameApp::stopRepairLoop() {
     sfx2D("me_repnd", 0.6f);
 }
 
-void GameApp::updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const Vec3& fwd) {
-    repairOn_ = false;
-    if (!trigger) { repairTarget_ = -1; repairTick_ = 0; stopRepairLoop(); return; }
-    if (!repairLoop_ && audio_) {  // (the data's repair gun sounds: start, then its loop while the beam is on)
-        sfx2D("me_repst", 0.7f);
-        repairLoop_ = audio_->play2D("me_replp", 0.5f, 1.0f, true);
-    }
+// The base building (not an empty site) along a ray within `range`, nearest first; -1 if none. `hit`: where the
+// ray meets it (the far end of the ray if none).
+int GameApp::bldgInRay(const Vec3& from, const Vec3& dir, float range, Vec3& hit) const {
     int best = -1;
-    float bestT = 50.0f;
-    Vec3 hit = muzzle + fwd * 50.0f;
+    float bestT = range;
+    hit = from + dir * range;
     for (size_t i = 0; i < base_.bldgs.size(); ++i) {
         const Base::Bldg& b = base_.bldgs[i];
         if (b.state == 0) continue;
@@ -1423,13 +1419,25 @@ void GameApp::updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const 
         const Vec4 cw = b.xf * Vec4{0.5f * (mn.x + mx.x), 0.5f * (mn.y + mx.y), 0.5f * (mn.z + mx.z), 1};
         const Vec3 c{cw.x, cw.y, cw.z};
         const float r = 0.35f * length(mx - mn);
-        const float t = dot(c - muzzle, fwd);
+        const float t = dot(c - from, dir);
         if (t < 0 || t > bestT + r) continue;
-        if (length(muzzle + fwd * t - c) > r) continue;
+        if (length(from + dir * t - c) > r) continue;
         best = int(i);
         bestT = std::max(0.0f, t - 0.5f * r);
-        hit = muzzle + fwd * bestT;
+        hit = from + dir * bestT;
     }
+    return best;
+}
+
+void GameApp::updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const Vec3& fwd, bool spell) {
+    repairOn_ = false;
+    if (!trigger) { repairTarget_ = -1; repairTick_ = 0; stopRepairLoop(); return; }
+    if (!repairLoop_ && audio_ && !spell) {  // (the data's repair gun sounds: start, then its loop while the beam is on)
+        sfx2D("me_repst", 0.7f);
+        repairLoop_ = audio_->play2D("me_replp", 0.5f, 1.0f, true);
+    }
+    Vec3 hit;
+    int best = bldgInRay(muzzle, fwd, 50.0f, hit);
     repairOn_ = true;
     repairTo_ = hit;
     if (frand() < dt * 40.0f) {  // green fire along the beam
@@ -1466,8 +1474,9 @@ void GameApp::updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const 
     b.hp = std::min(b.maxHp, b.hp + (50.0f / 1.5f) * dt);
     if (repairTick_ >= 1.5f) {
         repairTick_ -= 1.5f;
+        if (spell) sfx("sr_spfsh", repairTo_, 0.6f, 1.3f);  // (her spell: no gun loop - a breath of her fire each mend)
         haptics_.push_back({rig_.turnHand(), 0.3f, 0.05f});
-        LOGI("Repair gun: %s %.0f / %.0f", bldgLabel(b.def, b.level), b.hp, b.maxHp);
+        LOGI("%s: %s %.0f / %.0f", spell ? "Delphi repairs" : "Repair gun", bldgLabel(b.def, b.level), b.hp, b.maxHp);
         if (b.hp >= b.maxHp) {
             timmyLine_ = std::string(bldgLabel(b.def, b.level)) + " REPAIRED";
             timmyLineT_ = 2.5f;
@@ -1476,7 +1485,7 @@ void GameApp::updateRepairGun(float dt, bool trigger, const Vec3& muzzle, const 
 }
 
 void GameApp::renderRepairBeam() {
-    if (!repairOn_ || !repairRing_ || hero_ != Hero::Mecc || weaponSel_ != 10) return;
+    if (!repairOn_ || !repairRing_ || !((hero_ == Hero::Mecc && weaponSel_ == 10) || (hero_ == Hero::Delphi && rsBeam_))) return;
     const float t = float(time_);
     const Vec3 eye = renderer_.currentView().eyePosition;
     const Vec3 d = eye - repairTo_;

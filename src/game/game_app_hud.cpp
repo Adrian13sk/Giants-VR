@@ -30,8 +30,8 @@ void GameApp::initHud(ModelCache* mc) {
                                      "st_mec_turret1",   // (the portable turret's: IconTurret1)
                                      "st_mec_shield",
                                      // (2026-10-29) Delphi's spells: the data's own spell icons, a row under her weapon
-                                     "st_rp_hail", "st_rp_slowtime", "st_rp_cloak", "st_rp_cluster", "st_rp_follow", "st_rp_circle", "st_rp_tornado", "st_rp_shrink", "st_rp_monster"};
-    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 64, 48, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2};
+                                     "st_rp_hail", "st_rp_slowtime", "st_rp_cloak", "st_rp_cluster", "st_rp_follow", "st_rp_circle", "st_rp_tornado", "st_rp_shrink", "st_rp_monster", "st_rp_repair"};
+    const size_t caps[kHudLayers] = {10, 160, 160, 4, 4, 8, 8, 8, 4, 4, 8, 4, 4, 4, 64, 48, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
     for (int k = 0; k < kHudLayers; ++k) {
         hudTex_[k] = names[k] ? mc->texture(names[k]) : whiteTex_;
         if (!hudTex_[k]) hudTex_[k] = whiteTex_;
@@ -204,7 +204,8 @@ void GameApp::hudStatus(const HudFrame& f) {
                          {kHudRpCircle, slowOwned(), circleCool_, circleT_},
                          {kHudRpTornado, tornadoOwned(), 0, tornadoes_.empty() ? 0.0f : 1.0f},
                          {kHudRpShrink, shrinkOwned(), shrinkCool_, 0},
-                         {kHudRpMonster, seaSummonOwned(), seaCool_, seaMon_.summoned && seaMon_.phase != 0 ? 1.0f : 0.0f}};
+                         {kHudRpMonster, seaSummonOwned(), seaCool_, seaMon_.summoned && seaMon_.phase != 0 ? 1.0f : 0.0f},
+                         {kHudRpRepair, rsRepairOwned(), 0, rsBeam_ ? 1.0f : 0.0f}};
         int k = 0;
         const float pulse = 0.6f + 0.4f * std::sin(float(time_) * 6.0f);
         for (const auto& s : sp) {

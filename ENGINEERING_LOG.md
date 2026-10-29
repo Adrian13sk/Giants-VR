@@ -3010,3 +3010,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   Devtest tests/delphi_sea_monster (Rstory2 battle 1, by the sea, three Reapers on the shore: summoned 67 m out, one
   fireball, all three thrown and killed) 72 / 24 Hz; frames checked (rearing behind them, the fireball's arc, the
   burst). GVR_SPELL_TRACE prints the nearest deep-water bearing and the aim / lift for writing tests.
+- Delphi's REPAIR (the data's item 73 IconRSRepair, HUD art st_rp_repair - the Reapers' counterpart of Baz's Repair
+  Gun). Ours: with her base up, the casting hand on one of her damaged buildings within 50 m, trigger held 0.5 s:
+  the Repair Gun's beam code (updateRepairGun, its building ray now a helper, bldgInRay) in a spell variant - no gun
+  loop, a breath of her fire each mend, the original repair ring on the building - while the trigger is held and
+  the hand on a building; it uses up the trigger pull (no fire wall on letting go). Devtest tests/delphi_repair
+  (r4a, the Persuader taken to 40 %: 160 -> 360 / 400 in 10 s, no fire wall) 72 / 24 Hz.

@@ -85,6 +85,7 @@ add_library(gvr_core STATIC
   src/game/game_app_follow.cpp
   src/game/game_app_shrink.cpp
   src/game/game_app_seasummon.cpp
+  src/game/game_app_rsrepair.cpp
   src/game/game_app_shield.cpp
   src/game/game_app_gyro.cpp
   src/game/game_app_basecrew.cpp

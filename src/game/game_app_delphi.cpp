@@ -482,6 +482,7 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
     updateSpellGestures(dt, in, dir);
     updateFollow(dt, in, dir);  // (FOLLOW: catching, holding, letting go)
     updateSeaSummon(dt, in);    // (SUMMON SEA MONSTER: pointing out to sea, then the lift)
+    updateRsRepair(dt, in);     // (REPAIR: her fire mending her base's buildings)
     const bool consumed = updateSpells(dt, boltTrig, from, dir, ok);
     float boltSpeed = 28.0f;
     const Vec3 aimDir = dir;  // (the cluster flies along the aim, not the upward flick that casts it)

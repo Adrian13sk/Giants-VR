@@ -1,0 +1,20 @@
+# (2026-10-29) Delphi's REPAIR (the data's item 73 IconRSRepair; rules ours): her base built (GVR_BASE_ORDER all), a raid
+# takes a building down (GVR_BASE_DAMAGE), she holds the trigger with the hand on it (GVR_REPAIR_AUTO: the nearest
+# damaged one) - her green fire mends it.
+# Log (checked by devtest.ps1): "Delphi casts REPAIR on building" "Delphi repairs:".
+name delphi_repair
+world Rstory4
+mission r4a_buildbase
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_BASE_FOOD 60
+env GVR_BASE_ORDER all
+env GVR_BASE_DAMAGE 22
+env GVR_REPAIR_AUTO 1
+env GVR_SPELL_TRACE 1
+view first
+duration 36
+hold trigger_l 24 34
+shot 28 repair
