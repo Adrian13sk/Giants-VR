@@ -210,8 +210,12 @@ void GameApp::updateHeroScale() {
         applyKabutoGrowth(kbGrowShown_ + std::max(-step, std::min(step, kbGrow_ - kbGrowShown_)));
     }
     if (hero_ == Hero::Kabuto && playMode_ && !cutsceneActive() && load_.phase == LoadPhase::Idle)
-        s = std::max(1.0f, kabutoEye_ * kbGrowShown_ / std::max(1.0f, userEye_));
+        s = std::max(1.0f, kabutoEye_ * kbGrowShown_ / std::max(1.0f, userEye_) * (settings_.kabutoView == 1 ? 0.6f : 1.0f));  // (Options -> KABUTO VIEW)
     if (const char* e = std::getenv("GVR_WORLD_SCALE")) s = float(std::atof(e));  // test hook
+    if (std::fabs(s - scaleLogged_) > 0.25f) {  // (logged when it settles somewhere new: a test can read it)
+        scaleLogged_ = s;
+        LOGI("View scale %.2f (%s)", s, hero_ == Hero::Kabuto ? (settings_.kabutoView == 1 ? "Kabuto, lower view" : "Kabuto, giant view") : "life size");
+    }
     if (s != rig_.comfort.worldScale && lastInput_.headValid) {
         // Keep the eyes where they are in the world while the scale changes (a cutscene starting
         // after Kabuto's scale was set had put the viewer 5 m into the ground).

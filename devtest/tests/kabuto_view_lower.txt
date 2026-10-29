@@ -1,0 +1,13 @@
+# (2026-10-29) Options -> KABUTO VIEW: LOWER - Kabuto's world seen from 60 % of his eye height (his chest), the
+# comfortable choice; GIANT keeps his true height. Here set by GVR_SETTINGS; first person in k4's full-size Kabuto.
+# Log (checked by devtest.ps1): "Settings from GVR_SETTINGS: kabuto_view=1" "View scale N (Kabuto, lower view)".
+name kabuto_view_lower
+world Kstory4
+mission kstory4_2
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_SETTINGS kabuto_view=1
+view first
+duration 5
+move 0 1 1 3
+shot 4 lower_view

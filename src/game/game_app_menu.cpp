@@ -24,7 +24,7 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 }
 
 namespace {
-enum MenuRow { kRowResume, kRowControls, kRowDifficulty, kRowTurn, kRowMove, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowSeated, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowNewGame, kRowMainMenu, kRowCount };
+enum MenuRow { kRowResume, kRowControls, kRowDifficulty, kRowTurn, kRowMove, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowSeated, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowKbView, kRowNewGame, kRowMainMenu, kRowCount };
 // (2026-10-28) A window of 16 rows that scrolls with the choice: with 26 rows the panel stood ~1.9 m tall.
 constexpr int kVisible = 16;
 constexpr float kRowH = 0.066f, kMenuW = 1.15f, kMenuH = kRowH * float(kVisible + 2) + 0.1f;
@@ -211,11 +211,12 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             case kRowDay: s.dayNight = !s.dayNight; changed = true; break;
             case kRowFx: s.originalFx = !s.originalFx; changed = true; break;
             case kRowMic: s.micRoar = !s.micRoar; changed = true; break;
+            case kRowKbView: s.kabutoView = 1 - s.kabutoView; changed = true; break;
             case kRowNewGame: menuCampaign_ = (menuCampaign_ + dx + 3) % 3; haptics_.push_back({kRight, 0.3f, 0.03f}); break;
             default: break;
         }
         if (changed) {
-            static const char* kRowNames[kRowCount] = {"resume", "controls", "difficulty", "turn", "movement", "vignette", "ambushes", "aim laser", "reach assist", "seated", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "mic roar", "new game", "main menu"};
+            static const char* kRowNames[kRowCount] = {"resume", "controls", "difficulty", "turn", "movement", "vignette", "ambushes", "aim laser", "reach assist", "seated", "classic look", "hand", "view", "hud size", "volume", "music", "ambience", "subtitles", "cutscene screen", "fps", "foveation", "day and night", "original fx", "mic roar", "kabuto view", "new game", "main menu"};
             LOGI("Options: %s changed", kRowNames[menuRow_]);
             applySettings();
             saveSettings();
@@ -315,6 +316,7 @@ void GameApp::renderMenu() {
         {"DAY AND NIGHT", s.dayNight ? "CYCLE" : "ALWAYS DAY"},
         {"EFFECTS", s.originalFx ? "ORIGINAL (TEST)" : "SIMPLE"},
         {"KABUTO MIC ROAR", s.micRoar ? (micAllowed_ ? "ON - MIC READY" : "ON") : "OFF"},
+        {"KABUTO VIEW", s.kabutoView ? "LOWER (COMFORT)" : "GIANT (TRUE HEIGHT)"},
         {"NEW GAME", newGame},
         {"MAIN MENU", menuQuit_ > 0.05f ? "HOLD... " + std::to_string(int(std::ceil(2.0f - menuQuit_)))
                                          : std::string(practice_ ? "LEAVE PRACTICE" : (title_ ? "" : "LAST CHECKPOINT KEPT"))},

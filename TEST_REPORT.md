@@ -1121,3 +1121,5 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Original sounds for the new items; review fixes (proximity arming / bosses / load fallback / shop after CONTINUE) | no "unavailable" sounds in the runs; w_mecc_prox and w_mecc_homing 72 / 24 Hz still pass; regression: tests 75 + 3 known, weapons 27/27, ui 19/19, npcs 11/11, missions 31/31; sweep 56/56 |
 | The Gyrocopter Pad (base) | npcs/npc_base_gyropad 72 Hz: built in 20 s, "Gyropad ready!", the gyrocopter on its top; frame checked |
 | Gyrocopter review fixes | w_mecc_gyro 72 / 24 Hz (boarding by a hand on it; a short flight; out on land); regression: tests 75 + 3 known, weapons 28/28, ui 19/19, npcs 12/12, missions 31/31; sweep 56/56 |
+| ASan/UBSan over the 20 new devtests (36 Hz) | 0 reports, all exit 0 |
+| Options -> KABUTO VIEW | tests/kabuto_view_lower (view scale 5.0 lower vs 8.1-8.4 giant); ui set for the new row |

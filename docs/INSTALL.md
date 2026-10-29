@@ -133,6 +133,8 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
 - **Options added 2026-10-28:** DIFFICULTY (easy: half the damage, wilder Reaper aim; hard: x1.5, sharper aim),
   MOVEMENT: TELEPORT (push the move stick forward to aim an arc, let go to blink there; on foot only), PLAY SEATED
   (the view and hands raised 45 cm), KABUTO MIC ROAR (shout and he roars; asks for the microphone).
+- **Added 2026-10-29:** KABUTO VIEW - GIANT (his true eye height) or LOWER (60 %, from his chest: easier on the
+  stomach).
 - **Checkpoints within a mission:** dying brings you back where you finished the last objective.
 - After each mission the next loading screen shows its numbers: time, kills, hit rate, deaths.
 - **FOVEATED RENDERING** (Options): the edges of each eye are drawn at lower resolution, which you mostly can't see

@@ -2939,3 +2939,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Comfort in vehicles (the gyrocopter review's open point): the vignette now also closes with the view's turn rate
   in a vehicle (snap steps aside) and the gyrocopter's climb / descent - checked with GVR_VIGNETTE_TRACE (0.53-0.55 at
   the low setting while turning and climbing). The gyrocopter casts a shadow.
+- 2026-10-29: ASan/UBSan (build/asan) over the 20 devtests added since 2026-10-28 (turret, shield, rockets, gyrocopter,
+  jetpack, Repair Gun, wheels, FOLLOW, fire circle, cloak, cluster, hail, slow time, the gyro pad, practice) at 36 Hz:
+  0 reports, all exit 0, the features exercised (checked in the logs). Options -> KABUTO VIEW: GIANT / LOWER (the view
+  scale x0.6 - his chest's height; the roadmap's "giant's view" setting); "View scale N" logged as it settles
+  (devtest tests/kabuto_view_lower: 5.0 against 8.1-8.4).

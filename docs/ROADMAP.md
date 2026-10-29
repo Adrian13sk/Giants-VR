@@ -87,7 +87,8 @@ quality levels chosen per world are logged and stay put.
   mc_turret: planted, turns and fires; from Story 3 on). Still in the table and unused: proximity rockets (16), the
   motion mine (13); the shield (17) done 2026-10-28 (on the wheel), the jetpack upgrade (18) and proximity rockets
   (16, with a choice of the launcher's load on the wheel) 2026-10-29.
-- **Kabuto at scale:** a "giant's view" setting (true eye height vs a lowered, comfortable one), and his
+- **Kabuto at scale:** a "giant's view" setting (true eye height vs a lowered, comfortable one) - DONE 2026-10-29
+  (Options -> KABUTO VIEW: GIANT / LOWER, 60 %; harness), and his
   hands reaching the ground without stooping (the reach assist exists; tune it on the device).
 
 ## 4. Fidelity to the original
