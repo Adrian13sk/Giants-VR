@@ -1,11 +1,14 @@
 // Unit tests that need no proprietary data (synthetic inputs only). Asset tests that require
 // the user's original files are run with gzptool validate (see TEST_REPORT.md).
 #include <algorithm>
+#include <fstream>
+#include <sstream>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <vector>
 
+#include "core/file_util.h"
 #include "assets/flick.h"
 #include "assets/gbs.h"
 #include "assets/gzp.h"
@@ -2264,6 +2267,17 @@ static void testProgress() {
 // thin one at 24 Hz and 25 m/s - and lands on a roof it comes down on; it drops when that roof goes.
 // (2026-10-29) SHRINK: a quarter size in about half a second, runs (never fires) while small, any hit kills him;
 // back to full size when it wears off.
+// (2026-10-29 review) Saves and settings: written whole or not at all.
+static void testAtomicWrite() {
+    const std::string path = "/tmp/gvr_atomic_test.txt";
+    CHECK(gvr::writeFileAtomic(path, "mission=1a\n"));
+    { std::ifstream f(path); std::stringstream b; b << f.rdbuf(); CHECK(b.str() == "mission=1a\n"); }
+    // Can't write (no such folder): false, and nothing else touched.
+    CHECK(!gvr::writeFileAtomic("/tmp/gvr_no_such_dir_xyz/save.txt", "x"));
+    { std::ifstream f(path); std::stringstream b; b << f.rdbuf(); CHECK(b.str() == "mission=1a\n"); }
+    std::remove(path.c_str());
+}
+
 static void testShrink() {
     std::vector<int> sh;
     EnemyDirector d;
@@ -2375,6 +2389,7 @@ int main() {
     testCollision();
     testFallingCollision();
     testShrink();
+    testAtomicWrite();
     testWeapon();
     testEnemies();
     testCreatures();

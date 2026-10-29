@@ -398,8 +398,20 @@ std::vector<std::pair<std::string, std::string>> AssetWorld::campaignMissions() 
     return out;
 }
 
+bool AssetWorld::canLoadWorld(const std::string& name) {
+    std::vector<uint8_t> bytes;
+    WorldDefinition w;
+    std::string err;
+    return fs_.read("w_" + name + ".bin", bytes) && parseWorldBin(bytes.data(), bytes.size(), w, &err) && fs_.exists(w.terrainName);
+}
+
 bool AssetWorld::switchWorld(const std::string& name) {
     if (!renderer_) return false;
+    // (2026-10-29 review) Checked first: a missing world used to leave the current one torn down (no terrain, no sky).
+    if (!canLoadWorld(name)) {
+        LOGW("World %s can't be loaded (missing or damaged); staying in %s", name.c_str(), worldName_.c_str());
+        return false;
+    }
     Renderer& r = *renderer_;
     terrain_.release(r);
     if (skyMesh_) { r.destroyMesh(skyMesh_); skyMesh_ = 0; }

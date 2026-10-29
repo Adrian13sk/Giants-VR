@@ -1,6 +1,7 @@
 #include "game/game_app.h"
 #include "game/hero_clips.h"
 
+#include "core/file_util.h"
 #include "core/log.h"
 #include "core/prof.h"
 #include "scene/asset_world.h"
@@ -15,6 +16,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -1769,8 +1771,9 @@ void GameApp::loadWorldQuality() {
 void GameApp::saveWorldQuality() const {
     if (settingsPath_.empty()) return;
     const std::string path = settingsPath_.substr(0, settingsPath_.rfind('/') + 1) + "quality2.txt";
-    std::ofstream f(path, std::ios::trunc);
+    std::ostringstream f;
     for (const auto& [w, q] : worldQuality_) f << w << "=" << q << "\n";
+    writeFileAtomic(path, f.str());
 }
 
 void GameApp::updateQuality(float dt) {
@@ -2355,7 +2358,14 @@ void GameApp::update(float dt, const InputFrame& in) {
         }
         needSpawn_ = false;
     }
+    if (cutscenePausedAudio_ && (in.focused || !cutsceneActive())) { if (audio_) audio_->setPaused(false); cutscenePausedAudio_ = false; }
     if (cutsceneActive()) {
+        // (2026-10-29 review) Behind the headset's own menu the film waits (its sound too) rather than running on unseen.
+        if (!in.focused) {
+            if (audio_ && !cutscenePausedAudio_) { audio_->setPaused(true); cutscenePausedAudio_ = true; }
+            lastInput_ = in;
+            return;
+        }
         updateCutscene(dt, in);
         updateVignette(dt, in);  // (a travelling shot camera closes the comfort ring)
         if (assetWorld_) assetWorld_->update(dt);
@@ -2376,16 +2386,33 @@ void GameApp::update(float dt, const InputFrame& in) {
         else { pushUnscaledRig(in.head, in.headValid); openMenu(in); popUnscaledRig(); }
     }
     if (menuOpen_) {
+        const bool online = playMode_ && skirmish_ && skNet_ != SkNetMode::Off;
+        if (!title_ && !online) statStartT_ += dt;  // (2026-10-29 review: paused time isn't mission time)
         pushUnscaledRig(in.head, in.headValid);  // the menu is at human scale (Kabuto)
         updateMenu(dt, in);
         popUnscaledRig();
+        // (2026-10-29 review) Online the game can't pause: the others play on, and a headset silent for 15 s is dropped
+        // (or, the host, drops everyone). The hero stands idle while the menu is open.
+        if (online && menuOpen_) {
+            InputFrame idle = in;
+            for (auto& h : idle.hand) {
+                const Pose g = h.gripPose, a = h.aimPose;
+                const bool gv = h.gripPoseValid, av = h.aimPoseValid, act = h.active;
+                h = ControllerState{};
+                h.gripPose = g; h.aimPose = a; h.gripPoseValid = gv; h.aimPoseValid = av; h.active = act;
+            }
+            updatePlayMode(dt, idle);
+        }
         followHead(dt, in);
         if (in.headValid) headWorldRot_ = rig_.toWorld(in.head).orientation;
         lastInput_ = in;
         return;
     }
     // B (turn hand's secondary) toggles play mode / free camera.
-    if (playEdge_.pressed(in.hand[rig_.turnHand()].secondary)) {
+    // (2026-10-29 review) Only with developer=1 in the settings file: the free camera's X skips missions and held X
+    // deletes the save - one slip off A away in normal play.
+    static const bool freeCamEnv = std::getenv("GVR_FREECAM") != nullptr;
+    if (playEdge_.pressed(in.hand[rig_.turnHand()].secondary) && (settings_.developer || freeCamEnv || !playMode_)) {
         setPlayMode(!playMode_, in);
         haptics_.push_back({rig_.turnHand(), 0.6f, 0.08f});
     }

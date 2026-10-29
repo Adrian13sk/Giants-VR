@@ -16,6 +16,7 @@ set(GVR_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 # ------------------------------------------------------------------------------------------
 add_library(gvr_core STATIC
   src/core/prof.cpp
+  src/core/file_util.cpp
   src/core/log.cpp
   src/render/renderer.cpp
   src/render/gpu_timer.cpp

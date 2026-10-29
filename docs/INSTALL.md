@@ -59,7 +59,7 @@ Story1 plays its missions in order, as in the original:
 
 Cutscenes: watch from the shot's camera (you travel with it, the view never turns by itself); subtitles follow
 your head, just below the line of sight. **Either trigger skips** (release it first if you were holding it when the cutscene started).
-In the free camera (B), **X skips to the next mission** (handy for testing 1b without replaying 1a).
+Developers only: with `developer=1` added to `settings.txt`, B switches to a free camera where **X skips to the next mission** (and holding X 3 s starts a new game).
 Worlds whose mission has no enemies or objectives fall back to waves of Reaper soldiers.
 
 **HUD (original Meccaryn art):** first person: over your left forearm (raise the wrist to read it); third person: lower
@@ -110,7 +110,7 @@ moves him too.
 | **Right trigger** | **Fire**: handgun (hold, 5 shots/s), shotgun (one exploding shell per pull), machine gun (hold, 10/s), sniper gun (one heavy shot per pull, kills a Reaper), mortar (lobs a bouncing bomb - big blast, keep your distance), rocket launcher (one rocket per pull) | Haptic test pulse |
 | **A** (hold) | **Jetpack**: lifts you; steer with the left stick only while it fires (otherwise you drift and fall). Fuel lasts ~8 s and refills only on the ground; burn it dry and it overheats until partly refilled. **Dry in the air, keep holding A**: it sputters and brakes your fall so you land safely | — |
 | Right stick click | First ↔ third person (third: camera behind him) | — |
-| **B** | Switch to the free camera | Back to the Meccaryn (he drops in below you) |
+| **B** | (only with `developer=1` in settings.txt) Switch to the free camera | Back to the Meccaryn (he drops in below you) |
 | **Y** | **Map**: a holographic table of the island in front of you (dark until you've been there); Y again closes it | Debug fly/noclip on/off (strong buzz = on) |
 | X | Health injection (FP: into the left hand, push into the chest; TP: inject) | Tap: next mission. Hold 3 s: **new game** (forgets the checkpoint, back to 1a) |
 | **Left trigger** | **Flare** (once you have some from a Shop): thrown up off the jetpack; homing missiles go for it | — |
@@ -127,7 +127,7 @@ left-handed mode exist in code (left-handed mode moves the fly toggle to B and t
 ## Progress and options
 - **Checkpoints:** progress is saved when each mission starts (`save.txt` next to your `Bin` folder: world, mission,
   injections carried, rocket launcher). Starting the app continues from there. New game: Options → NEW GAME (hold the
-  trigger 2 s), or in the free camera hold X for 3 s.
+  trigger 2 s). A new game deletes the old save only once its first level has loaded.
 - **Options** are kept in `settings.txt` next to `save.txt`. FRAME RATE: SHOWN puts a frame-rate counter at the top
   left of the view (green at 70+; please note it for the performance pass).
 - **Options added 2026-10-28:** DIFFICULTY (easy: half the damage, wilder Reaper aim; hard: x1.5, sharper aim),

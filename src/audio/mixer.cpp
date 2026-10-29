@@ -222,6 +222,7 @@ uint64_t AudioMixer::musicFramesPlayed() const {
 void AudioMixer::mix(float* out, uint32_t frames) {
     std::fill(out, out + size_t(frames) * 2, 0.0f);
     std::lock_guard<std::mutex> lk(mu_);
+    if (paused_) return;
     // Music: seamless across queued buffers (linear interpolation, the next buffer supplies
     // the sample after the last one of the current buffer).
     for (uint32_t i = 0; i < frames && !music_.empty(); ++i) {

@@ -59,7 +59,7 @@ void writeEvent(NetWriter& w, uint32_t seq, const SkEvent& e) {
 SkEvent readEvent(NetReader& r, uint32_t& seq) {
     SkEvent e;
     seq = r.u32();
-    e.kind = SkEvent::Kind(std::min<int>(SkEvent::Win, r.u8()));
+    e.kind = SkEvent::Kind(std::min<int>(SkEvent::Spell, r.u8()));
     e.a = int(r.u8()) - 1;
     e.b = int(r.u8()) - 1;
     e.team = int(r.u8()) - 1;
@@ -256,6 +256,23 @@ void SkNetHost::onPacket(const std::vector<uint8_t>& d, const NetAddr& from) {
         sh.team = me->team;
         sk_->shots.push_back(sh);
     }
+    // Its spells (each once): events for everyone (its own game ignores its own).
+    const int nsp = r.left() > 0 ? r.u8() : 0;
+    for (int k = 0; k < nsp && r.ok(); ++k) {
+        const uint32_t seq = r.u32();
+        const int kind = r.u8();
+        const float yaw = r.f32();
+        const Vec3 at = r.vec();
+        if (!r.ok() || !newer(seq, c->spellSeq) || kind > int(SkSpell::Hail)) continue;
+        c->spellSeq = seq;
+        SkEvent e;
+        e.kind = SkEvent::Spell;
+        e.a = c->id;
+        e.team = kind;
+        e.amount = yaw;
+        e.at = at;
+        sk_->events.push_back(e);
+    }
 }
 
 void SkNetHost::sendSnapshot(Client& c) {
@@ -263,6 +280,7 @@ void SkNetHost::sendSnapshot(Client& c) {
     header(w, kSnapshot);
     w.u32(++snapSeq_);
     w.u32(c.hitSeq);
+    w.u32(c.spellSeq);
     w.f32(sk_->time);
     w.u8(uint8_t(sk_->winner + 1));
     w.u8(uint8_t(sk_->teams.size()));
@@ -332,7 +350,7 @@ void SkNetHost::update(float dt) {
     if (log_.size() > 256) log_.erase(log_.begin(), log_.end() - 256);
     // Joiners gone quiet: their players leave.
     for (size_t i = 0; i < clients_.size();) {
-        clients_[i].quiet += dt;
+        clients_[i].quiet += std::min(dt, 0.25f);
         if (clients_[i].quiet > kTimeout) {
             LOGI("Network: player %d timed out", clients_[i].id);
             if (removeRemote) removeRemote(clients_[i].id);
@@ -382,8 +400,9 @@ bool SkNetClient::join(const NetAddr& host, const std::string& name, int team) {
     sendT_ = 0;
     myId = myTeam = -1;
     // A fresh session (the host may have restarted: its numbers start again).
-    stateSeq_ = hitSeq_ = hitAcked_ = eventSeen_ = snapSeen_ = 0;
+    stateSeq_ = hitSeq_ = hitAcked_ = eventSeen_ = snapSeen_ = spellSeq_ = spellAcked_ = 0;
     hits_.clear();
+    spells_.clear();
     shotsOut_.clear();
     events.clear();
     LOGI("Network: joining %s", host.str().c_str());
@@ -403,6 +422,11 @@ void SkNetClient::leave() {
 void SkNetClient::hit(int target, float damage, const Vec3& at) {
     hits_.push_back({++hitSeq_, target, damage, at});
     if (hits_.size() > 32) hits_.erase(hits_.begin());
+}
+
+void SkNetClient::spell(int kind, float yaw, const Vec3& at) {
+    spells_.push_back({++spellSeq_, kind, yaw, at});
+    if (spells_.size() > 16) spells_.erase(spells_.begin());
 }
 
 void SkNetClient::shot(const SkShot& s) {
@@ -457,6 +481,8 @@ void SkNetClient::onPacket(const std::vector<uint8_t>& d, const NetAddr& from, S
     snapSeen_ = snap;
     if (const uint32_t ha = r.u32(); newer(ha, hitAcked_)) hitAcked_ = ha;
     hits_.erase(std::remove_if(hits_.begin(), hits_.end(), [&](const Hit& h) { return !newer(h.seq, hitAcked_); }), hits_.end());
+    if (const uint32_t sa = r.u32(); newer(sa, spellAcked_)) spellAcked_ = sa;
+    spells_.erase(std::remove_if(spells_.begin(), spells_.end(), [&](const SpellOut& s) { return !newer(s.seq, spellAcked_); }), spells_.end());
     sk.time = r.f32();
     sk.winner = int(r.u8()) - 1;
     const int nt = r.u8();
@@ -539,7 +565,7 @@ void SkNetClient::update(float dt, const SkNetSelf& self, Skirmish& sk) {
     NetAddr from;
     for (int k = 0; k < 256 && sock_.recv(d, from); ++k) onPacket(d, from, sk);
     for (auto& g : games) g.age += dt;
-    quiet_ += dt;
+    quiet_ += std::min(dt, 0.25f);  // (a long frame - the map loading - is not silence)
     if (state == State::Searching) {
         probeT_ -= dt;
         if (probeT_ <= 0) {
@@ -608,6 +634,14 @@ void SkNetClient::update(float dt, const SkNetSelf& self, Skirmish& sk) {
     w.u8(uint8_t(shotsOut_.size()));
     for (const auto& s : shotsOut_) writeShot(w, s);
     shotsOut_.clear();
+    const size_t nsp = std::min<size_t>(spells_.size(), 8);
+    w.u8(uint8_t(nsp));
+    for (size_t k = 0; k < nsp; ++k) {
+        w.u32(spells_[k].seq);
+        w.u8(uint8_t(spells_[k].kind));
+        w.f32(spells_[k].yaw);
+        w.vec(spells_[k].at);
+    }
     sock_.send(host_, w.b.data(), w.b.size());
 }
 

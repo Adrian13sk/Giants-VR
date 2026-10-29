@@ -6,6 +6,8 @@
 #include <fstream>
 #include <sstream>
 
+#include "core/file_util.h"
+
 namespace gvr {
 
 bool loadSaveGame(const std::string& path, SaveGame& out) {
@@ -46,10 +48,8 @@ bool loadSaveGame(const std::string& path, SaveGame& out) {
 }
 
 bool writeSaveGame(const std::string& path, const SaveGame& s) {
-    const std::string tmp = path + ".tmp";
+    std::ostringstream f;
     {
-        std::ofstream f(tmp, std::ios::trunc);
-        if (!f) return false;
         f << "version=1\nworld=" << s.world << "\nmission=" << s.mission << "\nsyringes=" << s.syringes
           << "\nlauncher=" << (s.launcher ? 1 : 0) << "\nflares=" << s.flares << "\n";
         // gunN=<ammo> for each gun carried (absent = not carried).
@@ -62,9 +62,8 @@ bool writeSaveGame(const std::string& path, const SaveGame& s) {
             if (s.bows[b]) f << "bow" << b << "=" << std::max(-1, s.arrows[b]) << "\n";
         for (int g = 0; g < 4; ++g)
             if (s.guns[g]) f << "gun" << g << "=" << std::max(0, s.ammo[g]) << "\n";
-        if (!f.good()) return false;
     }
-    return std::rename(tmp.c_str(), path.c_str()) == 0;
+    return writeFileAtomic(path, f.str());  // (2026-10-29 review: flushed and checked before the rename)
 }
 
 }  // namespace gvr

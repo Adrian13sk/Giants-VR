@@ -853,6 +853,7 @@ private:
         std::string worldMission;  // with `world`: start this mission of it (a checkpoint) instead of the first
         bool practice = false;     // with `world`: a practice session there (practice_ follows each world switch)
         bool toTitle = false;      // with `world`: the main menu's island, the main menu after it
+        bool deleteSave = false;   // (2026-10-29 review) a new game: the old save goes once the new world has loaded
     } load_;
     int warmFrame_ = 0;  // warm-up views drawn behind the briefing
     bool warmedThisFrame_ = false;
@@ -1331,6 +1332,7 @@ private:  // the mission placed enemies: no test waves
     Vec3 swordTrailTip_;
     bool swordTrailValid_ = false;
     QuadBatch trailBatch_;
+    bool trailBatchReady_ = false;
     void updateSwordTrail(const Vec3& hilt, const Vec3& tip, float dt);
     void renderSwordTrail();
     Vec3 castHandPrev_, castHandVel_;  // Delphi's casting hand (tracking space): a thrown fire bolt
@@ -1339,8 +1341,8 @@ private:  // the mission placed enemies: no test waves
     int comboStep_ = 0;
     float comboTimer_ = 0, swipeT_ = -1, boltCooldown_ = 0;
     // Delphi's spells (game_app_spells.cpp): fire wall, bubble, tornado.
-    struct FireWall { std::vector<Vec3> seg; Vec3 dir; float age = 0; };
-    struct Tornado { Vec3 pos, dir; float age = 0, tick = 0; };
+    struct FireWall { std::vector<Vec3> seg; Vec3 dir; float age = 0; bool remote = false; };  // remote: another headset's (drawn, no harm here)
+    struct Tornado { Vec3 pos, dir; float age = 0, tick = 0; bool remote = false; };
     struct Bubble { Vec3 pos; int target = -1; float age = 0; bool caught = false; };
     std::vector<FireWall> fireWalls_;
     // (2026-10-28) Fire arrows: an arrow drawn with its tip in a flame (a fire wall, a burning hut, a fireball,
@@ -1434,8 +1436,13 @@ private:  // the mission placed enemies: no test waves
     // above the head, trigger held, brought down hard: ice falls where she aims) and SLOW TIME (both hands
     // together before the chest, trigger held, half a second: Reapers, creatures and their shots at a third of
     // the speed for 8 s).
-    struct HailStone { Vec3 pos, vel; float age = 0; };
-    struct HailStorm { Vec3 centre; float t = 0, next = 0; int left = 0; };
+    struct HailStone { Vec3 pos, vel; float age = 0; bool remote = false; };
+    struct HailStorm { Vec3 centre; float t = 0, next = 0; int left = 0; bool remote = false; };
+    struct RemoteCircle { Vec3 at; float t = 0; };
+    std::vector<RemoteCircle> remoteCircles_;  // (online: other Delphis' fire circles, drawn only)
+    // (2026-10-29) Online: a spell this headset cast, for the others to see; another's, shown here.
+    void skSpell(SkSpell kind, const Vec3& at, const Vec3& dir);
+    void skShowSpell(const SkEvent& e);
     std::vector<HailStone> hailStones_;
     std::vector<HailStorm> hailStorms_;
     const RenderModel* hailModel_ = nullptr;
@@ -2086,6 +2093,7 @@ private:  // the mission placed enemies: no test waves
     void injectHealth();
     // Audio (original WAVs from the user's archives; names decoded by guesswork, see the log).
     AudioMixer* audio_ = nullptr;
+    bool cutscenePausedAudio_ = false;  // (the mixer held while a cutscene waits behind the headset's menu)
     void sfx(const char* name, const Vec3& pos, float vol = 1.0f, float pitch = 1.0f);
     void sfx2D(const char* name, float vol = 1.0f, float pitch = 1.0f);
     bool ensureSound(const char* name);  // loads a sound the first time it is played

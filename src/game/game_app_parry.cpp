@@ -135,8 +135,7 @@ void GameApp::updateSwordTrail(const Vec3& hilt, const Vec3& tip, float dt) {
 void GameApp::renderSwordTrail() {
     if (hero_ != Hero::Delphi || !swordValid_ || !firstPerson_) { swordTrail_.clear(); swordTrailValid_ = false; return; }
     if (swordTrail_.size() < 2 || renderer_.inReflectionPass()) return;
-    static bool init = false;
-    if (!init) { init = true; trailBatch_.init(renderer_, 32); }
+    if (!trailBatchReady_) { trailBatchReady_ = true; trailBatch_.init(renderer_, 32); }  // (per GameApp, not static: review 2026-10-29)
     trailBatch_.clear();
     for (size_t i = 1; i < swordTrail_.size(); ++i) {
         const SwordTrailPt& a = swordTrail_[i - 1];

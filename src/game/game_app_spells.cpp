@@ -104,6 +104,7 @@ void GameApp::castHail(const Vec3& from, const Vec3& dir) {
     s.centre = at;
     s.left = 16;
     hailStorms_.push_back(s);
+    skSpell(SkSpell::Hail, at, dir);
     hailCool_ = 10.0f;
     sfx("sr_spfsh", from, 1.0f, 0.5f);
     addFlash(from + Vec3{0, 0.5f, 0}, {0.8f, 1.1f, 1.6f}, 4.0f, 0.3f);
@@ -183,6 +184,7 @@ void GameApp::castFireCircle() {
     circleT_ = kCircleTime;
     circleCool_ = 20.0f;
     circleBurnt_ = 0;
+    skSpell(SkSpell::FireCircle, circleAt_, Vec3{0, 0, -1});
     sfx("sr_spfsh", circleAt_, 1.0f, 0.7f);
     sfx("sr_spfsh", circleAt_, 0.8f, 1.2f);
     addFlash(circleAt_ + Vec3{0, 1.0f, 0}, {0.6f, 0.9f, 2.0f}, 8.0f, 0.4f);
@@ -205,6 +207,7 @@ void GameApp::castTornado(const Vec3& dir) {
     t.dir = length(d) > 1e-3f ? normalize(d) : Vec3{0, 0, -1};
     t.age = 0;
     tornadoes_.push_back(t);
+    skSpell(SkSpell::Tornado, t.pos, t.dir);
     sfx("sr_spfsh", t.pos, 1.0f, 0.6f);
     sfx("ex_woods", t.pos, 0.7f, 0.5f);
     LOGI("Delphi casts the TORNADO");
@@ -221,6 +224,7 @@ void GameApp::castFireWall(const Vec3& dir) {
     w.age = 0;
     for (int k = -3; k <= 3; ++k) w.seg.push_back(player_.position + d * 3.0f + side * (float(k) * 1.4f));
     fireWalls_.push_back(w);
+    skSpell(SkSpell::FireWall, player_.position, d);
     sfx("sr_spfsh", player_.position + d * 3.0f, 1.0f, 0.8f);
     LOGI("Delphi casts the FIRE WALL");
 }
@@ -427,6 +431,14 @@ void GameApp::stepSpells(float dt) {
     updateShrink(dt);      // (SHRINK: squashing the small, killed or trodden on)
     updateShadowWarrior(dt);  // (SUMMON SHADOW: her shadow warrior fighting)
     circleCool_ = std::max(0.0f, circleCool_ - dt);
+    for (auto& rc : remoteCircles_) {
+        rc.t -= dt;
+        if (frand() < dt * 20.0f) {
+            const float a = frand() * 6.2832f;
+            smokePuff(FxTex::FireBlue, rc.at + Vec3{std::sin(a) * kCircleR, 0.2f + frand() * 1.5f, std::cos(a) * kCircleR}, Vec3{0, 2.0f, 0}, 0.6f, 0.4f, 0.5f, 0.9f, 0.3f);
+        }
+    }
+    remoteCircles_.erase(std::remove_if(remoteCircles_.begin(), remoteCircles_.end(), [](const RemoteCircle& c) { return c.t <= 0; }), remoteCircles_.end());
     if (circleT_ > 0) {
         const float was = circleT_;
         circleT_ = std::max(0.0f, circleT_ - dt);
@@ -517,6 +529,7 @@ void GameApp::stepSpells(float dt) {
             --s.left;
             const float a = frand() * 6.2832f, r = 5.0f * std::sqrt(frand());
             HailStone st;
+            st.remote = s.remote;
             const Vec3 slant{std::cos(a + 1.0f) * 3.0f, 0, std::sin(a + 1.0f) * 3.0f};
             st.pos = s.centre + Vec3{std::cos(a) * r, 30.0f, std::sin(a) * r} - slant;
             st.vel = slant * (32.0f / 30.0f) + Vec3{0, -32.0f, 0};
@@ -533,7 +546,7 @@ void GameApp::stepSpells(float dt) {
         st.pos.y = g;
         blastNoFire_ = true;
         const size_t alive0 = enemies_.aliveCount();
-        explode(st.pos, 3.0f, 70.0f, /*fire=*/false, /*hurtsPlayer=*/0);
+        if (!st.remote) explode(st.pos, 3.0f, 70.0f, /*fire=*/false, /*hurtsPlayer=*/0);
         blastNoFire_ = false;
         if (enemies_.aliveCount() < alive0) LOGI("Hail: %zu Reaper(s) killed", alive0 - enemies_.aliveCount());
         static const bool trace = std::getenv("GVR_SPELL_TRACE") != nullptr;
@@ -563,7 +576,7 @@ void GameApp::stepSpells(float dt) {
             if (frand() < dt * 3.0f) smokePuff(FxTex::SmokeBlack, p + Vec3{0, 2.0f, 0}, Vec3{0, 1.0f, 0}, 0.8f, 3.0f, 2.0f, 0.4f, 0.4f);
         }
         // Burn: 40 per second to anything within 1.6 m of a segment (half-second ticks).
-        if (int(w.age * 2) != int((w.age - dt) * 2) && weapon_.onHit) {
+        if (int(w.age * 2) != int((w.age - dt) * 2) && weapon_.onHit && !w.remote) {
             for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
                 const Enemy& e = enemies_.enemies[i];
                 if (e.state == EnemyState::Dead) continue;
@@ -603,7 +616,7 @@ void GameApp::stepSpells(float dt) {
             smokePuff(FxTex::Dust, tn.pos + Vec3{std::cos(a) * r, 0.3f, std::sin(a) * r}, Vec3{-std::sin(a) * 6.0f, 2.0f + 3.0f * frand(), std::cos(a) * 6.0f}, 1.0f, 3.5f, 1.5f, 0.55f, 1.0f);
         }
         tn.tick -= dt;
-        if (tn.tick > 0) continue;
+        if (tn.tick > 0 || tn.remote) continue;
         tn.tick = 0.4f;
         for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
             const Enemy& e = enemies_.enemies[i];
@@ -719,6 +732,11 @@ void GameApp::renderSpells() {
         drawModel(slowModel_, Mat4::translation(player_.position + Vec3{0, 0.1f, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.4f)) *
                                   Mat4::scale(Vec3{3.0f, 3.0f, 3.0f}), true, (0.16f + 0.29f * std::max(0.0f, std::min(1.0f, (slowT_ - 6.3f) / 0.5f))) * k);  // (bright as it is cast, faint after)
     }
+    if (circleModel_)
+        for (const auto& rc : remoteCircles_) {
+            const float k = std::min(1.0f, std::min((kCircleTime - rc.t) / 0.4f, rc.t / 0.8f));
+            drawModel(circleModel_, Mat4::translation(rc.at) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, t * 0.08f)) * Mat4::scale(Vec3{1.8f, 1.0f, 1.8f}), true, 0.45f * k);
+        }
     if (circleModel_ && circleT_ > 0) {
         // The flared column of blue fire, turning, fading in and out (its foot ~1.1 m round, scaled to the ring).
         const float k = std::min(1.0f, std::min((kCircleTime - circleT_) / 0.4f, circleT_ / 0.8f));
@@ -803,6 +821,64 @@ void GameApp::updateBlazes(float dt) {
         }
     }
     blazes_.erase(std::remove_if(blazes_.begin(), blazes_.end(), [](const Blaze& b) { return b.age > 5.0f; }), blazes_.end());
+}
+
+// (2026-10-29) Online: the spells are each headset's own (their harm reported as hits); the others see them.
+void GameApp::skSpell(SkSpell kind, const Vec3& at, const Vec3& dir) {
+    if (!skirmish_ || skNet_ == SkNetMode::Off) return;
+    const float yaw = std::atan2(-dir.x, -dir.z);
+    if (skNet_ == SkNetMode::Join) {
+        skClient_.spell(int(kind), yaw, at);
+    } else {
+        SkEvent e;
+        e.kind = SkEvent::Spell;
+        e.a = skLocal_;
+        e.team = int(kind);
+        e.amount = yaw;
+        e.at = at;
+        sk_.events.push_back(e);  // (logged for the joiners; this game skips its own)
+    }
+}
+
+void GameApp::skShowSpell(const SkEvent& e) {
+    if (e.a == skLocal_) return;
+    initSpells();
+    const Vec3 d{-std::sin(e.amount), 0, -std::cos(e.amount)};
+    switch (SkSpell(e.team)) {
+        case SkSpell::FireWall: {
+            const Vec3 side{-d.z, 0, d.x};
+            FireWall w;
+            w.dir = d;
+            w.remote = true;
+            for (int k = -3; k <= 3; ++k) w.seg.push_back(e.at + d * 3.0f + side * (float(k) * 1.4f));
+            fireWalls_.push_back(w);
+            sfx("sr_spfsh", e.at + d * 3.0f, 1.0f, 0.8f);
+            break;
+        }
+        case SkSpell::Tornado: {
+            Tornado t;
+            t.pos = e.at;
+            t.dir = d;
+            t.remote = true;
+            tornadoes_.push_back(t);
+            sfx("sr_spfsh", t.pos, 1.0f, 0.6f);
+            sfx("ex_woods", t.pos, 0.7f, 0.5f);
+            break;
+        }
+        case SkSpell::FireCircle:
+            remoteCircles_.push_back({e.at, kCircleTime});
+            sfx("sr_spfsh", e.at, 1.0f, 0.7f);
+            break;
+        case SkSpell::Hail: {
+            HailStorm s;
+            s.centre = e.at;
+            s.left = 16;
+            s.remote = true;
+            hailStorms_.push_back(s);
+            break;
+        }
+    }
+    LOGI("Skirmish: player %d's spell %d shown at (%.0f %.0f %.0f)", e.a, e.team, e.at.x, e.at.y, e.at.z);
 }
 
 }  // namespace gvr

@@ -127,6 +127,11 @@ void installCrashHandler(const char* dir) {
     std::snprintf(gDir, sizeof gDir, "%s", dir);
     dl_iterate_phdr(findOwnLib, reinterpret_cast<void*>(&installCrashHandler));
     mkdir(gDir, 0775);
+    // (2026-10-29 review) android_main can run again in the same process: installed twice, our own handler would be
+    // kept as the 'old' one and a crash would call itself instead of the system's.
+    static bool installed = false;
+    if (installed) return;
+    installed = true;
     stack_t ss{};
     ss.ss_sp = gAltStack;
     ss.ss_size = sizeof gAltStack;

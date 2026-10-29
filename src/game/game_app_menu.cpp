@@ -191,10 +191,22 @@ void GameApp::openMenu(const InputFrame& in) {
     // (A trigger still held from choosing OPTIONS on the main menu must not press RESUME at once: it
     // closed the options the frame they opened - found by the ui_title_options test, 2026-10-27.)
     menuActHeld_ = true;
+    // (2026-10-29 review) The game stands still behind the menu: sounds that loop with the hero's state (the jetpack,
+    // the machine gun, sliding, swimming, the wind, the gyrocopter, the Repair Gun) would drone on through it - they
+    // start again from the hero's state on resuming.
+    if (!title_ && audio_) {
+        for (uint32_t* v : {&jetLoop_, &slideLoop_, &swimLoop_, &speedWind_, &mgLoop_})
+            if (*v) { audio_->stop(*v); *v = 0; }
+        stopVehicleLoops();
+        wasThrusting_ = wasSliding_ = false;
+    }
     LOGI("Options menu opened%s", title_ ? " (main menu)" : "");
 }
 
 void GameApp::updateMenu(float dt, const InputFrame& in) {
+    // (2026-10-29 review) While the headset's own menu has focus nothing here moves - and a trigger still held from
+    // clicking in it, as focus comes back, mustn't press RESUME.
+    if (!in.focused) { menuActHeld_ = true; return; }
     // Either stick: up/down picks a row, left/right changes it (repeats while held).
     Vec2 st = in.hand[0].thumbstick;
     if (std::fabs(in.hand[1].thumbstick.x) + std::fabs(in.hand[1].thumbstick.y) > std::fabs(st.x) + std::fabs(st.y)) st = in.hand[1].thumbstick;
@@ -339,16 +351,17 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
             haptics_.push_back({kRight, 1.0f, 0.4f});
             const std::string world = menuCampaign_ == 1 ? "Rstory1" : (menuCampaign_ == 2 ? "Kstory1" : "Story1");
             LOGI("New game (menu): %s", world.c_str());
-            if (!savePath_.empty()) std::remove(savePath_.c_str());
             syringes_ = 0;
             flares_ = 0;
             resetArsenal();
             if (!playMode_) setPlayMode(true, in);
             if (toLower(worldName_) == toLower(world) && assetWorld_ && !assetWorld_->missions().empty()) {
+                if (!savePath_.empty()) std::remove(savePath_.c_str());  // (this world is loaded already)
                 beginLoading(assetWorld_->missions().front(), in);
             } else {
                 beginLoading(std::string(), in);
                 load_.world = world;
+                load_.deleteSave = true;  // (once it has loaded - review 2026-10-29)
                 load_.title = world;
             }
         }

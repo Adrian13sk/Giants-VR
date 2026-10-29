@@ -55,6 +55,8 @@ public:
     void setReverb(float wet);
     // Rework: 0 clear .. 1 fully muffled (under water), glided to over ~50 ms.
     void setMuffle(float amount) { std::lock_guard<std::mutex> lk(mu_); muffle_ = std::max(0.0f, std::min(1.0f, amount)); }
+    // (2026-10-29) Everything holds where it is (silence out) until unpaused: a cutscene behind the headset's own menu.
+    void setPaused(bool p) { std::lock_guard<std::mutex> lk(mu_); paused_ = p; }
 
     // Music: interleaved stereo buffers (any rate) played back to back without gaps.
     void queueMusic(std::vector<float>&& stereo, uint32_t rate);
@@ -97,6 +99,7 @@ private:
     Quat listenerRot_;
     float master_ = 1.0f;
     float muffle_ = 0, muffleNow_ = 0, muffleY_[2] = {0, 0};
+    bool paused_ = false;
     struct MusicBuf { std::vector<float> data; uint32_t rate; };
     std::deque<MusicBuf> music_;
     double musicCursor_ = 0;  // source frame position in music_.front()

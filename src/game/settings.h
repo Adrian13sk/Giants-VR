@@ -24,6 +24,7 @@ struct UserSettings {
     int hintsShown = 0;      // rework: one-time hand-mechanics hints already shown (bits, game_app_hints.cpp)
     int ambience = 2;        // rework: 0 off, 1 the ambient sounds (shore, wind, leaves, river, volcano), 2 and the weather (rain, snow)
     bool reachAssist = true; // rework: ground pickups (stones, bodies, Smarties) reachable from a stoop, not only a crouch
+    bool developer = false;  // (2026-10-29 review) developer=1 in the settings file: B toggles the free camera (skip / delete-save tools)
     int kabutoView = 0;      // (2026-10-29) 0 giant (his true eye height), 1 lower (60 %: the view from his chest, more comfortable)
     bool micRoar = false;    // (2026-10-28) Kabuto roars when you roar into the headset's microphone (asks for the permission when turned on)
     bool seated = false;     // (2026-10-28) playing sitting down: the view and hands raised 0.45 m to a standing height

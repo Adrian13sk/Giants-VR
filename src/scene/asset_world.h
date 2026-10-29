@@ -96,6 +96,7 @@ public:
     // Replaces the loaded world (terrain, sky, sea, objects) with another one and selects its
     // first mission; archives, the model cache and the object registry are kept.
     bool switchWorld(const std::string& name);
+    bool canLoadWorld(const std::string& name);  // its w_<name>.bin parses and its terrain file is there
     const std::string& worldName() const { return worldName_; }
     // The world that follows `world` in the Meccaryn story (Story1 -> Story2 ... -> the_end), or empty.
     static std::string nextStoryWorld(const std::string& world);

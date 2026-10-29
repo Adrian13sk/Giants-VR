@@ -513,6 +513,7 @@ void GameApp::skHandleEvent(const SkEvent& e) {
             dustBurst(e.at, 6.0f, 18);
             sfx("ka_stomp", e.at, 1.0f, 0.9f + 0.15f * frand());
             break;
+        case SkEvent::Spell: skShowSpell(e); break;
         case SkEvent::Win: {
             say(std::string(teamUpper(e.team)) + " TEAM WINS!", 10.0f);
             std::string sc;
@@ -579,7 +580,7 @@ void GameApp::updateSkirmish(float dt) {
                 p.target = -1;
             }
             const float hp = p.alive ? p.hp : 0.0f;
-            if (hp != lastHp) LOGI("Skirmish dummy %s: health %.0f%s%s", p.name.c_str(), hp, p.alive ? "" : " (dead)", p.lastAttacker == skLocal_ ? " - by you" : "");
+            if (hp != lastHp) LOGI("Skirmish dummy %s: health %.0f%s%s (attacker %d)", p.name.c_str(), hp, p.alive ? "" : " (dead)", p.lastAttacker == skLocal_ ? " - by you" : "", p.lastAttacker);
             lastHp = hp;
             break;
         }

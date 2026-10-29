@@ -103,7 +103,6 @@ void GameApp::startFromTitle(const std::string& world, const std::string& missio
     haveRestore_ = restore;
     firstBriefDone_ = true;  // the loading screen shows the briefing
     if (!restore) {
-        if (!savePath_.empty()) std::remove(savePath_.c_str());
         syringes_ = 0;
         flares_ = 0;
         resetArsenal();
@@ -112,6 +111,7 @@ void GameApp::startFromTitle(const std::string& world, const std::string& missio
     beginLoading(std::string(), in);
     load_.world = world;
     load_.worldMission = mission;
+    load_.deleteSave = !restore;  // (only once that world has loaded: a missing one must not cost the save)
     load_.title = world;
     LOGI("Main menu: %s %s / %s", restore ? "continue" : "new game", world.c_str(), mission.empty() ? "(first)" : mission.c_str());
 }

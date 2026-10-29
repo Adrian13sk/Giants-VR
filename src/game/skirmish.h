@@ -123,8 +123,11 @@ struct SkShot {                  // a bot's bolt or arrow
     bool hostOwn = false;        // the host's own player's (its game draws the real one): for the joiners only
 };
 
+enum class SkSpell { FireWall, Tornado, FireCircle, Hail };
+
 struct SkEvent {
-    enum Kind { Kill, FlagTaken, FlagDropped, FlagReturned, FlagCaptured, Respawn, Fire, Stomp, HurtLocal, Win } kind = Kill;
+    enum Kind { Kill, FlagTaken, FlagDropped, FlagReturned, FlagCaptured, Respawn, Fire, Stomp, HurtLocal, Win, Spell } kind = Kill;
+    // Spell (2026-10-29, online): caster a, which one in team (SkSpell), its facing (yaw, rad) in amount, where in at.
     int a = -1, b = -1;          // players (Kill: killer a (-1: none), victim b; Hurt: attacker a)
     int team = -1;               // flags: whose flag; Win: the winner
     float amount = 0;

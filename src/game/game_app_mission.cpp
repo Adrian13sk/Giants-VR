@@ -335,6 +335,7 @@ void GameApp::updateLoading(float dt, const InputFrame& in) {
             if (++load_.frames >= 3) {
                 if (!load_.world.empty() && assetWorld_ && assetWorld_->switchWorld(load_.world)) {
                     worldName_ = load_.world;
+                    if (load_.deleteSave && !savePath_.empty()) std::remove(savePath_.c_str());
                     practice_ = load_.practice;  // (each world switch: a practice session only when asked for)
                     if (load_.toTitle) title_ = true;  // (loadMission sets the island up as the main menu's scene)
                     streamsIndexed_ = false;
@@ -353,8 +354,15 @@ void GameApp::updateLoading(float dt, const InputFrame& in) {
                         load_.brief.clear();
                     }
                 } else if (!load_.world.empty()) {
+                    // (2026-10-29 review) Missing from the Bin copy: the current world stays as it was (switchWorld checks
+                    // before tearing it down) and the save is kept. From the main menu's island: back to the main menu.
                     LOGW("Loading: world %s unavailable", load_.world.c_str());
+                    load_.title = "WORLD NOT FOUND";
+                    load_.brief = "w_" + load_.world + ".bin (or its terrain) is missing.\nCopy the game's whole Bin folder to the headset again.";
+                    if (toLower(worldName_) == "intro_island") { title_ = true; load_.toTitle = true; practice_ = false; }
+                    load_.mission = assetWorld_ ? assetWorld_->missionName() : std::string();
                 }
+                load_.deleteSave = false;
                 // A world without missions (the multiplayer maps) is still set up (its scenery, a skirmish).
                 if (!load_.mission.empty() || (assetWorld_ && assetWorld_->missions().empty())) loadMission(load_.mission);
                 load_.phase = LoadPhase::Brief;
