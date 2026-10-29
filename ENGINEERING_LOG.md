@@ -3086,3 +3086,6 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   model load sets the cooldown (not retried every frame) and gives no haptics. Checked fine: the right trigger is
   free with the sword drawn, the tip is the drawn blade's, the model across worlds, posing once a frame,
   enemyFootOffset_, objectives counted once.
+- ASan/UBSan over every devtest script (186: tests, weapons, ui, npcs, missions) from a snapshot worktree of ba48871:
+  all exit 0, no reports. (An earlier attempt compiled from the working tree while headers were being edited - the
+  binary would have mixed struct layouts; stopped and redone from the snapshot; CLAUDE.md notes the practice.)
