@@ -1687,6 +1687,7 @@ private:  // the mission placed enemies: no test waves
     std::string settingsPath_;
     bool menuOpen_ = false, menuActHeld_ = false, menuFirst_ = true;
     bool menuControls_ = false;  // rework: the controls card over the options (game_app_menu.cpp)
+    int menuCtlPage_ = 0, menuCtlPages_ = 1;  // (2026-10-29) a long card in pages of 14 rows, the stick left / right
     void renderControlsCard(const Mat4& base);
     int menuRow_ = 0, menuCampaign_ = 0;
     int menuTop_ = 0;  // the Options window's first row (moves only when the choice leaves it)

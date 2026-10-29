@@ -3089,3 +3089,8 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - ASan/UBSan over every devtest script (186: tests, weapons, ui, npcs, missions) from a snapshot worktree of ba48871:
   all exit 0, no reports. (An earlier attempt compiled from the working tree while headers were being edited - the
   binary would have mixed struct layouts; stopped and redone from the snapshot; CLAUDE.md notes the practice.)
+- Controls card in pages (2026-10-29): Delphi's card had grown to 27 rows (Meccaryn 22) - a panel ~1.7 m tall
+  filling the view, small packed text. Cards over 16 rows now show 14 at a time with "1/2" in the title; stick
+  left / right turns the page (it used to close the card), up / down or any button still closes it. The row tables
+  moved to file scope so the input code knows the page count without depending on a drawn frame (the harness draws
+  only its output frame - the first try never flipped there). New devtest ui/ui_controls_pages; ui 20/20 (HARNESS).

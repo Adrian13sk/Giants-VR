@@ -24,6 +24,91 @@ void GameApp::drawPanelEdge(const Mat4& xf, float w, float h) {
 }
 
 namespace {
+static const char* mecc[][2] = {
+    {"LEFT STICK", "RUN (LEFT GRIP HELD: SPRINT)"},
+    {"RIGHT STICK", "TURN - PUSH FORWARD: NEXT WEAPON"},
+    {"WEAPON WHEEL", "HOLD IT FORWARD, MOVE THE HAND TOWARD ONE, LET GO"},
+    {"RIGHT TRIGGER", "FIRE"},
+    {"A (HOLD)", "JETPACK"},
+    {"GUNS", "GRIP AT YOUR RIGHT HIP (HANDGUN) OR OVER YOUR SHOULDER"},
+    {"STEADY AIM", "OTHER HAND'S GRIP ON THE BARREL"},
+    {"GRENADES", "GRIP AT YOUR LEFT HIP, THROW, LET GO"},
+    {"GYROCOPTER (PRACTICE)", "GRIP: IN; L STICK FLY, R STICK UP/DOWN; LANDED, HOLD L GRIP: OUT"},
+    {"SHIELD (STORY 4)", "CHOOSE IT ON THE WEAPON WHEEL: 12 S OF COVER"},
+    {"TURRET (STORY 3)", "TRIGGER: PLANT IT WHERE YOU POINT - GRIP ITS HEAD: TAKE IT"},
+    {"PUNCH", "SWING YOUR FREE HAND INTO HIM"},
+    {"PICK UP", "BEND DOWN, GRIP A STONE, BODY, SMARTIE OR GUN"},
+    {"REAPER GUN", "PICK ONE UP: THAT HAND'S TRIGGER FIRES IT"},
+    {"THROW", "SWING AND LET GO OF THE GRIP"},
+    {"SWIM", "HOLD THE GRIPS, PULL YOUR HANDS BACK"},
+    {"X / Y", "HEALTH INJECTION / MAP"},
+    {"INJECTION", "JAB THE NEEDLE INTO YOUR CHEST OR OTHER ARM"},
+    {"WRIST", "LEFT FOREARM ACROSS YOUR FACE: HEALTH, AMMO, GOAL"},
+    {"LEFT TRIGGER", "FLARE"},
+    {"LEFT STICK DOWN", "MISSION BRIEFING (HOLD)"},
+    {"RIGHT STICK CLICK", "FIRST / THIRD PERSON"},
+    };
+static const char* delphi[][2] = {
+    {"LEFT STICK", "RUN (LEFT GRIP HELD: TURBO)"},
+    {"A", "JUMP"},
+    {"SWORD", "SWING THE RIGHT HAND - THRUST TO RUN ONE THROUGH"},
+    {"PARRY", "MEET A BOLT WITH THE BLADE"},
+    {"LEFT TRIGGER TAP", "FIRE BOLT (LET GO IN A THROW TO THROW IT)"},
+    {"LEFT TRIGGER HOLD", "FIRE WALL - LONGER: TORNADO"},
+    {"SPELL GESTURES", "TRIGGER HELD: SWEEP LOW = WALL, CIRCLE OVERHEAD = TORNADO"},
+    {"HAIL (LATER)", "TRIGGER HELD: RAISE THE HAND HIGH, BRING IT DOWN HARD"},
+    {"SLOW TIME (LATER)", "TRIGGER HELD: BOTH HANDS TOGETHER BEFORE YOUR CHEST"},
+    {"FIRE CIRCLE (LATER)", "TRIGGER HELD: BOTH ARMS OUT TO THE SIDES"},
+    {"CLOAK (STORY 4)", "TRIGGER HELD: HAND OVER YOUR EYES - UNSEEN UNTIL YOU SHOOT"},
+    {"CLUSTER (STORY 4)", "LET THE FIRE BOLT GO AS THE HAND FLICKS UP: SIX BOLTS"},
+    {"FOLLOW (STORY 5)", "TRIGGER HELD: POINT AT A REAPER, PULL BACK - SWING, LET GO"},
+    {"SHRINK (STORY 4)", "TRIGGER HELD: POINT AT A REAPER, CLOSE THE HAND (GRIP)"},
+    {"SEA MONSTER (BATTLES)", "TRIGGER HELD: POINT FAR OUT TO SEA, LIFT THE HAND HIGH"},
+    {"REPAIR (YOUR BASE)", "TRIGGER HELD: POINT AT A DAMAGED BUILDING OF YOURS"},
+    {"TELEPORT (STORY 3)", "TRIGGER HELD: POINT AT THE GROUND, PULL BACK"},
+    {"SHADOW (STORY 5)", "RIGHT TRIGGER HELD: DRIVE THE SWORD INTO THE GROUND"},
+    {"RIGHT STICK FWD", "SWORD / BOWS - HOLD IT: THE WEAPON WHEEL"},
+    {"BOW", "LEFT HAND HOLDS IT, RIGHT GRIP DRAWS, LET GO"},
+    {"FIRE ARROW", "LEFT TRIGGER HELD WHILE DRAWING - OR DIP IT IN FLAMES"},
+    {"CLIMB", "GRIP A STEEP FACE, PULL DOWN"},
+    {"PICK UP / THROW", "BEND DOWN, GRIP; SWING AND LET GO"},
+    {"SWIM", "HOLD THE GRIPS, PULL YOUR HANDS BACK"},
+    {"REAPERSKI", "BOTH GRIPS: HANDLEBARS, TWIST RIGHT HAND: GAS"},
+    {"WAVE", "HAND OVER YOUR HEAD, SIDE TO SIDE: SMARTIES WAVE"},
+    {"WRIST", "LEFT FOREARM ACROSS YOUR FACE: HEALTH, ARROWS, GOAL"},
+    };
+static const char* kabuto[][2] = {
+    {"LEFT STICK", "WALK (LEFT GRIP HELD: RUN)"},
+    {"A", "JUMP - OR JUMP FOR REAL"},
+    {"PUNCH", "SWING YOUR FISTS - SLAM DOWN: GROUND POUND"},
+    {"GRAB", "REACH DOWN AND GRIP: SMARTIES, REAPERS, TREES, BODIES"},
+    {"EAT", "BRING IT TO YOUR MOUTH"},
+    {"THROW", "SWING AND LET GO OF THE GRIP"},
+    {"X", "GRAB AND EAT THE NEAREST"},
+    {"LEFT TRIGGER", "STOMP"},
+    {"Y / CHEST BEAT", "ROAR (Y HELD: LAY AN EGG)"},
+    {"SHOUT (MIC ROAR ON)", "ROAR"},
+    {"BOTH GRIPS", "ADRENALINE (WHEN THE GAUGE IS FULL)"},
+    {"CLIMB", "GRIP A CLIFF, PULL DOWN"},
+    {"RIGHT TRIGGER", "MAGNIFYING GLASS (WHEN YOU HAVE IT)"},
+    };
+// The card's rows for a hero; the input code needs the count too (the harness only draws its last frame).
+int controlsCardRows(bool isDelphi, bool isKabuto, const char* (**outRows)[2], const char** outTitle) {
+    const char* (*rows)[2] = mecc;
+    int n = int(sizeof(mecc) / sizeof(mecc[0]));
+    const char* title = "CONTROLS - MECCARYN";
+    if (isDelphi) { rows = delphi; n = int(sizeof(delphi) / sizeof(delphi[0])); title = "CONTROLS - DELPHI"; }
+    if (isKabuto) { rows = kabuto; n = int(sizeof(kabuto) / sizeof(kabuto[0])); title = "CONTROLS - KABUTO"; }
+    if (outRows) *outRows = rows;
+    if (outTitle) *outTitle = title;
+    return n;
+}
+// (2026-10-29) Delphi's card reached 27 rows (a panel 1.7 m tall, most of the view): more than 16 go in pages of 14.
+constexpr int kCtlPerPage = 14;
+int controlsCardPages(int n) { return n > 16 ? (n + kCtlPerPage - 1) / kCtlPerPage : 1; }
+}  // namespace
+
+namespace {
 enum MenuRow { kRowResume, kRowControls, kRowDifficulty, kRowTurn, kRowMove, kRowVignette, kRowAmbush, kRowLaser, kRowReach, kRowSeated, kRowLook, kRowHand, kRowView, kRowHud, kRowVolume, kRowMusic, kRowAmbience, kRowSubs, kRowCuts, kRowFps, kRowFov, kRowDay, kRowFx, kRowMic, kRowKbView, kRowNewGame, kRowMainMenu, kRowCount };
 // (2026-10-28) A window of 16 rows that scrolls with the choice: with 26 rows the panel stood ~1.9 m tall.
 constexpr int kVisible = 16;
@@ -122,10 +207,18 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
         if (menuRepeat_ > 0) dx = dy = 0;
         else { menuRepeat_ = menuFirst_ ? 0.4f : 0.16f; menuFirst_ = false; }
     }
-    // The controls card: shown over the options; any press (or B, or the stick) closes it.
+    // The controls card: shown over the options; any press (or B, or the stick up / down) closes it; a long card's
+    // pages turn with the stick left / right.
     if (menuControls_) {
         const bool act = in.hand[1].primary || in.hand[0].trigger > 0.6f || in.hand[1].trigger > 0.6f;
-        if ((act && !menuActHeld_) || in.hand[1].secondary || dx != 0 || dy != 0) menuControls_ = false;
+        menuCtlPages_ = controlsCardPages(controlsCardRows(hero_ == Hero::Delphi, hero_ == Hero::Kabuto, nullptr, nullptr));
+        if (dx != 0 && menuCtlPages_ > 1) {
+            menuCtlPage_ = (menuCtlPage_ + (dx > 0 ? 1 : menuCtlPages_ - 1)) % menuCtlPages_;
+            sfx2D("ph_selct", 0.5f, 1.3f);
+            LOGI("Options: controls card page %d of %d", menuCtlPage_ + 1, menuCtlPages_);
+        } else if ((act && !menuActHeld_) || in.hand[1].secondary || dx != 0 || dy != 0) {
+            menuControls_ = false;
+        }
         menuActHeld_ = act;
         pointDotOn_ = false;
         return;
@@ -232,6 +325,7 @@ void GameApp::updateMenu(float dt, const InputFrame& in) {
     const bool held = act && menuHoldRow_ == menuRow_;
     if (menuRow_ == kRowControls && act && !menuActHeld_) {
         menuControls_ = true;
+        menuCtlPage_ = 0;
         sfx2D("ph_selct", 0.6f, 1.2f);
         LOGI("Options: controls card shown");
     }
@@ -354,93 +448,29 @@ void GameApp::renderMenu() {
 // The controls of the hero you play, on one card (Options -> CONTROLS). The rework's hand mechanics are
 // easy to miss; this is where they are written down.
 void GameApp::renderControlsCard(const Mat4& base) {
-    static const char* mecc[][2] = {
-        {"LEFT STICK", "RUN (LEFT GRIP HELD: SPRINT)"},
-        {"RIGHT STICK", "TURN - PUSH FORWARD: NEXT WEAPON"},
-        {"WEAPON WHEEL", "HOLD IT FORWARD, MOVE THE HAND TOWARD ONE, LET GO"},
-        {"RIGHT TRIGGER", "FIRE"},
-        {"A (HOLD)", "JETPACK"},
-        {"GUNS", "GRIP AT YOUR RIGHT HIP (HANDGUN) OR OVER YOUR SHOULDER"},
-        {"STEADY AIM", "OTHER HAND'S GRIP ON THE BARREL"},
-        {"GRENADES", "GRIP AT YOUR LEFT HIP, THROW, LET GO"},
-        {"GYROCOPTER (PRACTICE)", "GRIP: IN; L STICK FLY, R STICK UP/DOWN; LANDED, HOLD L GRIP: OUT"},
-        {"SHIELD (STORY 4)", "CHOOSE IT ON THE WEAPON WHEEL: 12 S OF COVER"},
-        {"TURRET (STORY 3)", "TRIGGER: PLANT IT WHERE YOU POINT - GRIP ITS HEAD: TAKE IT"},
-        {"PUNCH", "SWING YOUR FREE HAND INTO HIM"},
-        {"PICK UP", "BEND DOWN, GRIP A STONE, BODY, SMARTIE OR GUN"},
-        {"REAPER GUN", "PICK ONE UP: THAT HAND'S TRIGGER FIRES IT"},
-        {"THROW", "SWING AND LET GO OF THE GRIP"},
-        {"SWIM", "HOLD THE GRIPS, PULL YOUR HANDS BACK"},
-        {"X / Y", "HEALTH INJECTION / MAP"},
-        {"INJECTION", "JAB THE NEEDLE INTO YOUR CHEST OR OTHER ARM"},
-        {"WRIST", "LEFT FOREARM ACROSS YOUR FACE: HEALTH, AMMO, GOAL"},
-        {"LEFT TRIGGER", "FLARE"},
-        {"LEFT STICK DOWN", "MISSION BRIEFING (HOLD)"},
-        {"RIGHT STICK CLICK", "FIRST / THIRD PERSON"},
-    };
-    static const char* delphi[][2] = {
-        {"LEFT STICK", "RUN (LEFT GRIP HELD: TURBO)"},
-        {"A", "JUMP"},
-        {"SWORD", "SWING THE RIGHT HAND - THRUST TO RUN ONE THROUGH"},
-        {"PARRY", "MEET A BOLT WITH THE BLADE"},
-        {"LEFT TRIGGER TAP", "FIRE BOLT (LET GO IN A THROW TO THROW IT)"},
-        {"LEFT TRIGGER HOLD", "FIRE WALL - LONGER: TORNADO"},
-        {"SPELL GESTURES", "TRIGGER HELD: SWEEP LOW = WALL, CIRCLE OVERHEAD = TORNADO"},
-        {"HAIL (LATER)", "TRIGGER HELD: RAISE THE HAND HIGH, BRING IT DOWN HARD"},
-        {"SLOW TIME (LATER)", "TRIGGER HELD: BOTH HANDS TOGETHER BEFORE YOUR CHEST"},
-        {"FIRE CIRCLE (LATER)", "TRIGGER HELD: BOTH ARMS OUT TO THE SIDES"},
-        {"CLOAK (STORY 4)", "TRIGGER HELD: HAND OVER YOUR EYES - UNSEEN UNTIL YOU SHOOT"},
-        {"CLUSTER (STORY 4)", "LET THE FIRE BOLT GO AS THE HAND FLICKS UP: SIX BOLTS"},
-        {"FOLLOW (STORY 5)", "TRIGGER HELD: POINT AT A REAPER, PULL BACK - SWING, LET GO"},
-        {"SHRINK (STORY 4)", "TRIGGER HELD: POINT AT A REAPER, CLOSE THE HAND (GRIP)"},
-        {"SEA MONSTER (BATTLES)", "TRIGGER HELD: POINT FAR OUT TO SEA, LIFT THE HAND HIGH"},
-        {"REPAIR (YOUR BASE)", "TRIGGER HELD: POINT AT A DAMAGED BUILDING OF YOURS"},
-        {"TELEPORT (STORY 3)", "TRIGGER HELD: POINT AT THE GROUND, PULL BACK"},
-        {"SHADOW (STORY 5)", "RIGHT TRIGGER HELD: DRIVE THE SWORD INTO THE GROUND"},
-        {"RIGHT STICK FWD", "SWORD / BOWS - HOLD IT: THE WEAPON WHEEL"},
-        {"BOW", "LEFT HAND HOLDS IT, RIGHT GRIP DRAWS, LET GO"},
-        {"FIRE ARROW", "LEFT TRIGGER HELD WHILE DRAWING - OR DIP IT IN FLAMES"},
-        {"CLIMB", "GRIP A STEEP FACE, PULL DOWN"},
-        {"PICK UP / THROW", "BEND DOWN, GRIP; SWING AND LET GO"},
-        {"SWIM", "HOLD THE GRIPS, PULL YOUR HANDS BACK"},
-        {"REAPERSKI", "BOTH GRIPS: HANDLEBARS, TWIST RIGHT HAND: GAS"},
-        {"WAVE", "HAND OVER YOUR HEAD, SIDE TO SIDE: SMARTIES WAVE"},
-        {"WRIST", "LEFT FOREARM ACROSS YOUR FACE: HEALTH, ARROWS, GOAL"},
-    };
-    static const char* kabuto[][2] = {
-        {"LEFT STICK", "WALK (LEFT GRIP HELD: RUN)"},
-        {"A", "JUMP - OR JUMP FOR REAL"},
-        {"PUNCH", "SWING YOUR FISTS - SLAM DOWN: GROUND POUND"},
-        {"GRAB", "REACH DOWN AND GRIP: SMARTIES, REAPERS, TREES, BODIES"},
-        {"EAT", "BRING IT TO YOUR MOUTH"},
-        {"THROW", "SWING AND LET GO OF THE GRIP"},
-        {"X", "GRAB AND EAT THE NEAREST"},
-        {"LEFT TRIGGER", "STOMP"},
-        {"Y / CHEST BEAT", "ROAR (Y HELD: LAY AN EGG)"},
-        {"SHOUT (MIC ROAR ON)", "ROAR"},
-        {"BOTH GRIPS", "ADRENALINE (WHEN THE GAUGE IS FULL)"},
-        {"CLIMB", "GRIP A CLIFF, PULL DOWN"},
-        {"RIGHT TRIGGER", "MAGNIFYING GLASS (WHEN YOU HAVE IT)"},
-    };
-    const char* (*rows)[2] = mecc;
-    int n = int(sizeof(mecc) / sizeof(mecc[0]));
-    const char* title = "CONTROLS - MECCARYN";
-    if (hero_ == Hero::Delphi) { rows = delphi; n = int(sizeof(delphi) / sizeof(delphi[0])); title = "CONTROLS - DELPHI"; }
-    if (hero_ == Hero::Kabuto) { rows = kabuto; n = int(sizeof(kabuto) / sizeof(kabuto[0])); title = "CONTROLS - KABUTO"; }
-    const float rowH = 0.058f, w = 1.45f, h = rowH * float(n + 2) + 0.12f;
+    const char* (*rows)[2] = nullptr;
+    const char* title = nullptr;
+    const int n = controlsCardRows(hero_ == Hero::Delphi, hero_ == Hero::Kabuto, &rows, &title);
+    constexpr int kPerPage = kCtlPerPage;
+    menuCtlPages_ = controlsCardPages(n);
+    menuCtlPage_ = std::min(menuCtlPage_, menuCtlPages_ - 1);
+    const int first = menuCtlPages_ > 1 ? menuCtlPage_ * kPerPage : 0;
+    const int shown = menuCtlPages_ > 1 ? kPerPage : n;
+    const float rowH = 0.058f, w = 1.45f, h = rowH * float(shown + 2) + 0.12f;
     text_.drawPanel(base, w, h, {0.015f, 0.03f, 0.055f, 0.94f});
     drawPanelEdge(base, w, h);
     float tw, th;
-    if (const MeshId t = text_.mesh(title, 0.055f, 1.3f, &tw, &th))
+    const std::string head = menuCtlPages_ > 1 ? std::string(title) + "  " + std::to_string(menuCtlPage_ + 1) + "/" + std::to_string(menuCtlPages_) : std::string(title);
+    if (const MeshId t = text_.mesh(head, 0.055f, 1.3f, &tw, &th))
         text_.draw(t, base * Mat4::translation({0, 0.5f * h - 0.07f, 0.004f}), {1.0f, 0.85f, 0.4f, 1.0f});
-    for (int i = 0; i < n; ++i) {
-        const float y = 0.5f * h - 0.16f - float(i) * rowH;
+    for (int i = first; i < std::min(n, first + shown); ++i) {
+        const float y = 0.5f * h - 0.16f - float(i - first) * rowH;
         if (const MeshId m = text_.mesh(rows[i][0], 0.036f, 0.42f, &tw, &th))
             text_.draw(m, base * Mat4::translation({-0.5f * w + 0.05f + 0.5f * tw, y, 0.004f}), {1.0f, 0.9f, 0.6f, 1});
         if (const MeshId m = text_.mesh(rows[i][1], 0.036f, 0.9f, &tw, &th))
             text_.draw(m, base * Mat4::translation({-0.5f * w + 0.5f + 0.5f * tw, y, 0.004f}), {0.88f, 0.88f, 0.88f, 1});
     }
-    if (const MeshId m = text_.mesh("ANY BUTTON: BACK", 0.03f, 1.0f, &tw, &th))
+    if (const MeshId m = text_.mesh(menuCtlPages_ > 1 ? "STICK LEFT / RIGHT: MORE - ANY BUTTON: BACK" : "ANY BUTTON: BACK", 0.03f, 1.0f, &tw, &th))
         text_.draw(m, base * Mat4::translation({0, -0.5f * h + 0.045f, 0.004f}), {0.7f, 0.7f, 0.7f, 1});
 }
 

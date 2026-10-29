@@ -1,0 +1,18 @@
+# Delphi's controls card has 27 rows: it comes in two pages of 14; the stick right / left turns them, a button closes it. (2026-10-29)
+# Log (checked by devtest.ps1): "Options: controls card shown" "Options: controls card page 2 of 2" "Options: controls card page 1 of 2" "Options menu closed (resume)".
+name ui_controls_pages
+world Rstory1
+mission r1_saveyan
+env GVR_CUTSCENE none
+duration 14
+hold menu 3 3.2
+move 0 -1 4.5 4.75
+hold trigger_r 5.5 5.7
+shot 6.3 page1
+move 1 0 6.6 6.85
+shot 7.2 page2
+move -1 0 7.6 7.85
+shot 8.2 page1_again
+hold trigger_r 9 9.3
+move 0 1 10.5 10.75
+hold trigger_r 11.5 11.8
