@@ -2113,7 +2113,7 @@ private:  // the mission placed enemies: no test waves
     void botFireInput(float dt, InputFrame& in);
     void botWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt);
     int botObjective_ = -1, botReplans_ = 0, botLog_ = 0;
-    float botPickT_ = 0, botFireT_ = 0, botStuckT_ = 0, botReplanT_ = 0;
+    float botPickT_ = 0, botFireT_ = 0, botStuckT_ = 0, botReplanT_ = 0, botSightless_ = 0;
     bool botPlanned_ = false, botEngaged_ = false;
     Vec3 botTarget_, botPlanAt_;
     void updateHorn(float dt);  // (the mixer held while a cutscene waits behind the headset's menu)

@@ -129,7 +129,7 @@ void GameApp::botFireInput(float dt, InputFrame& in) {
     // In range and in sight (from the eyes, over the terrain and the scenery): stop and fire.
     const float range = hero_ == Hero::Delphi ? 45.0f : 60.0f;
     const float d = length(at - player_.position);
-    if (!shoot || d > range) return;
+    if (!shoot || d > range) { botSightless_ = 0; return; }
     const Vec3 eye = player_.position + Vec3{0, 1.6f, 0};
     Vec3 seeTo = at;
     {   // (a building: in sight up to its near side - the line to its middle ends inside its own walls or hull)
@@ -143,7 +143,8 @@ void GameApp::botFireInput(float dt, InputFrame& in) {
     const bool los = d <= 6.0f || enemies_.lineOfSight(eye, seeTo);
     if (trace && int(time_ * 1.0) != int((time_ - dt) * 1.0))
         LOGI("bot trace: target %.1f m, in sight %d, swimming %d", d, int(los), int(player_.swimming()));
-    if (!los) return;
+    if (!los) { botSightless_ += dt; return; }
+    botSightless_ = 0;
     botEngaged_ = true;
     if (hero_ == Hero::Delphi && delphiBow()) delphiWeapon_ = -1;  // (the sword in hand: the bolt hand's trigger casts; with a bow it draws)
     // Point the hand that fires at it (Baz's gun hand; Delphi's bolt hand), from where it is.
@@ -185,6 +186,14 @@ void GameApp::botWalkInput(Vec2& move, float& viewYaw, bool& jump, float dt) {
         reachStuckT_ = 0;
         if (reachBlocked_.size()) std::fill(reachBlocked_.begin(), reachBlocked_.end(), uint8_t(0));
         if (!planReachBox(mn, mx, false, botObjective_)) reachPath_.clear();
+    }
+    // In range but out of sight for a while (a bunker over a ridge): Baz flies up and toward it until he sees it.
+    if (hero_ == Hero::Mecc && player_.jetpackAvailable && botSightless_ > 6.0f) {
+        viewYaw = std::atan2(-flat.x, -flat.z);
+        move = Vec2{0, 0.6f};
+        jump = player_.fuel() > 0.05f && !(player_.onGround && player_.fuel() < 0.9f);
+        if (botSightless_ > 30.0f) botSightless_ = 0;  // (then the path again)
+        return;
     }
     if (reachPath_.empty() || !walkBoxInput(mn, mx, botObjective_, move, viewYaw, jump, dt)) {
         viewYaw = std::atan2(-flat.x, -flat.z);

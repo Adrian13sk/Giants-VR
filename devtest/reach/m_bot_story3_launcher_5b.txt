@@ -1,0 +1,13 @@
+# story3_launcher_5 by the mission bot (2026-10-29), started by the second launcher, on its ridge:
+# the launcher there brought down with the real controls (the horn's reinforcements on the way).
+# Log (checked by devtest.ps1): "Objective 1 done".
+name m_bot_story3_launcher_5b
+world Story3
+mission story3_launcher_5
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_MISSION_BOT 1
+at 2375 190
+look 2375 102
+duration 120
