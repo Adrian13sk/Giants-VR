@@ -19,6 +19,7 @@ namespace {
 enum { kHidden, kSurface, kSwim, kRear, kSwim2, kDive };
 constexpr float kSurfaceT = 2.5f, kSwimT = 7.0f, kSwim2T = 4.0f, kDiveT = 3.0f;
 constexpr float kDepthSwim = 1.6f;  // its origin below the surface while swimming (the back and fins out)
+constexpr float kSpitAt = 0.45f;    // the fireball leaves at this part of the rearing clip (Rm_fire_turn)
 }  // namespace
 
 void GameApp::initSeaMonster(AssetWorld* w, ModelCache* mc) {
@@ -90,13 +91,45 @@ void GameApp::updateSeaMonster(float dt) {
         return;
     }
     // Moving along its line (slower while rearing); the height by phase.
-    const float speed = s.phase == kRear ? 1.5f : 7.0f;
+    float speed = s.phase == kRear ? 1.5f : 7.0f;
+    Vec3 tgt;
+    const bool haveTgt = s.summoned && seaMonsterTarget(tgt);
+    if (s.summoned) {
+        // Summoned: turns toward its prey (or where she sent it) and comes in - never into water under 6 m deep.
+        Vec3 want = (haveTgt ? tgt : s.goal) - s.pos;
+        want.y = 0;
+        if (length(want) > 1.0f) {
+            want = normalize(want);
+            const float turn = std::max(-0.7f * dt, std::min(0.7f * dt, std::remainder(std::atan2(-want.x, -want.z) - s.yaw, 2.0f * kPi)));
+            s.yaw += turn;
+            s.dir = Vec3{-std::sin(s.yaw), 0, -std::cos(s.yaw)};
+        }
+        const Vec3 head = s.pos + s.dir * 14.0f;
+        speed = s.phase == kRear ? 0.0f : (depth(head.x, head.z) > 6.0f && (!haveTgt || length(Vec3{tgt.x - s.pos.x, 0, tgt.z - s.pos.z}) > 25.0f) ? 4.0f : 0.0f);
+    }
     s.pos = s.pos + s.dir * (speed * dt);
     float y = sea - kDepthSwim;
     if (s.phase == kSurface) {
         const float u = std::min(1.0f, s.phaseT / kSurfaceT);
         y = sea - 10.0f + (10.0f - kDepthSwim) * (u * u * (3.0f - 2.0f * u));
         if (s.phaseT > kSurfaceT) { s.phase = kSwim; s.phaseT = 0; }
+    } else if (s.phase == kSwim && s.summoned) {
+        // Summoned: rears up to spit at whoever it can reach; gives up after 6 s with nobody, or five shots.
+        if (haveTgt && s.phaseT > 1.2f && s.shots < 5) {
+            s.phase = kRear;
+            s.phaseT = 0;
+            s.splashes = 0;
+            s.fired = false;
+            s.idleT = 0;
+            roar("se_roar1", 1.2f);
+        } else if (!haveTgt && (s.idleT += dt) > 6.0f) {
+            s.phase = kSwim2;
+            s.phaseT = 0;
+            LOGI("Sea monster: nothing left to spit at");
+        } else if (s.shots >= 5) {
+            s.phase = kSwim2;
+            s.phaseT = 0;
+        }
     } else if (s.phase == kSwim) {
         if (s.phaseT > kSwimT) {
             s.phase = kRear;
@@ -114,7 +147,35 @@ void GameApp::updateSeaMonster(float dt) {
             if (s.splashes == 1) roar("se_splsh", 1.4f);
             ++s.splashes;
         }
-        if (s.phaseT > len) { s.phase = kSwim2; s.phaseT = 0; }
+        // Summoned: a fireball from its mouth at the moment of the turn (weapon 48, lobbed onto the target).
+        if (s.summoned && !s.fired && s.phaseT > kSpitAt * len) {
+            s.fired = true;
+            Mat4 nm;
+            Vec3 mouth = s.pos + s.dir * 10.0f + Vec3{0, 9.0f, 0};
+            if (seaMonModel_->nodeWorld("nose_1", nm)) {
+                const Vec3 r = giantsToRuntime(nm.m[12], nm.m[13], nm.m[14]);
+                const Vec4 w = Mat4::translation(s.pos) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, s.yaw)) * Vec4{r.x, r.y, r.z, 1.0f};
+                mouth = Vec3{w.x, w.y, w.z};
+            }
+            if (haveTgt) {
+                const Vec3 d = tgt - mouth;
+                const float flat = length(Vec3{d.x, 0, d.z});
+                const float T = std::max(1.2f, std::min(3.0f, flat / 22.0f));
+                Rocket fb;
+                fb.pos = mouth;
+                fb.vel = Vec3{d.x / T, d.y / T + 4.9f * T, d.z / T};
+                fb.life = 0;
+                fb.kind = 11;
+                rockets_.push_back(fb);
+                ++s.shots;
+                roar("se_lunge", 1.0f);
+                LOGI("Sea monster spits a fireball %.0f m (shot %d)", double(length(d)), s.shots);
+            }
+        }
+        if (s.phaseT > len) {
+            s.phase = s.summoned && s.shots < 5 ? kSwim : kSwim2;
+            s.phaseT = 0;
+        }
     } else if (s.phase == kSwim2) {
         if (s.phaseT > kSwim2T) {
             s.phase = kDive;
@@ -127,6 +188,7 @@ void GameApp::updateSeaMonster(float dt) {
         if (s.phaseT > 0.4f && s.splashes < 4) { waterSplash(Vec3{s.pos.x, sea, s.pos.z}, 2.5f, 0); s.splashes = 4; }
         if (s.phaseT > kDiveT) {
             s.phase = kHidden;
+            s.summoned = false;
             s.timer = std::getenv("GVR_SEAMONSTER") ? 8.0f : 180.0f + 150.0f * frand();
             LOGI("Sea monster: dives");
         }

@@ -377,7 +377,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
     }
     if (rocketModel_)
         for (const auto& r : rockets_) {
-            if (r.kind == 1) continue;  // Delphi's bolt is all fire (particles)
+            if (r.kind == 1 || r.kind == 11) continue;  // Delphi's bolt and the sea monster's fireball are all fire (particles)
             if (r.kind == 6) {
                 if (grenadeModel_) {
                     const float k = 0.45f;

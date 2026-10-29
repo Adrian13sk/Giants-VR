@@ -163,6 +163,10 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
 - [ ] **Delphi's SHRINK** (Reaper story 4 on, PRACTICE): left trigger held, point at a Reaper for a moment, then
       squeeze the left grip: he shrinks to a quarter and runs. Step on him, or hit him with anything. Is the squeeze
       easy on purpose (and not confused with FOLLOW's pull)? Can you see him small, at 10-20 m?
+- [ ] **Delphi's SUMMON SEA MONSTER** (her battles, PRACTICE by the sea): left trigger held, point far out to sea
+      (deep water) for a moment with the hand low, then lift the hand sharply above your head: the serpent surfaces
+      there, comes in and spits fireballs at the Reapers by the shore. Easy to do? Visible enough at 40-60 m? Keep
+      away from where it spits - its fireballs burn you too.
 - [ ] **Bodies against walls:** throw a Reaper with FOLLOW into a hut or rock: he stops against it (no flying
       through walls) and is hurt; one thrown onto a roof stays up there.
 - [ ] **The turret and Rippers / the cloak and Rippers:** Baz's planted turret now shoots Rippers too; Delphi

@@ -148,6 +148,7 @@ void GameApp::resetSpells() {
     followUid_ = followCandUid_ = 0;
     followCool_ = followT_ = 0;
     shrinkCool_ = 0;           // (2026-10-29 review: carried over respawn / missions)
+    seaCool_ = seaAimT_ = seaLift_ = 0;
     shrinkGripHeld_ = false;
     followThrown_.clear();
     cloakT_ = cloakCool_ = clusterCool_ = gestFaceT_ = 0;

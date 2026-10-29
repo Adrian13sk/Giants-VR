@@ -514,6 +514,11 @@ void GameApp::updateRockets(float dtAll) {
                 continue;
             }
         }
+        if (r.kind == 11) {
+            // (2026-10-29) The summoned sea monster's fireball (weapon 48, fx_seamonster_fireball): lobbed, burning.
+            r.vel.y -= 9.8f * dt;
+            if (!rocketTrail(r) && frand() < dt * 40.0f) smokePuff(FxTex::Fire, r.pos, Vec3{0, 0.5f, 0}, 0.6f, 1.6f, 0.5f, 0.9f, 0.0f);
+        }
         if (r.kind == 3) {
             // A Reaper's bazooka rocket: smoke trail; bursts near the player as well as on what it hits.
             if (!rocketTrail(r) && frand() < dt * 25.0f) smokePuff(FxTex::SmokeGrey, r.pos, Vec3{0, 0.3f, 0}, 0.25f, 1.2f, 1.0f, 0.45f, 0.1f);
@@ -537,6 +542,11 @@ void GameApp::updateRockets(float dtAll) {
         if (hit || r.life > 5.0f) {
             if (r.kind == 1) explode(hit ? r.pos + dir * t : r.pos, 2.6f, 75.0f);  // fire bolt: smaller blast
             else if (r.kind == 3) explode(hit ? r.pos + dir * t : r.pos, 3.5f, 55.0f);
+            else if (r.kind == 11) {  // (weapon 48: 150 damage, a wide burst; it can burn her too, as the original's line says)
+                const Vec3 at = hit ? r.pos + dir * t : r.pos;
+                explode(at, 5.0f, 150.0f, true);
+                LOGI("Sea monster's fireball bursts at (%.1f %.1f %.1f)", double(at.x), double(at.y), double(at.z));
+            }
             else if (r.kind == 4 || r.kind == 7 || r.kind == 8) {
                 // Shotgun shell (weapon 6: 40 damage, splash 40) or an RPG-bow arrow (fxb_bow_rpg: the
                 // same numbers): the hit itself like a bullet of that weight, then a small burst round it.

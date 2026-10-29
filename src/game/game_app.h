@@ -1799,7 +1799,17 @@ private:  // the mission placed enemies: no test waves
     ModelCache* fishCache_ = nullptr;
     void initFish(AssetWorld* w, ModelCache* mc);
     // The sea monster (game_app_seamonster.cpp): the unused RM_seamonster surfacing out at sea.
-    struct SeaMonster { int phase = 0, splashes = 0; float timer = 0, t = 0, phaseT = 0, yaw = 0; Vec3 pos, dir; };
+    struct SeaMonster {
+        int phase = 0, splashes = 0;
+        float timer = 0, t = 0, phaseT = 0, yaw = 0;
+        Vec3 pos, dir;
+        // (2026-10-29) Summoned by Delphi (SUMMON SEA MONSTER): it comes in toward the shore she points at and spits
+        // fireballs at her enemies (shots so far; whether this rearing's has gone).
+        bool summoned = false, fired = false;
+        int shots = 0;
+        float idleT = 0;
+        Vec3 goal;
+    };
     SeaMonster seaMon_;
     std::unique_ptr<SkinnedModel> seaMonModel_;
     ModelCache* seaMonCache_ = nullptr;
@@ -1807,6 +1817,18 @@ private:  // the mission placed enemies: no test waves
     void initSeaMonster(AssetWorld* w, ModelCache* mc);
     void updateSeaMonster(float dt);
     void renderSeaMonster();
+    // (2026-10-29) SUMMON SEA MONSTER (the data's item 32 IconRSSeaMonster, GText "Summon Sea Monster"; the Reapers'
+    // base special "Sea Monster Spell"; its weapon 48: fx_seamonster_fireball, 150 damage). Rules ours: the casting hand
+    // points at deep water 12-70 m out (trigger held) for 0.4 s, then is lifted sharply from below the chest to above
+    // the head - "raise it from the sea": the serpent surfaces there, comes in toward the shore and spits five
+    // fireballs at the Reapers and Rippers near the water, then dives. 45 s between. Delphi's battles and practice.
+    float seaCool_ = 0, seaAimT_ = 0, seaLift_ = 0, seaHandPrevY_ = 0;
+    bool seaHandValid_ = false, seaArmLow_ = false;
+    Vec3 seaAimP_;
+    bool seaSummonOwned() const;
+    void updateSeaSummon(float dt, const InputFrame& in);
+    void summonSeaMonster(const Vec3& at);
+    bool seaMonsterTarget(Vec3& at) const;
     void updateFish(float dt);
     void renderFish(const Vec3& eye);
     void renderPiranhas();
@@ -1967,7 +1989,7 @@ private:  // the mission placed enemies: no test waves
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
                     kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudMine, kHudRepair, kHudTurret, kHudShield,
-                    kHudRpHail, kHudRpSlow, kHudRpCloak, kHudRpCluster, kHudRpFollow, kHudRpCircle, kHudRpTornado, kHudRpShrink, kHudLayers };
+                    kHudRpHail, kHudRpSlow, kHudRpCloak, kHudRpCluster, kHudRpFollow, kHudRpCircle, kHudRpTornado, kHudRpShrink, kHudRpMonster, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     float digitU_[11] = {}, digitU0_[10] = {}, digitU1_[10] = {};

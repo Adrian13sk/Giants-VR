@@ -51,6 +51,7 @@ const char* rocketFxName(int kind) {
         case 5: return "FX_Lbomb";
         case 7: return "FXB_bow_RPG";
         case 8: return "FXB_bow_screamer";
+        case 11: return "FX_seamonster_fireball";  // (the summoned sea monster's spit)
         default: return nullptr;
     }
 }

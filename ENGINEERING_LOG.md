@@ -2997,3 +2997,16 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   gyrocopter's engine loop isn't asked for every frame if the sound is missing; a header comment. Checked fine by
   the reviewer: uids (never the turret's creature bit, never reused), a fresh Enemy on spawn, slots, objectives
   completed once, FOLLOW's hold over roofs, roofed bodies, raiders unstuck, gameScale's frame order.
+- Delphi's SUMMON SEA MONSTER (the data's item 32 IconRSSeaMonster, GText "Summon Sea Monster"; the Reapers' base
+  special "Sea Monster Spell"; the serpent's weapon 48: fx_seamonster_fireball, 150 damage; the multiplayer lines "%v
+  was blasted by %k's sea monster!" and "killed by her own monster!"). Ours: the casting hand points at deep water
+  (over 5 m deep, 12-70 m out, nothing in the way) with the trigger held for 0.4 s, hand low; then a sharp lift (over
+  1.4 m/s) to above the head. The unused RM_seamonster (the ambient serpent's model) surfaces there, turns toward the
+  nearest Reaper or Ripper within 70 m (not within 9 m of her), comes in until the water under its head is 6 m deep
+  or it is 25 m off, rears (Rm_fire_turn) and at 45 % of the clip spits a fireball from its nose node (nose_1),
+  lobbed onto the target: rocket kind 11, gravity, fire puffs (the data's FX_seamonster_fireball trail with
+  original effects on), a 5 m burst of 150 that burns her too. Five shots or 6 s with nobody in reach, then it
+  dives. 45 s between; her battles (as the tornado) and practice; HUD icon st_rp_monster; a controls card row.
+  Devtest tests/delphi_sea_monster (Rstory2 battle 1, by the sea, three Reapers on the shore: summoned 67 m out, one
+  fireball, all three thrown and killed) 72 / 24 Hz; frames checked (rearing behind them, the fireball's arc, the
+  burst). GVR_SPELL_TRACE prints the nearest deep-water bearing and the aim / lift for writing tests.
