@@ -21,10 +21,10 @@ when it depends on the headset (frame rate, comfort, controllers, sound on the Q
 
 | # | Criterion | Status |
 |---|---|---|
-| B1 | Every devtest script passes in the harness at 24 Hz and 72 Hz (tests, weapons, ui, npcs, missions) | HARNESS (3 known harness-only misses: GPU-cost / touch / ambience lines the harness can't produce) |
-| B2 | Mission sweep: 56 missions load and run with no errors or warnings | HARNESS |
-| B3 | Address/undefined-behaviour sanitizers clean over every devtest | HARNESS (on the release commit: see TEST_REPORT.md) |
-| B4 | Unit tests | HARNESS |
+| B1 | Every devtest script passes in the harness at 24 Hz and 72 Hz (tests, weapons, ui, npcs, missions; reach) | HARNESS 2026-10-29 on cf476cd: tests 85 + 3 known harness-only misses (GPU-cost / touch / ambience lines the harness can't produce), weapons 29/29, ui 21/21, npcs 13/13, missions 34/34, reach 23/23 |
+| B2 | Mission sweep: 56 missions load and run with no errors or warnings; the whole campaign in one run | HARNESS 2026-10-29: sweep 56/56 clean; campaign 55/55 to the_end, 0 errors |
+| B3 | Address/undefined-behaviour sanitizers clean over every devtest | HARNESS 2026-10-29, snapshot cf476cd: 193/193 scripts exit 0 with 0 reports (+ the lift, rescue, horn and r4a tornado tests) |
+| B4 | Unit tests | HARNESS (all pass, incl. under ASan) |
 | B5 | Independent code reviews at each milestone, findings fixed or recorded | Done 2026-10-29 (release review: 9 findings, all fixed) |
 | B6 | Saves can't be lost: atomic writes, a new game keeps the old save until the new world loads, no one-button delete | HARNESS (unit test + code) |
 | B7 | Headset lifecycle: pause on the Quest button / Guardian, resume, headset off and on | HARNESS for the pause; DEVICE pending |
