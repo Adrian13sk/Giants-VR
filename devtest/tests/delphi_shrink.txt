@@ -1,0 +1,20 @@
+# (2026-10-29) Delphi's SHRINK (the data's item 29, IconRSShrinker; rules ours): the left hand points steadily at a
+# Reaper with the trigger held, then closes (the grip): he shrinks to a quarter, runs from her and can't fire; she runs
+# after him (test hook GVR_SHRINK_CHASE) and treads on him.
+# Log (checked by devtest.ps1): "Delphi casts SHRINK: Reaper N" "SHRINK: Delphi treads on Reaper N" "SHRINK: Reaper N squashed".
+name delphi_shrink
+world Rstory5
+mission rstory5_battle_2
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_SPELL_TRACE 1
+env GVR_PASSIVE_REAPERS 1
+env GVR_SHRINK_CHASE 1
+duration 14
+reapers 1 10 0.5 99
+pitch_l 17 0.5 1.0
+hold trigger_l 1.5 2.8
+hold grip_l 2.3 2.6
+shot 3.4 shrunk

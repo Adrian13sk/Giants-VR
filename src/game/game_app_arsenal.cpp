@@ -514,8 +514,7 @@ void GameApp::renderScope() {
         if (ch.visible && ch.model) ch.model->render(renderer_, ch.xf());
     for (const auto& e : enemies_.enemies)
         if (e.slot >= 0)
-            enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
-                                                              Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
+            enemyPool_[size_t(e.slot)]->render(renderer_, enemyXf(e));
     renderReaperWeapons(false, scopeEye_, 1e9f);
     renderer_.endScopePass();
     // The lens quad for the eyes (uploaded once per frame). The texture's v = 0 is the image's bottom.

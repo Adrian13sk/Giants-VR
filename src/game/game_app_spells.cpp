@@ -413,6 +413,7 @@ bool GameApp::updateSpells(float dt, bool trig, const Vec3& from, const Vec3& di
 void GameApp::stepSpells(float dt) {
     const float t = float(time_);
     stepFollowThrown(dt);  // (FOLLOW's thrown Reapers: watched to the ground whatever she does meanwhile)
+    updateShrink(dt);      // (SHRINK: squashing the small, killed or trodden on)
     circleCool_ = std::max(0.0f, circleCool_ - dt);
     if (circleT_ > 0) {
         const float was = circleT_;

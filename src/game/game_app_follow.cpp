@@ -60,9 +60,14 @@ void GameApp::releaseFollow(const char* why) {
 void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
     followCool_ = std::max(0.0f, followCool_ - dt);
     followCandT_ = std::max(0.0f, followCandT_ - dt);
+    shrinkCool_ = std::max(0.0f, shrinkCool_ - dt);
     const int mh = rig_.moveHand();
     const ControllerState& c = in.hand[mh];
     const bool held = c.trigger > 0.4f;
+    // SHRINK (game_app_shrink.cpp): the same steady aim, then the hand closes (a grip squeeze).
+    const bool gripEdge = c.squeeze > 0.8f && !shrinkGripHeld_;
+    if (c.squeeze > 0.8f) shrinkGripHeld_ = true;
+    else if (c.squeeze < 0.4f) shrinkGripHeld_ = false;
     // (review 2026-10-28) Not run last frame (dying, riding, the menu, a cutscene): no hand speed across the gap.
     if (time_ - followLastT_ > 0.1) { followHandValid_ = false; followPullDist_ = 0; followAimT_ = 0; }
     followLastT_ = time_;
@@ -125,7 +130,7 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
         if (int(followT_ * 4) != int((followT_ - dt) * 4)) haptics_.push_back({mh, 0.25f, 0.04f});
         return;
     }
-    if (!followOwned() || !firstPerson_ || !c.aimPoseValid || !c.gripPoseValid || !in.headValid || !held || delphiBow() || spellGestureCast_) {
+    if (!(followOwned() || shrinkOwned()) || !firstPerson_ || !c.aimPoseValid || !c.gripPoseValid || !in.headValid || !held || delphiBow() || spellGestureCast_) {
         followCandUid_ = 0;
         followAimT_ = followPullDist_ = 0;
         return;
@@ -161,6 +166,12 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
                  double(std::acos(std::max(-1.0f, std::min(1.0f, dot(normalize(to), dir)))) * 57.3f),
                  double(std::remainder(yawOff, 2 * kPi) * 57.3f), double((std::asin(normalize(to).y) - std::asin(dir.y)) * 57.3f));
         }
+    // The hand closed on him (trigger held, pointed at steadily): SHRINK.
+    if (gripEdge && shrinkOwned() && followCandUid_ && followCandT_ > 0 && followAimT_ >= 0.2f) {
+        castShrink(followCandUid_, mh);
+        return;
+    }
+    if (!followOwned()) return;
     // Pulled back toward her: caught.
     const Vec3 toHead{in.head.position.x - c.gripPose.position.x, 0, in.head.position.z - c.gripPose.position.z};
     const float pull = length(toHead) > 1e-3f ? dot(hv, normalize(toHead)) : 0.0f;

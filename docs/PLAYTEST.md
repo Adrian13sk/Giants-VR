@@ -160,6 +160,15 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
 - [ ] **Delphi's FIRE CIRCLE** (Reaper story 4 on, the battles, PRACTICE): left trigger held, both arms out to the
       sides: a column of blue fire 2 m round you for 8 s. Do bolts and grenades stop in it? Too bright inside?
       Easy to do on purpose? Ever by accident (e.g. while fighting with the sword)?
+- [ ] **Delphi's SHRINK** (Reaper story 4 on, PRACTICE): left trigger held, point at a Reaper for a moment, then
+      squeeze the left grip: he shrinks to a quarter and runs. Step on him, or hit him with anything. Is the squeeze
+      easy on purpose (and not confused with FOLLOW's pull)? Can you see him small, at 10-20 m?
+- [ ] **Bodies against walls:** throw a Reaper with FOLLOW into a hut or rock: he stops against it (no flying
+      through walls) and is hurt; one thrown onto a roof stays up there.
+- [ ] **The turret and Rippers / the cloak and Rippers:** Baz's planted turret now shoots Rippers too; Delphi
+      cloaked is not seen by Rippers (only right next to one).
+- [ ] **Options -> KABUTO VIEW: LOWER** (Kabuto's view from 60 % of his eye height): less dizzying than GIANT? Throws
+      as strong? Is the switch on leaving the menu (a short fade through black) comfortable?
 - [ ] **Options -> FOVEATED RENDERING: AUTO (UP TO HIGH):** the headset itself sharpens the edges when there is time
       to spare. Compare with MEDIUM in 1a's village: sharper? smoother? Note the FRAME RATE either way.
 

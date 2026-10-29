@@ -53,7 +53,7 @@ void GameApp::ragdollSplash(Ragdoll& r, float size) {
 Ragdoll* GameApp::startRagdoll(Enemy& e, const Vec3& vel, const Vec3& spin) {
     if (ragdolls_.size() != enemyPool_.size()) ragdolls_.resize(enemyPool_.size());
     static const bool off = std::getenv("GVR_NO_RAGDOLL") != nullptr;
-    if (off || e.state != EnemyState::Dead || e.posted || e.slot < 0 || size_t(e.slot) >= ragdolls_.size()) return nullptr;
+    if (off || e.state != EnemyState::Dead || e.posted || e.shrink < 0.95f || e.slot < 0 || size_t(e.slot) >= ragdolls_.size()) return nullptr;
     Ragdoll& r = ragdolls_[size_t(e.slot)];
     r.stop();
     r.pending = true;
@@ -77,7 +77,7 @@ void GameApp::updateRagdolls(float dt) {
             e.ragdoll = false;
             continue;
         }
-        if (off || e.posted || e.slot < 0 || size_t(e.slot) >= ragdolls_.size() || e.gibbed) continue;
+        if (off || e.posted || e.shrink < 0.95f || e.slot < 0 || size_t(e.slot) >= ragdolls_.size() || e.gibbed) continue;  // (shrunk: squashed instead, game_app_shrink.cpp)
         Ragdoll* rd = ragdollOf(e);
         if (!rd) {
             e.ragdoll = false;

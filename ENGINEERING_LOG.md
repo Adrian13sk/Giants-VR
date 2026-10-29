@@ -2972,3 +2972,14 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   her (Creature::lastSeen) and casts about there - burrowers dig back in after loseAfter as when they lose anyone.
   Buried Rippers still feel her steps. Unit tests (in testCreatures): a Ripper in front of her at 15 m never
   notices; a chasing one, she moves 20 m away cloaked - it goes to the old spot and never bites.
+- Delphi's SHRINK (the data's item 29 IconRSShrinker, GText "Shrink", HUD art st_rp_shrink; no effect model, no
+  rules in the data - its multiplayer line "%k shrunk %v to death"). Ours: FOLLOW's steady aim (trigger held, 0.2 s
+  within 7 degrees, 30 m, in sight), then the hand closes - a grip squeeze: he shrinks to a quarter over half a
+  second for 15 s (EnemyDirector: Enemy::shrink / shrinkT); small, he runs from her on short legs, never stops to
+  fire, can't punch, his hit capsule and height shrink with him, any hit kills him; she can tread on him. A shrunk
+  Reaper killed any way is squashed (gibbed at his size, no full-size ragdoll). 14 s between; Rstory4, 5, practice.
+  Rendering through GameApp::enemyXf (body, shadow, reflection, his gun). Devtest tests/delphi_shrink (cast at 10 m,
+  GVR_SHRINK_CHASE runs her at him, trodden on, squashed) 72 Hz; frames checked (a quarter-size Reaper running; the
+  reflection follows); unit test testShrink. Controls card row; a HUD icon in her spell row (8 now: two rows of four).
+- r4a's base: the second Hellfire turret site found no level ground since the Gyrocopter Pad took a site (a sweep
+  warning): the search goes round to 2.85 rad and 16 m further out.

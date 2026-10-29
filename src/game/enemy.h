@@ -43,7 +43,10 @@ struct Enemy {
     int objective = -1;     // mission objective this enemy's death completes (game app), -1 none
     bool posted = false;    // sentry on a platform (guard tower): never moves, fires from there
     float postY = 0;        // its floor height
-    bool roofed = false;    // posted because he fell onto a roof / ledge (not a guard post): dropped if it goes
+    bool roofed = false;
+    // Delphi's SHRINK (game layer casts it: shrinkT = seconds shrunk): his size eases to a quarter and back;
+    // shrunk, he runs from her, can't fire or punch, and any hit kills him.
+    float shrink = 1.0f, shrinkT = 0;    // posted because he fell onto a roof / ledge (not a guard post): dropped if it goes
     uint32_t uid = 0;       // stable id (corpses, Cleaners)
     // Corpse (corpsesPersist): lies until eaten by Cleaners or blown apart.
     float eaten = 0, corpseHp = 50;
@@ -164,7 +167,8 @@ public:
     bool raycast(const Vec3& origin, const Vec3& dir, float maxDist, float& t, Vec3& normal, int& index) const;
     size_t aliveCount() const;
     // His body's height now: kneeling or crouched to fire, lower (hit capsule, head shots).
-    float bodyHeight(const Enemy& e) const {
+    float bodyHeight(const Enemy& e) const { return bodyHeightFull(e) * e.shrink; }
+    float bodyHeightFull(const Enemy& e) const {
         if (e.state == EnemyState::Hit && e.clip == EnemyClip::HitBig) return params.height * 0.45f;  // knocked down
         if (e.state == EnemyState::Hit && e.clip == EnemyClip::GetUp) return params.height * 0.75f;
         if (e.state == EnemyState::Fire && (e.clip == EnemyClip::RockInto || e.clip == EnemyClip::RockBreathe)) return params.height * 0.5f;  // ducked

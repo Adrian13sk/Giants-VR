@@ -153,8 +153,7 @@ void GameApp::renderShadowMap() {
             for (const auto& part : n.model->parts) renderer_.drawShadow(part.mesh, n.xf * Mat4::scale(Vec3{1, 1, 1} * n.shown));
     for (const auto& e : enemies_.enemies)
         if (e.slot >= 0 && length(e.pos - centre) < half * 1.4f)
-            enemyPool_[size_t(e.slot)]->renderShadow(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
-                                                                    Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
+            enemyPool_[size_t(e.slot)]->renderShadow(renderer_, enemyXf(e));
     renderReaperWeapons(true, centre, half * 1.4f);
     renderSkirmish(true, centre);
     // The player's own body (whole, also in first person) and Timmy on his back.
@@ -237,8 +236,7 @@ void GameApp::renderReflection() {
     }
     for (const auto& e : enemies_.enemies)
         if (e.slot >= 0 && length(e.pos - eye) < 90.0f)
-            enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
-                                                              Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)));
+            enemyPool_[size_t(e.slot)]->render(renderer_, enemyXf(e));
     if (cut) cutscene_->render();
     renderer_.endReflectionPass();
     renderer_.setReflectionActive(true);
@@ -510,8 +508,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
         if (e.slot >= 0) {
             // A hit flashes the body hot for a moment (rework: you see every hit land).
             const float f = e.hitFlash;
-            enemyPool_[size_t(e.slot)]->render(renderer_, Mat4::translation(e.pos + Vec3{0, slotLift_[size_t(e.slot)], 0}) *
-                                                              Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw)),
+            enemyPool_[size_t(e.slot)]->render(renderer_, enemyXf(e),
                                                Vec4{1.0f + 2.2f * f, 1.0f + 0.9f * f, 1.0f + 0.5f * f, 1.0f});
         }
     renderReaperWeapons(false, renderer_.currentView().eyePosition, 150.0f);

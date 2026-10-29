@@ -867,6 +867,7 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     if (heldBody_.hand == mh || (heldVillager_ != 0 && heldVillagerHand_ == mh) || stoneInHand(mh)) pi.sprint = false;  // (a body, a Smartie, a stone)
     if (!reachPath_.empty()) reachWalkInput(pi.move, pi.viewYaw, pi.jet, dt);  // test hook GVR_REACH_WALK
     kabutoFeedInput(pi.move, pi.viewYaw, dt);                                   // test hook GVR_KABUTO_FEED
+    shrinkChaseInput(pi.move, pi.viewYaw);                                       // test hook GVR_SHRINK_CHASE
     updateTeleport(dt, pi, in);                                                 // Options -> MOVEMENT: TELEPORT
     updateWristPanel(dt);
     // Rework: Kabuto leaps when you jump - a quick rise of your real head from standing (first person)

@@ -1129,3 +1129,6 @@ and eaten). The race had the system shell drawing for 214 s (Guardian visible?):
 | Delphi's cloak against Rippers | unit tests in testCreatures (not noticed at 15 m in front; a chasing one goes to the old spot, no bites) |
 | Regression 2026-10-29 | tests 76 + the 3 known harness-only lines, weapons 29/29, ui 19/19, npcs 12/12, missions 31/31 (72 Hz); tests, weapons at 24 Hz the same; sweep 56/56 exit 0 (one warning: r4a's second Hellfire turret site); unit tests pass |
 | ASan/UBSan 2026-10-29 | mission sweep 56/56 and 7 devtests (turret x2, FOLLOW, cloak fight, gyro pad, gyro, Kabuto view) at 36 Hz: 0 reports, all exit 0 |
+| Delphi's SHRINK (item 29, st_rp_shrink) | tests/delphi_shrink 72 Hz (cast at 10 m, trodden on, squashed); frames checked (quarter-size Reaper running, his reflection); unit test testShrink |
+| r4a's second Hellfire turret site | sweep: the warning gone, both sites placed |
+| Regression after SHRINK | tests 77 + the 3 known harness-only lines, weapons 29/29, ui 19/19, npcs 12/12, missions 31/31 (72 Hz); tests, weapons at 24 Hz the same; sweep 56/56 clean (0 errors, 0 warnings); ASan: unit tests and delphi_shrink / delphi_follow / w_mecc_turret_rippers / delphi_cloak_fight 0 reports |

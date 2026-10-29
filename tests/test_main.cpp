@@ -2262,6 +2262,35 @@ static void testProgress() {
 
 // (2026-10-29) A body flying through the air (thrown by FOLLOW, blown off a tower) stops at walls - even a
 // thin one at 24 Hz and 25 m/s - and lands on a roof it comes down on; it drops when that roof goes.
+// (2026-10-29) SHRINK: a quarter size in about half a second, runs (never fires) while small, any hit kills him;
+// back to full size when it wears off.
+static void testShrink() {
+    std::vector<int> sh;
+    EnemyDirector d;
+    d.groundHeight = [](float, float) { return 0.0f; };
+    for (auto& c : d.clipDuration) c = 0.6f;
+    d.params.marksmen = 0;
+    d.spawn({0, 0, -12}, 0);
+    d.spawn({4, 0, -12}, 0);
+    d.enemies[0].aware = d.enemies[1].aware = true;
+    d.enemies[0].shrinkT = 3.0f;
+    bool fired = false;
+    float minS = 1, farthest = 0;
+    for (int i = 0; i < 72 * 2; ++i) {
+        d.update(1.0f / 72.0f, Vec3{0, 0, 0}, true, sh);
+        fired |= d.enemies[0].state == EnemyState::Fire;
+        minS = std::min(minS, d.enemies[0].shrink);
+        farthest = std::max(farthest, length(d.enemies[0].pos));
+    }
+    CHECK(!fired && minS < 0.26f && farthest > 13.0f);  // small, never stopped to fire, ran off
+    CHECK(near(d.bodyHeight(d.enemies[0]), d.bodyHeightFull(d.enemies[0]) * d.enemies[0].shrink, 1e-4f));
+    for (int i = 0; i < 72 * 3; ++i) d.update(1.0f / 72.0f, Vec3{0, 0, 0}, true, sh);
+    CHECK(d.enemies[0].shrink > 0.999f);  // grown back
+    d.enemies[1].shrinkT = 5.0f;
+    for (int i = 0; i < 72; ++i) d.update(1.0f / 72.0f, Vec3{0, 0, 0}, true, sh);
+    CHECK(d.damage(1, 1.0f) && d.enemies[1].state == EnemyState::Dead);  // a scratch kills him
+}
+
 static void testFallingCollision() {
     CollisionWorld cw;
     {
@@ -2345,6 +2374,7 @@ int main() {
     testArmIk();
     testCollision();
     testFallingCollision();
+    testShrink();
     testWeapon();
     testEnemies();
     testCreatures();

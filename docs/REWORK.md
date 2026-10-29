@@ -129,6 +129,11 @@ APK; **DEVICE** = run on the Quest. Nothing here is DEVICE yet.
 | Wrist | A wrist display (health, ammo, injections, flares, objective distance) and the injection jabbed into the forearm. | HARNESS |
 | Music | A battle closes on its own ending phrase; dying plays the death song. | BUILD (no audio in the harness) |
 | Speed | Water reflection at half size and the shadow map every other frame at the reduced quality levels; the terrain's far ring lighter. | HARNESS (cost: device to measure) |
+| Delphi's spells | From the data's spell list (items 22-33, their icons): SUMMON HAIL, SLOW TIME, CLOAK, CLUSTER, FOLLOW (point and pull: he hangs where you point, swing and throw), FIRE CIRCLE (arms out), SHRINK (point, close the hand: a quarter-size Reaper that runs; tread on him). Her spells as icons on the wrist HUD. Rippers no longer see through the cloak. | HARNESS |
+| Baz's kit | Portable turret (item 11: plant it, it shoots Reapers and Rippers; take it back by the grip), shield (item 17), homing and proximity rockets (items 15, 16) chosen on the weapon wheel, the jetpack upgrade (item 18, Story 5), the Repair Gun (item 19, base missions). | HARNESS |
+| Gyrocopter | The data's Gyro_l0: board it with a hand on it, fly with the sticks or a tilted-controller joystick, guns on the trigger; in practice and on a base's Gyrocopter Pad. The comfort vignette closes with a vehicle's turning and climbing. | HARNESS |
+| Physics | Bodies in the air (thrown, blown off towers) stop at walls and land on roofs. | HARNESS (unit test) |
+| Kabuto | Options -> KABUTO VIEW: GIANT / LOWER (his view from 60 % of his eye height; throws and reach unchanged). | HARNESS |
 
 Harness regression: all 56 missions exit 0 with no errors (latest run after the grass).
 

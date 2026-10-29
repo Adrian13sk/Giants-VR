@@ -514,6 +514,12 @@ private:
     std::vector<Ragdoll> ragdolls_;  // rework: per model slot (game_app_ragdoll.cpp)
     const Enemy* posingEnemy_ = nullptr;  // the enemy its slot model is being posed for
     Mat4 ragdollToWorld(const Enemy& e) const;
+    // A living Reaper's model transform: his slot's foot lift, his heading, and SHRINK's scale.
+    Mat4 enemyXf(const Enemy& e) const {
+        const float lift = e.slot >= 0 && size_t(e.slot) < slotLift_.size() ? slotLift_[size_t(e.slot)] : 0.0f;
+        const Mat4 m = Mat4::translation(e.pos + Vec3{0, lift * e.shrink, 0}) * Mat4::rotation(Quat::fromAxisAngle({0, 1, 0}, e.yaw));
+        return e.shrink < 0.999f ? m * Mat4::scale(Vec3{1, 1, 1} * e.shrink) : m;
+    }
     Ragdoll* ragdollOf(const Enemy& e);
     void updateRagdolls(float dt);
     Ragdoll* startRagdoll(Enemy& e, const Vec3& vel, const Vec3& spin);
@@ -1363,6 +1369,16 @@ private:  // the mission placed enemies: no test waves
     void updateFollow(float dt, const InputFrame& in, const Vec3& dir);
     void releaseFollow(const char* why);
     void stepFollowThrown(float dt);
+    // (2026-10-29) SHRINK (the data's item 29 IconRSShrinker, GText "Shrink", HUD art st_rp_shrink; the multiplayer
+    // line "%k shrunk %v to death"). Rules ours: pointed at steadily as for FOLLOW (trigger held), the hand closes
+    // (grip): he shrinks to a quarter for 15 s - runs from her, can't fire or punch, any hit kills him, and she can
+    // tread on him. 14 s between. Rstory4 and 5, and practice.
+    float shrinkCool_ = 0;
+    bool shrinkGripHeld_ = false;
+    bool shrinkOwned() const;
+    void castShrink(uint32_t uid, int hand);
+    void updateShrink(float dt);
+    bool shrinkChaseInput(Vec2& move, float& viewYaw);  // test hook GVR_SHRINK_CHASE: runs her at the nearest shrunk Reaper
     bool spellGestureCast_ = false, gestPrevValid_ = false;
     float gestCircle_ = 0, gestSweep_ = 0, gestT_ = 0, gestPrevAng_ = 0;
     Vec3 gestPrev_;
@@ -1949,7 +1965,7 @@ private:  // the mission placed enemies: no test waves
     // a weapon switch; a red marker toward whatever hurt the player; green flash on healing.
     enum HudLayer { kHudPlate, kHudHealthFill, kHudFuelFill, kHudEnergy, kHudJetGauge, kHudWpSlot, kHudGun, kHudLauncher,
                     kHudSword, kHudFire, kHudSyringe, kHudMeat, kHudFlare, kHudBush, kHudNumbers, kHudMarks, kHudPop, kHudShotgun, kHudMachine, kHudSniper, kHudMortar, kHudGrenade, kHudMine, kHudRepair, kHudTurret, kHudShield,
-                    kHudRpHail, kHudRpSlow, kHudRpCloak, kHudRpCluster, kHudRpFollow, kHudRpCircle, kHudRpTornado, kHudLayers };
+                    kHudRpHail, kHudRpSlow, kHudRpCloak, kHudRpCluster, kHudRpFollow, kHudRpCircle, kHudRpTornado, kHudRpShrink, kHudLayers };
     struct HudFrame { Vec3 o, r, u; };  // panel origin and its right / up axes (world, metres per unit)
     TextureId hudTex_[kHudLayers] = {};
     float digitU_[11] = {}, digitU0_[10] = {}, digitU1_[10] = {};

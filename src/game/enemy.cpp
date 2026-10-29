@@ -135,6 +135,7 @@ bool EnemyDirector::damage(int i, float amount, bool blast) {
     if (i < 0 || size_t(i) >= enemies.size()) return false;
     Enemy& e = enemies[size_t(i)];
     if (e.state == EnemyState::Dead) return false;
+    if (e.shrink < 0.6f) amount = std::max(amount, e.health);  // (shrunk: any hit is the end of him)
     e.health -= amount;
     e.hitFlash = 1.0f;
     e.aware = true;
@@ -219,7 +220,19 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
         const float fireR = e.disarmed ? 1.1f : (marks ? 26.0f : params.fireRange);
         // Shot in the leg: he limps along at under half speed for a while.
         e.limpT = std::max(0.0f, e.limpT - dt);
-        const float legs = e.limpT > 0 ? 0.42f : 1.0f;
+        // SHRINK: eases down to a quarter (and back up when it wears off); while small he flees on short legs.
+        if (e.shrinkT > 0) e.shrinkT = std::max(0.0f, e.shrinkT - dt);
+        if (e.state != EnemyState::Dead) {  // (a dead one stays the size he died at: the game layer squashes him)
+            const float want = e.shrinkT > 0 ? 0.25f : 1.0f;
+            e.shrink += std::max(-1.5f * dt, std::min(1.5f * dt, want - e.shrink));
+        }
+        const bool shrunk = e.shrinkT > 0 || e.shrink < 0.9f;
+        if (shrunk && e.state != EnemyState::Dead && e.state != EnemyState::Falling && e.state != EnemyState::Hit) {
+            e.retreatT = std::max(e.retreatT, 0.5f);
+            e.inCover = false;
+            if (e.state == EnemyState::Fire || e.state == EnemyState::Idle) { e.state = EnemyState::Advance; e.stateTime = 0; }
+        }
+        const float legs = (e.limpT > 0 ? 0.42f : 1.0f) * std::max(0.4f, e.shrink);
         const int burstN = marks ? 1 : params.burstSize;
         const float burstP = marks ? 2.6f : params.burstPause;
         (void)shootR; (void)fireR; (void)burstN; (void)burstP;
@@ -265,7 +278,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
         }
         // Rework: you right up against him - he punches (rpman_punch) instead of firing point blank.
         // (Not at a bush he hasn't seen through yet: the poke is how he finds you - 2026-10-28.)
-        if (params.punch && playerAlive && sees && dist < 1.7f && std::fabs(player.y - e.pos.y) < 2.0f && e.punchCool <= 0 && !e.posted && !(playerHidden && !e.aware) &&
+        if (params.punch && playerAlive && sees && !shrunk && dist < 1.7f && std::fabs(player.y - e.pos.y) < 2.0f && e.punchCool <= 0 && !e.posted && !(playerHidden && !e.aware) &&
             (e.state == EnemyState::Advance || e.state == EnemyState::Fire || e.state == EnemyState::Idle)) {
             setClip(e, EnemyClip::Punch, false);
             e.clipTime = 0;
@@ -435,7 +448,7 @@ void EnemyDirector::update(float dt, const Vec3& player, bool playerAlive, std::
                     // Can't climb this: try going around; if the player is in range, shoot instead.
                     e.blockedTime += dt;
                     if (e.blockedTime > 0.3f) {
-                        if (dist <= shootR) {
+                        if (dist <= shootR && !shrunk) {
                             e.state = EnemyState::Fire;
                             e.stateTime = 0;
                             e.burstLeft = burstN;
@@ -674,8 +687,9 @@ bool EnemyDirector::raycast(const Vec3& o, const Vec3& d, float maxDist, float& 
         const Enemy& e = enemies[i];
         if (e.state == EnemyState::Dead) continue;  // shots pass over corpses
         float th;
-        const Vec3 a = e.pos + Vec3{0, params.radius, 0}, b = e.pos + Vec3{0, bodyHeight(e) - params.radius, 0};
-        if (rayCapsule(o, d, maxDist, a, b, params.radius, th) && th < best) {
+        const float rr = params.radius * e.shrink;
+        const Vec3 a = e.pos + Vec3{0, rr, 0}, b = e.pos + Vec3{0, std::max(rr, bodyHeight(e) - rr), 0};
+        if (rayCapsule(o, d, maxDist, a, b, rr, th) && th < best) {
             best = th;
             index = int(i);
             const Vec3 p = o + d * th;

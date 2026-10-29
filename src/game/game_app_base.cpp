@@ -1061,9 +1061,11 @@ void GameApp::placeTurretSites(int d, const Mat4& baseXf) {
     const float a0 = std::atan2(dir.x, dir.z);
     for (int side = -1; side <= 1; side += 2) {
         bool placed = false;
-        for (int k = 0; k < 8 && !placed; ++k) {
+        // (2026-10-29: r4a's base, with the Gyrocopter Pad's site, had no level ground on one side within
+        // 1.65 rad and 8 m: the search goes on round to 2.85 rad and 16 m out before giving up.)
+        for (int k = 0; k < 16 && !placed; ++k) {
             const float a = a0 + float(side) * (0.6f + 0.15f * float(k));
-            for (float r = radius; r <= radius + 8.0f && !placed; r += 4.0f) {
+            for (float r = radius; r <= radius + 16.0f && !placed; r += 4.0f) {
                 Vec3 p = base_.centre + Vec3{std::sin(a) * r, 0, std::cos(a) * r};
                 float h;
                 if (!assetWorld_->terrain().heightAt(p.x, p.z, h) || h < player_.seaLevel - 0.3f || std::fabs(h - base_.centre.y) > 4.0f) continue;
