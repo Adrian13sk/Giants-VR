@@ -333,7 +333,9 @@ void SkinnedModel::boundsAt(int anim, float t, Vec3& mn, Vec3& mx) {
 
 void SkinnedModel::renderFull(Renderer& r, const Mat4& world) const {
     if (!fullValid_) { render(r, world); return; }
+    for (int pass = 0; pass < 2; ++pass)
     for (const Part& p : parts_) {
+        if (p.soft != (pass == 1) || (p.soft && deferSoft_)) continue;
         DrawParams dp;
         dp.texture = p.texture;
         dp.blend = p.blend;
@@ -346,7 +348,7 @@ void SkinnedModel::renderFull(Renderer& r, const Mat4& world) const {
 
 void SkinnedModel::renderShadowFull(Renderer& r, const Mat4& world) const {
     for (const Part& p : parts_)
-        if (!p.glass) r.drawShadow(fullValid_ && p.fullMesh ? p.fullMesh : p.mesh, world);
+        if (!p.glass && !p.soft) r.drawShadow(fullValid_ && p.fullMesh ? p.fullMesh : p.mesh, world);
 }
 
 void SkinnedModel::setHiddenBones(const std::vector<std::string>& names) {
@@ -391,7 +393,10 @@ bool SkinnedModel::boneVertexBounds(const std::string& name, Vec3& mn, Vec3& mx)
 void SkinnedModel::render(Renderer& r, const Mat4& world) const { render(r, world, Vec4{1, 1, 1, 1}); }
 
 void SkinnedModel::render(Renderer& r, const Mat4& world, const Vec4& tint) const {
+    // Opaque parts first, the soft (blended) ones after them (a rotor's blur over its mast and hub), unless deferred.
+    for (int pass = 0; pass < 2; ++pass)
     for (const Part& p : parts_) {
+        if (p.soft != (pass == 1) || (p.soft && deferSoft_)) continue;
         DrawParams dp;
         dp.tint = tint;
         dp.texture = p.texture;
@@ -405,6 +410,18 @@ void SkinnedModel::render(Renderer& r, const Mat4& world, const Vec4& tint) cons
             dp.blend = BlendMode::AlphaBlend;
             dp.depthWrite = false;
         }
+        r.draw(p.mesh, world, dp);
+    }
+}
+
+void SkinnedModel::renderSoft(Renderer& r, const Mat4& world) const {
+    for (const Part& p : parts_) {
+        if (!p.soft) continue;
+        DrawParams dp;
+        dp.texture = p.texture;
+        dp.blend = BlendMode::AlphaBlend;
+        dp.depthWrite = false;
+        dp.unlit = !p.lit;
         r.draw(p.mesh, world, dp);
     }
 }

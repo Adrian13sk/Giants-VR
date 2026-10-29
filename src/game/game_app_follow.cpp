@@ -69,7 +69,7 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
     if (c.squeeze > 0.8f) shrinkGripHeld_ = true;
     else if (c.squeeze < 0.4f) shrinkGripHeld_ = false;
     // (review 2026-10-28) Not run last frame (dying, riding, the menu, a cutscene): no hand speed across the gap.
-    if (time_ - followLastT_ > 0.1) { followHandValid_ = false; followPullDist_ = 0; followAimT_ = 0; }
+    if (time_ - followLastT_ > 0.1) { followHandValid_ = false; followPullDist_ = 0; followAimT_ = 0; rtAimT_ = 0; rtSpotOk_ = false; }
     followLastT_ = time_;
     // The hand's speed toward her head (horizontally), relative to the head - stepping back is not a pull.
     Vec3 hv{0, 0, 0};
@@ -134,6 +134,8 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
     if (!(followOwned() || shrinkOwned() || rsTeleportOwned()) || !firstPerson_ || !c.aimPoseValid || !c.gripPoseValid || !in.headValid || !held || delphiBow() || spellGestureCast_) {
         followCandUid_ = 0;
         followAimT_ = followPullDist_ = 0;
+        rtAimT_ = 0;  // (2026-10-29 review: TELEPORT's spot doesn't outlive the trigger pull)
+        rtSpotOk_ = false;
         return;
     }
     // The Reaper she points at (nearest the line within the cone), remembered a moment.
@@ -183,9 +185,14 @@ void GameApp::updateFollow(float dt, const InputFrame& in, const Vec3& dir) {
     if (pull > 1.0f) followPullDist_ += pull * dt;
     else if (pull < 0.5f) followPullDist_ = 0;
     // No Reaper in the aim: the same pull on open ground is TELEPORT (game_app_rsteleport.cpp).
-    if (!(followCandUid_ && followCandT_ > 0) && updateRsTeleport(dt, pull, followPullDist_, from, dir, mh)) {
-        followPullDist_ = 0;
-        return;
+    if (!(followCandUid_ && followCandT_ > 0)) {
+        if (updateRsTeleport(dt, pull, followPullDist_, hv.y, from, dir, mh)) {
+            followPullDist_ = 0;
+            return;
+        }
+    } else {
+        rtAimT_ = 0;  // (a Reaper in the aim: FOLLOW's; a ground spot aimed at before it is forgotten)
+        rtSpotOk_ = false;
     }
     if (!followOwned()) return;
     static const bool trace = std::getenv("GVR_SPELL_TRACE") != nullptr;

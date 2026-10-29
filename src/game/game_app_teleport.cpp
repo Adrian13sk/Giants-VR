@@ -23,7 +23,9 @@ void GameApp::updateTeleport(float dt, PlayerInput& pi, const InputFrame& in) {
         telFade_ = std::min(1.0f, telFade_ + dt / 0.08f);
         if (telFade_ >= 1.0f) {
             const float before = length(telPending_ - player_.position);
-            player_.teleport(telPending_, player_.yaw);
+            // (2026-10-29 review) At the aimed spot's own height: teleport() put her on the terrain - under a roof or a
+            // rock she aimed at the top of; and it refilled the jetpack and cleared a hard landing's stun.
+            player_.blinkTo(telPending_ + Vec3{0, 0.02f, 0});
             placeCamera(0.0f, true, &in);  // (the camera snaps with it; not teleportPlayer, which would reset the view yaw)
             telPhase_ = 2;
             LOGI("Teleport: %.1f m", before);

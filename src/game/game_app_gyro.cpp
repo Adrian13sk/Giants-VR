@@ -57,6 +57,7 @@ void GameApp::initGyro(ModelCache* mc) {
     // (gyro_blade: two thirds clear, a third partly see-through): alpha-tested it showed as hard white blades
     // sweeping through the view; blended it reads as a spinning rotor.
     LOGI("Gyrocopter: %d rotor-blur part(s) blended", sm->setSoftTexture("gyro_blade"));
+    sm->setDeferSoft(true);  // (drawn after the characters: renderGyroSoft)
     gyroModel_ = std::move(sm);
     // The pilot: gyro_breathe is the gyrocopter with a Meccaryn seated in it - its Meccaryn bones pose Baz there
     // (both his models: with and without the jetpack).
@@ -333,6 +334,11 @@ void GameApp::updateGyroRide(float dt, const InputFrame& in) {
     if (trace && int(time_ * 2) != int((time_ - dt) * 2))
         LOGI("gyro trace: (%.1f %.1f %.1f) %.1f m up, speed %.1f, yaw %.0f deg%s [player %.1f %.1f %.1f]", gyro_.pos.x, gyro_.pos.y, gyro_.pos.z, gyro_.pos.y - ground,
              length(gyro_.vel), gyro_.yaw * 57.3f, stick ? ", on the joystick" : "", player_.position.x, player_.position.y, player_.position.z);
+}
+
+// The rotor's blur, after the characters (they show through it).
+void GameApp::renderGyroSoft() {
+    if (gyroModel_ && gyro_.on) gyroModel_->renderSoft(renderer_, gyroXf());
 }
 
 void GameApp::renderGyro() {

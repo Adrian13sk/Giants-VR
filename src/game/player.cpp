@@ -22,6 +22,13 @@ static float deadzone(float v, float dz) {
     return (v < 0 ? -1.0f : 1.0f) * (a - dz) / (1.0f - dz);
 }
 
+void PlayerController::blinkTo(const Vec3& p) {
+    position = p;
+    if (groundHeight) position.y = std::max(position.y, groundHeight(p.x, p.z));
+    velocity = {0, 0, 0};
+    climbing = false;
+}
+
 void PlayerController::teleport(const Vec3& p, float facingYaw) {
     position = p;
     if (groundHeight) position.y = groundHeight(p.x, p.z);

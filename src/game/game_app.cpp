@@ -768,9 +768,6 @@ void GameApp::placeCamera(float dt, bool snap, const InputFrame* in) {
     if (!firstPerson_) {
         pos += q.rotate(Vec3{0, 0, kBack});
         if (player_.groundHeight) floorY = std::max(floorY, player_.groundHeight(pos.x, pos.z) + 0.3f * hs);
-        // (2026-10-29, found making video 20) Over the sea the camera behind him dipped under the surface (the
-        // gyrocopter landing on the water, a swim): kept above it unless he is under water himself (diving).
-        if (player_.seaLevel > -1e8f && player_.position.y > player_.seaLevel - 0.2f) floorY = std::max(floorY, player_.seaLevel + 0.3f * hs);
     }
     if (snap || dt <= 0) camFloor_ = floorY;
     else camFloor_ += (floorY - camFloor_) * (1.0f - std::exp(-dt / kSmooth));
@@ -788,6 +785,10 @@ void GameApp::placeCamera(float dt, bool snap, const InputFrame* in) {
         const Vec3 newEye = chest + toEye * (std::max(0.3f * hs, t - 0.4f * hs) / dist);
         pos = newEye - Vec3{0, eyeH, 0};
     }
+    // (2026-10-29, found making video 20; review) Behind a swimmer or the gyrocopter on the water, the pull-in above
+    // could take the eyes under the sea's surface: kept above it, unless he is diving (under his floating depth).
+    if (player_.seaLevel > -1e8f && player_.diveDepth < 0.1f && player_.position.y > player_.seaLevel - player_.floatDepth - 0.2f)
+        pos.y = std::max(pos.y, player_.seaLevel + 0.25f * hs - eyeH);
     rig_.worldFromTracking = Pose{q, pos};
 }
 

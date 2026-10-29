@@ -41,7 +41,7 @@ bool GameApp::rsTeleportAim(const Vec3& from, const Vec3& dir, Vec3& spot) const
     return true;
 }
 
-bool GameApp::updateRsTeleport(float dt, float pull, float pullDist, const Vec3& from, const Vec3& dir, int hand) {
+bool GameApp::updateRsTeleport(float dt, float pull, float pullDist, float rise, const Vec3& from, const Vec3& dir, int hand) {
     if (!rsTeleportOwned() || raceMode_ || riding_ || telPhase_ != 0) {
         rtAimT_ = 0;
         return false;
@@ -56,8 +56,11 @@ bool GameApp::updateRsTeleport(float dt, float pull, float pullDist, const Vec3&
         LOGI("spell trace: TELEPORT aim %s - %s %.1f m, normal y %.2f, aimed %.2f s", ok ? "ok" : "no", hit ? "ground at" : "nothing within", double(t), double(n.y), double(rtAimT_));
     }
     // The spot taken from the steady aim (the pull itself drags the aim off it).
-    if (ok && (rtAimT_ <= 0 || length(spot - rtSpot_) < 1.5f)) {
+    // (2026-10-29 review) Pointing down at the ground (dir.y < -0.1): charging a fire wall or holding a bolt is
+    // mostly done pointing out at the enemy.
+    if (ok && dir.y < -0.1f && (rtAimT_ <= 0 || length(spot - rtSpot_) < 1.5f)) {
         if (rtAimT_ <= 0) rtSpot_ = spot;
+        rtDir_ = dir;
         rtAimT_ += dt;
         rtSpotOk_ = true;
     } else if (pull < 1.0f) {
@@ -67,7 +70,17 @@ bool GameApp::updateRsTeleport(float dt, float pull, float pullDist, const Vec3&
     if (rtSpotOk_ && rtAimT_ > 0.15f && rtCool_ <= 0 && frand() < dt * 20.0f)
         smokePuff(FxTex::FireBlue, rtSpot_ + Vec3{frand() - 0.5f, 0.1f, frand() - 0.5f} * 0.6f, Vec3{0, 0.8f, 0}, 0.2f, 0.4f, 0.5f, 0.8f, 0.0f);
     if (!rtSpotOk_ || rtAimT_ < 0.3f || pull < kRtPull || pullDist < 0.12f || rtCool_ > 0 || !player_.onGround) return false;
+    // (review) The pull straight back, the hand still pointing much as it did - a bolt's wind-up from a charged
+    // fire wall's aim turns it (a hold of any length is fine: a careful aim takes a while); the spot still in reach
+    // from where she stands now.
     const float d = length(Vec3{rtSpot_.x - player_.position.x, 0, rtSpot_.z - player_.position.z});
+    // A throw's wind-up also rises fast (the hand going up behind the shoulder): the pull is a level one.
+    if (dot(dir, rtDir_) < 0.87f || rise > 0.8f || d < kRtMin || d > kRtMax) {
+        static const bool tr = std::getenv("GVR_SPELL_TRACE") != nullptr;
+        if (tr) LOGI("spell trace: TELEPORT not cast (aim turned %.0f deg, hand rising %.1f m/s, %.1f m)",
+                     double(std::acos(std::max(-1.0f, std::min(1.0f, dot(dir, rtDir_)))) * 57.3f), double(rise), double(d));
+        return false;
+    }
     telPending_ = rtSpot_;
     telPhase_ = 1;  // (the blink: game_app_teleport.cpp)
     spellGestureCast_ = true;  // (letting go: not a fire bolt)

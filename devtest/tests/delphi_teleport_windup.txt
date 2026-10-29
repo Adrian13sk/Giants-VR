@@ -1,0 +1,16 @@
+# (2026-10-29 review) TELEPORT against a bolt's wind-up: aimed at the ground, then the hand comes back toward her while
+# rising fast (the wind-up of a throw) - not a teleport.
+# Log (checked by devtest.ps1): "spell trace: TELEPORT not cast".
+name delphi_teleport_windup
+world Rstory5
+mission rstory5_battle_2
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_SPELL_TRACE 1
+env GVR_PASSIVE_REAPERS 1
+duration 5
+pitch_l 8 0.5 1.0
+hold trigger_l 1.5 3.4
+hand_l 0 0.5 0.45 2.5 2.65

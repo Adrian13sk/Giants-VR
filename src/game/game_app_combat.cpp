@@ -116,6 +116,9 @@ void GameApp::startDeath() {
     if (shieldT_ > 0) { shieldT_ = 0; shieldCool_ = 40.0f; }
     enemies_.playerHidden = enemies_.playerMoving = false;
     repairOn_ = false;
+    telPhase_ = 0;      // (2026-10-29 review: a blink begun as she died froze half dark, and finished after the respawn)
+    telFade_ = 0;
+    telAiming_ = false;
     rsBeam_ = false;  // (Delphi's REPAIR: its HUD pulse and dwell, 2026-10-29 review)
     rsAimT_ = 0;
     ++statDeaths_;
@@ -197,6 +200,10 @@ void GameApp::updateDeath(float dt, const InputFrame& in) {
         else if (haveCheckpoint_) teleportPlayer(clearSpawn(checkpointAt_, checkpointYaw_), checkpointYaw_);  // (the last objective's spot)
         else teleportPlayer(clearSpawn(assetWorld_->spawnPoint(), assetWorld_->spawnYaw()), assetWorld_->spawnYaw());
         respawnFade_ = 1.0f;
+        telPhase_ = 0;
+        telFade_ = 0;
+        rtAimT_ = 0;
+        rtSpotOk_ = false;
         recallTurret("Baz respawned");
         LOGI("Player respawned%s", haveCheckpoint_ && !skirmish_ ? " at the checkpoint" : "");
     }

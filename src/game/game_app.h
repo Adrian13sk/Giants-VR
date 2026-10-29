@@ -1391,11 +1391,11 @@ private:  // the mission placed enemies: no test waves
     // does). Pointed at steadily 0.3 s first (a blue flame shows the spot); 5 s between; not in races.
     // game_app_rsteleport.cpp.
     float rtAimT_ = 0, rtCool_ = 0;
-    Vec3 rtSpot_;
+    Vec3 rtSpot_, rtDir_;
     bool rtSpotOk_ = false;
     bool rsTeleportOwned() const;
     bool rsTeleportAim(const Vec3& from, const Vec3& dir, Vec3& spot) const;
-    bool updateRsTeleport(float dt, float pull, float pullDist, const Vec3& from, const Vec3& dir, int hand);
+    bool updateRsTeleport(float dt, float pull, float pullDist, float rise, const Vec3& from, const Vec3& dir, int hand);
     bool shrinkOwned() const;
     void castShrink(uint32_t uid, int hand);
     void updateShrink(float dt);
@@ -1976,6 +1976,7 @@ private:  // the mission placed enemies: no test waves
     void updateGyroParked(float dt, const InputFrame& in);
     void updateGyroRide(float dt, const InputFrame& in);
     void renderGyro();
+    void renderGyroSoft();
     JetskiState ski_;
     JetskiParams skiParams_;
     RaceDirector race_;

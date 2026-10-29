@@ -3050,3 +3050,18 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   in the frame she cast (the aim marker's particles had shifted the random sequence, so the volleys fell
   differently). The cloak's hit count now starts half a second after the cast (bolts in flight land, as they
   would); GVR_SPELL_TRACE logs each hit while cloaked. 72 / 24 Hz: 0 hits.
+- Review of 8d69abd / 7931a72 (read-only reviewer agent), fixed: (1) a blink (TELEPORT or Options teleport) to a
+  roof or rock top put her on the terrain under it - inside the building: PlayerController::blinkTo keeps the
+  aimed spot's height (the floors take over), and no longer refills the jetpack or clears a hard landing's stun as
+  teleport() did; (2) TELEPORT's aimed spot outlived the trigger, a death, a Reaper in the aim: cleared then, and
+  the distance re-checked at the cast; (3) a blink begun as she died froze half dark and finished after the
+  respawn: reset on death and respawn; (4) TELEPORT's pull against a throw's wind-up from a ground aim: it must
+  point down at the ground, stay pointing as it was (within 30 degrees) and be level (the hand not rising over
+  0.8 m/s) - devtest tests/delphi_teleport_windup (the hand back and up: "not cast"); a rule against a long
+  charge was tried and dropped (a careful aim takes a second); (5) the third-person camera's sea clamp never acted
+  (it ran before the collision pull-in, which is what took the eyes under): now after it, unless diving; (6) soft
+  parts drawn after the opaque ones, skipped in renderShadowFull too, and the gyrocopter's rotor blur deferred until
+  after the characters (renderGyroSoft) so they show through it blurred. Checked fine: texName for every part,
+  the reflection pass, getting in / out of the gyrocopter's camera, TELEPORT blocked when dying / in menus /
+  cutscenes / riding / third person / climbing / during a blink / in races, the hand's ray can't pass walls, the
+  cloak grace's 12 s.

@@ -105,6 +105,9 @@ public:
     bool climbing = false;
 
     void teleport(const Vec3& p, float facingYaw);
+    // A blink to a spot she aimed at (2026-10-29): at that spot's own height (a roof, a rock top - the ground and
+    // floors take over from there), keeping the jetpack's fuel, a stun, the heading and the animation.
+    void blinkTo(const Vec3& p);
     void update(float dt, const PlayerInput& in);
 
     // Animation outputs: current clip/time and the clip being faded out.
