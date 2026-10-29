@@ -241,7 +241,8 @@ runs, any hit kills him, step on him (story 4 on); point at open ground and pull
 blink there (story 3 on); point far out at deep water, then lift the hand sharply over your head and hold it a
 moment - **summon sea monster**: the serpent comes in and spits fireballs at the Reapers by the shore (her battles;
 keep away from where it spits); with her base up, point at one of her damaged buildings - **repair**: green fire
-mends it while you hold.
+mends it while you hold; sword in hand, the right trigger held, drive the blade point-first into the ground - **summon
+shadow**: a dark Reaper warrior rises and fights for you for 20 s (story 5).
 
 ## Weapon wheel, Repair Gun, homing rockets, turret
 - **Hold the right stick forward**: a ring of what you carry appears before you; move the gun hand toward one and

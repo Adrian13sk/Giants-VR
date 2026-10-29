@@ -1,0 +1,19 @@
+# (2026-10-29) Delphi's SUMMON SHADOW (the data's item 26, IconRSShadow; rules ours): the sword pointed down, the right
+# trigger held, the blade driven into the ground in front of her - a shadow warrior rises there, runs at the Reapers
+# and strikes them.
+# Log (checked by devtest.ps1): "Delphi summons a SHADOW" "The shadow goes for Reaper" "The shadow strikes Reaper".
+name delphi_shadow
+world Rstory5
+mission rstory5_battle_2
+env GVR_CUTSCENE none
+env GVR_GOD 1
+env GVR_NO_AMBUSH 1
+env GVR_NO_RAIDS 1
+env GVR_PASSIVE_REAPERS 1
+env GVR_SPELL_TRACE 1
+duration 16
+reapers 2 12 0.5 99
+pitch_r -75 1.0 1.5
+hold trigger_r 2.0 3.0
+hand_r 0 -0.8 -0.3 2.3 2.5
+shot 8 shadow_fight

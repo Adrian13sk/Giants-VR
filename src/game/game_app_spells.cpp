@@ -153,6 +153,8 @@ void GameApp::resetSpells() {
     rsBeam_ = rsBlocked_ = false;  // (review: the beam's flag outlived a death / a mission)
     rsAimT_ = 0;
     rtAimT_ = rtCool_ = 0;
+    shadowW_ = ShadowWarrior{};
+    shadowCool_ = 0;
     rtSpotOk_ = false;
     shrinkGripHeld_ = false;
     followThrown_.clear();
@@ -422,6 +424,7 @@ void GameApp::stepSpells(float dt) {
     const float t = float(time_);
     stepFollowThrown(dt);  // (FOLLOW's thrown Reapers: watched to the ground whatever she does meanwhile)
     updateShrink(dt);      // (SHRINK: squashing the small, killed or trodden on)
+    updateShadowWarrior(dt);  // (SUMMON SHADOW: her shadow warrior fighting)
     circleCool_ = std::max(0.0f, circleCool_ - dt);
     if (circleT_ > 0) {
         const float was = circleT_;

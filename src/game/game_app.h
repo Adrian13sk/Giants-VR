@@ -1396,6 +1396,27 @@ private:  // the mission placed enemies: no test waves
     bool rsTeleportOwned() const;
     bool rsTeleportAim(const Vec3& from, const Vec3& dir, Vec3& spot) const;
     bool updateRsTeleport(float dt, float pull, float pullDist, float rise, const Vec3& from, const Vec3& dir, int hand);
+    // (2026-10-29) SUMMON SHADOW (the data's item 26 IconRSShadow, GText "Summon Shadow"; nothing else in the data).
+    // Rules ours: in first person with the sword, the right trigger held, the blade driven point-first into the
+    // ground - a shadow of a Reaper warrior (the data's rpman_l0, darkened) rises there and fights for her 20 s: it
+    // runs at the nearest Reaper and strikes. 45 s between; Reaper story 5 and practice. game_app_shadow.cpp.
+    struct ShadowWarrior {
+        bool on = false;
+        Vec3 pos;
+        float yaw = 0, life = 0, rise = 0, atkCool = 0, clipT = 0;
+        int clip = 0;
+        uint32_t target = 0;
+    };
+    ShadowWarrior shadowW_;
+    std::unique_ptr<SkinnedModel> shadowModel_;
+    ModelCache* shadowCache_ = nullptr;
+    int shadowClipIdle_ = 0, shadowClipRun_ = 0, shadowClipPunch_ = 0;
+    float shadowCool_ = 0;
+    bool shadowOwned() const;
+    void updateShadowSummon(float dt, const Vec3& tip, const Vec3& tipVel, bool trigger, int hand);
+    void summonShadow(const Vec3& at);
+    void updateShadowWarrior(float dt);
+    void renderShadowWarrior();
     bool shrinkOwned() const;
     void castShrink(uint32_t uid, int hand);
     void updateShrink(float dt);

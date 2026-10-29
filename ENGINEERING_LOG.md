@@ -3065,3 +3065,13 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   the reflection pass, getting in / out of the gyrocopter's camera, TELEPORT blocked when dying / in menus /
   cutscenes / riding / third person / climbing / during a blink / in races, the hand's ray can't pass walls, the
   cloak grace's 12 s.
+- Delphi's SUMMON SHADOW (the data's item 26 IconRSShadow, GText "Summon Shadow"; nothing else in the data: no
+  effect, art or rules). Ours: first person, sword in hand, the right trigger held (unused with the sword), the
+  blade driven point-first into the ground within 6 m (the tip going under at over 1.2 m/s; not in water over
+  1.2 m deep): a Reaper warrior (rpman_l0 with rpman_stand_scan / rpman_bzka_run / rpman_punch) rises out of dark
+  smoke at least 2.5 m out (a first try rose 0.5 m away and filled the view - frames checked), facing away from
+  her, drawn near black with a faint violet glow (SkinnedModel::renderGhost). 20 s: it runs at the nearest Reaper
+  within 30 m (of it or of her) and strikes, 40 a blow every 0.9 s (the hit a third into the punch, shoving him);
+  with nobody to fight it keeps 2.5 m behind her; then it sinks back. The Reapers don't fight it. 45 s between;
+  Reaper story 5 and practice. Devtest tests/delphi_shadow (rises, kills one Reaper in three blows and goes for the
+  next, 72 / 24 Hz).

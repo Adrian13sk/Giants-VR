@@ -167,6 +167,9 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
       (deep water) for a moment with the hand low, then lift the hand sharply above your head: the serpent surfaces
       there, comes in and spits fireballs at the Reapers by the shore. Easy to do? Visible enough at 40-60 m? Keep
       away from where it spits - its fireballs burn you too.
+- [ ] **Delphi's SUMMON SHADOW** (Reaper story 5, PRACTICE): sword in hand, hold the right trigger and drive the blade
+      point-first into the ground in front of you: a dark Reaper warrior rises 2.5 m out and fights the Reapers for
+      20 s. Is the stab easy to do (and never by accident while fighting)? Does it look like a shadow?
 - [ ] **Delphi's TELEPORT** (Reaper story 3 on, PRACTICE): left trigger held, point at open ground 3-25 m away (a blue
       flame marks the spot), pull the hand back sharply: you blink there. Comfortable? Does it ever fire when you
       meant FOLLOW (a Reaper near the spot)?

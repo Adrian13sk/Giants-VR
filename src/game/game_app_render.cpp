@@ -512,6 +512,7 @@ void GameApp::renderWorld(const ViewParams& v, bool cut, const std::vector<int>&
                                                Vec4{1.0f + 2.2f * f, 1.0f + 0.9f * f, 1.0f + 0.5f * f, 1.0f});
         }
     renderReaperWeapons(false, renderer_.currentView().eyePosition, 150.0f);
+    if (playMode_ && !cutsceneActive()) renderShadowWarrior();
     if (playMode_ && !cutsceneActive()) renderGyroSoft();  // (the gyrocopter's rotor blur, over the characters behind it)
     // Reaper bolts: the spark in its own white (as the original's sea Reapermen fire).
     for (const auto& p : enemyFire_.projectiles()) {
