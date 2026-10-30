@@ -5,8 +5,9 @@ source exists; this is a **native reimplementation that loads the user's origina
 (GOG `Bin/` folder) and renders them through OpenXR + OpenGL ES 3 on Android arm64.
 
 ## Ground rules
-- Never commit or package proprietary game data (`*.gzp`, extracted `*.gbs/*.tga/...`, renders of
-  them). The APK contains only our code; users copy their own `Bin/` folder to the headset.
+- Never commit or package proprietary game data (`*.gzp`, extracted `*.gbs/*.tga/...`) or renders of
+  them, with one exception: by the user's authorization (2026-10-30) a curated set of in-game screenshots lives in
+  `docs/screenshots/` for the README. The APK contains only our code; users copy their own `Bin/` folder to the headset.
 - Do not copy code from the decompilation repo (`YYoudi/vibe-giants-decomp`, no licence) or from
   GiantsTools (no licence) or GiantZiP (GPL-2.0). Use them only as *factual* format references and
   verify every claim against real files (record evidence in `docs/formats/`).
@@ -46,4 +47,4 @@ source exists; this is a **native reimplementation that loads the user's origina
 - GitHub: `origin` = github.com/Adrian13sk/Giants-VR (public). Its `main` is this repo's `rework` (push `rework:main`);
   `classic` = the classic version. From the cloud session tags and Releases are refused by policy; releases are made
   in the user's own Chrome (Claude in Chrome, signed in as them; upload the APK from a staged copy under
-  /mnt/user-data/uploads). v1.0-rc2 = GiantsVR-FINAL-368d43d.apk (2026-10-30). Never push game data or renders of it.
+  /mnt/user-data/uploads). v1.0-rc2 = GiantsVR-FINAL-368d43d.apk (2026-10-30). Never push game data; screenshots only in docs/screenshots.

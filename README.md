@@ -33,6 +33,33 @@ lists where.
 
 ---
 
+## Screenshots
+
+Captured **on a Quest 2** during the automated headset test of 2026-10-27 (build bac967b): the left eye, as the game
+rendered it, with no editing. They predate the latest fixes (sword angle, jetpack particles). The art is the original
+game's, loaded from the game's own data files.
+
+| | |
+|---|---|
+| <img src="docs/screenshots/01-kabuto-giant-scale.jpg" width="400" alt="Kabuto at giant scale, Timmy's village below"> | <img src="docs/screenshots/02-kabuto-offspring.jpg" width="400" alt="Kabuto (third person) with one of his Offspring"> |
+| Kabuto at giant scale, Timmy's village below | Kabuto (third person) with one of his Offspring |
+| <img src="docs/screenshots/03-delphi-sword-parry.jpg" width="400" alt="Delphi's sword, raised to parry a Reaper's bolt"> | <img src="docs/screenshots/04-delphi-bow-reapers.jpg" width="400" alt="Delphi's bow, Reapers in the shallows"> |
+| Delphi's sword, raised to parry a Reaper's bolt | Delphi's bow, Reapers in the shallows |
+| <img src="docs/screenshots/05-reaperski-race.jpg" width="400" alt="Reaperski race, steered with the handlebars"> | <img src="docs/screenshots/06-cutscene-cinema-screen.jpg" width="400" alt="A cutscene on the cinema screen, with subtitles"> |
+| Reaperski race, steered with the handlebars | A cutscene on the cinema screen, with subtitles |
+| <img src="docs/screenshots/07-baz-jetpack-flight.jpg" width="400" alt="Baz flying the jetpack along a cliff"> | <img src="docs/screenshots/08-baz-ripper-village.jpg" width="400" alt="A Ripper up close in Timmy's village"> |
+| Baz flying the jetpack along a cliff | A Ripper up close in Timmy's village |
+| <img src="docs/screenshots/09-baz-machine-gun.jpg" width="400" alt="Baz's machine gun against Rippers"> | <img src="docs/screenshots/10-baz-reaper-squad.jpg" width="400" alt="A Reaper squad on the beach"> |
+| Baz's machine gun against Rippers | A Reaper squad on the beach |
+| <img src="docs/screenshots/11-effects-explosion.jpg" width="400" alt="Explosions from the original effect definitions"> | <img src="docs/screenshots/12-base-building.jpg" width="400" alt="A Meccaryn crewman at Baz's base"> |
+| Explosions from the original effect definitions | A Meccaryn crewman at Baz's base |
+| <img src="docs/screenshots/13-world-arch.jpg" width="400" alt="The stone arch of the Borjoyzee mission"> | <img src="docs/screenshots/14-mission-title.jpg" width="400" alt="A mission title card"> |
+| The stone arch of the Borjoyzee mission | A mission title card |
+| <img src="docs/screenshots/15-options-menu.jpg" width="400" alt="The options menu, pointed at with the controllers"> | <img src="docs/screenshots/16-skirmish.jpg" width="400" alt="Skirmish against computer players"> |
+| The options menu, pointed at with the controllers | Skirmish against computer players |
+
+---
+
 ## Features
 
 ### The original game, from its own data
