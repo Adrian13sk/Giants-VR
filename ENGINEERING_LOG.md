@@ -3185,3 +3185,9 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
   its light on the hands and the ground, the ground glow, dust and sound; the stream stays in third person.
 - Regression: tests 85 + the 3 known harness-only lines, weapons 29/29, ui 21/21, npcs 13/13, missions 34/34 (24 Hz);
   unit tests pass.
+
+## 2026-10-30 — GitHub: screenshots
+- With the owner's authorization, 16 left-eye screenshots from the 2026-10-27 Quest 2 test (bac967b) went into
+  `docs/screenshots/` (JPEG, 720 x 792, unedited) with a gallery in the README. Chosen to cover the three heroes, a race,
+  a cutscene, effects, a base, the menus and skirmish. They predate the sword-angle and jetpack-particle fixes, and the
+  README says so. Game data files stay out of the repository (CLAUDE.md updated).
