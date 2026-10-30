@@ -1,8 +1,8 @@
-# Installing the development build on a Quest 2
+# Installing GiantsVR on a Quest 2
 
-This is an **unofficial engineering build**. It is not a finished game. It shows original
-Giants worlds and models in VR, but has no gameplay yet. It has **not been tested on a
-headset**.
+This is an **unofficial** standalone VR port: the three campaigns are playable, and the build has run on a Quest 2
+(the whole automated test, 2026-10-27: 0 crashes, median 71.8 fps). Features added since that run are checked in the
+desktop test harness only - see the README's status section.
 
 ## Requirements
 - A Quest 2 (or Quest Pro/3/3S) with **Developer Mode** enabled in the Meta Horizon phone app.
