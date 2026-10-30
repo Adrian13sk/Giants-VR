@@ -11,7 +11,7 @@
 namespace gvr {
 
 namespace {
-enum : int { kHintBody = 1, kHintStone = 2, kHintGun = 4, kHintSwim = 8, kHintBars = 16 };
+enum : int { kHintBody = 1, kHintStone = 2, kHintGun = 4, kHintSwim = 8, kHintBars = 16, kHintTurbo = 32 };
 }
 
 void GameApp::updateHints(float dt) {
@@ -46,6 +46,12 @@ void GameApp::updateHints(float dt) {
         saveSettings();
         LOGI("Hint: %s", line);
     };
+    // (2026-10-30, device report: "no turbo") After 15 s of running without it: the run grip.
+    if (!(shown & kHintTurbo) && runNoSprintT_ > 15.0f) {
+        show(kHintTurbo, rig_.comfort.leftHanded ? (hero_ == Hero::Delphi ? "TURBO: HOLD YOUR RIGHT GRIP WHILE YOU RUN" : "SPRINT: HOLD YOUR RIGHT GRIP WHILE YOU RUN")
+                                                 : (hero_ == Hero::Delphi ? "TURBO: HOLD YOUR LEFT GRIP WHILE YOU RUN" : "SPRINT: HOLD YOUR LEFT GRIP WHILE YOU RUN"));
+        return;
+    }
     if (!(shown & kHintSwim) && swimFor_ > 2.0f) {
         show(kHintSwim, "SWIM FASTER: SQUEEZE BOTH GRIPS AND PULL YOUR HANDS BACK THROUGH THE WATER");
         return;

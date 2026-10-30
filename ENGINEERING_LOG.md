@@ -3161,3 +3161,27 @@ No new device results on the PC since 2026-10-24's runs, so the known issues wer
 - Per-mission coverage now (objectives completed by mechanics in some test, no AUTOCOMPLETE): every mission of the
   three campaigns except k2d_offspring (walked earlier in the harness; Kabuto's walk is slow), kstory3_4 (the climb:
   done on the headset, B18), rstory2_jetski_3 (B21: its route is unknown) and the_end (no objectives).
+
+### 2026-10-30 — the user's play session on the final APK (170c423): four reports
+- **Reapers invisible, their name tags showing:** the Reaper model pool was sized once, from the first world loaded.
+  Since the game starts at the main menu's island (no Reapers) it was always 6: a mission's 7th living Reaper got no
+  model (and a corpse's slot only if one was lying about) - an invisible Reaper with a tag; bodies vanished as the
+  living took their slots. The harness starts tests in the mission, so it always had a big enough pool. Now each
+  mission grows the pool to its Reapers + 3 per barracks + 4 (ambushes, the horn, drop-ins), and a Reaper with no
+  free model and no corpse to take gets a new one (up to 32; ~5 ms each - 18 Reapers where 10 were planned: 8 added
+  in one 41 ms frame, a rare fallback). No tag on a Reaper without a body.
+- **The sword "not held properly, feels weird":** in first person the blade followed the aim pose - the pointing ray,
+  on the Quest ~35-40 deg below the handle - so it stuck straight out of the front of the fist. It follows the grip
+  pose now (OpenXR: -Z through the closed fist, little finger to thumb), the handle centred in the fist, the curved
+  edge toward the knuckles. Test hook GVR_GRIP_PITCH=<deg> tilts the scripts' grip from the aim as a real controller
+  does (frames checked at 38: the blade rises from the fist, the guard above the knuckles). With the tilt the scripted
+  thrust / slash (written for the old angle) miss unless the wrist is angled too - with it they impale and dismember.
+- **"No turbo":** with a bow out in first person the turbo grip was always blocked - a check meant for the hand
+  drawing the bowstring looked at the move hand, which holds the bow (always within 0.3 m of its nock rest). Now only
+  in third person, where that hand draws. Also: a double tick in the run hand and a rush of air when turbo takes, and a
+  one-time hint after 15 s of running without it ("TURBO: HOLD YOUR LEFT GRIP WHILE YOU RUN").
+- **The jetpack's "weird particle":** in first person the plasma puffs (and those fanned round the legs to show the
+  stream) floated as loose blue blobs round the arms and legs when looking down. First person now shows the jetpack by
+  its light on the hands and the ground, the ground glow, dust and sound; the stream stays in third person.
+- Regression: tests 85 + the 3 known harness-only lines, weapons 29/29, ui 21/21, npcs 13/13, missions 34/34 (24 Hz);
+  unit tests pass.

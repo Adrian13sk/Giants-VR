@@ -185,6 +185,10 @@ spell (hold the cast longer) only works once the base is complete. Also **27** a
       to spare. Compare with MEDIUM in 1a's village: sharper? smoother? Note the FRAME RATE either way.
 - [ ] **Pause on the Quest button (2026-10-29):** mid-fight, press the headset's Oculus/Meta button and wait 10 s,
       then come back: the game should be paused in the options menu (RESUME chosen), your health as you left it.
+- [ ] **Fixes from your 2026-10-30 session:** (1) a mission with many Reapers - none invisible with only a name tag;
+      (2) Delphi's sword rises from her fist like a real hilt (tilt your wrist forward to thrust); (3) turbo: hold the
+      left grip while running - a double tick in that hand and a rush of air (it works with a bow out too now);
+      (4) the jetpack in first person: no blue blobs round your arms, just its light and the ground glow.
 - [ ] **The lift (story3_prison_6, "Dick Whittington Lift"):** go down to the canyon floor under the gantry, step onto
       the round car on the rope and stand still: it rises 81 m to the gift shop. Comfortable to ride? (It was missing:
       the mission couldn't be finished by hand before.)

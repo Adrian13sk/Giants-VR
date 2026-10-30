@@ -1,7 +1,7 @@
 // The Meccaryn's jetpack, seen and heard: the original thrust flame (mcthrust2, or MCthrust_nitro on
 // turbo) and blue glow star (mcthrust) at the pack's Ref_Thrust node, blue plasma streaming down
 // from it, its light on the ground below (b_thrust) and dust blown up near the ground. In first
-// person the body isn't drawn, so the plasma stream and the ground light are what shows it.
+// person the body isn't drawn: its light on the hands and the ground, the ground glow and dust show it (no stream).
 // Burnt dry and held in the air it sputters (PlayerController::sputtering): the flame flickers on and
 // off, grey smoke coughs out and it makes a struggling noise.
 #include "game/game_app.h"
@@ -86,18 +86,15 @@ void GameApp::updateJetFx(float dt) {
     if (jetPuffT_ <= 0) {
         jetPuffT_ = 1.0f / 50.0f;
         const Vec3 carry = player_.velocity * 0.8f;
-        if (lit) {
+        // (2026-10-30, device report: "the jetpack still has this weird particle coming out of it") In first person
+        // the plasma stream - and the puffs fanned round the legs to show it there - floated as loose blue blobs
+        // round the arms and legs when looking down. First person shows the jetpack by its blue light on the hands
+        // and the ground, the ground glow, the dust and the sound; the stream is for third person (and others'
+        // views of him).
+        if (lit && !firstPerson_) {
             const Vec3 down{(frand() - 0.5f) * 1.2f, -7.0f - 3.0f * frand(), (frand() - 0.5f) * 1.2f};
             smokePuff(FxTex::FireBlue, nozzle + Vec3{0, -0.15f, 0}, carry + down, jetNitro_ ? 0.95f : 0.75f, 0.25f, 0.45f, 1.0f, 0.0f);
             smokePuff(FxTex::FireBlue, nozzle, carry + down * 0.35f, 0.55f, 0.2f, 0.12f, 1.0f, 0.0f);  // the hot core
-            // First person: the stream is behind and below the eyes; some of it fans out round
-            // the legs so looking down shows it.
-            if (firstPerson_ && frand() < 0.6f) {
-                const Quat body = Quat::fromAxisAngle({0, 1, 0}, player_.yaw);
-                const float side = frand() < 0.5f ? -1.0f : 1.0f;
-                const Vec3 at = player_.position + Vec3{0, 0.9f, 0} + body.rotate(Vec3{side * 0.35f, 0, 0.15f});
-                smokePuff(FxTex::FireBlue, at, carry + body.rotate(Vec3{side * 0.8f, -6.0f - 2.0f * frand(), 0.4f}), 0.45f, 0.15f, 0.4f, 0.9f, 0.0f);
-            }
         }
         if (sput && frand() < 0.25f)
             smokePuff(FxTex::SmokeGrey, nozzle + Vec3{0, -0.2f, 0}, carry + Vec3{0, -1.5f, 0}, 0.25f, 1.1f, 1.2f, 0.45f, 0.3f);

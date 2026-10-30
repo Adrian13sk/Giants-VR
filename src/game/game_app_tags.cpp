@@ -104,7 +104,7 @@ void GameApp::renderTags() {
     }
     for (size_t i = 0; i < enemies_.enemies.size(); ++i) {
         const Enemy& e = enemies_.enemies[i];
-        if (e.state == EnemyState::Dead) continue;
+        if (e.state == EnemyState::Dead || e.slot < 0) continue;  // (no body drawn: no tag either)
         consider(4000000u + i, e.pos + Vec3{0, 2.3f, 0}, "Sea Reaper", enemyCol);
     }
     for (size_t i = 0; i < vimps_.vimps.size(); ++i) {

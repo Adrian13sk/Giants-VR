@@ -255,10 +255,15 @@ void GameApp::updateDelphi(float dt, const InputFrame& in) {
         if (firstPerson_) {
             const ControllerState& c = in.hand[gh];
             if (c.gripPoseValid) {
+                // (2026-10-30, device report: "not held properly, feels weird") The blade follows the grip pose: its -Z
+                // runs through the closed fist from the little finger to the thumb (OpenXR), the way a real hilt sits
+                // in the hand. It followed the aim pose (the pointing ray), which on the Quest is tilted ~35-40 deg below
+                // the handle: the blade stuck straight out of the front of the fist. The model's curve (the edge, game
+                // +y) faces the grip's +Y, the knuckles: the side you cut with. The handle (game z -0.31..0.06 between
+                // the pommel and the guard, ~2.5 cm below the origin) sits in the middle of the fist.
                 const Pose grip = rig_.toWorld(c.gripPose);
-                const Pose aim = c.aimPoseValid ? rig_.toWorld(c.aimPose) : grip;
-                const Quat q = aim.orientation * rotationBetween(Vec3{0, 1, 0}, Vec3{0, 0, -1});
-                swordXf_ = Mat4::translation(grip.position) * Mat4::rotation(q);
+                const Quat q = grip.orientation * rotationBetween(Vec3{0, 1, 0}, Vec3{0, 0, -1});
+                swordXf_ = Mat4::translation(grip.position + grip.orientation.rotate(Vec3{0, 0, -0.025f})) * Mat4::rotation(q);
                 swordValid_ = true;
             }
         } else {

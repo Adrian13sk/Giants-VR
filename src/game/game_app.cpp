@@ -655,57 +655,7 @@ bool GameApp::init(const std::string& dataDir, const std::string& worldName) {
                 }
                 return found;
             };
-            // Reaper grunt model pool with the original clips (order = EnemyClip).
-            const char* eclips[] = {"rpman_stand_scan.anm", "rpman_walk_fire.anm", "rpman_stand_fire.anm",
-                                    "rpman_hit_med.anm", "rpman_hit_med2.anm", "rpman_hit_med_die.anm",
-                                    "rpman_hit_spin_die.anm", "rpman_hit_gut_die.anm", "rpman_bzka_run.anm",
-                                    "rpman_bzka_walk_scan.anm", "rpman_standing_alert_scan.anm", "rpman_hit_blowup.anm",
-                                    "rpman_hit_fall_cycle.anm", "rpman_hit_fall_land.anm", "rpman_poke_bush.anm",
-                                    // rework: kneeling marksman, punch, head-shot and leg-shot deaths, grenade throw
-                                    "rpman_snipe_kneel_fire.anm", "rpman_punch.anm", "rpman_hit_eye_die.anm",
-                                    "rpman_hit_to_knees_die.anm", "rpman_grenade.anm", "rpman_Hover.anm", "rpman_crouch_fire.anm", "rpman_hit_big.anm", "rpman_hit_big_getup.anm", "rpman_bzka_kneel_fire.anm", "rpman_crouch_breathe.anm", "rpman_rock_into.anm", "rpman_rock_breathe.anm", "rpman_behind_tree_hide.anm", "rpman_behind_tree_breathe.anm", "rpman_behind_tree_peek.anm",
-                                    "rpman_followspell_caught.anm", "rpman_followspell_loop.anm"};  // (Delphi's FOLLOW spell)
-            static_assert(sizeof(eclips) / sizeof(eclips[0]) == size_t(EnemyClip::Count), "one clip per EnemyClip");
-            int poolSize = 6;
-            {
-                int missionReapers = 0;
-                for (const auto& ch : w->characters()) missionReapers += ch.objectClass == 51;
-                // (rework: barracks send out more of them)
-                int barracks = 0;
-                for (const auto& o : w->worldObjects())
-                    barracks += o.name == "barracks" || o.name == "barracks_story2" || o.name == "bw_minibarracks" || o.name == "guard_army_barracks";
-                poolSize = std::min(16, std::max(6, missionReapers) + 3 * std::min(barracks, 2));
-            }
-            for (int k = 0; k < poolSize; ++k) {
-                auto em = std::make_unique<SkinnedModel>();
-                if (!em->load(w->fs(), *mc, renderer_, "rpman_l0", eclips[0])) break;
-                for (int c = 1; c < int(EnemyClip::Count); ++c) em->addAnimation(w->fs(), eclips[c]);
-                if (k == 0 && std::getenv("GVR_BONES")) em->setHiddenBones({});  // (debug: lists the Reaper's bones)
-                if (k == 0) {
-                    for (int c = 0; c < int(EnemyClip::Count); ++c) enemies_.clipDuration[c] = std::max(0.1f, em->animDuration(c));
-                    em->pose(renderer_, 0.0f);
-                    Vec3 mn, mx;
-                    em->posedBounds(mn, mx);
-                    enemyFootOffset_ = -mn.y;  // measured: 1.10 m for rpman_stand_scan
-                    LOGI("Reaper foot offset %.2f m", enemyFootOffset_);
-                }
-                // Rework: a dead body's pose comes from its ragdoll (game_app_ragdoll.cpp).
-                em->setPoseModifier([this](const AnmAnimation& clip, const std::vector<std::vector<int>>&, std::vector<Mat4>& world) {
-                    if (!posingEnemy_) return;
-                    Ragdoll* rd = ragdollOf(*posingEnemy_);
-                    if (!rd) return;
-                    const Mat4 tw = ragdollToWorld(*posingEnemy_);
-                    if (rd->pending) {
-                        std::vector<int> parent(clip.nodes.size(), -1);
-                        for (size_t n = 0; n < clip.nodes.size(); ++n) parent[n] = clip.nodes[n].parent;
-                        rd->start(world, parent, tw, rd->startVel, rd->startSpin, 0.4f);
-                        rd->pending = false;
-                    }
-                    rd->apply(world, tw);
-                    if (rd->asleep) rd->posedAsleep = true;
-                });
-                enemyPool_.push_back(std::move(em));
-            }
+            growEnemyPool(enemyModelsWanted(w));
             ragdolls_.assign(enemyPool_.size(), Ragdoll{});
             slotUsed_.assign(enemyPool_.size(), 0);
             slotLift_.assign(enemyPool_.size(), enemyFootOffset_);
@@ -936,9 +886,22 @@ void GameApp::updatePlayMode(float dt, const InputFrame& in) {
     } else {
         kbHeadValid_ = false;
     }
-    if (hero_ == Hero::Delphi && delphiBow() && firstPerson_ && (bowDrawing_ || (in.hand[mh].gripPoseValid &&
+    // (2026-10-30, device report "no turbo") Only when the move hand is the one drawing the bowstring - third person.
+    // In first person the move hand HOLDS the bow (the nock rest is always within 0.3 m of it), so with a bow out the
+    // turbo grip never worked; the string is drawn by the other hand.
+    if (hero_ == Hero::Delphi && delphiBow() && !firstPerson_ && (bowDrawing_ || (in.hand[mh].gripPoseValid &&
         length(rig_.toWorld(in.hand[mh].gripPose).position - bowNockRest_) < 0.3f)))
         pi.sprint = false;  // that grip is drawing her bowstring, not running
+    {   // (2026-10-30) Turbo on: felt (a double tick in the run hand) and heard (a rush of air), so it's plain it took.
+        const bool on = pi.sprint && pi.move.x * pi.move.x + pi.move.y * pi.move.y > 0.09f && player_.onGround && !player_.swimming() && hero_ != Hero::Kabuto;
+        if (on && !turboFelt_) {
+            haptics_.push_back({mh, 0.5f, 0.04f});
+            haptics_.push_back({mh, 0.8f, 0.06f});
+            sfx2D("sr_swsh1", 0.45f, 0.6f);
+        }
+        turboFelt_ = on;
+    }
+    runNoSprintT_ = (pi.move.y > 0.7f && !pi.sprint && player_.onGround && !player_.swimming()) ? runNoSprintT_ + dt : (pi.sprint ? -1e9f : runNoSprintT_);
     if (!firstPerson_ && hero_ != Hero::Kabuto) {
         { GVR_PROF("tp aim"); updateThirdPersonAim(in, dt); }
         pi.aiming = tpAiming_;
@@ -1171,7 +1134,78 @@ void GameApp::sfx2D(const char* name, float vol, float pitch) {
     if (audio_ && ensureSound(name)) audio_->play2D(name, vol, pitch);
 }
 
+// One more Reaper model for the pool (enemyPool_), with the original clips (order = EnemyClip); false if it won't load.
+bool GameApp::addEnemyModel() {
+    if (!assetWorld_) return false;
+    // Reaper grunt model pool with the original clips (order = EnemyClip).
+    const char* eclips[] = {"rpman_stand_scan.anm", "rpman_walk_fire.anm", "rpman_stand_fire.anm",
+                            "rpman_hit_med.anm", "rpman_hit_med2.anm", "rpman_hit_med_die.anm",
+                            "rpman_hit_spin_die.anm", "rpman_hit_gut_die.anm", "rpman_bzka_run.anm",
+                            "rpman_bzka_walk_scan.anm", "rpman_standing_alert_scan.anm", "rpman_hit_blowup.anm",
+                            "rpman_hit_fall_cycle.anm", "rpman_hit_fall_land.anm", "rpman_poke_bush.anm",
+                            // rework: kneeling marksman, punch, head-shot and leg-shot deaths, grenade throw
+                            "rpman_snipe_kneel_fire.anm", "rpman_punch.anm", "rpman_hit_eye_die.anm",
+                            "rpman_hit_to_knees_die.anm", "rpman_grenade.anm", "rpman_Hover.anm", "rpman_crouch_fire.anm", "rpman_hit_big.anm", "rpman_hit_big_getup.anm", "rpman_bzka_kneel_fire.anm", "rpman_crouch_breathe.anm", "rpman_rock_into.anm", "rpman_rock_breathe.anm", "rpman_behind_tree_hide.anm", "rpman_behind_tree_breathe.anm", "rpman_behind_tree_peek.anm",
+                            "rpman_followspell_caught.anm", "rpman_followspell_loop.anm"};  // (Delphi's FOLLOW spell)
+    static_assert(sizeof(eclips) / sizeof(eclips[0]) == size_t(EnemyClip::Count), "one clip per EnemyClip");
+    auto em = std::make_unique<SkinnedModel>();
+    if (!em->load(assetWorld_->fs(), *assetWorld_->models(), renderer_, "rpman_l0", eclips[0])) return false;
+    for (int c = 1; c < int(EnemyClip::Count); ++c) em->addAnimation(assetWorld_->fs(), eclips[c]);
+    if (enemyPool_.empty() && std::getenv("GVR_BONES")) em->setHiddenBones({});  // (debug: lists the Reaper's bones)
+    if (enemyPool_.empty()) {
+        for (int c = 0; c < int(EnemyClip::Count); ++c) enemies_.clipDuration[c] = std::max(0.1f, em->animDuration(c));
+        em->pose(renderer_, 0.0f);
+        Vec3 mn, mx;
+        em->posedBounds(mn, mx);
+        enemyFootOffset_ = -mn.y;  // measured: 1.10 m for rpman_stand_scan
+        LOGI("Reaper foot offset %.2f m", enemyFootOffset_);
+    }
+    // Rework: a dead body's pose comes from its ragdoll (game_app_ragdoll.cpp).
+    em->setPoseModifier([this](const AnmAnimation& clip, const std::vector<std::vector<int>>&, std::vector<Mat4>& world) {
+        if (!posingEnemy_) return;
+        Ragdoll* rd = ragdollOf(*posingEnemy_);
+        if (!rd) return;
+        const Mat4 tw = ragdollToWorld(*posingEnemy_);
+        if (rd->pending) {
+            std::vector<int> parent(clip.nodes.size(), -1);
+            for (size_t n = 0; n < clip.nodes.size(); ++n) parent[n] = clip.nodes[n].parent;
+            rd->start(world, parent, tw, rd->startVel, rd->startSpin, 0.4f);
+            rd->pending = false;
+        }
+        rd->apply(world, tw);
+        if (rd->asleep) rd->posedAsleep = true;
+    });
+    enemyPool_.push_back(std::move(em));
+    ragdolls_.resize(enemyPool_.size());
+    slotUsed_.resize(enemyPool_.size(), 0);
+    slotLift_.resize(enemyPool_.size(), enemyFootOffset_);
+    return true;
+}
+
+// (2026-10-30, device report: Reapers invisible with their name tags showing) The pool used to be sized once, from the
+// first world loaded - since the game starts at the main menu's island (no Reapers), always 6: a mission's 7th living
+// Reaper had no model. Now grown to what each mission needs, and on demand (up to kMaxEnemyModels).
+// Models a mission's Reapers need: its own, 3 per barracks (they send more), and 4 for ambushes, the horn's
+// reinforcements and drop-ins.
+int GameApp::enemyModelsWanted(AssetWorld* w) const {
+    int missionReapers = 0;
+    for (const auto& ch : w->characters()) missionReapers += ch.objectClass == 51;
+    int barracks = 0;
+    for (const auto& o : w->worldObjects())
+        barracks += o.name == "barracks" || o.name == "barracks_story2" || o.name == "bw_minibarracks" || o.name == "guard_army_barracks";
+    return std::max(6, missionReapers) + 3 * std::min(barracks, 2) + 4;
+}
+
+void GameApp::growEnemyPool(int want) {
+    want = std::min(want, kMaxEnemyModels);
+    const size_t before = enemyPool_.size();
+    while (int(enemyPool_.size()) < want)
+        if (!addEnemyModel()) break;
+    if (enemyPool_.size() != before) LOGI("Enemies: %zu Reaper model slots (was %zu)", enemyPool_.size(), before);
+}
+
 void GameApp::initCharacters(AssetWorld* w, ModelCache* mc) {
+    if (!enemyPool_.empty()) growEnemyPool(enemyModelsWanted(w));  // (each mission: what it needs; models are never dropped)
     const ObjectRegistry& reg = w->registry();
     size_t reapers = 0, rippers = 0, ambient = 0;
     bool raceMission = false;

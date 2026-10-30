@@ -1,5 +1,7 @@
 #include "game/test_script.h"
 
+#include <cstdlib>
+
 #include <algorithm>
 #include <cmath>
 #include <sstream>
@@ -144,6 +146,10 @@ void TestScript::inputAt(float t, InputFrame& in) const {
         c.gripPose.position = {0.2f * side, 1.2f, -0.35f};
         c.gripPose.orientation = Quat::fromAxisAngle({0, 1, 0}, aimYawDeg * kDeg) * Quat::fromAxisAngle({1, 0, 0}, aimPitchDeg * kDeg);
         c.aimPose = c.gripPose;
+        // Test hook GVR_GRIP_PITCH=<deg> (2026-10-30): the grip pose tilted up from the aim pose as on a real controller
+        // (the Quest's handle sits ~35-40 deg above its pointing ray); scripts otherwise give both one orientation.
+        static const float gripPitch = std::getenv("GVR_GRIP_PITCH") ? float(std::atof(std::getenv("GVR_GRIP_PITCH"))) : 0.0f;
+        if (gripPitch != 0) c.gripPose.orientation = c.aimPose.orientation * Quat::fromAxisAngle({1, 0, 0}, gripPitch * kDeg);
     }
     for (const Span& s : spans) {
         if (s.what == "point_r" || s.what == "point_l" || s.what == "thumb_r" || s.what == "thumb_l") {

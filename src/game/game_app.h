@@ -519,6 +519,10 @@ private:
     // Enemies (Reaper grunts) and combat state.
     EnemyDirector enemies_;
     std::vector<std::unique_ptr<SkinnedModel>> enemyPool_;
+    static constexpr int kMaxEnemyModels = 32;
+    bool addEnemyModel();
+    void growEnemyPool(int want);
+    int enemyModelsWanted(AssetWorld* w) const;
     std::vector<uint8_t> slotUsed_;
     std::vector<Ragdoll> ragdolls_;  // rework: per model slot (game_app_ragdoll.cpp)
     const Enemy* posingEnemy_ = nullptr;  // the enemy its slot model is being posed for
@@ -2096,6 +2100,8 @@ private:  // the mission placed enemies: no test waves
     // Audio (original WAVs from the user's archives; names decoded by guesswork, see the log).
     AudioMixer* audio_ = nullptr;
     bool cutscenePausedAudio_ = false;
+    float runNoSprintT_ = 0;
+    bool turboFelt_ = false;  // (seconds run without the turbo grip; the turbo hint)
     // (2026-10-29) The Guards' lift (game_app_lift.cpp).
     struct Lift { Vec3 rope; float topY = 0, bottomY = 0, floorY = 0, waitT = 0; bool moving = false, goingUp = true, needLeave = false; Mat4 rot; const RenderModel* car = nullptr; };
     std::vector<Lift> lifts_;

@@ -852,6 +852,12 @@ void GameApp::updateCombat(float dt) {
                         (!far || length(c.pos - player_.position) > length(far->pos - player_.position)))
                         far = &c;  // (not one in your hand, in flight, or on Delphi's blade)
                 if (far) { e.slot = far->slot; far->slot = -1; far->remove = true; slotLift_[size_t(e.slot)] = enemyFootOffset_; enemyPool_[size_t(e.slot)]->clearSever(); }
+                // (2026-10-30) No corpse to take either: one more model, rather than a Reaper with no body (but a name tag).
+                if (e.slot < 0 && int(enemyPool_.size()) < kMaxEnemyModels && addEnemyModel()) {
+                    e.slot = int(enemyPool_.size()) - 1;
+                    slotUsed_[size_t(e.slot)] = 1;
+                    LOGI("Enemies: model slot %d added for Reaper %u", e.slot, e.uid);
+                }
             }
         }
     // Skinning is the costly part: Reapers too far to make out (the giant sees further) keep their
