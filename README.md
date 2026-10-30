@@ -193,6 +193,10 @@ The headless harness runs the same game code with Mesa/EGL and scripted controll
 | [TEST_REPORT.md](TEST_REPORT.md) · [ENGINEERING_LOG.md](ENGINEERING_LOG.md) | Every test run and decision |
 | [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md) · [docs/THIRD_PARTY_NOTICES.txt](docs/THIRD_PARTY_NOTICES.txt) | Third-party code and licences |
 
+## Feedback
+Found a bug or have an idea? Please open an [issue](../../issues). This is a one-person project: pull requests are
+switched off and the code is not open for outside contributions.
+
 ## Credits and licences
 Developed by Adrian13sk, with Claude (Anthropic) as the engineering assistant. Third-party code:
 - the Khronos OpenXR loader and headers (Apache-2.0);
