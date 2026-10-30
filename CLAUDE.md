@@ -43,3 +43,6 @@ source exists; this is a **native reimplementation that loads the user's origina
   (`git worktree add <dir> HEAD`, its own `build/asan` with `-fsanitize=address,undefined`), never from the working
   tree while editing - a compile that reads half-edited headers gives a binary with mismatched struct layouts.
 - Keep docs current: PROJECT_STATUS.md, ENGINEERING_LOG.md, BLOCKERS.md, TEST_REPORT.md.
+- GitHub: `origin` = github.com/Adrian13sk/Giants-VR (public). Its `main` is this repo's `rework` (push `rework:main`);
+  `classic` = the classic version. From the cloud session tags and Releases are refused by policy: the user creates
+  releases on github.com (notes in docs/RELEASE_NOTES_*.md). Never push game data or renders of it.
